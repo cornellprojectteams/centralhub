@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+  Project Teams Ops Hub
+  Single-page link directory for SPT staff tasks and admin tools.
+  View switching and search: app.js | Styling: styles.css
+-->
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project Teams Ops Hub | Cornell</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="app-shell">
+  <header class="app-header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">
+        <img src="assets/cornell-seal.svg" alt="Cornell University" class="logo-seal">
+        <div class="logo-text-block">
+          <div class="logo-text">Project Teams Ops Hub</div>
+          <div class="logo-sub">Safety &amp; Operations</div>
+        </div>
+      </a>
+      <nav class="hub-nav" aria-label="Hub sections">
+        <button type="button" class="hub-nav-btn is-active" data-view="staff">Staff</button>
+        <button type="button" class="hub-nav-btn" data-view="admin">Admin tools</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="page-main">
+    <header class="page-intro">
+      <h1>What do you need to do?</h1>
+      <div class="search-wrap">
+        <input type="search" class="search-input" id="search" placeholder="Search tools…" autocomplete="off">
+      </div>
+    </header>
+
+    <section class="hub-zone is-active" id="staff">
+      <h2 class="zone-label">Staff</h2>
+
+      <div class="action-group">
+        <div class="category task-block task-featured" id="space" data-keywords="space status report spt stewardship issue manual">
+          <a class="action" href="https://forms.gle/6DHYsEPonVtdALps5" target="_blank" rel="noopener" data-keywords="space status report form submit issue">
+            <span class="action-title">Report a space issue</span>
+            <span class="action-sub">File a Space Status Report with team, photo, and severity</span>
+          </a>
+          <p class="action-note" data-keywords="spt manual space status report guide runbook">
+            Not sure when to report? <a href="https://docs.google.com/document/d/1-pAMO02ul8k7pg9sCfkmVZ5W5p4NuWzaG2ALOWn60hk/edit" target="_blank" rel="noopener">Space Status Manual</a>
+          </p>
+        </div>
+        <a class="action category task-block" id="ell" href="https://docs.google.com/forms/d/e/1FAIpQLSfUSbqVXJ8si5c-efXQl8k5LAvvhkTSrSVPWlNCaKUEbNGgog/viewform" target="_blank" rel="noopener" data-keywords="experiential learning lab ell shift summary form log student employee activity lab supply safety">
+          <span class="action-title">Log your shift</span>
+          <span class="action-sub">Experiential Learning Lab shift summary: hours, activity, and safety notes</span>
+        </a>
+        <a class="action category task-block" id="teams" href="https://docs.google.com/spreadsheets/d/1Md3bugxLvqHJQ7Htf3tHI-ARXeEQRFBU2zh6ho3XAfQ/edit" target="_blank" rel="noopener" data-keywords="project team names directory lookup abbreviation">
+          <span class="action-title">Look up a team</span>
+          <span class="action-sub">Official names, abbreviations, and team websites</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="hub-zone" id="admin">
+      <h2 class="zone-label">Admin tools</h2>
+
+      <div class="admin-list">
+        <section class="category admin-block" id="space-admin" data-keywords="space status tracking pending actions emailer edit form automation">
+          <h3 class="admin-label">Space</h3>
+          <div class="action-group">
+            <a class="action" href="https://docs.google.com/spreadsheets/d/1mZrlnA-GiVKB4_Um21aMH9jsSkf6TUJhauDWivnf7-I/edit" target="_blank" rel="noopener" data-keywords="space status tracking pending actions team contacts">
+              <span class="action-title">Review open space issues</span>
+              <span class="action-sub">Space Status Tracking: responses and pending actions</span>
+            </a>
+            <a class="action" href="https://docs.google.com/forms/d/1bVzxR-lGNDtll6wh7wsdZGsVuqMkaRavVcGxykLHMFw/edit" target="_blank" rel="noopener" data-keywords="space status report edit form admin">
+              <span class="action-title">Edit space report form</span>
+              <span class="action-sub">Teams, issue types, and form fields</span>
+            </a>
+            <a class="action" href="https://script.google.com/d/1DpKw0dXIQ5rH6_BQfIQnXpmTbTcPmfH3wq2Dzc6pJUA7lrmeFG7hh5P4/edit" target="_blank" rel="noopener" data-keywords="space status emailer script automation notification">
+              <span class="action-title">Space Status Emailer script</span>
+              <span class="action-sub">Apps Script for team notification emails</span>
+            </a>
+          </div>
+        </section>
+
+        <section class="category admin-block" id="ell-admin" data-keywords="experiential learning lab ell shift responses data summary staffing">
+          <h3 class="admin-label">Experiential Learning Lab</h3>
+          <div class="action-group">
+            <a class="action" href="https://docs.google.com/spreadsheets/d/1yazhxA8nwYWDRSdQEN6Cc3UKKnPn6PWF_b3zAe0KoQk/edit" target="_blank" rel="noopener" data-keywords="ell shift responses data summary pivot">
+              <span class="action-title">View shift responses</span>
+              <span class="action-sub">Raw shift logs and summary views</span>
+            </a>
+          </div>
+        </section>
+
+        <section class="category admin-block" id="access" data-keywords="fabman admin dashboard sign-up api members training qualtrics">
+          <h3 class="admin-label">Fabman</h3>
+          <div class="action-group">
+            <a class="action" href="https://docs.google.com/spreadsheets/d/1lDAA4z1YexkjaABSPuXJyEXfSxN2QAsKWVk88TQCRLI/edit" target="_blank" rel="noopener" data-keywords="fabman admin dashboard members">
+              <span class="action-title">Manage Fabman members</span>
+              <span class="action-sub">Dashboard, sign-ups, and Qualtrics imports</span>
+            </a>
+            <a class="action" href="https://docs.google.com/document/d/1O-O-mpEGGtcD6QiLqjxw1y1rFtI7WzayoOroxpoxwfQ/edit" target="_blank" rel="noopener" data-keywords="fabman canvas training integration qualtrics apron">
+              <span class="action-title">Fabman–Canvas training integration</span>
+              <span class="action-sub">Training hierarchy and apron tier mapping</span>
+            </a>
+            <a class="action" href="https://docs.google.com/document/d/1nxQQiA-6W2hyB2ZZV71l9vbOelXYbMc70efr7XWPi8o/edit" target="_blank" rel="noopener" data-keywords="fabman su25 report dashboard training">
+              <span class="action-title">Fabman operations report</span>
+              <span class="action-sub">Procedures, courses, and supervisor scheduling</span>
+            </a>
+            <a class="action" href="https://docs.google.com/document/d/1wCMPnGjn5A07y06uOzXZRI2h7YL7LBqrwXQ8iKpD3Vw/edit" target="_blank" rel="noopener" data-keywords="fabman api guide scripts">
+              <span class="action-title">Fabman API guide</span>
+              <span class="action-sub">Apps Script reference for API calls</span>
+            </a>
+          </div>
+        </section>
+
+        <section class="category admin-block" id="compliance" data-keywords="master sheet building access workday learning qualtrics canvas waivers workspaces renewal">
+          <h3 class="admin-label">Compliance</h3>
+          <div class="action-group">
+            <a class="action" href="https://docs.google.com/spreadsheets/d/1k97Ey5aNcm58zaviaXxKvJtTgL1yeSI_fvUkXZFEyM4/edit" target="_blank" rel="noopener" data-keywords="master sheet building access workday qualtrics canvas ell hvl waivers">
+              <span class="action-title">Building access &amp; training records</span>
+              <span class="action-sub">Qualtrics waivers and Workday EHS by location</span>
+            </a>
+            <a class="action" href="https://docs.google.com/spreadsheets/d/1cKd-5815CafamF2AQpwTIqATjdkD4HgM404vQvwTvuM/edit" target="_blank" rel="noopener" data-keywords="workspaces team spaces master list renewal survey upson tang ell">
+              <span class="action-title">Project Teams workspaces</span>
+              <span class="action-sub">Space registry, renewals, and compliance docs</span>
+            </a>
+            <a class="action" href="https://docs.google.com/spreadsheets/d/1UrI5mBI4rqY9NeElobhzdd1lWsAlBDeYa1LZPVWHNnE/edit" target="_blank" rel="noopener" data-keywords="summer contact list seasonal team contacts">
+              <span class="action-title">Summer contact list 2026</span>
+              <span class="action-sub">Seasonal team contact roster</span>
+            </a>
+          </div>
+        </section>
+
+        <section class="category admin-block" id="fleet" data-keywords="student drivers tacoma vehicle reservation approval fleet mbn-4258">
+          <h3 class="admin-label">Fleet</h3>
+          <div class="action-group">
+            <a class="action" href="https://docs.google.com/spreadsheets/d/1KwJLTkdhrQ0jD7-75p6IuhYvh3Fq0B13KAXf2Pcvk_M/edit" target="_blank" rel="noopener" data-keywords="student drivers tacoma approval reservation log">
+              <span class="action-title">Student drivers &amp; reservations</span>
+              <span class="action-sub">Driver approvals and Tacoma (MBN-4258) log</span>
+            </a>
+          </div>
+        </section>
+
+        <section class="category admin-block" id="inventory" data-keywords="tool inventory purchasing locks mill room equipment facility">
+          <h3 class="admin-label">Inventory</h3>
+          <div class="action-group">
+            <a class="action" href="https://docs.google.com/spreadsheets/d/1QZf3LbKOsuwsxeno3f5aDTACObMRXaRY1yX6_5Aj_lU/edit" target="_blank" rel="noopener" data-keywords="tool inventory purchasing locks mill room">
+              <span class="action-title">Tools, purchasing &amp; locks</span>
+              <span class="action-sub">Team tools, mill room, and lock assignments</span>
+            </a>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <p class="no-results" id="no-results">No tools match your search.</p>
+  </main>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

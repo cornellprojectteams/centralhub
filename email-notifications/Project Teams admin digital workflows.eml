@@ -1,0 +1,199 @@
+Delivered-To: com34@g.cornell.edu
+Received: by 2002:a05:6358:7d95:b0:2a2:2e02:e3b8 with SMTP id z21csp903744rwf;
+        Fri, 26 Jun 2026 09:38:41 -0700 (PDT)
+X-Forwarded-Encrypted: i=3; AHgh+RqitEIx4D5A/suzUlhibiAIO3oRYk4nRhJnQCfrZ0iOKL4NvYBKUJEAiBXgk7zNVVDl+RoIjg==@g.cornell.edu
+X-Received: by 2002:a05:7300:3b28:b0:30c:ab96:7303 with SMTP id 5a478bee46e88-30cab967707mr802826eec.19.1782491920911;
+        Fri, 26 Jun 2026 09:38:40 -0700 (PDT)
+ARC-Seal: i=2; a=rsa-sha256; t=1782491920; cv=pass;
+        d=google.com; s=arc-20260327;
+        b=A4v8yWaZJEKTL5xd4huwmUBJ7eEHuOvO75CHRb8h6mHUWNTRiQCLCe7AAHB+7SKvvL
+         eWHY+Ht1aU32Gz3vapgA4XEN7hMXwSqvXW4csu74oFcde2Fs+8U9cnInSmC7jg0GhVtD
+         DmQ3JcAyX5J+3WI/7PUy/yvVXXlu2+sHndoCMFKnAWlBvvyS0f1gG0QIT/YGH5B2Ny6H
+         I653kdG3kG8Rp1eIYrRlQQ0gLgz0OTJnzgZs7dGojaxp168P6gvxJvoH1nbbOgO1otDX
+         WMw6aBcOn31ZpuTTUln9jwXAmeZzwh+YcFslL9cmA+sZ1mI/ydMQKS6nhQ+BvaN5C5L4
+         IL1w==
+ARC-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20260327;
+        h=mime-version:msip_labels:content-language:accept-language
+         :message-id:date:thread-index:thread-topic:subject:to:from
+         :dkim-signature;
+        bh=Avo1wLPE8zJwJNdgr+WQ200uFO0PT5uclGIJLpP4/+I=;
+        fh=HTMahpEDYjwH5QU+7oas+R8Emg84Sur+c7zOmH+8fjk=;
+        b=GEBzr+ndiV/LLEolT7JZnK3wSvLnzY6njrTwo4d28Ut017/jCZVg1UPBVNgx5ZXmfx
+         JK3z7bDWiz/UqtFTcGe8aLY7SW9dHgrnVS9BeGPyYNVrPz3OftCJYsfyn9XiLEJ5VKNa
+         9xXR683uCf7ebSKyJqI2XQbFe29czvVTiemSVuG7kcVs9KkEpHw8Z6AdZSY+ePUs8QKH
+         2TvXnugLJVlx4aN4bKjrz72VWmxX4Fts61WuarrzToPwu03lIYCXOFUOvsmDl4pHrY2j
+         uWfoAFNW18MhjJhH7Mr2HTPZ/dNmoJZK+OuiW8AIuUEy0t0JJeLmzBuqiVxmED9pjmmz
+         L/iA==;
+        dara=google.com
+ARC-Authentication-Results: i=2; mx.google.com;
+       dkim=pass header.i=@cornell.edu header.s=selector2 header.b=Oz6OeUH3;
+       arc=pass (i=1 spf=pass spfdomain=cornell.edu dkim=pass dkdomain=cornell.edu dmarc=pass fromdomain=cornell.edu);
+       gateway.spf=pass (google.com: domain g.cornell.edu configured 2a01:111:f403:c110::b as internal address) smtp.mailfrom=nhh5@cornell.edu smtp.remote-ip="2a01:111:f403:c110::b" policy.d=g.cornell.edu
+Return-Path: <nhh5@cornell.edu>
+Received: from BN1PR07CU003.outbound.protection.outlook.com (mail-bn1pr07cu00303.outbound.protection.outlook.com. [2a01:111:f403:c110::b])
+        by mx.google.com with ESMTPS id 5a478bee46e88-30c7c33527esi30323814eec.16.2026.06.26.09.38.40
+        for <com34@g.cornell.edu>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Fri, 26 Jun 2026 09:38:40 -0700 (PDT)
+Received-SPF: pass (google.com: domain g.cornell.edu configured 2a01:111:f403:c110::b as internal address)
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@cornell.edu header.s=selector2 header.b=Oz6OeUH3;
+       arc=pass (i=1 spf=pass spfdomain=cornell.edu dkim=pass dkdomain=cornell.edu dmarc=pass fromdomain=cornell.edu);
+       gateway.spf=pass (google.com: domain g.cornell.edu configured 2a01:111:f403:c110::b as internal address) smtp.mailfrom=nhh5@cornell.edu smtp.remote-ip="2a01:111:f403:c110::b" policy.d=g.cornell.edu
+ARC-Seal: i=1; a=rsa-sha256; s=arcselector10001; d=microsoft.com; cv=none;
+ b=uMxemXesPAq6aUkClyTQSwCwY4cOr94aEt95A99qkKxy78XRWa89fpINnzFWy2iSD402LQEtuWl0W0GsktnqXPi6Boms5lW+P9EgfKOwTT/kXVjm9+DjEHhc7shd2xALrHVGsfFsfQhJyh7ODb6uL4v+XSclhb0VrD/1+JoKNxYmI9zvJC3TntG5bfqdCQpSxpC8hsthIPh8QoCoPyy8UtnH2h1pzrlBxdhv1Xsuq5sbThJ8+tH+fbWo7laYaoT2Hegppc1khDcPbl9YFnFibQjaaxeAIz8h2opbN9YwXVe38YuYr+tqFONXhktSKYxF5bKqVLD+08QxrCnkQ4x9qA==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
+ s=arcselector10001;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-AntiSpam-MessageData-ChunkCount:X-MS-Exchange-AntiSpam-MessageData-0:X-MS-Exchange-AntiSpam-MessageData-1;
+ bh=Avo1wLPE8zJwJNdgr+WQ200uFO0PT5uclGIJLpP4/+I=;
+ b=fUFO/Q+rAxdbtV3g33/M25lT/Tsk7XU/DdncJUFMLBzZhMjA1VZdhjUJXKi2EJRzxO+quA6zTo1wPpd7toJgzU57/50ePcrnhnngsKJwd00UhHSz/N8hPeKB3sBXqAiGgXdpN+Ob+jBV7mjqZz3w3Y6dNkFN9Dob/VnoeS+m0VoH8cRoET5tOaRSc4B3wNbMULLZn3mKik6EGU82DJHUd+xoPPQckmXaRZNDKAuC6DX48ogAFSz1cgwH8iMH0WCTHLyJjkowx2goJZsdxtqFHD/c6kq2n7tFlTICuGd9EJ8QcFayOnCMz0WPRJSmh+q074g9OXdmnN9LIf0sLK1pFg==
+ARC-Authentication-Results: i=1; mx.microsoft.com 1; spf=pass
+ smtp.mailfrom=cornell.edu; dmarc=pass action=none header.from=cornell.edu;
+ dkim=pass header.d=cornell.edu; arc=none
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=cornell.edu;
+ s=selector2;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=Avo1wLPE8zJwJNdgr+WQ200uFO0PT5uclGIJLpP4/+I=;
+ b=Oz6OeUH3Z95lZ4+lSPT6FFRH9YlxjfK237ZK9Ex5pIf3YD75E0IkkEwXgm5kEPXGgz+TQKOX1HsLS8rg/JEMui4tHCViF+WkM/VGEX3l8+Faje4XWTcIPTVjej48w/s1aW97WVDNRSEHbZBIv7AI86cvaRM82iXZnK0e5oKDqx8=
+Received: from MN7PR04MB648983.namprd04.prod.outlook.com
+ (2603:10b6:208:5f6::22) by BY5PR04MB6504.namprd04.prod.outlook.com
+ (2603:10b6:a03:1d2::18) with Microsoft SMTP Server (version=TLS1_2,
+ cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id 15.21.159.18; Fri, 26 Jun
+ 2026 16:38:33 +0000
+Received: from MN7PR04MB648983.namprd04.prod.outlook.com
+ ([fe80::237f:e777:915b:d9e]) by MN7PR04MB648983.namprd04.prod.outlook.com
+ ([fe80::237f:e777:915b:d9e%6]) with mapi id 15.21.0139.018; Fri, 26 Jun 2026
+ 16:38:33 +0000
+From: "Noah H. Hamm" <nhh5@cornell.edu>
+To: "Carey Okal Manwa, Sr" <com34@cornell.edu>, Erica Jiang
+	<ej289@cornell.edu>, Swati Sriram <ss4325@cornell.edu>, Charlie Cohen
+	<cmc533@cornell.edu>
+Subject: Project Teams admin digital workflows 
+Thread-Topic: Project Teams admin digital workflows 
+Thread-Index: AQHdBYls7hN1NxNO2EuyimvGE5Zvnw==
+Date: Fri, 26 Jun 2026 16:38:32 +0000
+Message-ID:
+ <MN7PR04MB64898317ADA6F1F645D95BE2698EEB2@MN7PR04MB648983.namprd04.prod.outlook.com>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+msip_labels:
+authentication-results: dkim=none (message not signed)
+ header.d=none;dmarc=none action=none header.from=cornell.edu;
+x-ms-publictraffictype: Email
+x-ms-traffictypediagnostic: MN7PR04MB648983:EE_|BY5PR04MB6504:EE_
+x-ms-office365-filtering-correlation-id: 7583f990-4c20-41e9-2acc-08ded3a15c98
+x-ld-processed: 5d7e4366-1b9b-45cf-8e79-b14b27df46e1,ExtFwd
+x-ms-exchange-atpmessageproperties: SA
+x-microsoft-antispam:
+ BCL:0;ARA:13230040|366016|23010399003|31052699007|39142699007|55112099003|18002099003|11063799006|56012099006|8096899003|6133799003|41050700001;
+x-microsoft-antispam-message-info:
+ RQWkcuNgR1PyHw0bexP5a+2FTbg478zkwYUjeT4TQ4vE6XDGKDItO32RidOrAyIRK9CnfP2a6WJdCzRZbBDsaAMd00Y0qJYsbtB/fo/tWtxURfh8JBoBMC9azfsYxIW0NYWrFezH2PiQVN7BbWKMiwrkR9Vrd81sFSw8jtVmq7Jgn1dhvryc7I7xzf2FS7ymkeiQ1YbB2ueCjaqjHEXoO5hSG/34i1Fj6EZ7yuRWkwCO8RII+THsY+LgshKPP/03k84PWQk1jrI36SdR2KZbxtPBkBqCJUuPpkCwzi1jsfEsue4mU+44EDK2f4XYaPHFbAN0AbIzphZIhOm1cBw6bnayDTJCjhfxIfA24ptFyMfqxmhwx9tuxqm7A5yOZIDjBg3ieY5MhMFIJdpzwgBxBib4QGcUwxFU+CQbwECmaQ4ke2BW8WLH18xeFMWp2MZ7CG8pPukU0ZXT7ZT7H+zcmeWYpmpAJet1pQ8URp5CAlaBFZ97I0E0rib8x9/zm/sLhLiwmVI4gDCHm//Xz99jFF467EksZ8QYWE/ja87nniW1m5ugGx+zu3OcV00tbAsoOAKG9euwwvUEXsCHfy18xTsMGdxFWfqa0KMUce3PEHAK85AcUuOX5ksovLCjsg/hQv2g1V9sDrsNT98Wse5vC3O5Q9QfgXIljuB2lhaiLKlKHMc4rvtC3lUC+/4vJnOF
+x-forefront-antispam-report:
+ CIP:255.255.255.255;CTRY:;LANG:en;SCL:1;SRV:;IPV:NLI;SFV:NSPM;H:MN7PR04MB648983.namprd04.prod.outlook.com;PTR:;CAT:NONE;SFS:(13230040)(366016)(23010399003)(31052699007)(39142699007)(55112099003)(18002099003)(11063799006)(56012099006)(8096899003)(6133799003)(41050700001);DIR:INT;
+Content-Type: multipart/alternative;
+	boundary="_000_MN7PR04MB64898317ADA6F1F645D95BE2698EEB2MN7PR04MB648983_"
+MIME-Version: 1.0
+X-MS-Exchange-ForwardingLoop:
+	com34@cornell.edu;5d7e4366-1b9b-45cf-8e79-b14b27df46e1
+X-Exchange-RoutingPolicyChecked:
+	DRE8NrNAtYyR+b7Tx3QpVUKVM/4A9HAJvgXbH4tvsXRpzpd9OXEc4b7OGtRxrhAeLFFSVbWt8WEX3/79s+uvSY0p/Djkr3id8IAX2ruJf3bgJXqSDjinLJNjY4mona6ktA+HZnGwKhTff3O16QmHZ/lZDt/4g4ZIiT/4q5K7+N6geoSG7p9+Dmq1Q9eZu6mjoUuXyKNJFcT1zUrrFR7Ed6mWz/QdQvr1Gvdtd1sXZZpXtNPsFg9uBll4zIinouqsl3jjzyb1ibeRajpv77GMOQD9SkZ3Wozl05sm46eQpsqbMu/uRQliBw2jUI08v4xpwstIx5sWAmDCN480H9Ck2A==
+X-OriginatorOrg: cornell.edu
+X-MS-Exchange-CrossTenant-AuthAs: Internal
+X-MS-Exchange-CrossTenant-AuthSource: MN7PR04MB648983.namprd04.prod.outlook.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 7583f990-4c20-41e9-2acc-08ded3a15c98
+X-MS-Exchange-CrossTenant-originalarrivaltime: 26 Jun 2026 16:38:32.9283
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 5d7e4366-1b9b-45cf-8e79-b14b27df46e1
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: R73sC+/08KLgyLs+ZrWzp8fAiYNWX4Sdw+Pupdo0GbvGZj4hG5w8KdXg+Vj+CNo24W+mVBF4KsjJDGpeTwwlCQ==
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: BY5PR04MB6504
+X-MS-Exchange-CrossPremises-AuthAs: Internal
+X-MS-Exchange-CrossPremises-AuthMechanism: 04
+X-MS-Exchange-CrossPremises-AuthSource: MN7PR04MB648983.namprd04.prod.outlook.com
+X-MS-Exchange-CrossPremises-TransportTrafficType: Email
+X-MS-Exchange-CrossPremises-SCL: 1
+X-MS-Exchange-CrossPremises-messagesource: StoreDriver
+X-MS-Exchange-CrossPremises-BCC:
+X-MS-Exchange-CrossPremises-originalclientipaddress: 128.84.0.13
+X-MS-Exchange-CrossPremises-transporttraffictype: Email
+X-MS-Exchange-CrossPremises-autoforwarded: true
+X-MS-Exchange-CrossPremises-antispam-scancontext: DIR:Originating;SFV:NSPM;SKIP:0;
+X-MS-Exchange-CrossPremises-processed-by-journaling: Journal Agent
+X-MS-Exchange-CrossPremises-History: DeliveredAndForwarded: com34@cornell.edu
+X-MS-Exchange-CrossPremises-Recipient-P2-Type: To
+X-OrganizationHeadersPreserved: BY5PR04MB6504.namprd04.prod.outlook.com
+
+--_000_MN7PR04MB64898317ADA6F1F645D95BE2698EEB2MN7PR04MB648983_
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
+
+Hi Erica, and Swati, and Charlie,
+
+I'd like to introduce Carey who is beginning to work on some of our Safety =
+and Operations data systems.  Please look out for questions from Carey as h=
+e familiarizes himself with the various scripts, sheets, surveys, and autom=
+ations you've helped build.
+
+Thanks,
+Noah
+
+
+
+--_000_MN7PR04MB64898317ADA6F1F645D95BE2698EEB2MN7PR04MB648983_
+Content-Type: text/html; charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
+
+<html>
+<head>
+<meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso-8859-=
+1">
+<style type=3D"text/css" style=3D"display:none;"> P {margin-top:0;margin-bo=
+ttom:0;} </style>
+</head>
+<body dir=3D"ltr">
+<div class=3D"elementToProof" style=3D"font-family: Aptos, Aptos_EmbeddedFo=
+nt, Aptos_MSFontService, Calibri, Helvetica, sans-serif; font-size: 11pt; c=
+olor: rgb(0, 0, 0);">
+Hi Erica, and Swati, and Charlie,&nbsp;</div>
+<div class=3D"elementToProof" style=3D"font-family: Aptos, Aptos_EmbeddedFo=
+nt, Aptos_MSFontService, Calibri, Helvetica, sans-serif; font-size: 11pt; c=
+olor: rgb(0, 0, 0);">
+<br>
+</div>
+<div class=3D"elementToProof" style=3D"font-family: Aptos, Aptos_EmbeddedFo=
+nt, Aptos_MSFontService, Calibri, Helvetica, sans-serif; font-size: 11pt; c=
+olor: rgb(0, 0, 0);">
+I'd like to introduce Carey who is beginning to work on some of our Safety =
+and Operations data systems.&nbsp; Please look out for questions from Carey=
+ as he familiarizes himself with the various scripts, sheets, surveys, and =
+automations you've helped build.&nbsp;&nbsp;</div>
+<div class=3D"elementToProof" style=3D"font-family: Aptos, Aptos_EmbeddedFo=
+nt, Aptos_MSFontService, Calibri, Helvetica, sans-serif; font-size: 11pt; c=
+olor: rgb(0, 0, 0);">
+<br>
+</div>
+<div class=3D"elementToProof" style=3D"font-family: Aptos, Aptos_EmbeddedFo=
+nt, Aptos_MSFontService, Calibri, Helvetica, sans-serif; font-size: 11pt; c=
+olor: rgb(0, 0, 0);">
+Thanks,&nbsp;</div>
+<div class=3D"elementToProof" style=3D"font-family: Aptos, Aptos_EmbeddedFo=
+nt, Aptos_MSFontService, Calibri, Helvetica, sans-serif; font-size: 11pt; c=
+olor: rgb(0, 0, 0);">
+Noah</div>
+<div class=3D"elementToProof" style=3D"font-family: Aptos, Aptos_EmbeddedFo=
+nt, Aptos_MSFontService, Calibri, Helvetica, sans-serif; font-size: 11pt; c=
+olor: rgb(0, 0, 0);">
+<br>
+</div>
+<div class=3D"elementToProof" style=3D"font-family: Aptos, Aptos_EmbeddedFo=
+nt, Aptos_MSFontService, Calibri, Helvetica, sans-serif; font-size: 11pt; c=
+olor: rgb(0, 0, 0);">
+<br>
+</div>
+</body>
+</html>
+
+--_000_MN7PR04MB64898317ADA6F1F645D95BE2698EEB2MN7PR04MB648983_--

@@ -1,0 +1,584 @@
+Delivered-To: com34@g.cornell.edu
+Received: by 2002:a05:6358:7d95:b0:2a2:2e02:e3b8 with SMTP id z21csp904996rwf;
+        Fri, 26 Jun 2026 09:40:45 -0700 (PDT)
+X-Forwarded-Encrypted: i=3; AHgh+Ro8MXoOYdbyQatIPrSzWzmVPBU4hshad9lVuhjISCJySntNCAiwEjHLJGu2pJ/A8It6TGIE+A==@g.cornell.edu
+X-Received: by 2002:a17:903:946:b0:2c0:fa52:1c47 with SMTP id d9443c01a7336-2c7c400fd0bmr141669875ad.25.1782492045554;
+        Fri, 26 Jun 2026 09:40:45 -0700 (PDT)
+ARC-Seal: i=2; a=rsa-sha256; t=1782492045; cv=pass;
+        d=google.com; s=arc-20260327;
+        b=lce37ow4CIqBetTrAjCDrC6upKSZDAcAubqvyOzwsLFsmfD2K887cplRDUprJHN/NB
+         R9+Gh28RtmgwrJRPVd+QqHbeajuQ8wAta4aVV1I9aUI+7J2Ce0ngSsO//RwLTqqY/AN6
+         7GfU6G/NVBWwBSCbGbL3u51Pu4HrzejUhkwSsM//X9n4rvxyAiOhDBwRwlQrFTwkMPUk
+         gtsxm+Pbnk+MDSjJbsu1m0JAPt/fa4t8XXOzH7PpxSIOP8Zsb7/kberQsJKIchzrjyLM
+         TrdBECt+rQXGzAH9TFJWST+Hdi4AzeI05yaG8/pUQ38Be3qb9EDSXHgqTIyOyMAFzoGy
+         4/NA==
+ARC-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20260327;
+        h=to:from:subject:date:message-id:references:reply-to:mime-version
+         :dkim-signature;
+        bh=XOBC7BnjNKpFZGgsQ5vTT8EUBPZIzwTRsEPsXw2fkKk=;
+        fh=tNipG+YE1ZafBaohFxiCw6d/Ms66/W1ctH1kDNG257A=;
+        b=LRPbU1hpXENc8UhdQEQKWJnUFreIy2hBg9sB8AHRJ3rYo8heys6ZQgs4l5DMPZBs9C
+         Zzjzqm4ndu2ggiBVfRt3LoFPkuQ9tZ+aUyfeIdw2X7+3lYG/32Q0vuoKkYkmiJiikW8d
+         hlMNNO8e6YBeyjUuUSA5FQfmLR5NYuBrxMnBLVqb2kj3neyhdL0va30R69Y2HRP/DNBU
+         rFX1rp3ax+3ezX5tUmxtJLQOZZtdW5QNR3zbnseEDW+OUH0xwwrUyCixFHagMytamMpg
+         I+l3btHCMC8HYUlejbBDIf+hypifolRcbKsc+nj2VDEFhDSpTLaBfEFoRJ+h90iXjOJD
+         3OVA==;
+        dara=google.com
+ARC-Authentication-Results: i=2; mx.google.com;
+       dkim=pass header.i=@google.com header.s=20251104 header.b=JgxvW92r;
+       arc=pass (i=1 spf=pass spfdomain=doclist.bounces.google.com dkim=pass dkdomain=google.com dmarc=pass fromdomain=google.com);
+       spf=fail (google.com: domain of bounces+srs=nbsjf=ew@cornellprod.onmicrosoft.com does not designate 2607:f8b0:4864:20::1146 as permitted sender) smtp.mailfrom="bounces+SRS=NBsJf=EW@cornellprod.onmicrosoft.com"
+Return-Path: <bounces+SRS=NBsJf=EW@cornellprod.onmicrosoft.com>
+Received: from DS2PR08CU001.outbound.protection.outlook.com (mail-ds2pr08cu00107.outbound.protection.outlook.com. [2a01:111:f403:c111::17])
+        by mx.google.com with ESMTPS id d9443c01a7336-2c7f5d6dd7esi96857765ad.104.2026.06.26.09.40.45
+        for <com34@g.cornell.edu>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Fri, 26 Jun 2026 09:40:45 -0700 (PDT)
+Received-SPF: fail (google.com: domain of bounces+srs=nbsjf=ew@cornellprod.onmicrosoft.com does not designate 2607:f8b0:4864:20::1146 as permitted sender) client-ip=2607:f8b0:4864:20::1146;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@google.com header.s=20251104 header.b=JgxvW92r;
+       arc=pass (i=1 spf=pass spfdomain=doclist.bounces.google.com dkim=pass dkdomain=google.com dmarc=pass fromdomain=google.com);
+       spf=fail (google.com: domain of bounces+srs=nbsjf=ew@cornellprod.onmicrosoft.com does not designate 2607:f8b0:4864:20::1146 as permitted sender) smtp.mailfrom="bounces+SRS=NBsJf=EW@cornellprod.onmicrosoft.com"
+ARC-Seal: i=1; a=rsa-sha256; s=arcselector10001; d=microsoft.com; cv=none;
+ b=HHVbf5t8MJYD4GANxmIH1s0Zi4TB3qg2SaiRKeEwUX863HdBTY+MD4xXKHANLIb+TR2GYsV1PL9NOtP8GvZLWcNIGxuHs97Vrc57AbUcUhYkgQh3C9CNgECaSw7d46g9Iugs2+DcylqOK79CmiokHvV8N6u3ZrP7Jfv2/uMHOi1haTq15f1QoU+4QACwDi7bcUdv2j8DVCd77AXFhnmWTbftX3lxCB9rhu4Bse6qWVftO2GuTI4zKDrR5PiFVU6orxJVFYNbmM3rwpy/rsoTaUW6sdpVOFJ0HfqaKzpJjW0M9ZgaBJNKQQKYUbtFxLqxI9utEfKBZFArgX+pwCi3AQ==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
+ s=arcselector10001;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-AntiSpam-MessageData-ChunkCount:X-MS-Exchange-AntiSpam-MessageData-0:X-MS-Exchange-AntiSpam-MessageData-1;
+ bh=XOBC7BnjNKpFZGgsQ5vTT8EUBPZIzwTRsEPsXw2fkKk=;
+ b=mbJZzlFAc82iNg2XRtayLTrgcU2V1bQs68yWVYeE3QR6pGOa0TFrcJupj8tS4QVKil/ON+mRHbkJpfAdp1cROtnzSUB83hiiVE9eiQoVx2psTFKOMkoOsJC9Y8ji9nfVMemxtTcLYfnruscSD2AIBI3bVsIm2Z/Hlel4K81TGM/gt2WjIwwp+QzqGz5blvVtv+ThGcgzb79Fld5EuhByohruMPApyNP91p+zAGu+1wG1QQ/HxwjhFciY1laW2JESdQmsYlXEcHNxyWFXsjaxkZAcNG0ZEBOy+Cq5aD6htPp6Kr7atuHQkwySHVRchdQaKGFQ8zVw15QlmuxkMKzMdQ==
+ARC-Authentication-Results: i=1; mx.microsoft.com 1; spf=pass (sender ip is
+ 2607:f8b0:4864:20::1146) smtp.rcpttodomain=cornell.edu
+ smtp.mailfrom=doclist.bounces.google.com; dmarc=pass (p=reject sp=reject
+ pct=100) action=none header.from=google.com; dkim=pass (signature was
+ verified) header.d=google.com; arc=none (0)
+Received: from BY5PR04CA0021.namprd04.prod.outlook.com (2603:10b6:a03:1d0::31)
+ by CH0PR04MB8164.namprd04.prod.outlook.com (2603:10b6:610:f0::7) with
+ Microsoft SMTP Server (version=TLS1_2,
+ cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id 15.21.159.17; Fri, 26 Jun
+ 2026 16:40:23 +0000
+Received: from SJ1PEPF000023CB.namprd02.prod.outlook.com
+ (2603:10b6:a03:1d0:cafe::80) by BY5PR04CA0021.outlook.office365.com
+ (2603:10b6:a03:1d0::31) with Microsoft SMTP Server (version=TLS1_3,
+ cipher=TLS_AES_256_GCM_SHA384) id 15.21.159.17 via Frontend Transport; Fri,
+ 26 Jun 2026 16:40:23 +0000
+Authentication-Results: spf=pass (sender IP is 2607:f8b0:4864:20::1146)
+ smtp.mailfrom=doclist.bounces.google.com; dkim=pass (signature was verified)
+ header.d=google.com;dmarc=pass action=none
+ header.from=google.com;compauth=pass reason=100
+Received-SPF: Pass (protection.outlook.com: domain of
+ doclist.bounces.google.com designates 2607:f8b0:4864:20::1146 as permitted
+ sender) receiver=protection.outlook.com; client-ip=2607:f8b0:4864:20::1146;
+ helo=mail-yw1-x1146.google.com; pr=C
+Received: from mail-yw1-x1146.google.com (2607:f8b0:4864:20::1146) by
+ SJ1PEPF000023CB.mail.protection.outlook.com (2603:10b6:a0f:fc02::505) with
+ Microsoft SMTP Server (version=TLS1_3, cipher=TLS_AES_256_GCM_SHA384) id
+ 15.21.181.6 via Frontend Transport; Fri, 26 Jun 2026 16:40:22 +0000
+Received: by mail-yw1-x1146.google.com with SMTP id 00721157ae682-80a11e0ffc2so22018407b3.0
+        for <com34@cornell.edu>; Fri, 26 Jun 2026 09:40:22 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20251104; t=1782492022; x=1783096822; darn=cornell.edu;
+        h=to:from:subject:date:message-id:references:reply-to:mime-version
+         :from:to:cc:subject:date:message-id:reply-to;
+        bh=XOBC7BnjNKpFZGgsQ5vTT8EUBPZIzwTRsEPsXw2fkKk=;
+        b=JgxvW92rOAbwweTe6tRfT0t3k2OhfD47+lBvxvgD+WuAIW4ZCT4iuJg5dMzQc7njj+
+         9f2wyhlNqarya++xZOMsYPHPFNslVAzMRVSuL2aR2n5eHe1Z5A+SNvgGhDMc1WHIm5N0
+         3N36a78eYZkl+CxGRoNNsS454JHl0Gjgokh6LNCySyyVK/HcMLR1/fopUk7kqFInSwGW
+         9uMlZ4V4NMitwzOiReGta9IbRvqahU9stZaG+D4GcmY167Wr8NoYFCRSwcO2SsTA46K8
+         eJ4QrFnnZ5e+FmZoclGasQ3qAekmc8qxWIXhNVG4CxmZa1ejBfKOaWtpCwyvpJVSzR6S
+         U5kg==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20251104; t=1782492022; x=1783096822;
+        h=to:from:subject:date:message-id:references:reply-to:mime-version
+         :x-gm-message-state:from:to:cc:subject:date:message-id:reply-to;
+        bh=XOBC7BnjNKpFZGgsQ5vTT8EUBPZIzwTRsEPsXw2fkKk=;
+        b=j2FhpSg1n8W0ji+XTf6lJIx0S3zx/cAIJxG96N+FDa5sJR4Kqp5Nh++KO/Hd/jszCA
+         1d+I1BwTUJtj221m0QV7K+yEBnYnETGmBz2NczVbCb8fPPmCZwsusiSP1NXyq1nSzExv
+         BDTfTKU3NHfAnj2yFhvqLJomdbZqdSSbKClxYTyjOMq03zGUw2mUgJtpwCFb/cTrYlJX
+         /ekNGlLCTT2W04DuNajCUeVuDgZak1OF4X0LOWlTPaVVquh3ixRkb2PqTEi45cOQE6Fs
+         xZX7qGoHQhAOlBZzyItu9rDQ5UdhKdezcoJlVmXn87ZqBwfx/mh5OSj5tVLlrxyduvcV
+         R8nw==
+X-Gm-Message-State: AOJu0YxmsmEMKp7+zZ0FFv9LZtDT1spN62VgxovM9prz4BrUCjsy8IOK
+	1irmGF0h8op02hiphV5V1sQ0KSKHE3qiwcedXsn+hxNgc2gUiHr0e3D1JBswGrvv4rC9mEWokhJ
+	Ao6MbnKZYtTqLELID8HxIDVRJbRA=
+MIME-Version: 1.0
+X-Received: by 2002:a05:690c:6e87:b0:7c0:56f:5b6f with SMTP id
+ 00721157ae682-806731ede75mr151812637b3.19.1782492022379; Fri, 26 Jun 2026
+ 09:40:22 -0700 (PDT)
+Reply-To: Noah Hamm <nhh5@cornell.edu>
+X-No-Auto-Attachment: 1
+References: <25ed2f36-49c4-48e0-b135-2405ab558433@docs-share.google.com>
+Message-ID: <autogen-java-255fbb53-ffb8-464b-a663-5dde740e7a51@google.com>
+Date: Fri, 26 Jun 2026 16:40:22 +0000
+Subject: Document shared with you: "Fabman-Canvas Training Integration"
+From: "Noah Hamm (via Google Docs)" <drive-shares-dm-noreply@google.com>
+To: com34@cornell.edu
+Content-Type: multipart/alternative; boundary="000000000000cf303e06552ac325"
+Return-Path:
+ 3dqs-ahcKBSEAOFSB-PE7OBP-AJ-KLOBMIVDLLDIB.9LJ9LJab9LOKBII.BAR@doclist.bounces.google.com
+X-EOPAttributedMessage: 0
+X-EOPTenantAttributedMessage: 5d7e4366-1b9b-45cf-8e79-b14b27df46e1:0
+X-MS-PublicTrafficType: Email
+X-MS-TrafficTypeDiagnostic: SJ1PEPF000023CB:EE_|CH0PR04MB8164:EE_
+X-MS-Office365-Filtering-Correlation-Id: c38d04ce-df8a-4db3-f6cf-08ded3a19e0d
+X-LD-Processed: 5d7e4366-1b9b-45cf-8e79-b14b27df46e1,ExtFwd
+X-MS-Exchange-AtpMessageProperties: SA|SL
+X-Microsoft-Antispam:
+	BCL:4;ARA:13230040|704160111799003|7149299003|5082899009|13012899012|13102899012|12012899012|43022699015|1032899013|3092899012|7049299003|3072899012|4092899012|3109299003|5062899012|69100299015|2092899012|40072699003|7093399015|8096899003|2066899003|13003099007|55112099003|18002099003|4133799003|56012099006|19002099009|11063799006|5063699009;
+X-Microsoft-Antispam-Message-Info:
+	=?utf-8?B?WUQ2VDdxT0F1MXJTT3VQMWlvTFFiSExaT3laY2taOFVRM1RqSDVKalRBanpV?=
+ =?utf-8?B?V1lYLzFROFJsZWY5ZGNvOG5YcXN0dTRpSWRoNjV0Unp3SEZ6UHBoNlRtRnI1?=
+ =?utf-8?B?TzRFdkExcWp1VEdVaUhBUkF4TkQ5WHBhdVFvT1VKcnVnTlI2S2ZOd2dhOTIz?=
+ =?utf-8?B?Q1pWUnhQTC9XSmtuK3BsL1FidjlLT3hkaTExWVh1WlNBYTU5dDJpY2U4WXJp?=
+ =?utf-8?B?Y1pCdUNhQXhOSHh2dHFXc1pxcXdDSW02OGFOWVJZeXQwR1JsS2tkQkh6d1Vo?=
+ =?utf-8?B?UHNWQUNWSmhUUXJpbEZ6V1pBWmtVaE1ETktvbENzZUtTaUdkZitnUmwycGJw?=
+ =?utf-8?B?R2o3cmRoSzlpWEo3alJXNVV4NUhVSlY0WkpxcEQ4bExPNFc3UDVvZmxDcFRx?=
+ =?utf-8?B?VUxWWTBsN3VXbHovZ3BzUEljNUsrNUdyTE9WZER2Zys3dXFqeFBsemlVV1k1?=
+ =?utf-8?B?NE81ZFJxc1U4M2VyQ3U3L2VnK3RpZ3lFKzloTFBYYzc4eHR6OE41dVgwMUhr?=
+ =?utf-8?B?VWVwdEV3WEpubUJhQW1pd21hakJYOGZHU3IyWklVdDlheWFPK3VFVWIrN1hS?=
+ =?utf-8?B?TTJNRDNiT240V1JrMldPZ2EzVHArTzIrZGJ4dHI1eTlLNlEzZTRqNGlJRjhW?=
+ =?utf-8?B?VTl3cFNMQ0RvcVh3L2VLbDBGdmZTS08yT2gxOHBiRjJRVUpTaW12Z0pPVHk0?=
+ =?utf-8?B?cWpUR1h4U3R4VSsrUWwwU214WHJxdXArWHBoK0c0R0hiSklUblZhMERhNHJm?=
+ =?utf-8?B?a1NVL0piQm9OSHdHSjRjekYyOE4renV6WlI0SzBYRE5rMVFXNWw0LzFUOHNo?=
+ =?utf-8?B?ckRQV0w5S1E5d1BCR3NKd2lPSElySHhRbkZ0YkpPelIxRVVTdSs2UWNReTl5?=
+ =?utf-8?B?Y2xpVnd2a3BXYXVXVENzTTVtMitqaWptVHQxcy9JUXFJR092ZkxFMUVITndL?=
+ =?utf-8?B?RDFTdE1iQ2FIS3NJdUhyVGFVbzFxNzNDY3ZuSDBsUit3VXVYY0luWEtWZy85?=
+ =?utf-8?B?REtpajl3VzRzYk5peEtJWXV1UDhrSUZaY001cTBYc3d3cUFQNjY5bzRwNmJw?=
+ =?utf-8?B?S0RQTVBxM1A5NWJHSU5XV0NuRWVzc0V4SGZ5MmRWd3puVUMybFhhQ3Q3VU93?=
+ =?utf-8?B?N01rSHR0UGxXYWpOWkthQitkUWd6ZnlpWDdVODBDOXhUbi9pN2wvcERQVnRH?=
+ =?utf-8?B?MXAzZlRGTzRlRDI3QWJzeG9Vc1RwNXdXWG9yeHN4dGlNMjhON3FEakFmdWZO?=
+ =?utf-8?B?bHkwUjFCRzFBd3dweDZqY3NmMnBnQXpKUCtGc0J1dEgxZXBhRlNaY1JkWTRp?=
+ =?utf-8?B?UWw1dXhncmUrM2lxR0x3blJ2M3ZTUUpaNTRwSE9BenhMNFRNVWNMMEdsZTFT?=
+ =?utf-8?B?Ty9WK1FIWkpoNWxZclZqWEJLWlVVUkMyNGc3dEhIRHd0WXJvV05CWmhJb05X?=
+ =?utf-8?B?SnhXdWg4R0RzUDFvVG8xczVNZkUwMWkrOW5Mb3VZclk4N0xteHJQUDZsNEdQ?=
+ =?utf-8?B?aFc5UXdKdVJPalFiRytGd0NiOXJnNi9mMW1CUFN2Q0JuRktYaE9aTTg2K1Ba?=
+ =?utf-8?B?dUh0cXQ0SDFrR0FrNlNTMFZDU0ZqZXhOZ3EzbVVBOFR3Y2xmbHR0a1N3eXNM?=
+ =?utf-8?B?WTFZY2NQMFRFcHMrMEk0UCswOGlMV1hVQnZPdWtadEd5d2tMNTloZk5Fd243?=
+ =?utf-8?B?eThUL0VjVW04QkZINzFwT295VVZIOW15WnYzY1NEYksrZVVvclJkU3ZOMyts?=
+ =?utf-8?B?VDIwSDNnclRaQUJWSUEzY2JoOFhHc2hVKzR1N3RMS0Z3U1QxcFYrdlU3RU54?=
+ =?utf-8?B?by9LZzNuNjlxWVN4WHlDa2N0eUdYcHFaNXQxRjBzbVZ1NnBIZHNaZEE0QmQ2?=
+ =?utf-8?B?Tk43NDJEUWJzWFN3WVMxRmQ3dmZYL2pOTlBBNUh2dU5iSlVCU0xJQ0t3bXpF?=
+ =?utf-8?B?OGxpM3ROUERja2dQbm5sRWpnR0pwbkRiaWxRRW01TVIzcGdjNG5RZFZRb3g5?=
+ =?utf-8?B?UG9IRXY1Ykh0YzN4Tk83SEFlYkpyRlBLb3R4OUYxMEZralVxd0F0L3duZ3Ux?=
+ =?utf-8?B?VldqajU1MVl2MjNyWFl1cEZrOHVnMFdwVlM4Vzlzc0NaKzVsMk1zcTJSWTNF?=
+ =?utf-8?B?UXRPSDNpekdsVk5WMWZkVi9tS2lFblpMeEpXaXdBTk56VUFxN245clZXaGdy?=
+ =?utf-8?B?eGQzTU1qTCtFNUtwT3BESXJrSHUyV0ErQ1RncFFnbmthSEE2VjgyK2k2aWNU?=
+ =?utf-8?B?S01OakF0Nmx6dy9KcnhPdkJ5Q2oyRjd5N2dUbVc0Zm9EY1hhSVVpWlhJeXZ3?=
+ =?utf-8?B?ejJnaFJTK0Q0Z2dOaXdpTkYrdTR2NnZCTU9vdm1QOU9IZmVDTzFoL0kvT2M3?=
+ =?utf-8?B?dTFkOVNpbUVvNVNZREZlZEU3b3djbUU4NE83bFZ1d3pwZzFNaVMzaWUxTmM2?=
+ =?utf-8?B?TytUYnkza2tHTyt1WSt0a2lKUjNxNmZYZFFjbTZDTm1YTkhqMlgvc25IQ09R?=
+ =?utf-8?B?M2VtMitPbDBDWHJwc29DYmkyVUJhSi9mYnJXMnZKeElkRTZKaEFzNUFJUWgv?=
+ =?utf-8?B?aU40UUFxRW5vRFg3ZWtaTWtlUzZ1RnZ5Tm1ScUVwNGtqYnNvU3FxUytsODFG?=
+ =?utf-8?B?V0JxRFFzdCt2UFc4Ums3V3gyZS9mTG9HK25mVUJGa3NBdHdzQTU4TzZqWjB4?=
+ =?utf-8?B?cUozcXBVQ1lHNlU0K3FWeUt0UzdrVWJIRjg4M01mSnoxTHZERm5pR2dqcWxr?=
+ =?utf-8?B?TzY4aFRpQkUzZFd3NTExaVQvZ2tObzh2V2tqMXdYQUJuT3hKOUxHRzd1Z282?=
+ =?utf-8?B?RTZYem0zQXJScXNSNHNHd29sZ2FyTTRuYklaeE56RHBINXlPa3laS1c3TW11?=
+ =?utf-8?B?aEhqcUhQMzRJaHRHeVl5cWhTWEFPSzRoL3U3THlmMjVTUEFlTmp5dzRhK1c5?=
+ =?utf-8?B?anpmWUMvRG40ajFvbmhHRHYvdWt6bGVkWjVwaWJSdjhXeCtPcGhKWklOenlj?=
+ =?utf-8?B?ZEdlSGlSb0pwWmR1eU1PNEJHWUVjakQ1S21MOXV1YkFid3FpRjJibld5aUo0?=
+ =?utf-8?B?V3hscjN3a2xQOG82TUVYN1dxckpUei9KNVI1RjB3bmhGWVpJZnI3N3hNeHlk?=
+ =?utf-8?B?ZEczc3RyMk1HcExvb3Y0TThYYlQ1ZGphUXFiRWFseS9EM255NTR3WWxNdG1t?=
+ =?utf-8?B?WFdHQzhQeWR1aHJYK3hwTVZFenQ1NlpObkZEMHErT2hBOFdIVmNnc2h3QmdG?=
+ =?utf-8?B?QXhUL3djMGlKSjJwdTVVK05RWGt0NWhSUURzOUNvK3lqMFVJZUVLN3UzK2kv?=
+ =?utf-8?B?VHJkMVJXblVwekpWVUZKdWZOTTJ6TWtMdVpRQmxhcTRiTHRmRG02SlBnTUNp?=
+ =?utf-8?B?MVNzSURpaXNCWjFqZTZ1Zmtrb25DMXU3V2lnbkluYXZVcks4Vk5xbGw4VWly?=
+ =?utf-8?B?ektSWVpiTFVqRVpld2VTZkVQWktKNktrbDJlU3hTSFBtWnRPTGQwOW9ZQWxV?=
+ =?utf-8?B?QmdMZ0djK2RrcW10YTNYZ3diQ3owdkpRMENybndDMEdjNzdUSzFSdk9abG9N?=
+ =?utf-8?B?bmFDMDZzRnBtWXlqaVN4b1ZwTzViWGhtRFkxeXFLTlB5RmdsVWlOaWdmQ0Rs?=
+ =?utf-8?Q?SMO9/mLeFW4CEx97e5/QxZo3Ox9wMba85?=
+X-Forefront-Antispam-Report:
+	CIP:2607:f8b0:4864:20::1146;CTRY:;LANG:en;SCL:-1;SRV:;IPV:NLI;SFV:NSPM;H:mail-yw1-x1146.google.com;PTR:mail-yw1-x1146.google.com;CAT:NONE;SFS:(13230040)(704160111799003)(7149299003)(5082899009)(13012899012)(13102899012)(12012899012)(43022699015)(1032899013)(3092899012)(7049299003)(3072899012)(4092899012)(3109299003)(5062899012)(69100299015)(2092899012)(40072699003)(7093399015)(8096899003)(2066899003)(13003099007)(55112099003)(18002099003)(4133799003)(56012099006)(19002099009)(11063799006)(5063699009);DIR:INB;
+X-MS-Exchange-ForwardingLoop:
+	com34@cornell.edu;5d7e4366-1b9b-45cf-8e79-b14b27df46e1
+X-Exchange-RoutingPolicyChecked:
+	J2oXObwFplWICdOTLAFHQIQcsDF9q2SftCpDu7Xpts29qBIzb1kzjSY357mADzS1sx/lNXOPrgi8H2b344G45lTUsJxyqvQiI3E0OzWgaP4K7rDUPeOSqHSthWY3W3BbYQ4CEh1vIwa3FuSR+upsyFTR5x2fXFvzMEf0WGSfafviR2bCNnus+ng8bwktw2ckwYlbFd4L0+DZuvuprLK/649N8kpT5VK1k0l4S2qo0y3ZGKLZLkyeETRof7dYV/CUixFYFqzVWVek5XeJU6OdxdmFkaIOj72sczt9+GkOMXlobnVbCEqLf5XAEMTLx/HZCOFPzgEwUOoLg3kVhSJm5Q==
+X-OriginatorOrg: cornellprod.onmicrosoft.com
+X-MS-Exchange-CrossTenant-OriginalArrivalTime: 26 Jun 2026 16:40:22.8083
+ (UTC)
+X-MS-Exchange-CrossTenant-Network-Message-Id: c38d04ce-df8a-4db3-f6cf-08ded3a19e0d
+X-MS-Exchange-CrossTenant-Id: 5d7e4366-1b9b-45cf-8e79-b14b27df46e1
+X-MS-Exchange-CrossTenant-AuthSource: SJ1PEPF000023CB.namprd02.prod.outlook.com
+X-MS-Exchange-CrossTenant-AuthAs: Anonymous
+X-MS-Exchange-CrossTenant-FromEntityHeader: Internet
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: CH0PR04MB8164
+X-MS-Exchange-CrossPremises-OriginalClientIPAddress: 2607:f8b0:4864:20::1146
+X-MS-Exchange-CrossPremises-TransportTrafficType: Email
+X-MS-Exchange-CrossPremises-AuthSource: SJ1PEPF000023CB.namprd02.prod.outlook.com
+X-MS-Exchange-CrossPremises-AuthAs: Anonymous
+X-MS-Exchange-CrossPremises-AutoForwarded: true
+X-MS-Exchange-CrossPremises-Antispam-ScanContext:
+	DIR:Incoming;SFV:NSPM;SKIP:0;
+X-MS-Exchange-CrossPremises-SCL: -1
+X-MS-Exchange-CrossPremises-Processed-By-Journaling: Journal Agent
+X-MS-Exchange-CrossPremises-History: DeliveredAndForwarded: com34@cornell.edu
+X-OrganizationHeadersPreserved: CH0PR04MB8164.namprd04.prod.outlook.com
+
+--000000000000cf303e06552ac325
+Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
+
+I've shared an item with you:
+
+Fabman-Canvas Training Integration
+https://docs.google.com/document/d/1O-O-mpEGGtcD6QiLqjxw1y1rFtI7WzayoOroxpoxwfQ/edit?usp=sharing&ts=6a3eab76
+
+It's not an attachment -- it's stored online. To open this item, just click  
+the link above.
+
+--000000000000cf303e06552ac325
+Content-Type: text/x-amp-html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<!doctype html><html amp4email><head><meta charset=3D"utf-8"><script async =
+src=3D"https://cdn.ampproject.org/v0.js"></script><script async custom-elem=
+ent=3D"amp-list" src=3D"https://cdn.ampproject.org/v0/amp-list-0.1.js"></sc=
+ript><script async custom-template=3D"amp-mustache" src=3D"https://cdn.ampp=
+roject.org/v0/amp-mustache-0.2.js"></script><script async custom-element=3D=
+"amp-form" src=3D"https://cdn.ampproject.org/v0/amp-form-0.1.js"></script><=
+script async custom-element=3D"amp-bind" src=3D"https://cdn.ampproject.org/=
+v0/amp-bind-0.1.js"></script><script async custom-element=3D"amp-timeago" s=
+rc=3D"https://cdn.ampproject.org/v0/amp-timeago-0.1.js"></script><style amp=
+4email-boilerplate>body{visibility:hidden}</style><style amp-custom>.materi=
+al-button-filled{background-color: #0B57D0; color: #fff; outline: 2px solid=
+ transparent;}.material-button-filled:hover{background-color: #1f64d4; box-=
+shadow: 0 1px 2px 0 rgba(0,0,0,0.3), 0 1px 3px 1px rgba(0,0,0,0.15);}.mater=
+ial-button-filled:focus{background-color: #276bd6;}.material-button-filled:=
+active{background-color: #276bd6;}.material-button-filled:disabled{backgrou=
+nd-color: rgba(31,31,31,.12); color: rgba(31,31,31,.38);}.material-button{-=
+webkit-appearance: none; cursor: pointer; outline: none;}.material-button:f=
+ocus {outline: 1px solid transparent;}.material-button:disabled{cursor: ini=
+tial; outline: none;}.material-button-transparent {background-color: transp=
+arent; color: #0B57D0;}.material-button-transparent:hover {background-color=
+: rgba(11, 87, 208, .08);}.material-button-transparent:focus {background-co=
+lor: rgba(11, 87, 208, .10);}.material-button-transparent:active {backgroun=
+d-color: rgba(11, 87, 208, .10); box-shadow: 0 1px 3px 1px rgba(60, 64, 67,=
+ .15);}.material-button-transparent:disabled{background-color: transparent;=
+ color: #3c4043; opacity: 0.38;}@media screen and (max-width: 600px){.conte=
+nt-spacer{height: 24px;}.content-spacer-small{height: 12px;}}@media screen =
+and (min-width: 601px){.content-spacer{height: 32px;}.content-spacer-small{=
+height: 20px;}}.dynamic-content-container-wrapper {margin-left: -6px; table=
+-layout: fixed; width: calc(100% + 12px);}.dynamic-content-container-wrappe=
+r * {hyphens: auto; overflow-wrap: break-word; word-wrap: break-word; word-=
+break: break-word;}#dynamic-content-container {border-radius: 8px; border: =
+1px solid #DADCE0;box-sizing: border-box;}.thumbnail-link {border-radius: 8=
+px; border: 1px solid #DADCE0;box-sizing: border-box;}#dynamic-content-cont=
+ainer {display: inline-block; max-width: 100%; padding: 20px; width: 405px;=
+}#dynamic-content-container > * + * {margin-top: 18px;}.dynamic-content-hea=
+ding {display: flex; flex-direction: row;}.dynamic-content-heading > * + * =
+{margin-left: 10px;}#star-form, #star-button {height: 22px; position: relat=
+ive; width: 22px;}#star-button {background: none; border: none; display: bl=
+ock; outline: none; z-index: 1;}#star-button[disabled] {opacity: 0.4;}#star=
+-button:not([disabled]) {cursor: pointer;}#star-button:not([disabled]):hove=
+r + .star-button-circle, #star-button:not([disabled]):focus + .star-button-=
+circle{display: block; outline: 1px solid transparent;}.star-button-circle =
+{background-color: #dde3ea; border-radius: 50%; display: none; height: 32px=
+; left: 50%; position: absolute; top: 50%; transform: translate(-50%, -50%)=
+; width: 32px;}.unstarred-icon, .starred-icon {bottom: 0; left: 0; position=
+: absolute; right: 0; top: 0; visibility: hidden;}#star-button.starred > .s=
+tarred-icon, #star-button.unstarred > .unstarred-icon {visibility: visible;=
+}#star-error-message {color: #D93025; font: 400 14px/16px Roboto, Arial, He=
+lvetica, sans-serif; margin-top: 5px;}.display-none {display: none;}.thumbn=
+ail-link {display: block; overflow: hidden; position: relative;}.thumbnail-=
+open {align-items: center; background-color: #202124; bottom: 0; color: whi=
+te; display: none; font: 400 14px/16px Google Sans, Roboto, Arial, Helvetic=
+a, sans-serif; justify-content: center; left: 0; letter-spacing: 0.15px; op=
+acity: 65%; position: absolute; right: 0; top: 0; z-index: 1;}.thumbnail-li=
+nk:hover > .thumbnail-open, .thumbnail-link:focus > .thumbnail-open {displa=
+y: flex;}amp-img.cover img {object-fit: cover; object-position: 0 0;}.large=
+-icon-container {align-items: center; display: flex; height: 100%; justify-=
+content: center;}.external-badge {background-color: #fcbd00; border: 1px so=
+lid #fcbd00; border-radius: 4px; display: inline-block; height: 13px; paddi=
+ng: 2px; margin: auto; text-align: center; width: 13px;bottom: 8px; border:=
+ 1px solid black; height: 16px; left: 8px; position: absolute; width: 16px;=
+ z-index: 2;}.dynamic-message {align-items: center; display: flex; flex-dir=
+ection: row;}.dynamic-message > amp-img {flex-shrink: 0;}.dynamic-message >=
+ span {color: #5F6368;font: 400 14px/18px Roboto, Arial, Helvetica, sans-se=
+rif; letter-spacing: 0; margin-left: 18px;}.dynamic-message-summary {margin=
+-left: 16px; margin-top: 4px;}.blue-text-header {color: #1a73e8; font-weigh=
+t: 500;}.horizontal-rule-wrapper {margin-top: 16px;}#amp-timeago {display: =
+inline;}</style></head><body><amp-list diffable binding=3D"refresh-evaluate=
+" src=3D"https://drive.google.com/sharing/boq/dynamicmail/fetchinvite?ts=3D=
+6a3eab76&amp;shareService=3Dkix&amp;hl=3Den&amp;id=3D1O-O-mpEGGtcD6QiLqjxw1=
+y1rFtI7WzayoOroxpoxwfQ&amp;dynamicEmailToken=3DATbOLyrB7fp110tNerwuvueTyfK-=
+xbNDD5biAT1OD40re8vQ0iXzgdaIhqbVKK7xDUxA_1sZM1ck1VS2yVX0P3T3f2F6Nk0TmoLcuOR=
+aD69cJ4aU-JY53hG_oKGuXtNyk48MXJNdaaFmWg%3D%3D&amp;resourcekey&amp;buildLabe=
+l=3Ddrive.explorer_20260612.01_p0" single-item items=3D"." layout=3D"contai=
+ner"><template type=3D"amp-mustache"><table style=3D"border-collapse: colla=
+pse; width: 100%; background-color: white; text-align: center;" role=3D"pre=
+sentation"><tr><td style=3D"padding: 24px 0 16px 0;"><table style=3D"border=
+-collapse: collapse;font-family: Roboto, Arial, Helvetica, sans-serif;hyphe=
+ns: auto; overflow-wrap: break-word; word-wrap: break-word; word-break: bre=
+ak-word;width: 90%; margin: auto;max-width: 700px;min-width: 280px; text-al=
+ign: left;" role=3D"presentation"><tr><td style=3D"padding: 0;"><table styl=
+e=3D"width:100%; border: 1px solid #dadce0; border-radius: 8px; border-spac=
+ing: 0; table-layout:fixed; border-collapse: separate;" role=3D"presentatio=
+n"><tr><td style=3D"padding: 4.5%;" dir=3D"ltr"><div style=3D"margin-bottom=
+:32px;font-family: Google Sans, Roboto, Arial, Helvetica, sans-serif; font-=
+style: normal; font-size: 28px; line-height: 36px; color: #3c4043;">Noah Ha=
+mm shared a document</div><table style=3D"border-collapse: collapse;font-fa=
+mily: Roboto, Arial, Helvetica, sans-serif; font-size:16px; line-height:24p=
+x; color:#202124; letter-spacing:0.1px; table-layout:fixed; width:100%; ove=
+rflow-wrap: break-word;" role=3D"presentation"><tr><td style=3D"padding: 0;=
+ vertical-align:top; width:50px;"><div><amp-img style=3D"border-radius:50%;=
+ display:block;" width=3D"50" height=3D"50" src=3D"https://lh3.googleuserco=
+ntent.com/a/ACg8ocJqhAbKH-8IrBliUhVHIM8zsaY-wDYHxY95Ar3OTaSiDevhzw=3Ds64" a=
+lt=3D"Header profile photo"></amp-img></div></td><td style=3D"padding: 0; v=
+ertical-align:top; padding-left:12px;"><div style=3D"padding-top:12px;">Noa=
+h Hamm (<a href=3D"mailto:nhh5@cornell.edu" style=3D"color:inherit;text-dec=
+oration:none">nhh5@cornell.edu</a>) has invited you to <b>edit</b> the foll=
+owing document:</div></td></tr></table><table class=3D"dynamic-content-cont=
+ainer-wrapper" role=3D"presentation"><tr style=3D"height: 20px;"></tr><tr><=
+td id=3D"dynamic-content-container" role=3D"presentation" tabindex=3D"0"><d=
+iv class=3D"dynamic-content-heading"><a href=3D"https://docs.google.com/doc=
+ument/d/1O-O-mpEGGtcD6QiLqjxw1y1rFtI7WzayoOroxpoxwfQ/edit?usp=3Dsharing_eil=
+_se_dm&amp;ts=3D6a3eab76" target=3D"_blank" style=3D"color: #3c4043; displa=
+y: inline-block; max-width: 100%; text-decoration: none; vertical-align: to=
+p;display: flex; flex-direction: column; justify-content: center;"><div sty=
+le=3D"line-height: 18px; overflow: hidden; text-overflow: ellipsis;display:=
+ flex;"><span style=3D"display: inline-block; vertical-align: middle; min-w=
+idth: 26px; width: 26px;"><amp-img src=3D"https://ssl.gstatic.com/docs/docl=
+ist/images/mediatype/icon_1_document_x64.png" width=3D"18" height=3D"18" st=
+yle=3D"vertical-align: top;" role=3D"presentation"></amp-img></span><span s=
+tyle=3D"font: 500 14px/18px Google Sans, Roboto, Arial, Helvetica, sans-ser=
+if; display: inline; letter-spacing: 0.2px; vertical-align: middle;">Fabman=
+-Canvas Training Integration</span></div></a><form id=3D"star-form" action-=
+xhr=3D"https://drive.google.com/sharing/boq/dynamicmail/star?ts=3D6a3eab76&=
+amp;shareService=3Dkix&amp;hl=3Den&amp;id=3D1O-O-mpEGGtcD6QiLqjxw1y1rFtI7Wz=
+ayoOroxpoxwfQ&amp;dynamicEmailToken=3DATbOLyrB7fp110tNerwuvueTyfK-xbNDD5biA=
+T1OD40re8vQ0iXzgdaIhqbVKK7xDUxA_1sZM1ck1VS2yVX0P3T3f2F6Nk0TmoLcuORaD69cJ4aU=
+-JY53hG_oKGuXtNyk48MXJNdaaFmWg%3D%3D&amp;resourcekey&amp;buildLabel=3Ddrive=
+.explorer_20260612.01_p0" method=3D"post" on=3D"submit: dynamic-content-con=
+tainer.focus, AMP.setState({starButton: {value: starButton =3D=3D null ? {{=
+starredByRequester}} : starButton.value, inProgress: true, error: false}});=
+ submit-success: AMP.setState({starButton: {value: !starButton.value, inPro=
+gress: false, error: false}}); submit-error: AMP.setState({starButton: {inP=
+rogress: false, error: true}});"><input type=3D"hidden" name=3D"starred" va=
+lue=3D"{{#starredByRequester}}false{{/starredByRequester}}{{^starredByReque=
+ster}}true{{/starredByRequester}}" data-amp-bind-value=3D"starButton.value =
+? 'false' : 'true'"><button id=3D"star-button" class=3D"{{#starredByRequest=
+er}}starred{{/starredByRequester}}{{^starredByRequester}}unstarred{{/starre=
+dByRequester}}" data-amp-bind-class=3D"starButton.value ? 'starred' : 'unst=
+arred'" type=3D"submit" aria-live=3D"polite" aria-label=3D"{{#starredByRequ=
+ester}}Starred{{/starredByRequester}}{{^starredByRequester}}Unstarred{{/sta=
+rredByRequester}}" data-amp-bind-aria-label=3D"starButton.value ? 'Starred'=
+ : 'Unstarred'" title=3D"Star in Drive" data-amp-bind-disabled=3D"starButto=
+n.inProgress"><amp-img src=3D"https://fonts.gstatic.com/s/i/googlemateriali=
+cons/star_border/v8/gm_grey-48dp/1x/gm_star_border_gm_grey_48dp.png" layout=
+=3D"fixed" width=3D"22" height=3D"22" role=3D"presentation" aria-hidden=3D"=
+true" class=3D"unstarred-icon"></amp-img><amp-img src=3D"https://fonts.gsta=
+tic.com/s/i/googlematerialicons/star/v8/gm_grey-48dp/1x/gm_star_gm_grey_48d=
+p.png" layout=3D"fixed" width=3D"22" height=3D"22" role=3D"presentation" ar=
+ia-hidden=3D"true" class=3D"starred-icon"></amp-img></button><div class=3D"=
+star-button-circle"></div></form></div><div id=3D"star-error-message" class=
+=3D"display-none" data-amp-bind-class=3D"starButton.error ? '' : 'display-n=
+one'">Something went wrong. Try again</div><a href=3D"https://docs.google.c=
+om/document/d/1O-O-mpEGGtcD6QiLqjxw1y1rFtI7WzayoOroxpoxwfQ/edit?usp=3Dshari=
+ng_eil_se_dm&amp;ts=3D6a3eab76" target=3D"_blank" class=3D"thumbnail-link">=
+<amp-layout layout=3D"responsive" width=3D"386" height=3D"202">{{#thumbnail=
+Url}}<amp-img class=3D"cover" src=3D"{{thumbnailUrl}}" layout=3D"fill"><div=
+ class=3D"large-icon-container" fallback><amp-img src=3D"https://drive-thir=
+dparty.googleusercontent.com/256/type/application/vnd.google-apps.document"=
+ width=3D"80" height=3D"80"></amp-img></div></amp-img>{{/thumbnailUrl}}{{^t=
+humbnailUrl}}<div class=3D"large-icon-container"><amp-img src=3D"https://dr=
+ive-thirdparty.googleusercontent.com/256/type/application/vnd.google-apps.d=
+ocument" width=3D"80" height=3D"80"></amp-img></div>{{/thumbnailUrl}}</amp-=
+layout><div class=3D"external-badge"><amp-img src=3D"https://fonts.gstatic.=
+com/s/i/short-term/release/googlesymbols/domain_disabled/default/20px.svg" =
+layout=3D"fixed" width=3D"16" height=3D"16" aria-label=3D"External file" st=
+yle=3D"margin: auto;"></amp-img></div><div class=3D"thumbnail-open">Open</d=
+iv></a>{{#summaryDescription}}<div><div class=3D"dynamic-message"><amp-img =
+src=3D"https://www.gstatic.com/docs/documents/share/images/smart_summary.pn=
+g" layout=3D"fixed" width=3D"16" height=3D"16" role=3D"presentation" aria-h=
+idden=3D"true"></amp-img><span><span class=3D"blue-text-header">Summary</sp=
+an></span></div><div class=3D"dynamic-message dynamic-message-summary"><spa=
+n>{{summaryDescription}}</span></div><div class=3D"horizontal-rule-wrapper"=
+><div style=3D"height: 1px; background-color: #DADCE0;"></div></div></div>{=
+{/summaryDescription}}{{#ownerOrCreatorMessage}}<div class=3D"dynamic-messa=
+ge"><amp-img src=3D"https://www.gstatic.com/docs/documents/share/images/per=
+son_with_whitespace_128_128.png" layout=3D"fixed" width=3D"16" height=3D"16=
+" role=3D"presentation" aria-hidden=3D"true"></amp-img><span>{{ownerOrCreat=
+orMessage}}</span></div>{{/ownerOrCreatorMessage}}{{#lastEdited}}<div class=
+=3D"dynamic-message"><amp-img src=3D"https://www.gstatic.com/docs/documents=
+/share/images/clock_with_whitespace_128_128.png" layout=3D"fixed" width=3D"=
+16" height=3D"16" role=3D"presentation" aria-hidden=3D"true"></amp-img><spa=
+n>{{#lastEdited.editor}}Last edited by {{lastEdited.editor}} <amp-timeago i=
+d=3D"amp-timeago" layout=3D"fixed-height" height=3D"1" datetime=3D"{{lastEd=
+ited.datetime}}" locale=3D"en">{{lastEdited.datetime}}</amp-timeago>{{/last=
+Edited.editor}}{{^lastEdited.editor}}Last edited <amp-timeago id=3D"amp-tim=
+eago" layout=3D"fixed-height" height=3D"1" datetime=3D"{{lastEdited.datetim=
+e}}" locale=3D"en">{{lastEdited.datetime}}</amp-timeago>{{/lastEdited.edito=
+r}}</span></div>{{/lastEdited}}</td></tr></table><table style=3D"border-col=
+lapse: collapse;" role=3D"presentation"><tr style=3D"height: 32px"><td></td=
+></tr></table><div><a href=3D"https://docs.google.com/document/d/1O-O-mpEGG=
+tcD6QiLqjxw1y1rFtI7WzayoOroxpoxwfQ/edit?usp=3Dsharing_eip_se_dm&amp;ts=3D6a=
+3eab76" class=3D"material-button material-button-filled" target=3D"_blank" =
+tabindex=3D"0" role=3D"link" style=3D"padding: 0 24px;font: 500 14px/36px G=
+oogle Sans, Roboto, Arial, Helvetica, sans-serif; border: none; border-radi=
+us: 18px; box-sizing: border-box; display: inline-block; letter-spacing: .2=
+5px; min-height: 36px; text-align: center; text-decoration: none;">Open</a>=
+</div></td></tr></table><table style=3D"border-collapse: collapse; width: 1=
+00%;" role=3D"presentation"><tr><td style=3D"padding: 24px 4.5%"><table sty=
+le=3D"border-collapse: collapse; width: 100%;" dir=3D"ltr"><tr><td style=3D=
+"padding: 0;font-family: Roboto, Arial, Helvetica, sans-serif; color: #5F63=
+68; width: 100%; font-size: 12px; line-height: 16px; min-height: 40px; lett=
+er-spacing: .3px;">Google LLC, 1600 Amphitheatre Parkway, Mountain View, CA=
+ 94043, USA<br/> You have received this email because <a href=3D"mailto:nhh=
+5@cornell.edu" style=3D"color:inherit;text-decoration:none">nhh5@cornell.ed=
+u</a> shared a document with you from Google Docs.</td><td style=3D"padding=
+: 0;padding-left: 20px; min-width: 96px"><a href=3D"https://workspace.googl=
+e.com/" target=3D"_blank" style=3D"text-decoration: none"><amp-img src=3D"h=
+ttps://www.gstatic.com/docs/documents/share/images/googleworkspace_logo_192=
+x80.png" width=3D"96" height=3D"40" alt=3D"Google" style=3D"font-size:16px;=
+font-weight:500;color:#5F6368"></amp-img></a></td></tr></table></td></tr></=
+table></td></tr></table></td></tr></table></template><div role=3D"list"><ta=
+ble style=3D"border-collapse: collapse; width: 100%; background-color: whit=
+e; text-align: center;" role=3D"presentation"><tr><td style=3D"padding: 24p=
+x 0 16px 0;"><table style=3D"border-collapse: collapse;font-family: Roboto,=
+ Arial, Helvetica, sans-serif;hyphens: auto; overflow-wrap: break-word; wor=
+d-wrap: break-word; word-break: break-word;width: 90%; margin: auto;max-wid=
+th: 700px;min-width: 280px; text-align: left;" role=3D"presentation"><tr><t=
+d style=3D"padding: 0;"><table style=3D"width:100%; border: 1px solid #dadc=
+e0; border-radius: 8px; border-spacing: 0; table-layout:fixed; border-colla=
+pse: separate;" role=3D"presentation"><tr><td style=3D"padding: 4.5%;" dir=
+=3D"ltr"><div style=3D"margin-bottom:32px;font-family: Google Sans, Roboto,=
+ Arial, Helvetica, sans-serif; font-style: normal; font-size: 28px; line-he=
+ight: 36px; color: #3c4043;">Noah Hamm shared a document</div><table style=
+=3D"border-collapse: collapse;font-family: Roboto, Arial, Helvetica, sans-s=
+erif; font-size:16px; line-height:24px; color:#202124; letter-spacing:0.1px=
+; table-layout:fixed; width:100%; overflow-wrap: break-word;" role=3D"prese=
+ntation"><tr><td style=3D"padding: 0; vertical-align:top; width:50px;"><div=
+><amp-img style=3D"border-radius:50%; display:block;" width=3D"50" height=
+=3D"50" src=3D"https://lh3.googleusercontent.com/a/ACg8ocJqhAbKH-8IrBliUhVH=
+IM8zsaY-wDYHxY95Ar3OTaSiDevhzw=3Ds64" alt=3D"Header profile photo"></amp-im=
+g></div></td><td style=3D"padding: 0; vertical-align:top; padding-left:12px=
+;"><div style=3D"padding-top:12px;">Noah Hamm (<a href=3D"mailto:nhh5@corne=
+ll.edu" style=3D"color:inherit;text-decoration:none">nhh5@cornell.edu</a>) =
+has invited you to <b>edit</b> the following document:</div></td></tr></tab=
+le><table style=3D"border-spacing:0 4px; table-layout:fixed; width:100%; ov=
+erflow-wrap: break-word;" role=3D"presentation"><tr style=3D"height:28px;">=
+</tr><tr><td style=3D"padding: 0;"><a href=3D"https://docs.google.com/docum=
+ent/d/1O-O-mpEGGtcD6QiLqjxw1y1rFtI7WzayoOroxpoxwfQ/edit?usp=3Dsharing_eil_s=
+e_dm&amp;ts=3D6a3eab76" target=3D"_blank" style=3D"color: #3c4043; display:=
+ inline-block; max-width: 100%; text-decoration: none; vertical-align: top;=
+border: 1px solid #DADCE0; border-radius: 16px; white-space: nowrap;"><div =
+style=3D"align-items: center; display: inline-flex; max-width: 98%; padding=
+-right: 12px;"><div style=3D"line-height: 18px; overflow: hidden; text-over=
+flow: ellipsis;padding: 6px 12px;"><span style=3D"display: inline-block; ve=
+rtical-align: middle; min-width: 26px; width: 26px;"><amp-img src=3D"https:=
+//ssl.gstatic.com/docs/doclist/images/mediatype/icon_1_document_x64.png" wi=
+dth=3D"18" height=3D"18" style=3D"vertical-align: top;" role=3D"presentatio=
+n"></amp-img></span><span style=3D"font: 500 14px/18px Google Sans, Roboto,=
+ Arial, Helvetica, sans-serif; display: inline; letter-spacing: 0.2px; vert=
+ical-align: middle;">Fabman-Canvas Training Integration</span></div><div st=
+yle=3D"background-color: #fcbd00; border: 1px solid #fcbd00; border-radius:=
+ 4px; display: inline-block; height: 13px; padding: 2px; margin: auto; text=
+-align: center; width: 13px;"><amp-img src=3D"https://fonts.gstatic.com/s/i=
+/short-term/release/googlesymbols/domain_disabled/default/20px.svg" width=
+=3D"14px" height=3D"14px"></amp-img></div></div></a></td></tr></table><tabl=
+e style=3D"border-collapse: collapse;" role=3D"presentation"><tr style=3D"h=
+eight: 32px"><td></td></tr></table><div><a href=3D"https://docs.google.com/=
+document/d/1O-O-mpEGGtcD6QiLqjxw1y1rFtI7WzayoOroxpoxwfQ/edit?usp=3Dsharing_=
+eip_se_dm&amp;ts=3D6a3eab76" class=3D"material-button material-button-fille=
+d" target=3D"_blank" tabindex=3D"0" role=3D"link" style=3D"padding: 0 24px;=
+font: 500 14px/36px Google Sans, Roboto, Arial, Helvetica, sans-serif; bord=
+er: none; border-radius: 18px; box-sizing: border-box; display: inline-bloc=
+k; letter-spacing: .25px; min-height: 36px; text-align: center; text-decora=
+tion: none;">Open</a></div></td></tr></table><table style=3D"border-collaps=
+e: collapse; width: 100%;" role=3D"presentation"><tr><td style=3D"padding: =
+24px 4.5%"><table style=3D"border-collapse: collapse; width: 100%;" dir=3D"=
+ltr"><tr><td style=3D"padding: 0;font-family: Roboto, Arial, Helvetica, san=
+s-serif; color: #5F6368; width: 100%; font-size: 12px; line-height: 16px; m=
+in-height: 40px; letter-spacing: .3px;">Google LLC, 1600 Amphitheatre Parkw=
+ay, Mountain View, CA 94043, USA<br/> You have received this email because =
+<a href=3D"mailto:nhh5@cornell.edu" style=3D"color:inherit;text-decoration:=
+none">nhh5@cornell.edu</a> shared a document with you from Google Docs.</td=
+><td style=3D"padding: 0;padding-left: 20px; min-width: 96px"><a href=3D"ht=
+tps://workspace.google.com/" target=3D"_blank" style=3D"text-decoration: no=
+ne"><amp-img src=3D"https://www.gstatic.com/docs/documents/share/images/goo=
+gleworkspace_logo_192x80.png" width=3D"96" height=3D"40" alt=3D"Google" sty=
+le=3D"font-size:16px;font-weight:500;color:#5F6368"></amp-img></a></td></tr=
+></table></td></tr></table></td></tr></table></td></tr></table></div></amp-=
+list></body></html>
+--000000000000cf303e06552ac325
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<html><head></head><body><table style=3D"border-collapse: collapse; width: =
+100%; background-color: white; text-align: center;" role=3D"presentation"><=
+tr><td style=3D"padding: 24px 0 16px 0;"><table style=3D"border-collapse: c=
+ollapse;font-family: Roboto, Arial, Helvetica, sans-serif;hyphens: auto; ov=
+erflow-wrap: break-word; word-wrap: break-word; word-break: break-word;widt=
+h: 90%; margin: auto;max-width: 700px;min-width: 280px; text-align: left;" =
+role=3D"presentation"><tr><td style=3D"padding: 0;"><table style=3D"width:1=
+00%; border: 1px solid #dadce0; border-radius: 8px; border-spacing: 0; tabl=
+e-layout:fixed; border-collapse: separate;" role=3D"presentation"><tr><td s=
+tyle=3D"padding: 4.5%;" dir=3D"ltr"><div style=3D"margin-bottom:32px;font-f=
+amily: Google Sans, Roboto, Arial, Helvetica, sans-serif; font-style: norma=
+l; font-size: 28px; line-height: 36px; color: #3c4043;">Noah Hamm shared a =
+document</div><table style=3D"border-collapse: collapse;font-family: Roboto=
+, Arial, Helvetica, sans-serif; font-size:16px; line-height:24px; color:#20=
+2124; letter-spacing:0.1px; table-layout:fixed; width:100%; overflow-wrap: =
+break-word;" role=3D"presentation"><tr><td style=3D"padding: 0; vertical-al=
+ign:top; width:50px;"><!--[if mso]><v:oval xmlns:v=3D"urn:schemas-microsoft=
+-com:vml" xmlns:w=3D"urn:schemas-microsoft-com:office:word" style=3D"height=
+:50px;width:50px;" fill=3D"t" stroke=3D"f"><v:fill type=3D"frame" src=3D"ht=
+tps://lh3.googleusercontent.com/a/ACg8ocJqhAbKH-8IrBliUhVHIM8zsaY-wDYHxY95A=
+r3OTaSiDevhzw=3Ds64" alt=3D"Header profile photo" style=3D"height:50px;widt=
+h:50px;"/></v:oval><![endif]--><div style=3D"mso-hide:all;"><img style=3D"b=
+order-radius:50%; display:block;" width=3D"50" height=3D"50" src=3D"https:/=
+/lh3.googleusercontent.com/a/ACg8ocJqhAbKH-8IrBliUhVHIM8zsaY-wDYHxY95Ar3OTa=
+SiDevhzw=3Ds64" alt=3D"Header profile photo"></div></td><td style=3D"paddin=
+g: 0; vertical-align:top; padding-left:12px;"><div style=3D"padding-top:12p=
+x;">Noah Hamm (<a href=3D"mailto:nhh5@cornell.edu" style=3D"color:inherit;t=
+ext-decoration:none">nhh5@cornell.edu</a>) has invited you to <b>edit</b> t=
+he following document:</div></td></tr></table><table style=3D"border-spacin=
+g:0 4px; table-layout:fixed; width:100%; overflow-wrap: break-word;" role=
+=3D"presentation"><tr style=3D"height:28px;"></tr><tr><td style=3D"padding:=
+ 0;"><a href=3D"https://docs.google.com/document/d/1O-O-mpEGGtcD6QiLqjxw1y1=
+rFtI7WzayoOroxpoxwfQ/edit?usp=3Dsharing_eil&amp;ts=3D6a3eab76" target=3D"_b=
+lank" style=3D"color: #3c4043; display: inline-block; max-width: 100%; text=
+-decoration: none; vertical-align: top;border: 1px solid #DADCE0; border-ra=
+dius: 16px; white-space: nowrap;"><div style=3D"align-items: center; displa=
+y: inline-flex; max-width: 98%; padding-right: 12px;"><div style=3D"line-he=
+ight: 18px; overflow: hidden; text-overflow: ellipsis;padding: 6px 12px;"><=
+span style=3D"display: inline-block; vertical-align: middle; min-width: 26p=
+x; width: 26px;"><img src=3D"https://ssl.gstatic.com/docs/doclist/images/me=
+diatype/icon_1_document_x64.png" width=3D"18" height=3D"18" style=3D"vertic=
+al-align: top;" role=3D"presentation"></span><span style=3D"font: 500 14px/=
+18px Google Sans, Roboto, Arial, Helvetica, sans-serif; display: inline; le=
+tter-spacing: 0.2px; vertical-align: middle;">Fabman-Canvas Training Integr=
+ation</span></div><div style=3D"background-color: #fcbd00; border: 1px soli=
+d #fcbd00; border-radius: 4px; display: inline-block; height: 13px; padding=
+: 2px; margin: auto; text-align: center; width: 13px;"><img src=3D"https://=
+fonts.gstatic.com/s/i/short-term/release/googlesymbols/domain_disabled/defa=
+ult/20px.svg" width=3D"14px" height=3D"14px"></div></div></a></td></tr></ta=
+ble><table style=3D"border-collapse: collapse;" role=3D"presentation"><tr s=
+tyle=3D"height: 32px"><td></td></tr></table><div><!--[if mso]><v:roundrect =
+xmlns:v=3D"urn:schemas-microsoft-com:vml" xmlns:w=3D"urn:schemas-microsoft-=
+com:office:word" href=3D"https://docs.google.com/document/d/1O-O-mpEGGtcD6Q=
+iLqjxw1y1rFtI7WzayoOroxpoxwfQ/edit?usp=3Dsharing_eip&amp;ts=3D6a3eab76" sty=
+le=3D"height:36px; width:100px; v-text-anchor:middle;" arcsize=3D"50%" stro=
+ke=3D"f" fillcolor=3D"#1a73e8"><w:anchorlock/><center style=3D"color:#fffff=
+f;font-family:Arial,Helvetica,sans-serif;font-weight:500;font-size:14px;">O=
+pen </center></v:roundrect><![endif]--><a href=3D"https://docs.google.com/d=
+ocument/d/1O-O-mpEGGtcD6QiLqjxw1y1rFtI7WzayoOroxpoxwfQ/edit?usp=3Dsharing_e=
+ip&amp;ts=3D6a3eab76" class=3D"material-button material-button-filled" targ=
+et=3D"_blank" tabindex=3D"0" role=3D"link" style=3D"mso-hide:all;padding: 0=
+ 24px;font: 500 14px/36px Google Sans, Roboto, Arial, Helvetica, sans-serif=
+; border: none; border-radius: 18px; box-sizing: border-box; display: inlin=
+e-block; letter-spacing: .25px; min-height: 36px; text-align: center; text-=
+decoration: none;background-color: #0B57D0; color: #fff; cursor: pointer;">=
+Open</a></div></td></tr></table><table style=3D"border-collapse: collapse; =
+width: 100%;" role=3D"presentation"><tr><td style=3D"padding: 24px 4.5%"><t=
+able style=3D"border-collapse: collapse; width: 100%;" dir=3D"ltr"><tr><td =
+style=3D"padding: 0;font-family: Roboto, Arial, Helvetica, sans-serif; colo=
+r: #5F6368; width: 100%; font-size: 12px; line-height: 16px; min-height: 40=
+px; letter-spacing: .3px;">Google LLC, 1600 Amphitheatre Parkway, Mountain =
+View, CA 94043, USA<br/> You have received this email because <a href=3D"ma=
+ilto:nhh5@cornell.edu" style=3D"color:inherit;text-decoration:none">nhh5@co=
+rnell.edu</a> shared a document with you from Google Docs.</td><td style=3D=
+"padding: 0;padding-left: 20px; min-width: 96px"><a href=3D"https://workspa=
+ce.google.com/" target=3D"_blank" style=3D"text-decoration: none"><img src=
+=3D"https://www.gstatic.com/docs/documents/share/images/googleworkspace_log=
+o_192x80.png" width=3D"96" height=3D"40" alt=3D"Google" style=3D"font-size:=
+16px;font-weight:500;color:#5F6368"></a></td></tr></table></td></tr></table=
+></td></tr></table></td></tr></table></body></html>
+--000000000000cf303e06552ac325--
