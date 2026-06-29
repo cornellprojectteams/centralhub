@@ -44,8 +44,8 @@ body {
   top: 0;
   z-index: 10;
   height: var(--header-h);
-  background: linear-gradient(135deg, var(--red-bright) 0%, var(--red) 55%, var(--red-dark) 100%);
-  box-shadow: 0 2px 14px rgba(179, 27, 27, 0.3);
+  background: linear-gradient(135deg, #8f1515 0%, #6e1010 55%, #530c0c 100%);
+  box-shadow: 0 2px 14px rgba(83, 12, 12, 0.4);
 }
 
 .app-header::after {
@@ -442,7 +442,7 @@ body.is-searching #staff:not(.hidden) + #admin:not(.hidden) {
 .app-footer {
   position: relative;
   margin-top: 3rem;
-  background: linear-gradient(160deg, var(--red-bright) 0%, var(--red) 50%, var(--red-dark) 100%);
+  background: linear-gradient(160deg, #7a1212 0%, #5a0e0e 50%, #3f0909 100%);
   color: #fff;
 }
 
