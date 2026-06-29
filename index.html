@@ -36,9 +36,18 @@
 
   <main class="page-main">
     <header class="page-intro">
-      <h1>What do you need to do?</h1>
+      <h1>What do you need to <span class="accent">do</span>?</h1>
       <div class="search-wrap">
-        <input type="search" class="search-input" id="search" placeholder="Search tools…" autocomplete="off">
+        <div class="search-box">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input type="search" class="search-input" id="search" placeholder="Search tools…" autocomplete="off" aria-label="Search tools">
+          <button type="button" class="search-clear" id="search-clear" aria-label="Clear search" hidden>&#10005;</button>
+          <kbd class="search-kbd" id="search-kbd">/</kbd>
+        </div>
+        <div class="search-meta" id="search-meta" hidden>
+          <span class="search-count" id="search-count"></span>
+          <span class="search-hint"><kbd>&uarr;</kbd><kbd>&darr;</kbd> navigate &middot; <kbd>&crarr;</kbd> open &middot; <kbd>esc</kbd> clear</span>
+        </div>
       </div>
     </header>
 
@@ -162,6 +171,37 @@
 
     <p class="no-results" id="no-results">No tools match your search.</p>
   </main>
+
+  <footer class="app-footer">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <img src="assets/cornell-seal.svg" alt="" class="footer-seal" aria-hidden="true">
+        <div>
+          <div class="footer-title">Project Teams Ops Hub</div>
+          <p class="footer-tagline">Everyday tools for Student Project Team safety and operations.</p>
+        </div>
+      </div>
+
+      <nav class="footer-nav" aria-label="Footer">
+        <div class="footer-col">
+          <h4>Jump to</h4>
+          <a href="#staff">Staff</a>
+          <a href="#admin">Admin tools</a>
+        </div>
+        <div class="footer-col">
+          <h4>Common tasks</h4>
+          <a href="https://forms.gle/6DHYsEPonVtdALps5" target="_blank" rel="noopener">Report a space issue</a>
+          <a href="https://docs.google.com/spreadsheets/d/1Md3bugxLvqHJQ7Htf3tHI-ARXeEQRFBU2zh6ho3XAfQ/edit" target="_blank" rel="noopener">Look up a team</a>
+          <a href="https://docs.google.com/document/d/1-pAMO02ul8k7pg9sCfkmVZ5W5p4NuWzaG2ALOWn60hk/edit" target="_blank" rel="noopener">Space Status Manual</a>
+        </div>
+      </nav>
+    </div>
+
+    <div class="footer-bottom">
+      <span>&copy; 2026 Cornell University &middot; Student Project Team Program</span>
+      <span class="footer-press">Press <kbd>/</kbd> to search</span>
+    </div>
+  </footer>
 </div>
 
 <script src="app.js"></script>

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "ops-hub",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-l", "4200", "/Users/okal/Desktop/Project-Teams-Ops-Hub"],
+      "port": 4200
+    }
+  ]
+}
