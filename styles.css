@@ -265,8 +265,8 @@ mark {
 .admin-block, .task-block { scroll-margin-top: calc(var(--header-h) + 1rem); }
 .hub-zone.hidden { display: none; }
 
-/* When a search matches both views, separate the stacked zones clearly. */
-body.is-searching #staff:not(.hidden) + #admin:not(.hidden) {
+/* When a search matches multiple views, separate the stacked zones clearly. */
+body.is-searching .hub-zone:not(.hidden) ~ .hub-zone:not(.hidden) {
   margin-top: 2.5rem;
   padding-top: 2.5rem;
   border-top: 1.5px solid var(--line);
@@ -368,6 +368,79 @@ body.is-searching #staff:not(.hidden) + #admin:not(.hidden) {
 .action-note { margin-top: .875rem; font-size: .875rem; color: var(--sub); }
 .action-note a { color: var(--red); font-weight: 600; text-decoration: none; border-bottom: 1.5px solid var(--gold); }
 .action-note a:hover { color: var(--red-dark); }
+
+/* Team self-service: see your open issues */
+
+.status-check {
+  margin-bottom: 1.5rem;
+  padding: 1.5rem;
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.status-head { display: flex; flex-direction: column; gap: .15rem; margin-bottom: 1rem; }
+
+.status-eyebrow {
+  font-size: .6875rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .14em;
+  color: var(--red);
+}
+
+.status-title {
+  font-family: var(--font-display);
+  font-size: 1.375rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  line-height: 1.15;
+}
+
+.status-sub { font-size: .875rem; color: var(--sub); max-width: 32rem; }
+
+.status-picker { display: flex; flex-wrap: wrap; gap: .625rem; }
+
+.status-select {
+  flex: 1;
+  min-width: 12rem;
+  font: inherit;
+  font-size: .9375rem;
+  color: var(--text);
+  background: #fff;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  padding: .75rem .9rem;
+  outline: none;
+  cursor: pointer;
+  transition: border-color .15s, box-shadow .15s;
+}
+
+.status-select:focus { border-color: var(--red); box-shadow: 0 0 0 4px rgba(179, 27, 27, 0.12); }
+
+.status-go {
+  flex-shrink: 0;
+  font-family: var(--font-display);
+  font-size: .9375rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #fff;
+  background: linear-gradient(180deg, var(--red-bright) 0%, var(--red) 55%, var(--red-dark) 100%);
+  border: none;
+  border-radius: 10px;
+  padding: 0 1.5rem;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(179, 27, 27, 0.28);
+  transition: transform .18s cubic-bezier(.22,1,.36,1), box-shadow .18s ease;
+}
+
+.status-go:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(179, 27, 27, 0.4); }
+.status-go:active { transform: translateY(0); }
+
+.status-msg { margin-top: .75rem; font-size: .8125rem; color: var(--sub); }
+.status-msg[hidden] { display: none; }
 
 /* Admin — category color system */
 

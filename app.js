@@ -17,21 +17,25 @@
 (function () {
   'use strict';
 
+  // Deployed Space Status web app /exec URL. The team picker opens a team's
+  // live read-only open-issues page at SPACE_STATUS_URL?view=<team name>.
+  const SPACE_STATUS_URL = 'https://script.google.com/macros/s/AKfycbwOnNmpSXc3biH14Fm9iLcUQ2X0UK-Gx5kQpNmrBsHd3K-l2u0GjsMblOumiY73drM_/exec';
+
   const search = document.getElementById('search');
   const categories = document.querySelectorAll('.category');
   const zones = document.querySelectorAll('.hub-zone');
   const noResults = document.getElementById('no-results');
   const navButtons = document.querySelectorAll('.hub-nav-btn');
 
-  /** @type {'staff' | 'admin'} */
+  /** @type {'staff' | 'admin' | 'team'} */
   let currentView = 'staff';
 
   /**
    * Show one hub zone and sync nav + URL hash.
-   * @param {'staff' | 'admin'} view
+   * @param {'staff' | 'admin' | 'team'} view
    */
   function setView(view) {
-    if (view !== 'staff' && view !== 'admin') return;
+    if (view !== 'staff' && view !== 'admin' && view !== 'team') return;
     currentView = view;
 
     navButtons.forEach(btn => {
@@ -57,11 +61,11 @@
 
   window.addEventListener('hashchange', () => {
     const hash = location.hash.slice(1);
-    if (hash === 'staff' || hash === 'admin') setView(hash);
+    if (hash === 'staff' || hash === 'admin' || hash === 'team') setView(hash);
   });
 
   const initialHash = location.hash.slice(1);
-  setView(initialHash === 'admin' ? 'admin' : 'staff');
+  setView((initialHash === 'admin' || initialHash === 'team') ? initialHash : 'staff');
 
   if (!search) return;
 
@@ -274,6 +278,24 @@
       search.value = '';
       runSearch();
       search.focus();
+    });
+  }
+
+  // Team self-service: open the live read-only "open issues" page for a team.
+  const statusForm = document.getElementById('status-form');
+  if (statusForm) {
+    statusForm.addEventListener('submit', e => {
+      e.preventDefault();
+      const sel = document.getElementById('status-team');
+      const msg = document.getElementById('status-msg');
+      const team = sel && sel.value;
+      if (!team) { if (sel) sel.focus(); return; }
+      if (!SPACE_STATUS_URL) {
+        if (msg) { msg.hidden = false; msg.textContent = 'The team portal link is not set yet. Add SPACE_STATUS_URL near the top of app.js.'; }
+        return;
+      }
+      const sep = SPACE_STATUS_URL.indexOf('?') >= 0 ? '&' : '?';
+      window.open(SPACE_STATUS_URL + sep + 'view=' + encodeURIComponent(team), '_blank', 'noopener');
     });
   }
 
