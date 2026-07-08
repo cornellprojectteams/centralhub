@@ -1,5 +1,5 @@
 /**
- * Project Teams Ops Hub — client script
+ * Project Teams Ops Hub client script
  *
  * Two responsibilities:
  *   1. View switching between #staff and #admin via header nav buttons
@@ -27,15 +27,17 @@
   const noResults = document.getElementById('no-results');
   const navButtons = document.querySelectorAll('.hub-nav-btn');
 
-  /** @type {'staff' | 'admin' | 'team'} */
+  const adminNav = document.getElementById('admin-nav');
+
+  /** @type {'staff' | 'admin'} */
   let currentView = 'staff';
 
   /**
    * Show one hub zone and sync nav + URL hash.
-   * @param {'staff' | 'admin' | 'team'} view
+   * @param {'staff' | 'admin'} view
    */
   function setView(view) {
-    if (view !== 'staff' && view !== 'admin' && view !== 'team') return;
+    if (view !== 'staff' && view !== 'admin') return;
     currentView = view;
 
     navButtons.forEach(btn => {
@@ -61,11 +63,29 @@
 
   window.addEventListener('hashchange', () => {
     const hash = location.hash.slice(1);
-    if (hash === 'staff' || hash === 'admin' || hash === 'team') setView(hash);
+    if (hash === 'staff' || hash === 'admin') setView(hash);
   });
 
   const initialHash = location.hash.slice(1);
-  setView((initialHash === 'admin' || initialHash === 'team') ? initialHash : 'staff');
+  setView(initialHash === 'admin' ? 'admin' : 'staff');
+
+  // Scroll-spy: highlight the sidebar link for the section currently in view.
+  if (adminNav && 'IntersectionObserver' in window) {
+    const navLinks = [...adminNav.querySelectorAll('a')];
+    const linkById = {};
+    navLinks.forEach(a => { linkById[a.getAttribute('href').slice(1)] = a; });
+    const setActive = id => {
+      navLinks.forEach(a => a.classList.remove('active'));
+      if (linkById[id]) linkById[id].classList.add('active');
+    };
+    const spy = new IntersectionObserver(entries => {
+      const inView = entries.filter(e => e.isIntersecting)
+        .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+      if (inView.length) setActive(inView[0].target.id);
+    }, { rootMargin: '-96px 0px -65% 0px', threshold: 0 });
+    document.querySelectorAll('#admin .admin-block').forEach(b => spy.observe(b));
+    navLinks.forEach(a => a.addEventListener('click', () => setActive(a.getAttribute('href').slice(1))));
+  }
 
   if (!search) return;
 
@@ -281,22 +301,20 @@
     });
   }
 
-  // Team self-service: open the live read-only "open issues" page for a team.
-  const statusForm = document.getElementById('status-form');
-  if (statusForm) {
-    statusForm.addEventListener('submit', e => {
-      e.preventDefault();
-      const sel = document.getElementById('status-team');
-      const msg = document.getElementById('status-msg');
-      const team = sel && sel.value;
-      if (!team) { if (sel) sel.focus(); return; }
-      if (!SPACE_STATUS_URL) {
-        if (msg) { msg.hidden = false; msg.textContent = 'The team portal link is not set yet. Add SPACE_STATUS_URL near the top of app.js.'; }
-        return;
-      }
-      const sep = SPACE_STATUS_URL.indexOf('?') >= 0 ? '&' : '?';
-      window.open(SPACE_STATUS_URL + sep + 'view=' + encodeURIComponent(team), '_blank', 'noopener');
-    });
+  // Open space issues dashboard, embedded under the Experiential Learning Lab section.
+  const issuesFrame = document.getElementById('issues-frame');
+  if (issuesFrame) {
+    const issuesUrl = SPACE_STATUS_URL
+      ? SPACE_STATUS_URL + (SPACE_STATUS_URL.indexOf('?') >= 0 ? '&' : '?') + 'view=all'
+      : '';
+    if (issuesUrl) {
+      issuesFrame.src = issuesUrl;
+      const link = document.getElementById('issues-fallback-link');
+      if (link) link.href = issuesUrl;
+    } else {
+      const fb = document.getElementById('issues-fallback');
+      if (fb) fb.hidden = false;
+    }
   }
 
   // Global shortcuts: "/" or Cmd/Ctrl+K to jump to search from anywhere.

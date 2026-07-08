@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+  Project Teams Ops Hub: editing guide
+  Manual for editing this site with GitHub Codespaces and Copilot,
+  then publishing with git add / commit / push.
+  Shares header/footer and styles.css with index.html.
+-->
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Editing guide | Project Teams Ops Hub</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="app-shell">
+  <header class="app-header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">
+        <img src="assets/cornell-seal.svg" alt="Cornell University" class="logo-seal">
+        <div class="logo-text-block">
+          <div class="logo-text">Project Teams Ops Hub</div>
+          <div class="logo-sub">Safety &amp; Operations</div>
+        </div>
+      </a>
+      <nav class="hub-nav" aria-label="Hub sections">
+        <a class="hub-nav-btn" href="index.html#staff">Staff</a>
+        <a class="hub-nav-btn" href="index.html#admin">Admin</a>
+        <a class="hub-nav-btn" href="index.html#team">Teams</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="doc-main">
+    <span class="doc-eyebrow">Editing manual</span>
+    <h1>Editing this site</h1>
+    <p class="doc-lede">
+      How to edit the site in a browser with GitHub Codespaces and Copilot, then publish with
+      git. Nothing to install.
+    </p>
+
+    <nav class="doc-toc" aria-label="On this page">
+      <a href="#setup">Requirements</a>
+      <a href="#codespace">Open a Codespace</a>
+      <a href="#tour">Files</a>
+      <a href="#preview">Preview</a>
+      <a href="#copilot">Use Copilot</a>
+      <a href="#ship">Publish</a>
+      <a href="#rescue">Recovery</a>
+      <a href="#links">Links</a>
+    </nav>
+
+    <section class="doc-section" id="setup">
+      <h2><span class="doc-num">01</span>Requirements</h2>
+      <ul>
+        <li>A GitHub account with access to <a href="https://github.com/cornellprojectteams/centralhub" target="_blank" rel="noopener">cornellprojectteams/centralhub</a>. If the repo shows a 404, ask to be added as a collaborator.</li>
+      </ul>
+    </section>
+
+    <section class="doc-section" id="codespace">
+      <h2><span class="doc-num">02</span>Open a Codespace</h2>
+      <ol>
+        <li>Open the <a href="https://github.com/cornellprojectteams/centralhub" target="_blank" rel="noopener">repository</a>.</li>
+        <li>Click the green <strong>Code</strong> button, select the <strong>Codespaces</strong> tab, click <strong>Create codespace on main</strong>.</li>
+        <li>Wait about a minute. VS Code opens in the browser with the site's files loaded.</li>
+      </ol>
+      <p>To continue later, reopen the same codespace from that menu instead of creating a new one.</p>
+    </section>
+
+    <section class="doc-section" id="tour">
+      <h2><span class="doc-num">03</span>Files</h2>
+      <ul>
+        <li><code>index.html</code> The hub page: all sections, links, and buttons.</li>
+        <li><code>styles.css</code> Colors, fonts, spacing.</li>
+        <li><code>app.js</code> Tabs, search, and the team picker.</li>
+        <li><code>docs.html</code>, <code>dev-guide.html</code> The guides.</li>
+        <li><code>apps-script/</code> Reference copy of the email engine. The live version runs on Google; editing this folder does not change what sends. See <a href="docs.html">the system guide</a>.</li>
+      </ul>
+    </section>
+
+    <section class="doc-section" id="preview">
+      <h2><span class="doc-num">04</span>Preview</h2>
+      <ol>
+        <li>Open a terminal: <strong>Ctrl + `</strong> (backtick, under Esc).</li>
+        <li>Run:</li>
+      </ol>
+      <div class="cmd">python3 -m http.server 8000</div>
+      <ol start="3">
+        <li>Click <strong>Open in Browser</strong> in the popup.</li>
+        <li>Edit, save (<strong>Cmd/Ctrl + S</strong>), refresh the preview tab.</li>
+      </ol>
+      <p>The preview is private to your codespace. Nothing is public until you push.</p>
+    </section>
+
+    <section class="doc-section" id="copilot">
+      <h2><span class="doc-num">05</span>Use Copilot</h2>
+      <ol>
+        <li>Open Copilot chat: the chat icon in the sidebar, or <strong>Cmd/Ctrl + Shift + I</strong>.</li>
+        <li>Describe the change. Name the file and point at an existing element to copy its format. Examples:</li>
+      </ol>
+      <ul>
+        <li>"In index.html, add a link to the fire safety training doc in the Compliance section, formatted like the other links there."</li>
+        <li>"In styles.css, make the footer headings slightly larger."</li>
+        <li>"Add a new admin category called Events with one link, following the pattern of the Fleet section."</li>
+      </ul>
+      <ol start="3">
+        <li>Review the proposed diff, then <strong>Accept</strong>. To edit one spot, select the code and press <strong>Cmd/Ctrl + I</strong>.</li>
+      </ol>
+      <p>Make one change at a time and check the preview after each. If a suggestion is wrong, reject it and rephrase.</p>
+    </section>
+
+    <section class="doc-section" id="ship">
+      <h2><span class="doc-num">06</span>Publish</h2>
+      <p>In the terminal:</p>
+      <div class="cmd">
+        git add -A<br>
+        git commit -m "add fire safety link to compliance"<br>
+        git push
+      </div>
+      <ul>
+        <li><code>git add -A</code> stages all changed files.</li>
+        <li><code>git commit -m "..."</code> saves a checkpoint. The message should say what changed.</li>
+        <li><code>git push</code> uploads it to GitHub.</li>
+      </ul>
+      <p>
+        Equivalent buttons: the <strong>Source Control</strong> icon in the sidebar. Type the
+        message, click <strong>Commit</strong>, then <strong>Sync Changes</strong>.
+      </p>
+      <p>
+        GitHub Pages publishes the main branch to
+        <a href="https://cornellprojectteams.github.io/centralhub/" target="_blank" rel="noopener">the live site</a>
+        within a minute or two. Hard-refresh (Cmd/Ctrl + Shift + R) if the change does not appear.
+      </p>
+    </section>
+
+    <section class="doc-section" id="rescue">
+      <h2><span class="doc-num">07</span>Recovery</h2>
+      <ul>
+        <li><code>git status</code> Lists what changed since the last commit.</li>
+        <li><code>git checkout -- filename</code> Discards uncommitted edits to that file.</li>
+        <li>Pushed something broken? Every commit stays in history and any version can be restored. Ask for help before forcing anything.</li>
+        <li>Codespaces stop when idle; work is kept. Delete unused ones at <a href="https://github.com/codespaces" target="_blank" rel="noopener">github.com/codespaces</a>.</li>
+      </ul>
+    </section>
+
+    <section class="doc-section" id="links">
+      <h2><span class="doc-num">08</span>Links</h2>
+      <ul class="doc-links">
+        <li>
+          <a href="https://github.com/cornellprojectteams/centralhub" target="_blank" rel="noopener">GitHub repo</a>
+          <span>Open a Codespace from the green Code button here.</span>
+        </li>
+        <li>
+          <a href="https://cornellprojectteams.github.io/centralhub/" target="_blank" rel="noopener">Live site</a>
+          <span>What the public sees after you push.</span>
+        </li>
+        <li>
+          <a href="https://github.com/codespaces" target="_blank" rel="noopener">Your Codespaces</a>
+          <span>Reopen or delete codespaces.</span>
+        </li>
+        <li>
+          <a href="docs.html">System guide</a>
+          <span>How the Space Status code works.</span>
+        </li>
+      </ul>
+      <p class="doc-updated">Last updated July 2026.</p>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <img src="assets/cornell-seal.svg" alt="" class="footer-seal" aria-hidden="true">
+        <div>
+          <div class="footer-title">Project Teams Ops Hub</div>
+          <p class="footer-tagline">Everyday tools for Student Project Team safety and operations.</p>
+        </div>
+      </div>
+
+      <nav class="footer-nav" aria-label="Footer">
+        <div class="footer-col">
+          <h4>Jump to</h4>
+          <a href="index.html#staff">Staff</a>
+          <a href="index.html#admin">Admin</a>
+          <a href="index.html#team">Teams</a>
+        </div>
+        <div class="footer-col">
+          <h4>On this page</h4>
+          <a href="#codespace">Open a Codespace</a>
+          <a href="#ship">Publish</a>
+          <a href="#rescue">Recovery</a>
+        </div>
+        <div class="footer-col">
+          <h4>Guides</h4>
+          <a href="docs.html">System guide</a>
+        </div>
+      </nav>
+    </div>
+
+    <div class="footer-bottom">
+      <span>&copy; 2026 Cornell University &middot; Student Project Team Program</span>
+      <a class="footer-back" href="index.html">Back to the hub &rarr;</a>
+    </div>
+  </footer>
+</div>
+
+</body>
+</html>

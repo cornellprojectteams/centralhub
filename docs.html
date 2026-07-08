@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+  Project Teams Ops Hub: system guide
+  Reference manual for the Space Status code.
+  Shares header/footer and styles.css with index.html.
+-->
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>System guide | Project Teams Ops Hub</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="app-shell">
+  <header class="app-header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">
+        <img src="assets/cornell-seal.svg" alt="Cornell University" class="logo-seal">
+        <div class="logo-text-block">
+          <div class="logo-text">Project Teams Ops Hub</div>
+          <div class="logo-sub">Safety &amp; Operations</div>
+        </div>
+      </a>
+      <nav class="hub-nav" aria-label="Hub sections">
+        <a class="hub-nav-btn" href="index.html#staff">Staff</a>
+        <a class="hub-nav-btn" href="index.html#admin">Admin</a>
+        <a class="hub-nav-btn" href="index.html#team">Teams</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="doc-main">
+    <span class="doc-eyebrow">Admin manual</span>
+    <h1>Space Status system guide</h1>
+    <p class="doc-lede">
+      Reference for the Space Status system: what each part does, how notifications and
+      reminders behave, and how to make changes.
+    </p>
+
+    <nav class="doc-toc" aria-label="On this page">
+      <a href="#overview">Overview</a>
+      <a href="#components">Components</a>
+      <a href="#submit">On submit</a>
+      <a href="#severity">Severity &amp; deadlines</a>
+      <a href="#reminders">Reminders</a>
+      <a href="#pages">Web pages</a>
+      <a href="#changes">Making changes</a>
+      <a href="#utilities">Utilities</a>
+      <a href="#links">Links</a>
+    </nav>
+
+    <section class="doc-section" id="overview">
+      <h2><span class="doc-num">01</span>Overview</h2>
+      <p>
+        The system runs on a Google Form, a Google Sheet, and one Apps Script. A form submission
+        triggers an email to the responsible team with a deadline. Reminders repeat until the team
+        marks the issue addressed. Each team has a status page. The sheet is the database.
+      </p>
+      <div class="doc-flow">
+        <span>Form</span><span class="arr">&rarr;</span>
+        <span>Sheet</span><span class="arr">&rarr;</span>
+        <span>Script</span><span class="arr">&rarr;</span>
+        <span>Email</span><span class="arr">&rarr;</span>
+        <span>Team marks it addressed</span>
+      </div>
+    </section>
+
+    <section class="doc-section" id="components">
+      <h2><span class="doc-num">02</span>Components</h2>
+      <ul>
+        <li><strong><a href="https://docs.google.com/forms/d/1bVzxR-lGNDtll6wh7wsdZGsVuqMkaRavVcGxykLHMFw/edit" target="_blank" rel="noopener">The form.</a></strong> Collects team, issue type, required action, severity, details, and a photo. The team dropdown must match the Team column in Team Contacts.</li>
+        <li><strong><a href="https://docs.google.com/spreadsheets/d/1mZrlnA-GiVKB4_Um21aMH9jsSkf6TUJhauDWivnf7-I/edit#gid=0" target="_blank" rel="noopener">Form Responses tab.</a></strong> One row per submission. The script manages four columns: <code>Notified at</code>, <code>Issue token</code>, <code>Addressed at</code>, <code>Last reminder</code>. Do not edit them by hand.</li>
+        <li><strong><a href="https://docs.google.com/spreadsheets/d/1mZrlnA-GiVKB4_Um21aMH9jsSkf6TUJhauDWivnf7-I/edit" target="_blank" rel="noopener">Team Contacts tab.</a></strong> Liaison, team general email, safety lead, extra CC, and a team token per row. The script reads it live; edits apply to the next email.</li>
+        <li><strong><a href="https://script.google.com/d/1DpKw0dXIQ5rH6_BQfIQnXpmTbTcPmfH3wq2Dzc6pJUA7lrmeFG7hh5P4/edit" target="_blank" rel="noopener">The script.</a></strong> A standalone Apps Script project. One file: <code>02_notify_on_submit.gs</code>. A copy is kept in this repo under <code>apps-script/</code>.</li>
+        <li><strong><a href="https://script.google.com/macros/s/AKfycbwOnNmpSXc3biH14Fm9iLcUQ2X0UK-Gx5kQpNmrBsHd3K-l2u0GjsMblOumiY73drM_/exec" target="_blank" rel="noopener">The web app.</a></strong> Served by the same script: the confirm page behind the email button and the team status pages.</li>
+      </ul>
+    </section>
+
+    <section class="doc-section" id="submit">
+      <h2><span class="doc-num">03</span>On submit</h2>
+      <p>The form-submit trigger is named <code>sendEmails</code> and calls <code>onFormSubmit</code>, which:</p>
+      <ol>
+        <li>Reads the row by header name. Column order does not matter.</li>
+        <li>Looks up the team in Team Contacts. To: general email and liaison. Cc: safety lead, extra CC, always-CC list.</li>
+        <li>Sends the email: severity-based subject, deadline in bold, one action button.</li>
+        <li>Stamps <code>Issue token</code> and <code>Notified at</code> on the row and sets any photo to link-view so the portal can display it.</li>
+      </ol>
+      <p>If the team has no usable email, mail goes to <code>CONFIG.fallbackEmail</code>.</p>
+      <p>
+        The trigger belongs to another account and cannot be deleted from this one. The script keeps
+        a shim so it runs the current code:
+      </p>
+      <div class="cmd">function sendEmails(e) { onFormSubmit(e); }</div>
+      <p>Do not add a second on-submit trigger; teams would get duplicate mail.</p>
+    </section>
+
+    <section class="doc-section" id="severity">
+      <h2><span class="doc-num">04</span>Severity and deadlines</h2>
+      <p>Severity comes from the Current Status field. Teams never see the color names.</p>
+      <table class="sla">
+        <thead>
+          <tr><th>Severity</th><th>Window</th><th>What the team reads</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="dot" style="background:#b31b1b"></span>Red</td><td>Same day</td><td>Urgent: same-day action needed</td></tr>
+          <tr><td><span class="dot" style="background:#e08a1e"></span>Orange</td><td>3 days</td><td>Action needed within 2 to 3 days</td></tr>
+          <tr><td><span class="dot" style="background:#caa12a"></span>Yellow</td><td>10 days</td><td>Please address within 7 to 10 days</td></tr>
+          <tr><td><span class="dot" style="background:#b8a06a"></span>Ivory</td><td>21 days</td><td>For attention within 14 to 21 days</td></tr>
+          <tr><td><span class="dot" style="background:#7c3aed"></span>Purple</td><td>None</td><td>Improvement opportunity. No deadline, no reminders.</td></tr>
+        </tbody>
+      </table>
+      <p>Windows are set in <code>SLA_DAYS</code>, wording in <code>SEVERITY</code>. Both are at the top of the script:</p>
+      <div class="cmd">
+        const SLA_DAYS = { red: 0, orange: 3, yellow: 10, ivory: 21, purple: null };<br>
+        <br>
+        const SEVERITY = {<br>
+        &nbsp;&nbsp;red: { subject: 'Urgent: same-day action needed', ... },<br>
+        &nbsp;&nbsp;...<br>
+        };
+      </div>
+    </section>
+
+    <section class="doc-section" id="reminders">
+      <h2><span class="doc-num">05</span>Reminders</h2>
+      <p><code>sendReminders</code> runs on a daily time trigger.</p>
+      <ul>
+        <li>Day 0: no reminder. The initial notice covers it.</li>
+        <li>Due date: first reminder.</li>
+        <li>After that: repeat until the issue is marked addressed, at this interval:</li>
+      </ul>
+      <div class="cmd">interval = max(1, round(windowDays / 2))&nbsp;&nbsp;<span class="c">// days</span></div>
+      <p>
+        Example: reported June 1, due June 5. Reminders go June 5, 7, 9, and so on. Red reminds
+        daily. Purple never reminds. The schedule anchors to the <code>Last reminder</code> stamp,
+        so a missed run self-corrects the next day.
+      </p>
+    </section>
+
+    <section class="doc-section" id="pages">
+      <h2><span class="doc-num">06</span>Web pages</h2>
+      <p>Four routes on one URL:</p>
+      <div class="cmd">
+        /exec&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">team picker</span><br>
+        /exec?view=Baja&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">read-only status page, used by the Teams tab</span><br>
+        /exec?team=TOKEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">full portal with Mark addressed buttons</span><br>
+        /exec?id=TOKEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">confirm page, opened by the email button</span>
+      </div>
+      <p>
+        The confirm page exists because mail scanners prefetch links; a plain link would close
+        issues on its own. Nothing changes until a person clicks confirm.
+      </p>
+      <p>
+        Closing an issue writes a timestamp into <code>Addressed at</code>. Clear that cell to reopen
+        the issue.
+      </p>
+    </section>
+
+    <section class="doc-section" id="changes">
+      <h2><span class="doc-num">07</span>Making changes</h2>
+      <ul>
+        <li><strong>Contacts and recipients:</strong> edit Team Contacts.</li>
+        <li><strong>Wording, deadlines, sender:</strong> edit the constants at the top of the script and save.</li>
+        <li><strong>New team:</strong> add a row in Team Contacts, run <code>fillTeamTokens</code>, add the name to the form dropdown and the Teams picker in <code>index.html</code>.</li>
+        <li><strong>Web page changes:</strong> these do not go live until you deploy a new version. Deploy &rarr; Manage deployments &rarr; pencil &rarr; Version: New version &rarr; Deploy. The URL stays the same.</li>
+      </ul>
+      <p>Go-live settings, in <code>CONFIG</code> at the top of the script:</p>
+      <div class="cmd">
+        sender: 'eng_projectteams@cornell.edu',&nbsp;&nbsp;<span class="c">// send-as alias on the running account</span><br>
+        alwaysCc: ['nhh5@cornell.edu'],
+      </div>
+    </section>
+
+    <section class="doc-section" id="utilities">
+      <h2><span class="doc-num">08</span>Utilities</h2>
+      <p>Run from the script editor:</p>
+      <ul>
+        <li><code>fillTeamTokens</code> Creates tokens for teams that lack one.</li>
+        <li><code>sharePhotos</code> One-time backfill; makes older photos viewable in the portal.</li>
+        <li><code>sendReminders</code> Sends due reminders immediately.</li>
+        <li><code>listResponseHeaders</code> Prints the sheet's column headers to the log.</li>
+      </ul>
+    </section>
+
+    <section class="doc-section" id="links">
+      <h2><span class="doc-num">09</span>Links</h2>
+      <ul class="doc-links">
+        <li>
+          <a href="https://docs.google.com/spreadsheets/d/1mZrlnA-GiVKB4_Um21aMH9jsSkf6TUJhauDWivnf7-I/edit" target="_blank" rel="noopener">Space Status Tracking sheet</a>
+          <span>Form Responses and the Team Contacts tab. The database.</span>
+        </li>
+        <li>
+          <a href="https://docs.google.com/forms/d/1bVzxR-lGNDtll6wh7wsdZGsVuqMkaRavVcGxykLHMFw/edit" target="_blank" rel="noopener">Report form (editor)</a>
+          <span>Teams, issue types, and fields. Editing here changes what gets collected.</span>
+        </li>
+        <li>
+          <a href="https://forms.gle/6DHYsEPonVtdALps5" target="_blank" rel="noopener">Report form (live)</a>
+          <span>The form people submit.</span>
+        </li>
+        <li>
+          <a href="https://script.google.com/d/1DpKw0dXIQ5rH6_BQfIQnXpmTbTcPmfH3wq2Dzc6pJUA7lrmeFG7hh5P4/edit" target="_blank" rel="noopener">Apps Script project</a>
+          <span>The engine. Edit and deploy here.</span>
+        </li>
+        <li>
+          <a href="https://script.google.com/macros/s/AKfycbwOnNmpSXc3biH14Fm9iLcUQ2X0UK-Gx5kQpNmrBsHd3K-l2u0GjsMblOumiY73drM_/exec" target="_blank" rel="noopener">Web app</a>
+          <span>The team status pages and the confirm page. The deployed URL.</span>
+        </li>
+        <li>
+          <a href="https://docs.google.com/document/d/1-pAMO02ul8k7pg9sCfkmVZ5W5p4NuWzaG2ALOWn60hk/edit" target="_blank" rel="noopener">Space Status Manual</a>
+          <span>When and how to report. For the people filing issues.</span>
+        </li>
+        <li>
+          <a href="https://github.com/cornellprojectteams/centralhub" target="_blank" rel="noopener">GitHub repo</a>
+          <span>This hub's source, including a reference copy of the script.</span>
+        </li>
+      </ul>
+      <p class="doc-updated">Last updated July 2026.</p>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <img src="assets/cornell-seal.svg" alt="" class="footer-seal" aria-hidden="true">
+        <div>
+          <div class="footer-title">Project Teams Ops Hub</div>
+          <p class="footer-tagline">Everyday tools for Student Project Team safety and operations.</p>
+        </div>
+      </div>
+
+      <nav class="footer-nav" aria-label="Footer">
+        <div class="footer-col">
+          <h4>Jump to</h4>
+          <a href="index.html#staff">Staff</a>
+          <a href="index.html#admin">Admin</a>
+          <a href="index.html#team">Teams</a>
+        </div>
+        <div class="footer-col">
+          <h4>On this page</h4>
+          <a href="#overview">Overview</a>
+          <a href="#changes">Making changes</a>
+          <a href="#utilities">Utilities</a>
+        </div>
+        <div class="footer-col">
+          <h4>Guides</h4>
+          <a href="dev-guide.html">Editing this site</a>
+        </div>
+      </nav>
+    </div>
+
+    <div class="footer-bottom">
+      <span>&copy; 2026 Cornell University &middot; Student Project Team Program</span>
+      <a class="footer-back" href="index.html">Back to the hub &rarr;</a>
+    </div>
+  </footer>
+</div>
+
+</body>
+</html>

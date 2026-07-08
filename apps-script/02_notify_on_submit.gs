@@ -89,11 +89,17 @@ function sendNotification_(data, token) {
   const subject = sev.subject + ' - ' + team + (data.issueType ? ' (' + phrase_(data.issueType) + ')' : '');
   let inlineImages = {}, photoCid = '';
   if (data.photo) {
-    try {
-      const id = String(data.photo).match(/[-\w]{25,}/)[0];
-      inlineImages = { spaceStatusPhoto: DriveApp.getFileById(id).getBlob() };
-      photoCid = 'spaceStatusPhoto';
-    } catch (err) { Logger.log('Photo not embedded: ' + err); }
+    const ids = extractFileIds_(data.photo);
+    ids.forEach(function (id) {
+      try { DriveApp.getFileById(id).setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); }
+      catch (err) { Logger.log('Photo share failed for ' + id + ': ' + err); }
+    });
+    if (ids.length) {
+      try {
+        inlineImages = { spaceStatusPhoto: DriveApp.getFileById(ids[0]).getBlob() };
+        photoCid = 'spaceStatusPhoto';
+      } catch (err) { Logger.log('Photo not embedded: ' + err); }
+    }
   }
   const opts = {
     htmlBody: buildEmail_(data, color, photoCid, token),
@@ -282,6 +288,7 @@ function buildReminder_(data, color, token, deadline) {
 function doGet(e) {
   const p = (e && e.parameter) ? e.parameter : {};
   if (p.team) { const t = lookupTeamByToken_(p.team); return t ? teamPortal_(t, false) : htmlPage_('Invalid link', 'This team link is not recognized.'); }
+  if (p.view === 'all') return allIssuesPage_();          // filterable all-open-issues dashboard (Issues tab)
   if (p.view) return teamPortal_(String(p.view), true);   // read-only, reached from the Ops Hub team picker
   if (p.id) return confirmPage_(p.id);
   return pickerPage_();
@@ -297,7 +304,9 @@ function swissShell_(innerHtml, pageTitle) {
     +   '<div style="height:5px;background:#b31b1b"></div>'
     +   '<div style="max-width:600px;margin:0 auto;padding:40px 28px 64px">' + innerHtml + '</div>'
     + '</div>';
-  return HtmlService.createHtmlOutput(html).setTitle(pageTitle || 'Space Status').addMetaTag('viewport', 'width=device-width, initial-scale=1');
+  return HtmlService.createHtmlOutput(html).setTitle(pageTitle || 'Space Status')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);   // allow embedding in the Ops Hub Issues tab
 }
 
 function htmlPage_(title, bodyHtml) {
@@ -371,6 +380,7 @@ function teamPortal_(team, readOnly) {
       +   '</div>'
       +   (it.action ? '<div style="font-size:14px;color:#555;margin-top:6px">' + escapeHtml_(phrase_(it.action)) + '</div>' : '')
       +   (it.details ? '<div style="font-size:13px;color:#8a857c;margin-top:4px">' + escapeHtml_(it.details) + '</div>' : '')
+      +   (it.photos && it.photos.length ? photoStrip_(it.photos) : '')
       + '</div>'
       + '<div class="swfoot" style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid #f1f1f1;padding:13px 22px;background:#fcfcfb">'
       +   '<span id="' + rid + '-status" style="font-size:13px;color:' + dueColor + ';font-weight:600">Due ' + escapeHtml_(dl) + '</span>'
@@ -461,7 +471,7 @@ function listTeamIssues_(teamName) {
   const ci = function (n) { return H.indexOf(norm_(n)); };
   const cTeam = ci(CONFIG.headers.team), cStatus = ci(CONFIG.headers.status), cIssue = ci(CONFIG.headers.issueType),
         cAction = ci(CONFIG.headers.action), cDetails = ci(CONFIG.headers.details), cTs = ci(CONFIG.headers.timestamp),
-        cTok = ci(CONFIG.issueTokenHeader), cAddr = ci(CONFIG.addressedHeader);
+        cTok = ci(CONFIG.issueTokenHeader), cAddr = ci(CONFIG.addressedHeader), cPhoto = ci(CONFIG.headers.photo);
   const open = [];
   let resolved = 0;
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -480,6 +490,7 @@ function listTeamIssues_(teamName) {
       issueType: cIssue >= 0 ? String(v[i][cIssue]).trim() : '',
       action: cAction >= 0 ? String(v[i][cAction]).trim() : '',
       details: cDetails >= 0 ? String(v[i][cDetails]).trim() : '',
+      photos: cPhoto >= 0 ? extractFileIds_(v[i][cPhoto]) : [],
       color: color, deadline: deadline, overdue: overdue,
     });
   }
@@ -489,6 +500,161 @@ function listTeamIssues_(teamName) {
     if (a.deadline) return -1; if (b.deadline) return 1; return 0;
   });
   return { open: open, resolved: resolved };
+}
+
+function listAllIssues_() {
+  const sh = ss_().getSheetByName(CONFIG.responsesSheet);
+  const v = sh.getDataRange().getValues();
+  const H = v[0].map(norm_);
+  const ci = function (n) { return H.indexOf(norm_(n)); };
+  const cTeam = ci(CONFIG.headers.team), cStatus = ci(CONFIG.headers.status), cIssue = ci(CONFIG.headers.issueType),
+        cAction = ci(CONFIG.headers.action), cDetails = ci(CONFIG.headers.details), cTs = ci(CONFIG.headers.timestamp),
+        cTok = ci(CONFIG.issueTokenHeader), cAddr = ci(CONFIG.addressedHeader);
+  const open = [];
+  let resolved = 0;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  for (let i = 1; i < v.length; i++) {
+    if (cTok < 0 || !v[i][cTok]) continue;
+    if (cAddr >= 0 && v[i][cAddr]) { resolved++; continue; }
+    const color = parseColor_(v[i][cStatus]);
+    let deadline = null, overdue = false;
+    if (color && color !== 'purple') {
+      const rd = new Date(v[i][cTs]);
+      if (!isNaN(rd.getTime())) { deadline = new Date(rd); deadline.setDate(deadline.getDate() + SLA_DAYS[color]); deadline.setHours(0, 0, 0, 0); overdue = today > deadline; }
+    }
+    open.push({
+      team: cTeam >= 0 ? String(v[i][cTeam]).trim() : '',
+      token: String(v[i][cTok]),
+      issueType: cIssue >= 0 ? String(v[i][cIssue]).trim() : '',
+      action: cAction >= 0 ? String(v[i][cAction]).trim() : '',
+      details: cDetails >= 0 ? String(v[i][cDetails]).trim() : '',
+      deadline: deadline, overdue: overdue,
+    });
+  }
+  open.sort(function (a, b) {
+    if (a.overdue !== b.overdue) return a.overdue ? -1 : 1;
+    if (a.deadline && b.deadline) return a.deadline - b.deadline;
+    if (a.deadline) return -1; if (b.deadline) return 1; return 0;
+  });
+  return { open: open, resolved: resolved };
+}
+
+// Every open issue across all teams, with filters and Mark complete. Embedded in the hub Issues tab.
+function allIssuesPage_() {
+  const data = listAllIssues_();
+  const issues = data.open;
+  const overdue = issues.filter(function (x) { return x.overdue; }).length;
+  const teamSet = {};
+  issues.forEach(function (it) { if (it.team) teamSet[it.team] = 1; });
+  const teamOpts = Object.keys(teamSet).sort().map(function (t) { return '<option value="' + escapeHtml_(t) + '">' + escapeHtml_(t) + '</option>'; }).join('');
+
+  let inner = '<div style="font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#9a958c">Project Teams Ops Hub</div>'
+    + '<div class="swh" style="font-size:30px;font-weight:800;letter-spacing:-.035em;line-height:1.05;margin-top:8px">Open space issues</div>'
+    + '<div style="width:46px;height:3px;background:#b31b1b;margin-top:12px"></div>'
+    + '<div style="font-size:14px;color:#555;margin-top:14px"><b id="sum-open" style="color:#111;font-size:16px">' + issues.length + '</b> open &nbsp;&middot;&nbsp; <span style="color:#b31b1b;font-weight:700"><span id="sum-over">' + overdue + '</span> overdue</span></div>';
+
+  inner += '<div style="display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 8px">'
+    + '<input id="q" type="search" placeholder="Search issues" oninput="flt()" style="flex:1;min-width:160px;font-size:14px;padding:9px 12px;border:1.5px solid #ddd;border-radius:8px">'
+    + '<select id="team" onchange="flt()" style="font-size:14px;padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;background:#fff"><option value="">All teams</option>' + teamOpts + '</select>'
+    + '<label style="display:inline-flex;align-items:center;gap:7px;font-size:14px;color:#333;padding:0 4px;white-space:nowrap"><input id="odue" type="checkbox" onchange="flt()"> Overdue only</label>'
+    + '</div>';
+
+  if (!issues.length) {
+    inner += '<div style="font-size:16px;line-height:1.7;color:#555;margin-top:24px">No open issues. Everything is in good shape.</div>';
+    return swissShell_(inner, 'Open issues');
+  }
+
+  let idx = 0;
+  issues.forEach(function (it) {
+    const rid = 'iss' + (idx++);
+    const dl = it.deadline ? fmtShort_(it.deadline) : 'No set deadline';
+    const dueColor = it.overdue ? '#b31b1b' : '#777';
+    const chip = it.overdue
+      ? '<span style="flex:0 0 auto;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#b31b1b;background:#fbeaea;padding:4px 10px;border-radius:999px">Overdue</span>'
+      : (it.deadline ? '<span style="flex:0 0 auto;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#8a857c;background:#f0efe9;padding:4px 10px;border-radius:999px">' + daysLeftLabel_(it.deadline) + '</span>' : '');
+    const hay = ((it.team || '') + ' ' + (it.issueType || '') + ' ' + (it.action || '') + ' ' + (it.details || '')).toLowerCase();
+    inner += '<div class="card" id="' + rid + '" data-team="' + escapeHtml_(it.team) + '" data-over="' + (it.overdue ? '1' : '0') + '" data-hay="' + escapeHtml_(hay) + '" style="background:#fff;border-radius:14px;box-shadow:0 2px 8px rgba(20,20,30,.06),0 1px 3px rgba(20,20,30,.05);overflow:hidden;margin-bottom:12px">'
+      + '<div style="padding:16px 20px 14px">'
+      +   '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">'
+      +     '<div><div style="font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#b31b1b">' + escapeHtml_(it.team || 'Unassigned') + '</div>'
+      +       '<div style="font-size:17px;font-weight:800;letter-spacing:-.02em;margin-top:2px">' + escapeHtml_(it.issueType ? phrase_(it.issueType) : 'Reported issue') + '</div></div>'
+      +     chip
+      +   '</div>'
+      +   (it.action ? '<div style="font-size:13.5px;color:#555;margin-top:6px">' + escapeHtml_(phrase_(it.action)) + '</div>' : '')
+      +   (it.details ? '<div style="font-size:13px;color:#8a857c;margin-top:4px">' + escapeHtml_(it.details) + '</div>' : '')
+      + '</div>'
+      + '<div class="swfoot" style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid #f1f1f1;padding:12px 20px;background:#fcfcfb">'
+      +   '<span id="' + rid + '-status" style="font-size:13px;color:' + dueColor + ';font-weight:600">Due ' + escapeHtml_(dl) + '</span>'
+      +   '<span id="' + rid + '-act">'
+      +     '<span id="' + rid + '-btn"><a class="b" href="javascript:void(0)" onclick="ask(\'' + rid + '\')" style="font-size:13px;font-weight:700;color:#fff;background:#b31b1b;padding:9px 16px;border-radius:6px;text-decoration:none;white-space:nowrap">Mark complete</a></span>'
+      +     '<span id="' + rid + '-confirm" style="display:none;white-space:nowrap">'
+      +       '<a class="b" href="javascript:void(0)" onclick="doMark(\'' + rid + '\',\'' + it.token + '\',' + (it.overdue ? 'true' : 'false') + ')" style="font-size:13px;font-weight:700;color:#fff;background:#b31b1b;padding:9px 14px;border-radius:6px;text-decoration:none">Confirm</a>'
+      +       '<a href="javascript:void(0)" onclick="cancelMark(\'' + rid + '\')" style="font-size:13px;color:#8a857c;text-decoration:none;margin-left:12px">Cancel</a>'
+      +     '</span>'
+      +   '</span>'
+      + '</div>'
+      + '</div>';
+  });
+
+  inner += '<div id="empty" style="display:none;font-size:15px;color:#8a857c;margin-top:8px">No issues match those filters.</div>';
+
+  inner += '<script>'
+    + 'var ssOpen=' + issues.length + ',ssOver=' + overdue + ';'
+    + 'function flt(){var q=document.getElementById("q").value.toLowerCase().trim();var tm=document.getElementById("team").value;var od=document.getElementById("odue").checked;var n=0;'
+    +   'document.querySelectorAll(".card").forEach(function(c){var ok=c.dataset.done!=="1"&&(!q||c.dataset.hay.indexOf(q)>=0)&&(!tm||c.dataset.team===tm)&&(!od||c.dataset.over==="1");c.style.display=ok?"":"none";if(ok)n++;});'
+    +   'document.getElementById("empty").style.display=n?"none":"block";}'
+    + 'function ask(r){document.getElementById(r+"-btn").style.display="none";document.getElementById(r+"-confirm").style.display="inline";}'
+    + 'function cancelMark(r){document.getElementById(r+"-confirm").style.display="none";document.getElementById(r+"-btn").style.display="inline";}'
+    + 'function doMark(r,t,od){var a=document.getElementById(r+"-act");a.innerHTML="Saving...";'
+    +   'google.script.run.withSuccessHandler(function(){'
+    +     'var c=document.getElementById(r);c.dataset.done="1";a.innerHTML="";var s=document.getElementById(r+"-status");if(s){s.textContent="\\u2713 Completed";s.style.color="#1d7a46";}c.style.opacity="0.55";'
+    +     'ssOpen--;if(od)ssOver--;document.getElementById("sum-open").textContent=ssOpen;document.getElementById("sum-over").textContent=ssOver;'
+    +   '}).withFailureHandler(function(){document.getElementById(r+"-act").innerHTML="Please retry.";}).confirmAddressed(t);}'
+    + '</script>';
+  return swissShell_(inner, 'Open issues');
+}
+
+// Drive file IDs from a "Photo Upload" cell (one or more comma-separated URLs).
+function extractFileIds_(s) {
+  const out = [], seen = {};
+  const str = String(s == null ? '' : s);
+  const re = /[-\w]{25,}/g;
+  let m;
+  while ((m = re.exec(str)) !== null) { if (!seen[m[0]]) { seen[m[0]] = 1; out.push(m[0]); } }
+  return out;
+}
+
+// Thumbnails for the portal cards. One photo -> larger; several -> a strip.
+function photoStrip_(ids) {
+  if (ids.length === 1) {
+    const id = ids[0];
+    return '<a href="https://drive.google.com/file/d/' + encodeURIComponent(id) + '/view" target="_blank" rel="noopener" style="display:inline-block;line-height:0;margin-top:12px">'
+      + '<img src="https://drive.google.com/thumbnail?id=' + encodeURIComponent(id) + '&sz=w800" alt="Reported photo" loading="lazy" style="max-width:100%;max-height:240px;border-radius:10px;border:1px solid #ececec">'
+      + '</a>';
+  }
+  let s = '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">';
+  ids.forEach(function (id) {
+    s += '<a href="https://drive.google.com/file/d/' + encodeURIComponent(id) + '/view" target="_blank" rel="noopener" style="display:block;line-height:0">'
+      + '<img src="https://drive.google.com/thumbnail?id=' + encodeURIComponent(id) + '&sz=w400" alt="Reported photo" loading="lazy" style="height:96px;width:auto;border-radius:8px;border:1px solid #ececec">'
+      + '</a>';
+  });
+  return s + '</div>';
+}
+
+// One-time backfill: make existing reported photos viewable by link so the portal can show them.
+function sharePhotos() {
+  const sh = ss_().getSheetByName(CONFIG.responsesSheet);
+  const v = sh.getDataRange().getValues();
+  const cPhoto = v[0].map(norm_).indexOf(norm_(CONFIG.headers.photo));
+  if (cPhoto < 0) { Logger.log('No "' + CONFIG.headers.photo + '" column.'); return; }
+  let shared = 0, failed = 0;
+  for (let i = 1; i < v.length; i++) {
+    extractFileIds_(v[i][cPhoto]).forEach(function (id) {
+      try { DriveApp.getFileById(id).setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); shared++; }
+      catch (err) { failed++; Logger.log('Share failed ' + id + ': ' + err); }
+    });
+  }
+  Logger.log('Photos shared: ' + shared + ' | failed: ' + failed);
 }
 
 function confirmAddressed(id) {

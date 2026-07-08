@@ -30,7 +30,6 @@
       <nav class="hub-nav" aria-label="Hub sections">
         <button type="button" class="hub-nav-btn is-active" data-view="staff">Staff</button>
         <button type="button" class="hub-nav-btn" data-view="admin">Admin</button>
-        <button type="button" class="hub-nav-btn" data-view="team">Teams</button>
       </nav>
     </div>
   </header>
@@ -78,7 +77,19 @@
     </section>
 
     <section class="hub-zone" id="admin">
-      <h2 class="zone-label">Admin</h2>
+      <div class="admin-layout" id="admin-layout">
+        <aside class="admin-side">
+          <span class="admin-side-label">Admin</span>
+          <nav class="admin-nav" id="admin-nav" aria-label="Admin sections">
+            <a href="#space-admin" style="--chip:#c0392b"><span class="dot"></span>Space</a>
+            <a href="#ell-admin" style="--chip:#e08a1e"><span class="dot"></span>Experiential Learning Lab</a>
+            <a href="#access" style="--chip:#2563c9"><span class="dot"></span>Fabman</a>
+            <a href="#compliance" style="--chip:#1f9d5b"><span class="dot"></span>Compliance</a>
+            <a href="#fleet" style="--chip:#7c3aed"><span class="dot"></span>Fleet</a>
+            <a href="#inventory" style="--chip:#0d9488"><span class="dot"></span>Inventory</a>
+            <a href="#website" style="--chip:#444d56"><span class="dot"></span>Site &amp; code</a>
+          </nav>
+        </aside>
 
       <div class="admin-list">
         <section class="category admin-block" id="space-admin" data-keywords="space status tracking pending actions emailer edit form automation">
@@ -88,24 +99,32 @@
               <span class="action-title">Review open space issues</span>
               <span class="action-sub">Space Status Tracking: responses and pending actions</span>
             </a>
-            <a class="action" href="https://docs.google.com/forms/d/1bVzxR-lGNDtll6wh7wsdZGsVuqMkaRavVcGxykLHMFw/edit" target="_blank" rel="noopener" data-keywords="space status report edit form admin">
-              <span class="action-title">Edit space report form</span>
-              <span class="action-sub">Teams, issue types, and form fields</span>
-            </a>
             <a class="action" href="https://script.google.com/d/1DpKw0dXIQ5rH6_BQfIQnXpmTbTcPmfH3wq2Dzc6pJUA7lrmeFG7hh5P4/edit" target="_blank" rel="noopener" data-keywords="space status emailer script automation notification">
               <span class="action-title">Space Status Emailer script</span>
               <span class="action-sub">Apps Script for team notification emails</span>
             </a>
           </div>
+          <p class="action-note" data-keywords="documentation docs guide how it works system code reference deploy troubleshooting">
+            New here? <a href="docs.html">Read the system guide</a>
+          </p>
         </section>
 
-        <section class="category admin-block" id="ell-admin" data-keywords="experiential learning lab ell shift responses data summary staffing">
+        <section class="category admin-block" id="ell-admin" data-keywords="experiential learning lab ell shift responses data summary staffing space status open issues dashboard overdue mark complete">
           <h3 class="admin-label">Experiential Learning Lab</h3>
           <div class="action-group">
             <a class="action" href="https://docs.google.com/spreadsheets/d/1yazhxA8nwYWDRSdQEN6Cc3UKKnPn6PWF_b3zAe0KoQk/edit" target="_blank" rel="noopener" data-keywords="ell shift responses data summary pivot">
               <span class="action-title">View shift responses</span>
               <span class="action-sub">Raw shift logs and summary views</span>
             </a>
+          </div>
+
+          <div class="issues-embed">
+            <div class="issues-embed-head">Open space issues</div>
+            <iframe id="issues-frame" class="issues-frame" title="Open space issues" loading="lazy"></iframe>
+            <p class="issues-fallback" id="issues-fallback" hidden>
+              The issues dashboard could not load here.
+              <a id="issues-fallback-link" href="#" target="_blank" rel="noopener">Open it in a new tab</a>.
+            </p>
           </div>
         </section>
 
@@ -117,7 +136,7 @@
               <span class="action-sub">Dashboard, sign-ups, and Qualtrics imports</span>
             </a>
             <a class="action" href="https://docs.google.com/document/d/1O-O-mpEGGtcD6QiLqjxw1y1rFtI7WzayoOroxpoxwfQ/edit" target="_blank" rel="noopener" data-keywords="fabman canvas training integration qualtrics apron">
-              <span class="action-title">Fabman–Canvas training integration</span>
+              <span class="action-title">Fabman-Canvas training integration</span>
               <span class="action-sub">Training hierarchy and apron tier mapping</span>
             </a>
             <a class="action" href="https://docs.google.com/document/d/1nxQQiA-6W2hyB2ZZV71l9vbOelXYbMc70efr7XWPi8o/edit" target="_blank" rel="noopener" data-keywords="fabman su25 report dashboard training">
@@ -168,63 +187,20 @@
             </a>
           </div>
         </section>
-      </div>
-    </section>
 
-    <section class="hub-zone" id="team">
-      <h2 class="zone-label">Teams</h2>
-
-      <div class="action-group">
-        <div class="category task-block status-check" id="status-check" data-keywords="space status open issues my team see view deadlines outstanding pending portal team progress">
-          <div class="status-head">
-            <span class="status-title">See your team&rsquo;s open issues</span>
-            <span class="status-sub">Pick your team to view its outstanding space issues and deadlines.</span>
+        <section class="category admin-block" id="website" data-keywords="website site code github codespaces copilot repo source hub maintain edit">
+          <h3 class="admin-label">Site &amp; code</h3>
+          <div class="action-group">
+            <a class="action" href="https://github.com/cornellprojectteams/centralhub" target="_blank" rel="noopener" data-keywords="github repository repo source code centralhub">
+              <span class="action-title">Open the GitHub repo</span>
+              <span class="action-sub">Source code and history for this hub</span>
+            </a>
           </div>
-          <form class="status-picker" id="status-form">
-            <select class="status-select" id="status-team" aria-label="Select your team" required>
-              <option value="" disabled selected>Choose your team&hellip;</option>
-              <option>AguaClara</option>
-              <option>AppDev</option>
-              <option>AutoBoat</option>
-              <option>Autonomous Drone</option>
-              <option>Autonomous Sailboat</option>
-              <option>Autonomous Underwater Vehicle</option>
-              <option>Baja</option>
-              <option>Biomedical Device</option>
-              <option>ChemE Car</option>
-              <option>Combat Robotics</option>
-              <option>Concrete Canoe</option>
-              <option>Cornell Assistive Technologies</option>
-              <option>Custom Silicon Systems</option>
-              <option>Data Science</option>
-              <option>DEBUT</option>
-              <option>Design Build Fly</option>
-              <option>Digital Technology and Innovation</option>
-              <option>Electric Vehicles</option>
-              <option>Engineering World Health</option>
-              <option>Engineers for a Sustainable World</option>
-              <option>Engineers in Action</option>
-              <option>Engineers Without Borders</option>
-              <option>Extended Reality</option>
-              <option>FSAE Racing</option>
-              <option>GeoData</option>
-              <option>Hack4Impact</option>
-              <option>Hyperloop</option>
-              <option>iGEM</option>
-              <option>Mars Rover</option>
-              <option>Nexus</option>
-              <option>Operations Team</option>
-              <option>Rocketry</option>
-              <option>Seismic Design</option>
-              <option>SensTech</option>
-              <option>Solar Boat</option>
-              <option>Steel Bridge</option>
-              <option>Unmanned Air System</option>
-            </select>
-            <button type="submit" class="status-go">View issues</button>
-          </form>
-          <p class="status-msg" id="status-msg" hidden></p>
-        </div>
+          <p class="action-note" data-keywords="edit website guide codespaces copilot github commit push publish browser documentation">
+            Editing the site? <a href="dev-guide.html">Read the editing guide</a>
+          </p>
+        </section>
+      </div>
       </div>
     </section>
 
@@ -246,12 +222,10 @@
           <h4>Jump to</h4>
           <a href="#staff">Staff</a>
           <a href="#admin">Admin</a>
-          <a href="#team">Teams</a>
         </div>
         <div class="footer-col">
           <h4>Common tasks</h4>
           <a href="https://forms.gle/6DHYsEPonVtdALps5" target="_blank" rel="noopener">Report a space issue</a>
-          <a href="#team">See your team&rsquo;s open issues</a>
           <a href="https://docs.google.com/spreadsheets/d/1Md3bugxLvqHJQ7Htf3tHI-ARXeEQRFBU2zh6ho3XAfQ/edit" target="_blank" rel="noopener">Look up a team</a>
           <a href="https://docs.google.com/document/d/1-pAMO02ul8k7pg9sCfkmVZ5W5p4NuWzaG2ALOWn60hk/edit" target="_blank" rel="noopener">Space Status Manual</a>
         </div>
