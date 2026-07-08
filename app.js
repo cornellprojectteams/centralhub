@@ -29,6 +29,126 @@
 
   const adminNav = document.getElementById('admin-nav');
 
+  // Open space issues dashboard — slide-over panel under Space (not inline in ELL).
+  const issuesPanel = document.getElementById('issues-panel');
+  const issuesOpenBtn = document.getElementById('issues-open');
+  const issuesCloseBtn = document.getElementById('issues-panel-close');
+  const issuesBackdrop = document.getElementById('issues-panel-backdrop');
+  const issuesPanelExt = document.getElementById('issues-panel-ext');
+  const issuesFrame = document.getElementById('issues-frame');
+  const issuesEmbedBody = document.getElementById('issues-embed-body');
+  const issuesFallback = document.getElementById('issues-fallback');
+  const issuesFallbackLink = document.getElementById('issues-fallback-link');
+  const issuesLoadingText = document.getElementById('issues-loading-text');
+  const issuesLoadingHint = document.getElementById('issues-loading-hint');
+  let issuesFrameStarted = false;
+  let issuesLoadTimer = null;
+  let issuesLoadStepTimer = null;
+
+  const issuesUrl = SPACE_STATUS_URL
+    ? SPACE_STATUS_URL + (SPACE_STATUS_URL.indexOf('?') >= 0 ? '&' : '?') + 'view=all&embed=1'
+    : '';
+  const issuesFullUrl = SPACE_STATUS_URL
+    ? SPACE_STATUS_URL + (SPACE_STATUS_URL.indexOf('?') >= 0 ? '&' : '?') + 'view=all'
+    : '';
+
+  if (issuesFallbackLink && issuesFullUrl) issuesFallbackLink.href = issuesFullUrl;
+  if (issuesPanelExt && issuesFullUrl) issuesPanelExt.href = issuesFullUrl;
+
+  function setIssuesLoadingMessage(primary, hint) {
+    if (issuesLoadingText && primary) issuesLoadingText.textContent = primary;
+    if (issuesLoadingHint && hint) issuesLoadingHint.textContent = hint;
+  }
+
+  function startIssuesLoadingSteps() {
+    setIssuesLoadingMessage('Connecting to Space Status…', 'Fetching open issues and photos from Google Sheets');
+    stopIssuesLoadingSteps();
+    const step2 = window.setTimeout(() => {
+      setIssuesLoadingMessage('Loading issues…', 'This can take a few seconds on first open');
+    }, 2800);
+    const step3 = window.setTimeout(() => {
+      setIssuesLoadingMessage('Almost ready…', 'Building filters and issue cards');
+    }, 7000);
+    issuesLoadStepTimer = [step2, step3];
+  }
+
+  function stopIssuesLoadingSteps() {
+    if (!issuesLoadStepTimer) return;
+    (Array.isArray(issuesLoadStepTimer) ? issuesLoadStepTimer : [issuesLoadStepTimer])
+      .forEach(id => clearTimeout(id));
+    issuesLoadStepTimer = null;
+  }
+
+  function showIssuesError() {
+    stopIssuesLoadingSteps();
+    if (issuesEmbedBody) issuesEmbedBody.classList.remove('is-loading');
+    if (issuesFallback) issuesFallback.hidden = false;
+  }
+
+  function finishIssuesLoad() {
+    if (issuesLoadTimer) {
+      clearTimeout(issuesLoadTimer);
+      issuesLoadTimer = null;
+    }
+    stopIssuesLoadingSteps();
+    if (issuesEmbedBody) issuesEmbedBody.classList.remove('is-loading');
+  }
+
+  function loadIssuesFrame() {
+    if (!issuesFrame || issuesFrameStarted) return;
+    if (!issuesUrl) {
+      showIssuesError();
+      return;
+    }
+
+    issuesFrameStarted = true;
+    if (issuesEmbedBody) issuesEmbedBody.classList.add('is-loading');
+    if (issuesFallback) issuesFallback.hidden = true;
+    startIssuesLoadingSteps();
+
+    issuesFrame.addEventListener('load', finishIssuesLoad, { once: true });
+    issuesFrame.addEventListener('error', showIssuesError, { once: true });
+
+    issuesLoadTimer = window.setTimeout(() => {
+      issuesLoadTimer = null;
+      if (issuesEmbedBody && issuesEmbedBody.classList.contains('is-loading')) {
+        showIssuesError();
+      }
+    }, 45000);
+
+    issuesFrame.src = issuesUrl;
+  }
+
+  function openIssuesPanel() {
+    if (!issuesPanel) return;
+    issuesPanel.hidden = false;
+    requestAnimationFrame(() => issuesPanel.classList.add('is-open'));
+    document.body.classList.add('issues-panel-open');
+    loadIssuesFrame();
+    if (issuesCloseBtn) issuesCloseBtn.focus();
+  }
+
+  function closeIssuesPanel() {
+    if (!issuesPanel) return;
+    issuesPanel.classList.remove('is-open');
+    document.body.classList.remove('issues-panel-open');
+    window.setTimeout(() => {
+      if (!issuesPanel.classList.contains('is-open')) issuesPanel.hidden = true;
+    }, 320);
+    if (issuesOpenBtn) issuesOpenBtn.focus();
+  }
+
+  if (issuesOpenBtn) issuesOpenBtn.addEventListener('click', openIssuesPanel);
+  if (issuesCloseBtn) issuesCloseBtn.addEventListener('click', closeIssuesPanel);
+  if (issuesBackdrop) issuesBackdrop.addEventListener('click', closeIssuesPanel);
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && issuesPanel && issuesPanel.classList.contains('is-open')) {
+      e.preventDefault();
+      closeIssuesPanel();
+    }
+  });
+
   /** @type {'staff' | 'admin'} */
   let currentView = 'staff';
 
@@ -52,6 +172,8 @@
       history.replaceState(null, '', `#${view}`);
     }
 
+    document.body.dataset.view = view;
+
     if (search && !search.value.trim()) {
       document.body.classList.remove('is-searching');
     }
@@ -67,7 +189,12 @@
   });
 
   const initialHash = location.hash.slice(1);
-  setView(initialHash === 'admin' ? 'admin' : 'staff');
+  if (initialHash === 'issues') {
+    setView('admin');
+    openIssuesPanel();
+  } else {
+    setView(initialHash === 'admin' ? 'admin' : 'staff');
+  }
 
   // Scroll-spy: highlight the sidebar link for the section currently in view.
   if (adminNav && 'IntersectionObserver' in window) {
@@ -100,7 +227,7 @@
   }
 
   // Cache each label's original text so highlights can be re-rendered cleanly.
-  document.querySelectorAll('.action').forEach(action => {
+  document.querySelectorAll('.action, button.action').forEach(action => {
     const title = action.querySelector('.action-title');
     const sub = action.querySelector('.action-sub');
     if (title && title.dataset.text == null) title.dataset.text = title.textContent;
@@ -179,7 +306,7 @@
   let activeIdx = -1;
 
   function rebuildResults() {
-    results = [...document.querySelectorAll('.action:not(.hidden)')]
+    results = [...document.querySelectorAll('.action:not(.hidden), button.action:not(.hidden)')]
       .filter(a => a.offsetParent !== null);
   }
 
@@ -215,9 +342,9 @@
 
     categories.forEach(section => {
       const sectionKeywords = (section.dataset.keywords || '').toLowerCase();
-      const actions = section.matches('.action')
+      const actions = section.matches('.action, button.action')
         ? [section]
-        : [...section.querySelectorAll('.action')];
+        : [...section.querySelectorAll('.action, button.action')];
       let sectionHasMatch = false;
 
       actions.forEach(action => {
@@ -286,7 +413,12 @@
     if (e.key === 'ArrowDown') { e.preventDefault(); setActive(activeIdx + 1); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(activeIdx - 1); }
     else if (e.key === 'Enter') {
-      if (results[activeIdx]) { e.preventDefault(); results[activeIdx].click(); }
+      if (results[activeIdx]) {
+        e.preventDefault();
+        const el = results[activeIdx];
+        if (el.id === 'issues-open') openIssuesPanel();
+        else el.click();
+      }
     } else if (e.key === 'Escape') {
       if (search.value) { e.preventDefault(); search.value = ''; runSearch(); }
       else { search.blur(); }
@@ -299,22 +431,6 @@
       runSearch();
       search.focus();
     });
-  }
-
-  // Open space issues dashboard, embedded under the Experiential Learning Lab section.
-  const issuesFrame = document.getElementById('issues-frame');
-  if (issuesFrame) {
-    const issuesUrl = SPACE_STATUS_URL
-      ? SPACE_STATUS_URL + (SPACE_STATUS_URL.indexOf('?') >= 0 ? '&' : '?') + 'view=all'
-      : '';
-    if (issuesUrl) {
-      issuesFrame.src = issuesUrl;
-      const link = document.getElementById('issues-fallback-link');
-      if (link) link.href = issuesUrl;
-    } else {
-      const fb = document.getElementById('issues-fallback');
-      if (fb) fb.hidden = false;
-    }
   }
 
   // Global shortcuts: "/" or Cmd/Ctrl+K to jump to search from anywhere.

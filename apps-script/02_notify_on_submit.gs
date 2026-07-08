@@ -288,25 +288,87 @@ function buildReminder_(data, color, token, deadline) {
 function doGet(e) {
   const p = (e && e.parameter) ? e.parameter : {};
   if (p.team) { const t = lookupTeamByToken_(p.team); return t ? teamPortal_(t, false) : htmlPage_('Invalid link', 'This team link is not recognized.'); }
-  if (p.view === 'all') return allIssuesPage_();          // filterable all-open-issues dashboard (Issues tab)
+  if (p.view === 'all') return allIssuesPage_(p.embed === '1' || p.embed === 'true');
   if (p.view) return teamPortal_(String(p.view), true);   // read-only, reached from the Ops Hub team picker
   if (p.id) return confirmPage_(p.id);
   return pickerPage_();
 }
 
-function swissShell_(innerHtml, pageTitle) {
-  const enh = '<style>'
-    + '.b:hover{background:#7a1212 !important}'
-    + '@media(max-width:600px){.swh{font-size:26px !important}.swfoot{flex-direction:column !important;align-items:flex-start !important;gap:12px !important}}'
+function portalStyles_() {
+  return ''
+    + '@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap");'
+    + '*,*::before,*::after{box-sizing:border-box}'
+    + 'body{margin:0;font-family:Inter,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}'
+    + '.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:13px;font-weight:700;line-height:1;padding:11px 20px;border-radius:10px;border:none;cursor:pointer;text-decoration:none;white-space:nowrap;transition:transform .16s ease,box-shadow .16s ease,background .16s ease,border-color .16s ease}'
+    + '.btn-primary{color:#fff;background:linear-gradient(180deg,#d62b2b 0%,#b31b1b 55%,#8f1515 100%);box-shadow:0 4px 14px rgba(179,27,27,.28)}'
+    + '.btn-primary:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(179,27,27,.36)}'
+    + '.btn-primary:active{transform:translateY(0)}'
+    + '.btn-confirm{color:#fff;background:linear-gradient(180deg,#1d9d5b 0%,#157a47 100%);box-shadow:0 4px 12px rgba(21,122,71,.25)}'
+    + '.btn-confirm:hover{transform:translateY(-1px);box-shadow:0 8px 18px rgba(21,122,71,.32)}'
+    + '.btn-ghost{color:#666;background:#fff;border:1.5px solid #e0e0dc;padding:10px 16px;border-radius:10px}'
+    + '.btn-ghost:hover{color:#333;border-color:#ccc;background:#fafaf8}'
+    + '.btn-row{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}'
+    + '.stats{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}'
+    + '.stat{flex:1;min-width:120px;padding:16px 18px;background:#fff;border:1.5px solid #e7e7e3;border-radius:14px;box-shadow:0 2px 8px rgba(20,20,30,.06);position:relative;overflow:hidden}'
+    + '.stat::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#8f1515,#b31b1b,#f0c050)}'
+    + '.stat-label{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#8a857c}'
+    + '.stat-val{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:28px;font-weight:800;letter-spacing:-.04em;line-height:1.1;margin-top:6px;color:#111}'
+    + '.stat-val--danger{color:#b31b1b}'
+    + '.filters{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 10px;padding:14px 16px;background:#fff;border:1.5px solid #e7e7e3;border-radius:14px;box-shadow:0 2px 8px rgba(20,20,30,.05)}'
+    + '.search-wrap{flex:1;min-width:180px;position:relative}'
+    + '.search-wrap input{width:100%;font:inherit;font-size:14px;padding:12px 14px 12px 40px;border:1.5px solid #e0e0dc;border-radius:10px;background:#fafaf8;outline:none;transition:border-color .15s,box-shadow .15s}'
+    + '.search-wrap input:focus{border-color:#b31b1b;box-shadow:0 0 0 4px rgba(179,27,27,.12);background:#fff}'
+    + '.search-wrap::before{content:"";position:absolute;left:14px;top:50%;transform:translateY(-50%);width:16px;height:16px;background:url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'16\' height=\'16\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%239a9a96\' stroke-width=\'2.2\' stroke-linecap=\'round\'%3E%3Ccircle cx=\'11\' cy=\'11\' r=\'7\'/%3E%3Cline x1=\'21\' y1=\'21\' x2=\'16.65\' y2=\'16.65\'/%3E%3C/svg%3E") center/contain no-repeat;pointer-events:none}'
+    + '.filters select{font:inherit;font-size:14px;font-weight:600;padding:12px 14px;border:1.5px solid #e0e0dc;border-radius:10px;background:#fff;outline:none;cursor:pointer;min-width:150px;color:#333}'
+    + '.filters select:focus{border-color:#b31b1b;box-shadow:0 0 0 4px rgba(179,27,27,.12)}'
+    + '.toggle{display:inline-flex;align-items:center;gap:8px;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:13px;font-weight:700;color:#444;padding:10px 14px;border-radius:10px;border:1.5px solid #e0e0dc;background:#fff;cursor:pointer;user-select:none;transition:border-color .15s,background .15s,box-shadow .15s}'
+    + '.toggle:hover{border-color:#ccc;box-shadow:0 2px 6px rgba(20,20,30,.06)}'
+    + '.toggle.is-on,.toggle:has(input:checked){border-color:#b31b1b;background:#fff8f8;color:#8f1515;box-shadow:0 0 0 3px rgba(179,27,27,.1)}'
+    + '.toggle input{width:16px;height:16px;accent-color:#b31b1b;cursor:pointer;margin:0}'
+    + '.section-head{display:flex;align-items:center;gap:11px;margin:26px 0 14px}'
+    + '.section-label{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}'
+    + '.section-label--late{color:#b31b1b}'
+    + '.section-label--open{color:#8a857c}'
+    + '.section-count{font-size:12px;color:#bbb;font-weight:700}'
+    + '.section-rule{flex:1;height:1.5px;background:linear-gradient(90deg,#e8e8e8,transparent)}'
+    + '.card{background:#fff;border-radius:14px;border:1.5px solid #ececea;box-shadow:0 2px 8px rgba(20,20,30,.06),0 1px 3px rgba(20,20,30,.04);overflow:hidden;margin-bottom:12px;transition:opacity .25s ease,transform .25s ease,box-shadow .25s ease}'
+    + '.card:hover{box-shadow:0 8px 24px rgba(20,20,30,.08);transform:translateY(-1px)}'
+    + '.card-body{padding:18px 20px 16px}'
+    + '.card-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;border-top:1.5px solid #f1f1f1;padding:13px 20px;background:linear-gradient(180deg,#fcfcfb 0%,#f8f8f6 100%)}'
+    + '.card-team{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#b31b1b}'
+    + '.card-title{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:18px;font-weight:800;letter-spacing:-.02em;line-height:1.25;margin-top:3px;color:#111}'
+    + '.card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}'
+    + '.card-action{font-size:13.5px;color:#444;margin-top:7px;line-height:1.5}'
+    + '.card-details{font-size:13px;color:#8a857c;margin-top:5px;line-height:1.5}'
+    + '.chip{flex:0 0 auto;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;padding:5px 11px;border-radius:999px}'
+    + '.chip--overdue{color:#b31b1b;background:#fdecec;border:1px solid #f5d0d0}'
+    + '.chip--due{color:#6b665e;background:#f0efe9;border:1px solid #e5e4de}'
+    + '.due{font-size:13px;font-weight:600;color:#777}'
+    + '.due--late{color:#b31b1b}'
+    + '.due--done{color:#157a47;font-weight:700}'
+    + '.empty{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:15px;color:#8a857c;margin-top:12px;padding:24px 20px;text-align:center;background:#fff;border:1.5px dashed #ddd;border-radius:14px}'
+    + '.page-head{margin-bottom:4px}'
+    + '.page-kicker{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#9a958c}'
+    + '.page-title{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:30px;font-weight:800;letter-spacing:-.035em;line-height:1.05;margin-top:8px;color:#111}'
+    + '.page-rule{width:46px;height:3px;background:linear-gradient(90deg,#8f1515,#b31b1b,#f0c050);margin-top:12px;border-radius:99px}'
+    + '@media(max-width:600px){.card-foot{flex-direction:column;align-items:stretch}.btn-row{width:100%;justify-content:stretch}.btn{flex:1;justify-content:center}.filters select{width:100%}.stat-val{font-size:24px}}';
+}
+
+function swissShell_(innerHtml, pageTitle, wide, embedded) {
+  const maxW = wide ? '960px' : '600px';
+  const pad = embedded ? '18px 18px 28px' : '40px 28px 64px';
+  const topBar = embedded ? '' : '<div style="height:5px;background:linear-gradient(90deg,#8f1515,#b31b1b,#8f1515)"></div>';
+  const enh = '<style>' + portalStyles_()
+    + '@media(max-width:600px){.page-title{font-size:24px !important}}'
     + '</style>';
   const html = enh
-    + '<div style="margin:0;background:#fafafa;min-height:100vh;font-family:Helvetica,Arial,sans-serif;color:#111">'
-    +   '<div style="height:5px;background:#b31b1b"></div>'
-    +   '<div style="max-width:600px;margin:0 auto;padding:40px 28px 64px">' + innerHtml + '</div>'
+    + '<div style="margin:0;background:#f5f4f0;min-height:100vh;font-family:Helvetica,Arial,sans-serif;color:#111">'
+    + topBar
+    + '<div style="max-width:' + maxW + ';margin:0 auto;padding:' + pad + '">' + innerHtml + '</div>'
     + '</div>';
   return HtmlService.createHtmlOutput(html).setTitle(pageTitle || 'Space Status')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);   // allow embedding in the Ops Hub Issues tab
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
 function htmlPage_(title, bodyHtml) {
@@ -509,7 +571,7 @@ function listAllIssues_() {
   const ci = function (n) { return H.indexOf(norm_(n)); };
   const cTeam = ci(CONFIG.headers.team), cStatus = ci(CONFIG.headers.status), cIssue = ci(CONFIG.headers.issueType),
         cAction = ci(CONFIG.headers.action), cDetails = ci(CONFIG.headers.details), cTs = ci(CONFIG.headers.timestamp),
-        cTok = ci(CONFIG.issueTokenHeader), cAddr = ci(CONFIG.addressedHeader);
+        cTok = ci(CONFIG.issueTokenHeader), cAddr = ci(CONFIG.addressedHeader), cPhoto = ci(CONFIG.headers.photo);
   const open = [];
   let resolved = 0;
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -528,6 +590,7 @@ function listAllIssues_() {
       issueType: cIssue >= 0 ? String(v[i][cIssue]).trim() : '',
       action: cAction >= 0 ? String(v[i][cAction]).trim() : '',
       details: cDetails >= 0 ? String(v[i][cDetails]).trim() : '',
+      photos: cPhoto >= 0 ? extractFileIds_(v[i][cPhoto]) : [],
       deadline: deadline, overdue: overdue,
     });
   }
@@ -539,8 +602,8 @@ function listAllIssues_() {
   return { open: open, resolved: resolved };
 }
 
-// Every open issue across all teams, with filters and Mark complete. Embedded in the hub Issues tab.
-function allIssuesPage_() {
+// Every open issue across all teams, with filters and Mark complete. Embedded in the hub panel when embed=1.
+function allIssuesPage_(embedded) {
   const data = listAllIssues_();
   const issues = data.open;
   const overdue = issues.filter(function (x) { return x.overdue; }).length;
@@ -548,70 +611,98 @@ function allIssuesPage_() {
   issues.forEach(function (it) { if (it.team) teamSet[it.team] = 1; });
   const teamOpts = Object.keys(teamSet).sort().map(function (t) { return '<option value="' + escapeHtml_(t) + '">' + escapeHtml_(t) + '</option>'; }).join('');
 
-  let inner = '<div style="font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#9a958c">Project Teams Ops Hub</div>'
-    + '<div class="swh" style="font-size:30px;font-weight:800;letter-spacing:-.035em;line-height:1.05;margin-top:8px">Open space issues</div>'
-    + '<div style="width:46px;height:3px;background:#b31b1b;margin-top:12px"></div>'
-    + '<div style="font-size:14px;color:#555;margin-top:14px"><b id="sum-open" style="color:#111;font-size:16px">' + issues.length + '</b> open &nbsp;&middot;&nbsp; <span style="color:#b31b1b;font-weight:700"><span id="sum-over">' + overdue + '</span> overdue</span></div>';
+  let inner = '';
+  if (!embedded) {
+    inner += '<div class="page-head">'
+      + '<div class="page-kicker">Project Teams Ops Hub</div>'
+      + '<div class="page-title">Open space issues</div>'
+      + '<div class="page-rule"></div>'
+      + '</div>';
+  }
 
-  inner += '<div style="display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 8px">'
-    + '<input id="q" type="search" placeholder="Search issues" oninput="flt()" style="flex:1;min-width:160px;font-size:14px;padding:9px 12px;border:1.5px solid #ddd;border-radius:8px">'
-    + '<select id="team" onchange="flt()" style="font-size:14px;padding:9px 12px;border:1.5px solid #ddd;border-radius:8px;background:#fff"><option value="">All teams</option>' + teamOpts + '</select>'
-    + '<label style="display:inline-flex;align-items:center;gap:7px;font-size:14px;color:#333;padding:0 4px;white-space:nowrap"><input id="odue" type="checkbox" onchange="flt()"> Overdue only</label>'
+  inner += '<div class="stats">'
+    + '<div class="stat"><div class="stat-label">Open</div><div class="stat-val" id="sum-open">' + issues.length + '</div></div>'
+    + '<div class="stat"><div class="stat-label">Overdue</div><div class="stat-val stat-val--danger" id="sum-over">' + overdue + '</div></div>'
+    + '</div>';
+
+  inner += '<div class="filters">'
+    + '<div class="search-wrap"><input id="q" type="search" placeholder="Search team, issue, details…" oninput="flt()"></div>'
+    + '<select id="team" onchange="flt()"><option value="">All teams</option>' + teamOpts + '</select>'
+    + '<label class="toggle"><input id="odue" type="checkbox" onchange="this.closest(\'.toggle\').classList.toggle(\'is-on\', this.checked); flt()"> Overdue only</label>'
     + '</div>';
 
   if (!issues.length) {
-    inner += '<div style="font-size:16px;line-height:1.7;color:#555;margin-top:24px">No open issues. Everything is in good shape.</div>';
-    return swissShell_(inner, 'Open issues');
+    inner += '<div class="empty">No open issues. Everything is in good shape.</div>';
+    return swissShell_(inner, 'Open issues', true, embedded);
   }
 
-  let idx = 0;
-  issues.forEach(function (it) {
+  const sectionHead = function (label, count, cls) {
+    return '<div class="section-head">'
+      + '<span class="section-label ' + cls + '">' + label + '</span>'
+      + '<span class="section-count">' + count + '</span>'
+      + '<span class="section-rule"></span></div>';
+  };
+
+  const renderCard = function (it) {
     const rid = 'iss' + (idx++);
     const dl = it.deadline ? fmtShort_(it.deadline) : 'No set deadline';
-    const dueColor = it.overdue ? '#b31b1b' : '#777';
+    const dueCls = it.overdue ? 'due due--late' : 'due';
     const chip = it.overdue
-      ? '<span style="flex:0 0 auto;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#b31b1b;background:#fbeaea;padding:4px 10px;border-radius:999px">Overdue</span>'
-      : (it.deadline ? '<span style="flex:0 0 auto;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#8a857c;background:#f0efe9;padding:4px 10px;border-radius:999px">' + daysLeftLabel_(it.deadline) + '</span>' : '');
+      ? '<span class="chip chip--overdue">Overdue</span>'
+      : (it.deadline ? '<span class="chip chip--due">' + daysLeftLabel_(it.deadline) + '</span>' : '');
     const hay = ((it.team || '') + ' ' + (it.issueType || '') + ' ' + (it.action || '') + ' ' + (it.details || '')).toLowerCase();
-    inner += '<div class="card" id="' + rid + '" data-team="' + escapeHtml_(it.team) + '" data-over="' + (it.overdue ? '1' : '0') + '" data-hay="' + escapeHtml_(hay) + '" style="background:#fff;border-radius:14px;box-shadow:0 2px 8px rgba(20,20,30,.06),0 1px 3px rgba(20,20,30,.05);overflow:hidden;margin-bottom:12px">'
-      + '<div style="padding:16px 20px 14px">'
-      +   '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">'
-      +     '<div><div style="font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#b31b1b">' + escapeHtml_(it.team || 'Unassigned') + '</div>'
-      +       '<div style="font-size:17px;font-weight:800;letter-spacing:-.02em;margin-top:2px">' + escapeHtml_(it.issueType ? phrase_(it.issueType) : 'Reported issue') + '</div></div>'
+    return '<div class="card" id="' + rid + '" data-team="' + escapeHtml_(it.team) + '" data-over="' + (it.overdue ? '1' : '0') + '" data-hay="' + escapeHtml_(hay) + '">'
+      + '<div class="card-body">'
+      +   '<div class="card-head">'
+      +     '<div><div class="card-team">' + escapeHtml_(it.team || 'Unassigned') + '</div>'
+      +     '<div class="card-title">' + escapeHtml_(it.issueType ? phrase_(it.issueType) : 'Reported issue') + '</div></div>'
       +     chip
       +   '</div>'
-      +   (it.action ? '<div style="font-size:13.5px;color:#555;margin-top:6px">' + escapeHtml_(phrase_(it.action)) + '</div>' : '')
-      +   (it.details ? '<div style="font-size:13px;color:#8a857c;margin-top:4px">' + escapeHtml_(it.details) + '</div>' : '')
+      +   (it.action ? '<div class="card-action">' + escapeHtml_(phrase_(it.action)) + '</div>' : '')
+      +   (it.details ? '<div class="card-details">' + escapeHtml_(it.details) + '</div>' : '')
+      +   (it.photos && it.photos.length ? photoStrip_(it.photos) : '')
       + '</div>'
-      + '<div class="swfoot" style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid #f1f1f1;padding:12px 20px;background:#fcfcfb">'
-      +   '<span id="' + rid + '-status" style="font-size:13px;color:' + dueColor + ';font-weight:600">Due ' + escapeHtml_(dl) + '</span>'
-      +   '<span id="' + rid + '-act">'
-      +     '<span id="' + rid + '-btn"><a class="b" href="javascript:void(0)" onclick="ask(\'' + rid + '\')" style="font-size:13px;font-weight:700;color:#fff;background:#b31b1b;padding:9px 16px;border-radius:6px;text-decoration:none;white-space:nowrap">Mark complete</a></span>'
-      +     '<span id="' + rid + '-confirm" style="display:none;white-space:nowrap">'
-      +       '<a class="b" href="javascript:void(0)" onclick="doMark(\'' + rid + '\',\'' + it.token + '\',' + (it.overdue ? 'true' : 'false') + ')" style="font-size:13px;font-weight:700;color:#fff;background:#b31b1b;padding:9px 14px;border-radius:6px;text-decoration:none">Confirm</a>'
-      +       '<a href="javascript:void(0)" onclick="cancelMark(\'' + rid + '\')" style="font-size:13px;color:#8a857c;text-decoration:none;margin-left:12px">Cancel</a>'
+      + '<div class="card-foot">'
+      +   '<span id="' + rid + '-status" class="' + dueCls + '">Due ' + escapeHtml_(dl) + '</span>'
+      +   '<span id="' + rid + '-act" class="btn-row">'
+      +     '<span id="' + rid + '-btn"><button type="button" class="btn btn-primary" onclick="ask(\'' + rid + '\')">Mark complete</button></span>'
+      +     '<span id="' + rid + '-confirm" style="display:none" class="btn-row">'
+      +       '<button type="button" class="btn btn-confirm" onclick="doMark(\'' + rid + '\',\'' + it.token + '\',' + (it.overdue ? 'true' : 'false') + ')">Confirm</button>'
+      +       '<button type="button" class="btn btn-ghost" onclick="cancelMark(\'' + rid + '\')">Cancel</button>'
       +     '</span>'
       +   '</span>'
       + '</div>'
       + '</div>';
-  });
+  };
 
-  inner += '<div id="empty" style="display:none;font-size:15px;color:#8a857c;margin-top:8px">No issues match those filters.</div>';
+  let idx = 0;
+  const overdueList = issues.filter(function (x) { return x.overdue; });
+  const openList = issues.filter(function (x) { return !x.overdue; });
+  if (overdueList.length) {
+    inner += sectionHead('Overdue', overdueList.length, 'section-label--late');
+    overdueList.forEach(function (it) { inner += renderCard(it); });
+  }
+  if (openList.length) {
+    inner += sectionHead('Open', openList.length, 'section-label--open');
+    openList.forEach(function (it) { inner += renderCard(it); });
+  }
+
+  inner += '<div id="empty" class="empty" style="display:none">No issues match those filters.</div>';
 
   inner += '<script>'
     + 'var ssOpen=' + issues.length + ',ssOver=' + overdue + ';'
     + 'function flt(){var q=document.getElementById("q").value.toLowerCase().trim();var tm=document.getElementById("team").value;var od=document.getElementById("odue").checked;var n=0;'
     +   'document.querySelectorAll(".card").forEach(function(c){var ok=c.dataset.done!=="1"&&(!q||c.dataset.hay.indexOf(q)>=0)&&(!tm||c.dataset.team===tm)&&(!od||c.dataset.over==="1");c.style.display=ok?"":"none";if(ok)n++;});'
     +   'document.getElementById("empty").style.display=n?"none":"block";}'
-    + 'function ask(r){document.getElementById(r+"-btn").style.display="none";document.getElementById(r+"-confirm").style.display="inline";}'
+    + 'function ask(r){document.getElementById(r+"-btn").style.display="none";document.getElementById(r+"-confirm").style.display="inline-flex";}'
     + 'function cancelMark(r){document.getElementById(r+"-confirm").style.display="none";document.getElementById(r+"-btn").style.display="inline";}'
-    + 'function doMark(r,t,od){var a=document.getElementById(r+"-act");a.innerHTML="Saving...";'
+    + 'function doMark(r,t,od){var a=document.getElementById(r+"-act");a.innerHTML="<span class=\\"btn btn-ghost\\">Saving…</span>";'
     +   'google.script.run.withSuccessHandler(function(){'
-    +     'var c=document.getElementById(r);c.dataset.done="1";a.innerHTML="";var s=document.getElementById(r+"-status");if(s){s.textContent="\\u2713 Completed";s.style.color="#1d7a46";}c.style.opacity="0.55";'
+    +     'var c=document.getElementById(r);c.dataset.done="1";a.innerHTML="";var s=document.getElementById(r+"-status");if(s){s.textContent="\\u2713 Completed";s.className="due due--done";}c.style.opacity="0.55";'
     +     'ssOpen--;if(od)ssOver--;document.getElementById("sum-open").textContent=ssOpen;document.getElementById("sum-over").textContent=ssOver;'
-    +   '}).withFailureHandler(function(){document.getElementById(r+"-act").innerHTML="Please retry.";}).confirmAddressed(t);}'
+    +   '}).withFailureHandler(function(){a.innerHTML="<button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"doMark(\'"+r+"\',\'"+t+"\',"+od+")\\">Retry</button>";}).confirmAddressed(t);}'
     + '</script>';
-  return swissShell_(inner, 'Open issues');
+  return swissShell_(inner, 'Open issues', true, embedded);
 }
 
 // Drive file IDs from a "Photo Upload" cell (one or more comma-separated URLs).

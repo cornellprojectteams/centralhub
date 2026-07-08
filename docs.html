@@ -30,12 +30,35 @@
       <nav class="hub-nav" aria-label="Hub sections">
         <a class="hub-nav-btn" href="index.html#staff">Staff</a>
         <a class="hub-nav-btn" href="index.html#admin">Admin</a>
-        <a class="hub-nav-btn" href="index.html#team">Teams</a>
       </nav>
     </div>
   </header>
 
-  <main class="doc-main">
+  <main class="doc-layout">
+    <aside class="doc-sidebar" aria-label="Guide sections">
+      <p class="doc-sidebar-kicker">On this page</p>
+      <nav class="doc-sidebar-nav">
+        <a href="#overview" class="doc-sidebar-link is-active"><strong>Overview</strong><small>How the system fits together</small></a>
+        <a href="#components" class="doc-sidebar-link"><strong>Components</strong><small>Form, sheet, script, portal</small></a>
+        <a href="#submit" class="doc-sidebar-link"><strong>On submit</strong><small>What the emailer does</small></a>
+        <a href="#severity" class="doc-sidebar-link"><strong>Severity</strong><small>Deadlines by color</small></a>
+        <a href="#reminders" class="doc-sidebar-link"><strong>Reminders</strong><small>Daily follow-ups</small></a>
+        <a href="#pages" class="doc-sidebar-link"><strong>Web pages</strong><small>Portal routes</small></a>
+        <a href="#changes" class="doc-sidebar-link"><strong>Making changes</strong><small>Contacts, teams, deploy</small></a>
+        <a href="#utilities" class="doc-sidebar-link"><strong>Utilities</strong><small>Script editor functions</small></a>
+        <a href="#links" class="doc-sidebar-link"><strong>Links</strong><small>All resources</small></a>
+      </nav>
+      <div class="doc-resource-box">
+        <p class="doc-resource-label">Quick links</p>
+        <a href="https://forms.gle/6DHYsEPonVtdALps5" target="_blank" rel="noopener">Live form</a>
+        <a href="https://docs.google.com/forms/d/1bVzxR-lGNDtll6wh7wsdZGsVuqMkaRavVcGxykLHMFw/edit" target="_blank" rel="noopener">Edit form</a>
+        <a href="https://docs.google.com/spreadsheets/d/1mZrlnA-GiVKB4_Um21aMH9jsSkf6TUJhauDWivnf7-I/edit" target="_blank" rel="noopener">Tracking sheet</a>
+        <a href="https://script.google.com/d/1DpKw0dXIQ5rH6_BQfIQnXpmTbTcPmfH3wq2Dzc6pJUA7lrmeFG7hh5P4/edit" target="_blank" rel="noopener">Emailer script</a>
+        <a href="index.html#admin">Back to admin hub</a>
+      </div>
+    </aside>
+
+    <div class="doc-content">
     <span class="doc-eyebrow">Admin manual</span>
     <h1>Space Status system guide</h1>
     <p class="doc-lede">
@@ -43,7 +66,7 @@
       reminders behave, and how to make changes.
     </p>
 
-    <nav class="doc-toc" aria-label="On this page">
+    <nav class="doc-toc doc-toc--mobile" aria-label="On this page">
       <a href="#overview">Overview</a>
       <a href="#components">Components</a>
       <a href="#submit">On submit</a>
@@ -146,8 +169,9 @@
       <h2><span class="doc-num">06</span>Web pages</h2>
       <p>Four routes on one URL:</p>
       <div class="cmd">
-        /exec&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">team picker</span><br>
-        /exec?view=Baja&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">read-only status page, used by the Teams tab</span><br>
+        /exec&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">team picker (default)</span><br>
+        /exec?view=all&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">all open issues — embedded in Admin hub</span><br>
+        /exec?view=Baja&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">read-only status page for one team</span><br>
         /exec?team=TOKEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">full portal with Mark addressed buttons</span><br>
         /exec?id=TOKEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">confirm page, opened by the email button</span>
       </div>
@@ -166,7 +190,7 @@
       <ul>
         <li><strong>Contacts and recipients:</strong> edit Team Contacts.</li>
         <li><strong>Wording, deadlines, sender:</strong> edit the constants at the top of the script and save.</li>
-        <li><strong>New team:</strong> add a row in Team Contacts, run <code>fillTeamTokens</code>, add the name to the form dropdown and the Teams picker in <code>index.html</code>.</li>
+        <li><strong>New team:</strong> add a row in Team Contacts, run <code>fillTeamTokens</code>, add the name to the form dropdown.</li>
         <li><strong>Web page changes:</strong> these do not go live until you deploy a new version. Deploy &rarr; Manage deployments &rarr; pencil &rarr; Version: New version &rarr; Deploy. The URL stays the same.</li>
       </ul>
       <p>Go-live settings, in <code>CONFIG</code> at the top of the script:</p>
@@ -221,6 +245,7 @@
       </ul>
       <p class="doc-updated">Last updated July 2026.</p>
     </section>
+    </div>
   </main>
 
   <footer class="app-footer">
@@ -238,7 +263,6 @@
           <h4>Jump to</h4>
           <a href="index.html#staff">Staff</a>
           <a href="index.html#admin">Admin</a>
-          <a href="index.html#team">Teams</a>
         </div>
         <div class="footer-col">
           <h4>On this page</h4>
@@ -260,5 +284,26 @@
   </footer>
 </div>
 
+<script>
+  const docLinks = document.querySelectorAll('.doc-sidebar-link');
+  docLinks.forEach(link => {
+    link.addEventListener('click', () => {
+      docLinks.forEach(l => l.classList.remove('is-active'));
+      link.classList.add('is-active');
+    });
+  });
+  if ('IntersectionObserver' in window) {
+    const docObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          docLinks.forEach(l => l.classList.remove('is-active'));
+          const active = document.querySelector('.doc-sidebar-link[href="#' + entry.target.id + '"]');
+          if (active) active.classList.add('is-active');
+        }
+      });
+    }, { rootMargin: '-20% 0px -65% 0px' });
+    document.querySelectorAll('.doc-section[id]').forEach(s => docObserver.observe(s));
+  }
+</script>
 </body>
 </html>
