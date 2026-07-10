@@ -164,6 +164,15 @@
       btn.classList.toggle('is-active', btn.dataset.view === view);
     });
 
+    const adminCluster = document.getElementById('hub-admin');
+    const adminTrigger = adminCluster && adminCluster.querySelector('[data-view="admin"]');
+    if (adminCluster) {
+      adminCluster.classList.toggle('is-open', view === 'admin');
+    }
+    if (adminTrigger) {
+      adminTrigger.setAttribute('aria-expanded', view === 'admin' ? 'true' : 'false');
+    }
+
     zones.forEach(zone => {
       zone.classList.toggle('is-active', zone.id === view);
     });
@@ -180,6 +189,8 @@
   }
 
   navButtons.forEach(btn => {
+    // Only Staff/Admin buttons switch views (Command lives inside Admin).
+    if (!btn.dataset.view) return;
     btn.addEventListener('click', () => setView(btn.dataset.view));
   });
 
@@ -444,4 +455,17 @@
       search.select();
     }
   });
+
+  // Deep-link from other pages: index.html?q=fleet
+  const params = new URLSearchParams(location.search);
+  const initialQ = params.get('q');
+  if (initialQ) {
+    search.value = initialQ;
+    runSearch();
+    search.focus();
+    if (history.replaceState) {
+      const url = location.pathname + location.hash;
+      history.replaceState(null, '', url);
+    }
+  }
 })();

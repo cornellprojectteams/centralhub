@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
 <style>
 :root{
   --bg:#f5f4f1; --surface:#fff; --surface-2:#fbfaf8;
@@ -27,7 +28,6 @@
   --sh-lift:0 12px 30px rgba(28,26,23,.10);
   --spring:cubic-bezier(.22,1,.36,1);
 }
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{
   font-family:var(--font);color:var(--ink-1);background:var(--bg);font-size:15px;line-height:1.5;
   -webkit-font-smoothing:antialiased;
@@ -39,22 +39,6 @@ a{color:inherit}
 :focus-visible{outline:2px solid var(--red);outline-offset:3px;border-radius:6px}
 .eyebrow{font-family:var(--eyebrow);font-weight:800;font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3)}
 .tnum{font-variant-numeric:tabular-nums}
-
-/* ================= masthead ================= */
-.masthead{position:sticky;top:0;z-index:30;height:58px;background:linear-gradient(120deg,#8f1515,#6e1010 60%,#560d0d)}
-.masthead::after{content:'';position:absolute;left:0;right:0;bottom:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
-.mast-inner{max-width:1160px;margin:0 auto;height:100%;padding:0 24px;display:flex;align-items:center;gap:14px}
-.brand{display:flex;align-items:center;gap:10px;color:#fff;text-decoration:none;white-space:nowrap}
-.seal{width:32px;height:32px;border-radius:50%;background:#fff;color:#8f1515;display:flex;align-items:center;justify-content:center;font-family:var(--eyebrow);font-weight:800;font-size:14px;box-shadow:0 0 0 1.5px rgba(240,192,80,.55)}
-.brand b{font-family:var(--eyebrow);font-weight:800;font-size:14.5px;letter-spacing:-.01em}
-.mast-nav{margin-left:auto;display:flex;gap:2px;background:rgba(0,0,0,.2);padding:3px;border-radius:9px}
-.mast-nav a{font-family:var(--eyebrow);font-weight:700;font-size:12.5px;color:rgba(255,255,255,.72);text-decoration:none;padding:6px 13px;border-radius:6px;transition:background .15s,color .15s}
-.mast-nav a:hover{color:#fff}
-.mast-nav a.on{background:#fff;color:#8f1515}
-.kbd{display:flex;align-items:center;gap:7px;font-size:12px;color:rgba(255,255,255,.6);background:rgba(0,0,0,.18);border:1px solid rgba(255,255,255,.12);padding:6px 10px;border-radius:8px;text-decoration:none;transition:color .15s,border-color .15s}
-.kbd:hover{color:#fff;border-color:rgba(255,255,255,.3)}
-.kbd kbd{font-family:var(--font);font-size:10.5px;background:rgba(255,255,255,.16);color:#fff;padding:1px 5px;border-radius:4px}
-@media(max-width:880px){.kbd{display:none}}
 
 .wrap{max-width:1160px;margin:0 auto;padding:24px 24px 64px}
 
@@ -111,17 +95,21 @@ a{color:inherit}
 .lead-top{display:flex;align-items:center;gap:9px;margin-bottom:12px}
 .lead-title{font-size:21px;font-weight:700;letter-spacing:-.02em;line-height:1.25}
 .lead-sub{font-size:13.5px;color:var(--ink-2);margin-top:6px}
+.lead .items{margin-top:14px;margin-bottom:0}
 .lead-cta{display:inline-flex;align-items:center;gap:7px;margin-top:16px;font-family:var(--eyebrow);font-weight:700;font-size:12.5px;
   color:#fff;background:linear-gradient(180deg,#c93a2c,#a82a20);padding:10px 16px;border-radius:9px;box-shadow:0 4px 12px rgba(168,42,32,.26)}
 .lead[data-sev="warn"] .lead-cta{background:linear-gradient(180deg,#b8830f,#96690b);box-shadow:0 4px 12px rgba(150,105,11,.24)}
 .lead-cta .arrow{transition:transform .18s var(--spring)}
 .lead:hover .lead-cta .arrow{transform:translateX(3px)}
 
-/* ================= attention rows ================= */
+/* ================= attention rows (expandable detail) ================= */
 .feed{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh);overflow:hidden}
-.attn{display:flex;align-items:center;gap:13px;padding:14px 18px;border-bottom:1px solid var(--line);text-decoration:none;position:relative;transition:background .14s,padding-left .16s var(--spring)}
+.attn{display:block;text-decoration:none;border-bottom:1px solid var(--line);transition:background .14s}
 .attn:last-child{border-bottom:none}
-.attn:hover{background:var(--surface-2);padding-left:22px}
+.attn:hover{background:var(--surface-2)}
+.attn-head{display:flex;align-items:center;gap:13px;padding:14px 18px;transition:padding-left .16s var(--spring)}
+.attn:hover .attn-head{padding-left:22px}
+.attn[role="button"]{cursor:pointer}
 .sev{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
 .attn.crit .sev{background:var(--crit);box-shadow:0 0 0 4px var(--crit-bg)}
 .attn.warn .sev{background:var(--warn);box-shadow:0 0 0 4px var(--warn-bg)}
@@ -129,6 +117,15 @@ a{color:inherit}
 .attn-title{font-size:14px;font-weight:600;letter-spacing:-.005em}
 .attn-sub{font-size:12.5px;color:var(--ink-3);margin-top:2px}
 .attn-cta{flex:0 0 auto;display:flex;align-items:center;gap:10px}
+.chev{display:inline-block;color:var(--ink-4);transition:transform .2s var(--spring),color .16s}
+.attn[aria-expanded="true"] .chev{transform:rotate(90deg);color:var(--ink-1)}
+.attn-detail{padding:2px 20px 16px 39px}
+.items{list-style:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px;margin-bottom:12px}
+.items li{font-size:12.5px;color:var(--ink-2);padding:8px 11px;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;font-variant-numeric:tabular-nums}
+.items li.more{color:var(--ink-4);background:transparent;border-style:dashed}
+.detail-link{display:inline-flex;align-items:center;gap:6px;font-family:var(--eyebrow);font-weight:700;font-size:11.5px;color:var(--ink-2);
+  background:var(--surface);border:1px solid var(--line-2);padding:7px 12px;border-radius:8px;text-decoration:none;transition:border-color .15s,color .15s}
+.detail-link:hover{border-color:var(--ink-4);color:var(--ink-1)}
 .dom{display:inline-flex;align-items:center;gap:5px;font-family:var(--eyebrow);font-weight:800;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
 .dom .dot{width:6px;height:6px;border-radius:50%}
 .pill{font-family:var(--eyebrow);font-weight:800;font-size:10px;letter-spacing:.04em;text-transform:uppercase;padding:4px 9px;border-radius:999px;white-space:nowrap}
@@ -148,7 +145,7 @@ a{color:inherit}
 @media(max-width:860px){.grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:540px){.grid{grid-template-columns:1fr}}
 .stat{position:relative;overflow:hidden;display:block;text-decoration:none;background:var(--surface);
-  border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh);padding:16px 17px 15px;
+  border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh);padding:20px 20px 19px;
   transition:transform .2s var(--spring),box-shadow .2s ease,border-color .16s}
 .stat:hover{transform:translateY(-3px);box-shadow:var(--sh-lift);border-color:var(--line-2)}
 /* a domain in trouble must not look like a healthy one */
@@ -167,9 +164,9 @@ a{color:inherit}
 .state.action{color:var(--crit)} .state.action .d{background:var(--crit)}
 .state.watch{color:var(--warn)}  .state.watch .d{background:var(--warn)}
 .state.good{color:var(--good)}   .state.good .d{background:var(--good)}
-.stat-val{font-size:29px;font-weight:700;letter-spacing:-.025em;line-height:1}
-.stat-val .u{font-size:13.5px;font-weight:500;color:var(--ink-3);letter-spacing:0;margin-left:5px}
-.stat-sub{font-size:12.5px;color:var(--ink-3);margin-top:9px}
+.stat-val{font-size:31px;font-weight:700;letter-spacing:-.028em;line-height:1}
+.stat-val .u{font-size:13.5px;font-weight:500;color:var(--ink-3);letter-spacing:0;margin-left:6px}
+.stat-sub{font-size:12.5px;color:var(--ink-3);margin-top:12px;line-height:1.55}
 .stat-sub b{color:var(--ink-2);font-weight:600;font-variant-numeric:tabular-nums}
 /* meter: fill carries severity, track is a lighter step of the same ramp */
 .meter{margin-top:12px}
@@ -180,8 +177,6 @@ a{color:inherit}
 .stat[data-state="good"] .meter-fill{background:var(--good)}
 .meter-lab{font-size:10.5px;color:var(--ink-4);margin-top:5px;font-variant-numeric:tabular-nums}
 @keyframes grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
-.stat-go{position:absolute;right:14px;bottom:13px;color:var(--ink-4);opacity:0;transform:translateX(-4px);transition:opacity .18s,transform .18s var(--spring)}
-.stat:hover .stat-go{opacity:1;transform:none}
 
 /* ================= panels + charts ================= */
 .panels{display:grid;grid-template-columns:1.2fr 1fr;gap:12px;margin-top:12px}
@@ -227,15 +222,37 @@ a{color:inherit}
 </head>
 <body>
 
-<header class="masthead">
-  <div class="mast-inner">
-    <a class="brand" href="index.html"><span class="seal">C</span><b>Project Teams Ops Hub</b></a>
-    <nav class="mast-nav">
-      <a class="on" href="command-center.html" aria-current="page">Command</a>
-      <a href="index.html#staff">Staff</a>
-      <a href="index.html#admin">Admin</a>
-    </nav>
-    <a class="kbd" href="index.html" title="Search all tools on the hub">Search tools <kbd>⌘K</kbd></a>
+<header class="app-header">
+  <div class="header-inner">
+    <a href="index.html" class="logo">
+      <img src="assets/cornell-seal.svg" alt="Cornell University" class="logo-seal">
+      <div class="logo-text-block">
+        <div class="logo-text">Project Teams Ops Hub</div>
+        <div class="logo-sub">Safety &amp; Operations</div>
+      </div>
+    </a>
+    <div class="header-tools">
+      <nav class="hub-nav" aria-label="Hub sections">
+        <a class="hub-nav-btn" href="index.html#staff">Staff</a>
+        <div class="hub-admin is-open">
+          <a class="hub-nav-btn" href="index.html#admin">
+            Admin <span class="hub-admin-caret" aria-hidden="true"></span>
+          </a>
+          <a class="hub-admin-cmd is-active" href="command-center.html" aria-current="page" aria-label="Command Center">
+            <span class="hub-admin-cmd-dot" aria-hidden="true"></span>
+            Command
+            <span class="hub-admin-cmd-go" aria-hidden="true">→</span>
+          </a>
+        </div>
+      </nav>
+      <form class="header-search" action="index.html" method="get" role="search">
+        <div class="search-box">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input type="search" class="search-input" name="q" placeholder="Search tools…" autocomplete="off" aria-label="Search tools">
+          <kbd class="search-kbd" id="search-kbd">⌘K</kbd>
+        </div>
+      </form>
+    </div>
   </div>
 </header>
 
@@ -317,6 +334,59 @@ a{color:inherit}
   function iconFor(k){ return ICONS[key(k)] || ICONS.inventory; }
   function subBold(s){ return esc(s).replace(/(\d[\d,]*)/g,'<b>$1</b>'); }
 
+  // Detail lists are deliberately non-identifying: teams, issue types, equipment,
+  // lock numbers — never names, NetIDs or emails. This endpoint is public.
+  function itemList(items){
+    if(!items || !items.length) return '';
+    return '<ul class="items">' + items.map(function(x){
+      var more = /^\+\d+ more/.test(x);
+      return '<li class="'+(more?'more':'')+'">'+esc(x)+'</li>';
+    }).join('') + '</ul>';
+  }
+
+  // A row with detail expands in place; one without is just a link.
+  function attnRow(it, i){
+    var sev = it.sev==='crit'?'crit':'warn';
+    var head =
+      '<div class="attn-head"><span class="sev"></span>'+
+      '<div class="attn-body"><div class="attn-title">'+esc(it.title)+'</div><div class="attn-sub">'+esc(it.sub)+'</div></div>'+
+      '<div class="attn-cta"><span class="dom"><span class="dot" style="background:'+tintFor(it.domain)+'"></span>'+esc(it.domain)+'</span>'+
+      '<span class="pill '+(it.pillType==='crit'?'crit':'warn')+'">'+esc(it.pill)+'</span>';
+
+    if(!it.items || !it.items.length){
+      var link=document.createElement('a');
+      link.className='attn rise '+sev;
+      link.style.animationDelay=(i*45)+'ms';
+      link.href=linkFor(it.domain); link.target='_blank'; link.rel='noopener';
+      link.innerHTML = head + '<span class="arrow">→</span></div></div>';
+      return link;
+    }
+
+    var el=document.createElement('div');
+    el.className='attn rise '+sev;
+    el.style.animationDelay=(i*45)+'ms';
+    el.setAttribute('role','button');
+    el.setAttribute('tabindex','0');
+    el.setAttribute('aria-expanded','false');
+    el.innerHTML = head + '<span class="chev">›</span></div></div>'+
+      '<div class="attn-detail" hidden>'+ itemList(it.items) +
+      '<a class="detail-link" href="'+esc(linkFor(it.domain))+'" target="_blank" rel="noopener">Open '+esc(it.domain)+' ↗</a></div>';
+
+    var detail = el.querySelector('.attn-detail');
+    var toggle = function(e){
+      // don't swallow clicks on the real link inside the detail panel
+      if(e && e.target && e.target.closest && e.target.closest('.detail-link')) return;
+      var open = el.getAttribute('aria-expanded')==='true';
+      el.setAttribute('aria-expanded', open?'false':'true');
+      detail.hidden = open;
+    };
+    el.addEventListener('click', toggle);
+    el.addEventListener('keydown', function(e){
+      if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggle(e); }
+    });
+    return el;
+  }
+
   function skeleton(){
     var rows='';
     for(var i=0;i<4;i++) rows+='<div class="sk-row"><div class="sk" style="width:8px;height:8px;border-radius:50%"></div>'+
@@ -367,7 +437,7 @@ a{color:inherit}
         '<h3>All systems healthy</h3><p>No overdue issues, no conflicts, nothing expiring.</p>';
     } else {
       feed.className='feed';
-      // the single most urgent item gets editorial weight
+      // the single most urgent item gets editorial weight — and shows its detail up front
       var top=items[0];
       var a=document.createElement('a');
       a.className='lead rise'; a.setAttribute('data-sev',top.sev);
@@ -378,21 +448,14 @@ a{color:inherit}
         '<span class="pill '+(top.pillType==='crit'?'crit':'warn')+'">'+esc(top.pill)+'</span></div>'+
         '<div class="lead-title">'+esc(top.title)+'</div>'+
         '<div class="lead-sub">'+esc(top.sub)+'</div>'+
+        itemList(top.items)+
         '<span class="lead-cta">Open '+esc(top.domain)+' <span class="arrow">→</span></span>';
       lead.appendChild(a);
 
       items.slice(1).forEach(function(it,i){
-        var el=document.createElement('a');
-        el.className='attn rise '+(it.sev==='crit'?'crit':'warn');
-        el.style.animationDelay=(i*45)+'ms';
-        el.href=linkFor(it.domain); el.target='_blank'; el.rel='noopener';
-        el.innerHTML='<span class="sev"></span>'+
-          '<div class="attn-body"><div class="attn-title">'+esc(it.title)+'</div><div class="attn-sub">'+esc(it.sub)+'</div></div>'+
-          '<div class="attn-cta"><span class="dom"><span class="dot" style="background:'+tintFor(it.domain)+'"></span>'+esc(it.domain)+'</span>'+
-          '<span class="pill '+(it.pillType==='crit'?'crit':'warn')+'">'+esc(it.pill)+'</span><span class="arrow">→</span></div>';
-        feed.appendChild(el);
+        feed.appendChild(attnRow(it, i));
       });
-      if(items.length===1) feed.style.display='none'; else feed.style.display='';
+      feed.style.display = items.length===1 ? 'none' : '';
     }
 
     // ---- tiles ----
@@ -414,7 +477,7 @@ a{color:inherit}
         '<span class="stat-name">'+esc(t.name)+'</span>'+
         '<span class="state '+(t.state||'good')+'"><span class="d"></span>'+(WORD[t.state]||'Good')+'</span></div>'+
         '<div class="stat-val tnum">'+esc(t.value)+'<span class="u">'+esc(t.unit)+'</span></div>'+
-        '<div class="stat-sub">'+subBold(t.sub)+'</div>'+meter+'<span class="stat-go">→</span>';
+        '<div class="stat-sub">'+subBold(t.sub)+'</div>'+meter;
       grid.appendChild(el);
     });
 
@@ -553,6 +616,26 @@ a{color:inherit}
 
   skeleton();
   loadLive(STATS_ENDPOINT).then(render).catch(function(e){ errorState(e.message); });
+
+  // Header search: ⌘K focuses the field; Enter submits to the hub.
+  (function(){
+    var input = document.querySelector('.header-search .search-input');
+    var kbd = document.getElementById('search-kbd');
+    if (!input) return;
+    if (kbd) {
+      var isMac = /mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent || '');
+      kbd.textContent = isMac ? '⌘K' : 'Ctrl K';
+    }
+    document.addEventListener('keydown', function(e){
+      var tag = (e.target.tagName || '').toLowerCase();
+      var typing = tag === 'input' || tag === 'textarea' || e.target.isContentEditable;
+      if (!typing && (e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        input.focus();
+        input.select();
+      }
+    });
+  })();
 })();
 </script>
 </body>

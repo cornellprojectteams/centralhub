@@ -27,28 +27,39 @@
           <div class="logo-sub">Safety &amp; Operations</div>
         </div>
       </a>
-      <nav class="hub-nav" aria-label="Hub sections">
-        <button type="button" class="hub-nav-btn is-active" data-view="staff">Staff</button>
-        <button type="button" class="hub-nav-btn" data-view="admin">Admin</button>
-      </nav>
+      <div class="header-tools">
+        <nav class="hub-nav" aria-label="Hub sections">
+          <button type="button" class="hub-nav-btn is-active" data-view="staff">Staff</button>
+          <div class="hub-admin" id="hub-admin">
+            <button type="button" class="hub-nav-btn" data-view="admin" aria-expanded="false" aria-controls="hub-admin-cmd">
+              Admin <span class="hub-admin-caret" aria-hidden="true"></span>
+            </button>
+            <a class="hub-admin-cmd" id="hub-admin-cmd" href="command-center.html" aria-label="Open Command Center">
+              <span class="hub-admin-cmd-dot" aria-hidden="true"></span>
+              Command
+              <span class="hub-admin-cmd-go" aria-hidden="true">→</span>
+            </a>
+          </div>
+        </nav>
+        <div class="header-search" role="search">
+          <div class="search-box">
+            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input type="search" class="search-input" id="search" placeholder="Search tools…" autocomplete="off" aria-label="Search tools">
+            <button type="button" class="search-clear" id="search-clear" aria-label="Clear search" hidden>&#10005;</button>
+            <kbd class="search-kbd" id="search-kbd">/</kbd>
+          </div>
+          <div class="search-meta" id="search-meta" hidden>
+            <span class="search-count" id="search-count"></span>
+            <span class="search-hint"><kbd>&uarr;</kbd><kbd>&darr;</kbd> navigate &middot; <kbd>&crarr;</kbd> open &middot; <kbd>esc</kbd> clear</span>
+          </div>
+        </div>
+      </div>
     </div>
   </header>
 
   <main class="page-main">
     <header class="page-intro">
       <h1>What do you need to <span class="accent">do</span>?</h1>
-      <div class="search-wrap">
-        <div class="search-box">
-          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          <input type="search" class="search-input" id="search" placeholder="Search tools…" autocomplete="off" aria-label="Search tools">
-          <button type="button" class="search-clear" id="search-clear" aria-label="Clear search" hidden>&#10005;</button>
-          <kbd class="search-kbd" id="search-kbd">/</kbd>
-        </div>
-        <div class="search-meta" id="search-meta" hidden>
-          <span class="search-count" id="search-count"></span>
-          <span class="search-hint"><kbd>&uarr;</kbd><kbd>&darr;</kbd> navigate &middot; <kbd>&crarr;</kbd> open &middot; <kbd>esc</kbd> clear</span>
-        </div>
-      </div>
     </header>
 
     <section class="hub-zone is-active" id="staff">
@@ -261,6 +272,7 @@
           <h4>Jump to</h4>
           <a href="#staff">Staff</a>
           <a href="#admin">Admin</a>
+          <a href="command-center.html">↳ Command</a>
         </div>
         <div class="footer-col">
           <h4>Common tasks</h4>

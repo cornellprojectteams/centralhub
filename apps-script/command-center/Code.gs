@@ -14,6 +14,9 @@
  *   3. Authorize when prompted (it needs to read the spreadsheets below).
  *   4. Copy the /exec URL → paste into command-center.html (STATS_ENDPOINT).
  *   REDEPLOY later: Deploy → Manage deployments → ✏️ → New version (URL stays).
+ *     ⚠️ After changing logic, ALSO bump CACHE_VERSION below (or Run ▸
+ *     clearStatsCache). Otherwise the cache serves the old code's output for
+ *     up to CACHE_SECONDS and the page shows stale, self-contradicting data.
  *
  * The page calls it JSONP-style:  <script src=".../exec?callback=fn">
  * so it works cross-origin from the static site (no CORS dance).
@@ -33,7 +36,15 @@ const SOURCES = {
 // Space Status SLA windows (days) by severity — mirrors the notifier.
 const SLA_DAYS = { red: 0, orange: 3, yellow: 10, ivory: 21, purple: null };
 
-const CACHE_SECONDS = 300; // 5 min — SpreadsheetApp reads are slow; serve cached JSON between refreshes.
+const CACHE_SECONDS = 180; // SpreadsheetApp reads are slow; serve cached JSON between refreshes.
+
+// Bump this whenever the payload shape or any domain's logic changes.
+// CacheService is keyed per SCRIPT, not per deployment version — so without a
+// version in the key, a redeploy keeps serving the OLD code's output until the
+// TTL expires. That once showed "supplies need restocking" over "all supplies
+// stocked". Bumping the key makes a redeploy take effect immediately.
+const CACHE_VERSION = 'v3';
+const CACHE_KEY = 'stats_' + CACHE_VERSION;
 
 // --- Web entry point -------------------------------------------------------
 
@@ -52,12 +63,21 @@ function doGet(e) {
 function getStatsJson_(fresh) {
   const cache = CacheService.getScriptCache();
   if (!fresh) {
-    const hit = cache.get('stats');
+    const hit = cache.get(CACHE_KEY);
     if (hit) return hit;
   }
   const json = JSON.stringify(buildStats_());
-  cache.put('stats', json, CACHE_SECONDS);
+  cache.put(CACHE_KEY, json, CACHE_SECONDS);
   return json;
+}
+
+/**
+ * Belt and braces: run this from the editor (Run ▸ clearStatsCache) right after a
+ * redeploy if you didn't bump CACHE_VERSION. Zero-arg, safe to click Run on.
+ */
+function clearStatsCache() {
+  CacheService.getScriptCache().remove(CACHE_KEY);
+  Logger.log('Cleared "' + CACHE_KEY + '". Next request rebuilds from the sheets.');
 }
 
 // --- Assemble the payload --------------------------------------------------
@@ -70,9 +90,12 @@ function buildStats_() {
     safe_(space_,      'space',      'Space issues',   '#c0392b'),
     safe_(ell_,        'ell',        'Learning Lab',   '#c07a12'),
     safe_(fabman_,     'fabman',     'Fabman',         '#2563c9'),
-    safe_(compliance_, 'compliance', 'Compliance',     '#1f9d5b'),  // informational — no expiry data exists
-    safe_(fleet_,      'fleet',      'Fleet · Tacoma', '#7c3aed'),  // header row auto-detected; verify
+    safe_(fleet_,      'fleet',      'Fleet · Tacoma', '#7c3aed'),
     safe_(inventory_,  'inventory',  'Inventory',      '#0d9488'),
+    // Compliance is intentionally NOT shown. The Master Sheet has no expiry or
+    // renewal date in any tab, so the tile could only ever state a passive record
+    // count — nothing you can act on. compliance_() is kept below, ready to
+    // re-enable the moment that sheet gains a renewal-date column.
   ];
 
   // Flatten attention items, urgent (crit) before soon (warn), stable within.
@@ -158,12 +181,22 @@ function space_() {
   const stat = {
     key: 'space', name: 'Space issues', dot: '#c0392b', live: true,
     value: open.length, unit: 'open', state: state,
-    sub: overdueList.length + ' overdue · ' + redOpen + ' red · ' + resolved + ' resolved this term',
+    // Only facts that change what you'd do — never "0 red".
+    sub: joinBits_([
+      overdueList.length ? overdueList.length + ' overdue' : '',
+      redOpen ? redOpen + ' red' : '',
+      resolved ? resolved + ' resolved this term' : '',
+    ]) || 'Nothing open',
   };
-  // Meter only where a ratio actually means something.
   if (open.length + resolved > 0) {
     stat.meter = { value: open.length, of: open.length + resolved, label: 'unresolved' };
   }
+
+  var describe = function (x) {
+    var days = x.deadline ? Math.round((today - x.deadline) / 86400000) : 0;
+    return joinBits_([x.team || 'Unassigned', x.issueType || 'Reported issue',
+      days > 0 ? (days + (days === 1 ? ' day overdue' : ' days overdue')) : '']);
+  };
 
   const attention = [];
   if (overdueList.length) {
@@ -171,15 +204,18 @@ function space_() {
     attention.push({
       sev: 'crit', domain: 'Space', dot: '#c0392b',
       title: overdueList.length + (overdueList.length === 1 ? ' space issue is overdue' : ' space issues are overdue'),
-      sub: oldest.team ? ('Oldest: ' + oldest.team + (oldest.issueType ? ' ' + oldest.issueType.toLowerCase() : '')) : 'Past SLA deadline',
+      sub: 'Oldest: ' + describe(oldest),
       pill: 'Overdue', pillType: 'crit',
+      items: overdueList.slice(0, 8).map(describe),
     });
   }
   if (redOpen) {
+    const reds = open.filter(function (x) { return x.color === 'red' && !x.overdue; });
     attention.push({
       sev: 'warn', domain: 'Space', dot: '#c0392b',
       title: redOpen + ' red-severity ' + (redOpen === 1 ? 'issue needs' : 'issues need') + ' same-day action',
       sub: 'Reported today and not yet resolved', pill: 'Urgent', pillType: 'warn',
+      items: reds.slice(0, 8).map(describe),
     });
   }
 
@@ -230,15 +266,15 @@ function ell_() {
   const supply   = cSupply >= 0 ? splitExcluding_(latest[cSupply], ['stocked']) : [];
   const peak     = topKey_(shiftCounts);
 
-  const bits = [flags.length + (flags.length === 1 ? ' safety flag' : ' safety flags')];
-  if (peak) bits.push('peak ' + peak);
-  bits.push(logged + ' logged');
-
   const stat = {
     key: 'ell', name: 'Learning Lab', dot: '#c07a12', live: true,
     value: activity, unit: 'last shift',
     state: flags.length ? 'watch' : 'good',
-    sub: bits.join(' · '),
+    sub: joinBits_([
+      flags.length ? flags.length + (flags.length === 1 ? ' safety flag' : ' safety flags') : '',
+      peak ? 'peak ' + peak : '',
+      logged ? logged + ' shifts logged' : '',
+    ]),
   };
 
   const attention = [];
@@ -248,16 +284,18 @@ function ell_() {
       sev: 'warn', domain: 'ELL', dot: '#c07a12',
       title: flags.length === 1 ? (flags[0] + ' flagged in the ELL')
                                 : (flags.length + ' safety issues flagged in the ELL'),
-      sub: flags.join(' · ') + ' · ' + shiftLabel,
+      sub: 'Reported on the ' + shiftLabel,
       pill: 'Safety', pillType: 'warn',
+      items: flags,
     });
   }
   if (supply.length) {
     attention.push({
       sev: 'warn', domain: 'ELL', dot: '#c07a12',
       title: 'ELL supplies need restocking',
-      sub: supply.join(' · ') + ' · ' + shiftLabel,
+      sub: 'Flagged on the ' + shiftLabel,
       pill: 'Supplies', pillType: 'warn',
+      items: supply,
     });
   }
   return { stat: stat, attention: attention };
@@ -290,33 +328,42 @@ function fabman_() {
   const cT2    = findCol_(H, ['training 2', 'training2']);
   const knowsTraining = (cT1 >= 0 || cT2 >= 0 || cApron >= 0);
 
+  const cTeam = findCol_(H, ['team']);
   const cutoff = gradCutoff_();
   let members = 0, locked = 0, awaiting = 0, gradActive = 0;
+  const awaitingByTeam = {}, gradByTeam = {};
+  const teamOf = function (row) { return (cTeam >= 0 ? String(row[cTeam]).trim() : '') || 'Unassigned'; };
+
   for (let i = 1; i < v.length; i++) {
     const row = v[i];
     const present = cId >= 0 ? String(row[cId]).trim() !== '' : row.join('').trim() !== '';
     if (!present) continue;
     members++;
     if (cState >= 0 && norm_(row[cState]) === 'locked') { locked++; continue; }  // locked ≠ awaiting
-    if (knowsTraining && !hasTraining_(row, cT1, cT2, cApron)) awaiting++;
+    if (knowsTraining && !hasTraining_(row, cT1, cT2, cApron)) {
+      awaiting++;
+      awaitingByTeam[teamOf(row)] = (awaitingByTeam[teamOf(row)] || 0) + 1;
+    }
     if (cGrad >= 0) {
       const gy = parseInt(String(row[cGrad]).trim(), 10);
-      if (!isNaN(gy) && gy <= cutoff) gradActive++;   // graduated, still unlocked
+      if (!isNaN(gy) && gy <= cutoff) {           // graduated, still unlocked
+        gradActive++;
+        gradByTeam[teamOf(row)] = (gradByTeam[teamOf(row)] || 0) + 1;
+      }
     }
   }
 
   const newThisWeek = signupsSince_(ss, addDays_(startOfDay_(new Date()), -7));
 
-  const bits = [];
-  if (knowsTraining) bits.push(awaiting + ' awaiting training');
-  if (gradActive) bits.push(gradActive + ' graduated still active');
-  bits.push(newThisWeek + ' new this week');
-
   const stat = {
     key: 'fabman', name: 'Fabman', dot: '#2563c9', live: true,
     value: fmtNum_(members), unit: 'members',
     state: (awaiting > 0 || gradActive > 0) ? 'watch' : 'good',
-    sub: bits.join(' · '),
+    sub: joinBits_([
+      awaiting ? awaiting + ' awaiting training' : '',
+      gradActive ? gradActive + ' graduated still active' : '',
+      newThisWeek ? newThisWeek + ' new this week' : '',
+    ]) || 'All members trained',
   };
   if (members > 0 && gradActive > 0) {
     stat.meter = { value: gradActive, of: members, label: 'stale access' };
@@ -329,6 +376,7 @@ function fabman_() {
       title: awaiting + (awaiting === 1 ? ' Fabman member is' : ' Fabman members are') + ' awaiting training',
       sub: 'Active members with no apron tier recorded yet',
       pill: 'Pending', pillType: 'warn',
+      items: groupTop_(awaitingByTeam, 8),
     });
   }
   if (gradActive > 0) {
@@ -337,6 +385,7 @@ function fabman_() {
       title: gradActive + ' graduated ' + (gradActive === 1 ? 'member' : 'members') + ' still have active access',
       sub: 'Graduated ' + cutoff + ' or earlier · machine-shop access should be locked',
       pill: 'Access', pillType: 'warn',
+      items: groupTop_(gradByTeam, 8),
     });
   }
   return { stat: stat, attention: attention };
@@ -432,7 +481,6 @@ function fleet_() {
 
   const cDate  = findColContains_(H, ['date']);
   const cTeam  = findColContains_(H, ['team']);
-  const cName  = findColContains_(H, ['name']);
   const cStart = findColContains_(H, ['checkout time', 'checkout', 'start']);
   const cEnd   = findColContains_(H, ['return time', 'return', 'end']);
   if (cDate < 0) throw new Error('no date column in Log');
@@ -447,10 +495,11 @@ function fleet_() {
   }
 
   // Overlap detection on today's bookings: [checkout, return) intervals that intersect.
+  // This endpoint is PUBLIC — label bookings by team only. Never fall back to the
+  // driver's name; that would publish student PII to anyone holding the URL.
   const label = function (row) {
     const t = cTeam >= 0 ? String(row[cTeam]).trim() : '';
-    const n = cName >= 0 ? String(row[cName]).trim() : '';
-    return t || n || 'a booking';
+    return t || 'Unlabelled booking';
   };
   const clashes = [];
   for (let i = 0; i < todays.length; i++) {
@@ -475,8 +524,9 @@ function fleet_() {
     attention.push({
       sev: 'crit', domain: 'Fleet', dot: '#7c3aed',
       title: 'Tacoma is double-booked today',
-      sub: clashes.slice(0, 2).join(' · ') + ' overlap',
+      sub: clashes.length + ' overlapping reservation' + (clashes.length === 1 ? '' : 's'),
       pill: 'Conflict', pillType: 'crit',
+      items: clashes.slice(0, 8),
     });
   }
   return { stat: stat, attention: attention };
@@ -505,16 +555,27 @@ function inventory_() {
   }
 
   let locksOut = 0;
+  const lockItems = [];
   const locks = pickSheet_(ss, ['Locks']);
   if (locks) {
     const v = locks.getDataRange().getValues();
     const H = v[0].map(normh_);
     const cOut = findColContains_(H, ['date out']);
     const cRet = findColContains_(H, ['returned']);
+    const cTeam = findColContains_(H, ['team']);
+    const cEquip = findColContains_(H, ['equipment']);
+    const cLock = findColContains_(H, ['lock #', 'lock']);
     for (let i = 1; i < v.length; i++) {
       const out = cOut >= 0 ? String(v[i][cOut]).trim() : '';
       const ret = cRet >= 0 ? String(v[i][cRet]).trim() : '';
-      if (out && !ret) locksOut++;
+      if (!out || ret) continue;
+      locksOut++;
+      // NOTE: this endpoint is public — never emit "Key assigned to" or NetID.
+      lockItems.push(joinBits_([
+        cTeam >= 0 ? String(v[i][cTeam]).trim() : '',
+        cEquip >= 0 ? String(v[i][cEquip]).trim() : '',
+        cLock >= 0 && String(v[i][cLock]).trim() ? 'Lock #' + String(v[i][cLock]).trim() : '',
+      ]));
     }
   }
 
@@ -522,7 +583,10 @@ function inventory_() {
     key: 'inventory', name: 'Inventory', dot: '#0d9488', live: true,
     value: openOrders, unit: 'open orders',
     state: locksOut > 0 ? 'watch' : 'good',
-    sub: locksOut + ' locks out · ' + millItems + ' mill-room items',
+    sub: joinBits_([
+      locksOut ? locksOut + ' locks out' : '',
+      millItems ? millItems + ' mill-room items' : '',
+    ]) || 'Nothing outstanding',
   };
   if (millItems > 0) {
     stat.meter = { value: openOrders, of: millItems, label: 'not yet ordered' };
@@ -535,6 +599,7 @@ function inventory_() {
       title: locksOut + ' lock' + (locksOut === 1 ? '' : 's') + ' not returned',
       sub: 'Checked out with no return date recorded',
       pill: 'Outstanding', pillType: 'warn',
+      items: lockItems.slice(0, 8),
     });
   }
   return { stat: stat, attention: attention };
@@ -649,6 +714,20 @@ function topKey_(obj) {
 }
 
 function fmtNum_(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+
+// Join only the parts that carry information — a "0 red" is noise, not a fact.
+function joinBits_(parts) {
+  return parts.filter(function (p) { return p; }).join(' · ');
+}
+
+// {Baja:7, Formula:5, …} -> ["Baja — 7", "Formula — 5", "+3 more teams"]
+function groupTop_(counts, limit) {
+  const keys = Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a]; });
+  const out = keys.slice(0, limit).map(function (k) { return k + ' — ' + counts[k]; });
+  const rest = keys.length - limit;
+  if (rest > 0) out.push('+' + rest + ' more team' + (rest === 1 ? '' : 's'));
+  return out;
+}
 
 /**
  * Print the first `n` rows of one tab — for tabs whose row 1 is a banner rather

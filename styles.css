@@ -43,7 +43,7 @@ body {
 .app-header {
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 40;
   height: var(--header-h);
   background: linear-gradient(135deg, #8f1515 0%, #6e1010 55%, #530c0c 100%);
   box-shadow: 0 2px 14px rgba(83, 12, 12, 0.4);
@@ -81,6 +81,15 @@ body {
 .logo-text { font-family: var(--font-display); font-size: 1.1875rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; color: #fff; }
 .logo-sub { font-size: .6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--gold); margin-top: .15rem; }
 
+.header-tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: .75rem;
+  flex: 1;
+  min-width: 0;
+}
+
 /* Nav pills */
 
 .hub-nav {
@@ -117,6 +126,196 @@ body {
   color: var(--red-dark);
   background: #fff;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25), inset 0 0 0 1.5px rgba(240, 192, 80, 0.6);
+}
+
+/* Admin cluster — Command is a nested chip that slides out of Admin */
+.hub-admin {
+  display: flex;
+  align-items: center;
+  position: relative;
+  gap: 0;
+  border-radius: 999px;
+  transition: background .2s, box-shadow .2s;
+}
+
+.hub-admin .hub-nav-btn {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+}
+
+.hub-admin-caret {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid currentColor;
+  opacity: .55;
+  transition: transform .2s ease, opacity .15s;
+}
+
+.hub-admin:hover .hub-admin-caret,
+.hub-admin:focus-within .hub-admin-caret,
+.hub-admin.is-open .hub-admin-caret,
+.hub-admin:has(.hub-nav-btn.is-active) .hub-admin-caret,
+.hub-admin:has(.hub-admin-cmd.is-active) .hub-admin-caret {
+  opacity: .85;
+  transform: rotate(180deg);
+}
+
+.hub-admin-cmd {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  padding: 0;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: .75rem;
+  font-weight: 800;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.9);
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  cursor: pointer;
+  pointer-events: none;
+  transition:
+    max-width .32s cubic-bezier(.22, 1, .36, 1),
+    opacity .2s ease,
+    padding .32s cubic-bezier(.22, 1, .36, 1),
+    margin .32s cubic-bezier(.22, 1, .36, 1),
+    color .15s,
+    background .15s,
+    border-color .15s,
+    transform .15s,
+    box-shadow .15s;
+}
+
+.hub-admin-cmd-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--gold);
+  box-shadow: 0 0 0 3px rgba(240, 192, 80, 0.28);
+  animation: hub-admin-pulse 2.2s ease-in-out infinite;
+}
+
+.hub-admin-cmd-go {
+  font-size: .85em;
+  opacity: .7;
+  transition: transform .18s cubic-bezier(.22, 1, .36, 1), opacity .15s;
+}
+
+@keyframes hub-admin-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .55; transform: scale(.82); }
+}
+
+.hub-admin:hover .hub-admin-cmd,
+.hub-admin:focus-within .hub-admin-cmd,
+.hub-admin.is-open .hub-admin-cmd {
+  max-width: 9.5rem;
+  opacity: 1;
+  padding: .35rem .7rem .35rem .65rem;
+  margin: .15rem .2rem .15rem 0;
+  pointer-events: auto;
+}
+
+.hub-admin:hover .hub-admin-cmd:hover,
+.hub-admin:focus-within .hub-admin-cmd:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.28);
+  border-color: rgba(255, 255, 255, 0.35);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+.hub-admin:hover .hub-admin-cmd:hover .hub-admin-cmd-go,
+.hub-admin:focus-within .hub-admin-cmd:hover .hub-admin-cmd-go {
+  opacity: 1;
+  transform: translateX(2px);
+}
+
+/* When Admin (or Command) is current, the whole cluster becomes the active shell */
+.hub-admin.is-open,
+.hub-admin:has(.hub-nav-btn.is-active),
+.hub-admin:has(.hub-admin-cmd.is-active) {
+  background: #fff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25), inset 0 0 0 1.5px rgba(240, 192, 80, 0.6);
+}
+
+.hub-admin.is-open .hub-nav-btn,
+.hub-admin:has(.hub-nav-btn.is-active) .hub-nav-btn,
+.hub-admin:has(.hub-admin-cmd.is-active) .hub-nav-btn {
+  color: var(--red-dark);
+  background: transparent;
+  box-shadow: none;
+}
+
+.hub-admin.is-open .hub-admin-cmd,
+.hub-admin:has(.hub-nav-btn.is-active) .hub-admin-cmd,
+.hub-admin:has(.hub-admin-cmd.is-active) .hub-admin-cmd {
+  max-width: 9.5rem;
+  opacity: 1;
+  padding: .35rem .7rem .35rem .65rem;
+  margin: .15rem .2rem .15rem 0;
+  pointer-events: auto;
+  color: var(--red-dark);
+  background: rgba(179, 27, 27, 0.08);
+  border-color: rgba(179, 27, 27, 0.16);
+}
+
+.hub-admin.is-open .hub-admin-cmd:hover,
+.hub-admin:has(.hub-nav-btn.is-active) .hub-admin-cmd:hover,
+.hub-admin:has(.hub-admin-cmd.is-active) .hub-admin-cmd:hover {
+  color: var(--red-dark);
+  background: rgba(179, 27, 27, 0.14);
+  border-color: rgba(179, 27, 27, 0.28);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(143, 21, 21, 0.12);
+}
+
+.hub-admin-cmd.is-active {
+  color: #fff !important;
+  background: linear-gradient(180deg, #c93a2c, #a82a20) !important;
+  border-color: transparent !important;
+  box-shadow: 0 2px 8px rgba(168, 42, 32, 0.28);
+}
+
+.hub-admin-cmd.is-active .hub-admin-cmd-dot {
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.28);
+}
+
+.hub-admin-cmd.is-active .hub-admin-cmd-go {
+  opacity: .9;
+  color: #fff;
+}
+
+.hub-admin:has(.hub-admin-cmd.is-active) .hub-nav-btn:not(.is-active) {
+  color: rgba(143, 21, 21, 0.55);
+}
+
+.hub-admin:has(.hub-admin-cmd.is-active) .hub-nav-btn:not(.is-active):hover {
+  color: var(--red-dark);
+  background: rgba(179, 27, 27, 0.06);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hub-admin-cmd-dot { animation: none; }
+  .hub-admin-cmd,
+  .hub-admin-caret,
+  .hub-admin-cmd-go { transition: none; }
 }
 
 /* Layout */
@@ -160,7 +359,7 @@ body:not(.is-searching) .hub-zone:not(.is-active) { display: none; }
   font-weight: 800;
   letter-spacing: -0.045em;
   line-height: 1.02;
-  margin-bottom: 1.5rem;
+  margin-bottom: 0;
   color: var(--text);
 }
 
@@ -171,64 +370,70 @@ body:not(.is-searching) .hub-zone:not(.is-active) { display: none; }
   -webkit-text-fill-color: transparent;
 }
 
-.search-wrap { width: 100%; }
+/* Header search (shared across hub pages) */
 
-.search-box { position: relative; display: flex; align-items: center; }
+.header-search {
+  position: relative;
+  flex: 1;
+  max-width: 17.5rem;
+  min-width: 9rem;
+}
 
-.search-icon {
+.header-search .search-box { position: relative; display: flex; align-items: center; }
+
+.header-search .search-icon {
   position: absolute;
-  left: 1.125rem;
-  width: 18px;
-  height: 18px;
+  left: .75rem;
+  width: 15px;
+  height: 15px;
   color: #9a9a96;
   pointer-events: none;
   transition: color .15s;
 }
 
-.search-box:focus-within .search-icon { color: var(--red); }
+.header-search .search-box:focus-within .search-icon { color: var(--red); }
 
-.search-input {
+.header-search .search-input {
   width: 100%;
-  padding: .8125rem 4rem .8125rem 2.875rem;
+  padding: .5rem 2.6rem .5rem 2.2rem;
   font: inherit;
-  font-size: 1rem;
+  font-size: .875rem;
   color: var(--text);
-  background: var(--surface);
-  border: 1.5px solid var(--line);
+  background: rgba(255, 255, 255, 0.96);
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
   border-radius: 999px;
   outline: none;
-  box-shadow: var(--shadow-sm);
   transition: border-color .15s, box-shadow .15s;
 }
 
-.search-input::placeholder { color: #999; }
+.header-search .search-input::placeholder { color: #999; }
 
-.search-input:focus {
-  border-color: var(--red);
-  box-shadow: 0 0 0 4px rgba(179, 27, 27, 0.12), var(--shadow-md);
+.header-search .search-input:focus {
+  border-color: #fff;
+  box-shadow: 0 0 0 3px rgba(240, 192, 80, 0.35);
 }
 
-.search-kbd {
+.header-search .search-kbd {
   position: absolute;
-  right: 1rem;
+  right: .65rem;
   font-family: var(--font);
-  font-size: .6875rem;
+  font-size: .625rem;
   font-weight: 700;
   color: var(--sub);
   background: #f0efea;
   border: 1px solid var(--line);
   border-bottom-width: 2px;
-  border-radius: 6px;
-  padding: .2rem .45rem;
+  border-radius: 5px;
+  padding: .15rem .35rem;
   line-height: 1;
   pointer-events: none;
 }
 
-.search-clear {
+.header-search .search-clear {
   position: absolute;
-  right: .9375rem;
-  width: 24px;
-  height: 24px;
+  right: .55rem;
+  width: 22px;
+  height: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -236,32 +441,45 @@ body:not(.is-searching) .hub-zone:not(.is-active) { display: none; }
   border: none;
   border-radius: 50%;
   color: var(--sub);
-  font-size: .8125rem;
+  font-size: .75rem;
   line-height: 1;
   cursor: pointer;
   transition: background .15s, color .15s, transform .15s;
 }
 
-.search-clear:hover { background: #e0dfd8; color: var(--text); transform: scale(1.08); }
+.header-search .search-clear:hover { background: #e0dfd8; color: var(--text); transform: scale(1.08); }
 
-.search-clear[hidden], .search-kbd[hidden] { display: none; }
+.header-search .search-clear[hidden],
+.header-search .search-kbd[hidden] { display: none; }
 
-.search-meta {
+.header-search .search-meta {
+  position: absolute;
+  top: calc(100% + .5rem);
+  right: 0;
+  left: auto;
+  min-width: 100%;
+  width: max-content;
+  max-width: min(22rem, 70vw);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  margin-top: .75rem;
-  padding: 0 .75rem;
-  font-size: .8125rem;
+  gap: .75rem;
+  margin: 0;
+  padding: .625rem .85rem;
+  font-size: .75rem;
   color: var(--sub);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: var(--shadow-md);
+  z-index: 20;
 }
 
-.search-meta[hidden] { display: none; }
+.header-search .search-meta[hidden] { display: none; }
 
 .search-count { font-weight: 700; color: var(--red); }
 
-.search-hint { color: #8a8a86; }
+.search-hint { color: #8a8a86; white-space: nowrap; }
 
 .search-hint kbd {
   font-family: var(--font);
@@ -1147,8 +1365,18 @@ body.issues-panel-open { overflow: hidden; }
 @media (max-width: 768px) {
   .app-header { height: auto; min-height: var(--header-h); }
   .header-inner { flex-wrap: wrap; padding: .75rem 1.25rem; gap: .75rem; }
-  .hub-nav { width: 100%; }
+  .header-tools { flex-wrap: wrap; width: 100%; }
+  .hub-nav { width: 100%; order: 1; }
+  .header-search { max-width: none; flex: 1 1 100%; order: 2; }
   .hub-nav-btn { flex: 1; text-align: center; }
+  .hub-admin { flex: 1; justify-content: center; }
+  .hub-admin-cmd {
+    max-width: 9.5rem;
+    opacity: 1;
+    padding: .35rem .7rem .35rem .65rem;
+    margin: .15rem .2rem .15rem 0;
+    pointer-events: auto;
+  }
 }
 
 @media (max-width: 480px) {
@@ -1167,6 +1395,7 @@ body.issues-panel-open { overflow: hidden; }
 /* Guide pages (docs.html, dev-guide.html) */
 
 .hub-nav a.hub-nav-btn { text-decoration: none; line-height: 1.2; }
+.hub-admin-cmd { line-height: 1.2; }
 
 .doc-layout {
   flex: 1;

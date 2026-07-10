@@ -27,10 +27,28 @@
           <div class="logo-sub">Safety &amp; Operations</div>
         </div>
       </a>
-      <nav class="hub-nav" aria-label="Hub sections">
-        <a class="hub-nav-btn" href="index.html#staff">Staff</a>
-        <a class="hub-nav-btn" href="index.html#admin">Admin</a>
-      </nav>
+      <div class="header-tools">
+        <nav class="hub-nav" aria-label="Hub sections">
+          <a class="hub-nav-btn" href="index.html#staff">Staff</a>
+          <div class="hub-admin">
+            <a class="hub-nav-btn" href="index.html#admin">
+              Admin <span class="hub-admin-caret" aria-hidden="true"></span>
+            </a>
+            <a class="hub-admin-cmd" href="command-center.html" aria-label="Open Command Center">
+              <span class="hub-admin-cmd-dot" aria-hidden="true"></span>
+              Command
+              <span class="hub-admin-cmd-go" aria-hidden="true">→</span>
+            </a>
+          </div>
+        </nav>
+        <form class="header-search" action="index.html" method="get" role="search">
+          <div class="search-box">
+            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input type="search" class="search-input" name="q" placeholder="Search tools…" autocomplete="off" aria-label="Search tools">
+            <kbd class="search-kbd">⌘K</kbd>
+          </div>
+        </form>
+      </div>
     </div>
   </header>
 
@@ -263,6 +281,7 @@
           <h4>Jump to</h4>
           <a href="index.html#staff">Staff</a>
           <a href="index.html#admin">Admin</a>
+          <a href="command-center.html">↳ Command</a>
         </div>
         <div class="footer-col">
           <h4>On this page</h4>
