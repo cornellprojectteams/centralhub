@@ -22,6 +22,19 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* Visually hidden, still announced by screen readers. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
 
 body {
@@ -128,138 +141,81 @@ body {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25), inset 0 0 0 1.5px rgba(240, 192, 80, 0.6);
 }
 
-/* Admin cluster — Command is a nested chip that slides out of Admin */
-.hub-admin {
-  display: flex;
-  align-items: center;
+/* Command Center — a peer destination, not a sub-item of Admin.
+   Gold on burgundy is the loudest thing in the masthead, and the badge carries
+   a live count, so it is informative as well as unmissable. */
+.cmd-link {
   position: relative;
-  gap: 0;
-  border-radius: 999px;
-  transition: background .2s, box-shadow .2s;
-}
-
-.hub-admin .hub-nav-btn {
-  position: relative;
-  z-index: 1;
   display: inline-flex;
   align-items: center;
-  gap: .35rem;
-}
-
-.hub-admin-caret {
-  display: inline-block;
-  width: 0;
-  height: 0;
-  border-left: 4px solid transparent;
-  border-right: 4px solid transparent;
-  border-top: 5px solid currentColor;
-  opacity: .55;
-  transition: transform .2s ease, opacity .15s;
-}
-
-.hub-admin:hover .hub-admin-caret,
-.hub-admin:focus-within .hub-admin-caret,
-.hub-admin.is-open .hub-admin-caret,
-.hub-admin:has(.hub-nav-btn.is-active) .hub-admin-caret,
-.hub-admin:has(.hub-admin-cmd.is-active) .hub-admin-caret {
-  opacity: .85;
-  transform: rotate(180deg);
-}
-
-/* Anchored dropdown, NOT an inline slide-out. Animating max-width/padding in the
-   flex row re-flowed the whole header on every hover — that was the jitter. An
-   absolutely-positioned chip is taken out of flow, so the header never moves. */
-.hub-admin-cmd {
-  position: absolute;
-  top: calc(100% + .5rem);
-  right: 0;
-  z-index: 20;
-  display: inline-flex;
-  align-items: center;
-  gap: .4rem;
-  white-space: nowrap;
-  padding: .45rem .8rem .45rem .7rem;
-  font-family: var(--font-display);
-  font-size: .75rem;
-  font-weight: 800;
-  letter-spacing: .02em;
-  text-transform: uppercase;
-  color: #fff;
-  text-decoration: none;
-  background: linear-gradient(180deg, #a82a20, #8f1515);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 999px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
-  cursor: pointer;
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(-6px) scale(.96);
-  pointer-events: none;
-  /* Deliberately NOT transitioning `visibility`: it flips instantly, so the chip
-     is reachable the moment it opens even if the opacity transition is throttled
-     (background tab / no compositor). Decoration must not gate reachability. */
-  transition:
-    opacity .18s ease,
-    transform .24s cubic-bezier(.22, 1, .36, 1),
-    background .15s,
-    box-shadow .15s;
-}
-
-.hub-admin-cmd-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
+  gap: .5rem;
   flex-shrink: 0;
-  background: var(--gold);
-  box-shadow: 0 0 0 3px rgba(240, 192, 80, 0.28);
-  animation: hub-admin-pulse 2.2s ease-in-out infinite;
+  padding: .6rem 1rem .6rem .85rem;
+  font-family: var(--font-display);
+  font-size: .8125rem;
+  font-weight: 800;
+  letter-spacing: .045em;
+  text-transform: uppercase;
+  color: #4d0f0f;
+  text-decoration: none;
+  white-space: nowrap;
+  background: linear-gradient(180deg, #f4cd6b 0%, #e0a020 100%);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 999px;
+  box-shadow: 0 3px 12px rgba(240, 192, 80, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  transition: transform .16s cubic-bezier(.22, 1, .36, 1), box-shadow .16s, filter .16s;
 }
 
-.hub-admin-cmd-go {
-  font-size: .85em;
-  opacity: .7;
-  transition: transform .18s cubic-bezier(.22, 1, .36, 1), opacity .15s;
+.cmd-link:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 7px 20px rgba(240, 192, 80, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  filter: saturate(1.06);
 }
+.cmd-link:active { transform: translateY(0); }
 
-@keyframes hub-admin-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: .55; transform: scale(.82); }
-}
-
-.hub-admin:hover .hub-admin-cmd,
-.hub-admin:focus-within .hub-admin-cmd,
-.hub-admin.is-open .hub-admin-cmd {
-  opacity: 1;
-  visibility: visible;
-  transform: none;
-  pointer-events: auto;
-}
-
-.hub-admin .hub-admin-cmd:hover {
-  background: linear-gradient(180deg, #c93a2c, #a82a20);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.34);
-}
-
-.hub-admin .hub-admin-cmd:hover .hub-admin-cmd-go {
-  opacity: 1;
-  transform: translateX(2px);
-}
-
-/* When Admin (or Command) is current, the whole cluster becomes the active shell */
-.hub-admin.is-open,
-.hub-admin:has(.hub-nav-btn.is-active),
-.hub-admin:has(.hub-admin-cmd.is-active) {
-  background: #fff;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25), inset 0 0 0 1.5px rgba(240, 192, 80, 0.6);
-}
-
-.hub-admin.is-open .hub-nav-btn,
-.hub-admin:has(.hub-nav-btn.is-active) .hub-nav-btn,
-.hub-admin:has(.hub-admin-cmd.is-active) .hub-nav-btn {
+/* On the Command Center page itself it becomes the current-page pill. */
+.cmd-link.is-current {
   color: var(--red-dark);
-  background: transparent;
-  box-shadow: none;
+  background: #fff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25), inset 0 0 0 1.5px rgba(240, 192, 80, 0.7);
 }
+
+.cmd-dot {
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #b31b1b;
+  box-shadow: 0 0 0 3px rgba(179, 27, 27, 0.18);
+  animation: cmd-pulse 2.2s ease-in-out infinite;
+}
+
+@keyframes cmd-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .5; transform: scale(.78); }
+}
+
+.cmd-go { font-size: .9em; opacity: .65; transition: transform .18s cubic-bezier(.22, 1, .36, 1), opacity .15s; }
+.cmd-link:hover .cmd-go { opacity: 1; transform: translateX(2px); }
+
+/* Live count of things needing attention. Hidden when there is nothing to say. */
+.cmd-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  font-family: var(--font);
+  font-size: .6875rem;
+  font-weight: 800;
+  line-height: 1;
+  color: #fff;
+  background: var(--red);
+  border-radius: 999px;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.55);
+}
+.cmd-badge[hidden] { display: none; }
 
 /* ---- Header responsiveness ----------------------------------------------
    The masthead had no breakpoints: at 375px the logo alone was 267px, so the
@@ -285,68 +241,18 @@ body {
 /* NB: the mobile header layout lives in the existing @media (max-width:768px)
    block further down — don't add a second, competing breakpoint here. */
 
+/* Narrow: drop the word "Center" so the button still fits beside the view pills. */
+@media (max-width: 560px) {
+  .cmd-text-full { display: none; }
+}
+
 @media (max-width: 420px) {
   .logo-seal { width: 34px; height: 34px; }
   .logo-text { font-size: .9375rem; }
   .hub-nav { padding: .25rem; gap: .25rem; }
   .hub-nav-btn { padding: .45rem .75rem; font-size: .875rem; }
+  .cmd-link { padding: .45rem .7rem .45rem .6rem; font-size: .6875rem; gap: .35rem; }
   .search-kbd { display: none; }
-}
-
-.hub-admin.is-open .hub-admin-cmd,
-.hub-admin:has(.hub-nav-btn.is-active) .hub-admin-cmd,
-.hub-admin:has(.hub-admin-cmd.is-active) .hub-admin-cmd {
-  max-width: 9.5rem;
-  opacity: 1;
-  padding: .35rem .7rem .35rem .65rem;
-  margin: .15rem .2rem .15rem 0;
-  pointer-events: auto;
-  color: var(--red-dark);
-  background: rgba(179, 27, 27, 0.08);
-  border-color: rgba(179, 27, 27, 0.16);
-}
-
-.hub-admin.is-open .hub-admin-cmd:hover,
-.hub-admin:has(.hub-nav-btn.is-active) .hub-admin-cmd:hover,
-.hub-admin:has(.hub-admin-cmd.is-active) .hub-admin-cmd:hover {
-  color: var(--red-dark);
-  background: rgba(179, 27, 27, 0.14);
-  border-color: rgba(179, 27, 27, 0.28);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(143, 21, 21, 0.12);
-}
-
-.hub-admin-cmd.is-active {
-  color: #fff !important;
-  background: linear-gradient(180deg, #c93a2c, #a82a20) !important;
-  border-color: transparent !important;
-  box-shadow: 0 2px 8px rgba(168, 42, 32, 0.28);
-}
-
-.hub-admin-cmd.is-active .hub-admin-cmd-dot {
-  background: #fff;
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.28);
-}
-
-.hub-admin-cmd.is-active .hub-admin-cmd-go {
-  opacity: .9;
-  color: #fff;
-}
-
-.hub-admin:has(.hub-admin-cmd.is-active) .hub-nav-btn:not(.is-active) {
-  color: rgba(143, 21, 21, 0.55);
-}
-
-.hub-admin:has(.hub-admin-cmd.is-active) .hub-nav-btn:not(.is-active):hover {
-  color: var(--red-dark);
-  background: rgba(179, 27, 27, 0.06);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hub-admin-cmd-dot { animation: none; }
-  .hub-admin-cmd,
-  .hub-admin-caret,
-  .hub-admin-cmd-go { transition: none; }
 }
 
 /* Layout */
@@ -362,17 +268,6 @@ body:not(.is-searching) .hub-zone:not(.is-active) { display: none; }
   min-width: 0;
 }
 
-.page-intro {
-  margin-bottom: 2.5rem;
-  width: 100%;
-}
-
-.page-main:not(:has(#admin.is-active)) .page-intro {
-  max-width: var(--page-max);
-  margin-left: auto;
-  margin-right: auto;
-}
-
 #staff {
   width: 100%;
   max-width: var(--page-max);
@@ -382,23 +277,6 @@ body:not(.is-searching) .hub-zone:not(.is-active) { display: none; }
 
 #admin {
   width: 100%;
-}
-
-.page-intro h1 {
-  font-family: var(--font-display);
-  font-size: 2.5rem;
-  font-weight: 800;
-  letter-spacing: -0.045em;
-  line-height: 1.02;
-  margin-bottom: 0;
-  color: var(--text);
-}
-
-.page-intro h1 .accent {
-  background: linear-gradient(120deg, var(--red) 0%, var(--red-bright) 50%, var(--gold-deep) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
 }
 
 /* Header search (shared across hub pages) */
@@ -1399,29 +1277,17 @@ body.issues-panel-open { overflow: hidden; }
   /* `width:100%` is inert here — the base rule sets `flex:1` (= flex-basis:0%),
      and basis wins over width when sizing a flex item. It stayed on the logo's
      row, squeezed to ~116px, and its children spilled off-screen. Set the basis. */
-  .header-tools { flex-wrap: wrap; flex: 1 1 100%; }
-  .hub-nav { width: 100%; order: 1; }
-  .header-search { max-width: none; flex: 1 1 100%; order: 2; }
-  .hub-nav-btn { flex: 1; text-align: center; }
-  .hub-admin { flex: 1; justify-content: center; gap: .25rem; }
-  /* No hover on touch — so on mobile the chip is a plain visible chip, back in
-     flow. (It must also un-hide: the desktop dropdown uses visibility:hidden.) */
-  .hub-admin-cmd {
-    position: static;
-    opacity: 1;
-    visibility: visible;
-    transform: none;
-    pointer-events: auto;
-    box-shadow: none;
-    margin: .15rem .2rem .15rem 0;
-    padding: .3rem .6rem;
-    font-size: .6875rem;
-  }
+  .header-tools { flex-wrap: wrap; flex: 1 1 100%; justify-content: flex-start; gap: .5rem; }
+  /* Row 2 = views + Command side by side; row 3 = search. Command must never
+     drop below the fold of the header or it becomes easy to miss again. */
+  .hub-nav { order: 1; flex: 0 1 auto; }
+  .cmd-link { order: 2; margin-left: auto; }
+  .header-search { max-width: none; flex: 1 1 100%; order: 3; }
+  .hub-nav-btn { text-align: center; }
 }
 
 @media (max-width: 480px) {
   .page-main { padding: 2rem 1.25rem 3rem; }
-  .page-intro h1 { font-size: 1.875rem; }
   #staff .task-featured .action-title { font-size: 1.5rem; }
 }
 
@@ -1435,7 +1301,6 @@ body.issues-panel-open { overflow: hidden; }
 /* Guide pages (docs.html, dev-guide.html) */
 
 .hub-nav a.hub-nav-btn { text-decoration: none; line-height: 1.2; }
-.hub-admin-cmd { line-height: 1.2; }
 
 .doc-layout {
   flex: 1;

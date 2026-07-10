@@ -28,19 +28,18 @@
         </div>
       </a>
       <div class="header-tools">
-        <nav class="hub-nav" aria-label="Hub sections">
+        <!-- Staff/Admin are VIEWS of this page. Command Center is a separate page,
+             so it is a peer destination, never nested inside the view toggle. -->
+        <nav class="hub-nav" aria-label="Hub views">
           <button type="button" class="hub-nav-btn is-active" data-view="staff">Staff</button>
-          <div class="hub-admin" id="hub-admin">
-            <button type="button" class="hub-nav-btn" data-view="admin" aria-expanded="false" aria-controls="hub-admin-cmd">
-              Admin <span class="hub-admin-caret" aria-hidden="true"></span>
-            </button>
-            <a class="hub-admin-cmd" id="hub-admin-cmd" href="command-center.html" aria-label="Open Command Center">
-              <span class="hub-admin-cmd-dot" aria-hidden="true"></span>
-              Command
-              <span class="hub-admin-cmd-go" aria-hidden="true">→</span>
-            </a>
-          </div>
+          <button type="button" class="hub-nav-btn" data-view="admin">Admin</button>
         </nav>
+        <a class="cmd-link" href="command-center.html">
+          <span class="cmd-dot" aria-hidden="true"></span>
+          <span class="cmd-text">Command<span class="cmd-text-full"> Center</span></span>
+          <span class="cmd-badge" id="cmd-badge" hidden></span>
+          <span class="cmd-go" aria-hidden="true">&rarr;</span>
+        </a>
         <div class="header-search" role="search">
           <div class="search-box">
             <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
@@ -58,9 +57,9 @@
   </header>
 
   <main class="page-main">
-    <header class="page-intro">
-      <h1>What do you need to <span class="accent">do</span>?</h1>
-    </header>
+    <!-- The visible headline was dropped, but the page still needs one <h1> for
+         screen readers and document outline — otherwise it starts at <h2>. -->
+    <h1 class="sr-only">Project Teams Ops Hub</h1>
 
     <section class="hub-zone is-active" id="staff">
       <h2 class="zone-label">Staff</h2>

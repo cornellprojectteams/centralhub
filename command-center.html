@@ -66,7 +66,7 @@ a{color:inherit}
 .btn:hover{background:rgba(0,0,0,.4)}
 .btn:active{transform:scale(.96)}
 
-/* part-to-whole meter: 6 systems by state. 2px surface gaps, never a border. */
+/* part-to-whole meter: the hero's own items, split urgent/soon. 2px surface gaps. */
 .sysmeter{position:relative;z-index:1;margin-top:22px}
 .sysmeter-bar{display:flex;gap:2px;height:8px}
 .sysmeter-bar span{border-radius:2px;transition:flex-grow .5s var(--spring)}
@@ -81,7 +81,6 @@ a{color:inherit}
 /* ================= section heads ================= */
 .sec-head{display:flex;align-items:center;gap:10px;margin:34px 0 14px}
 .sec-head .eyebrow{color:var(--ink-2)}
-.sec-count{font-size:11px;font-weight:700;color:var(--ink-4)}
 .sec-rule{flex:1;height:1px;background:var(--line)}
 
 /* ================= lead card — the one thing that matters most ============ */
@@ -245,19 +244,15 @@ a{color:inherit}
       </div>
     </a>
     <div class="header-tools">
-      <nav class="hub-nav" aria-label="Hub sections">
+      <nav class="hub-nav" aria-label="Hub views">
         <a class="hub-nav-btn" href="index.html#staff">Staff</a>
-        <div class="hub-admin is-open">
-          <a class="hub-nav-btn" href="index.html#admin">
-            Admin <span class="hub-admin-caret" aria-hidden="true"></span>
-          </a>
-          <a class="hub-admin-cmd is-active" href="command-center.html" aria-current="page" aria-label="Command Center">
-            <span class="hub-admin-cmd-dot" aria-hidden="true"></span>
-            Command
-            <span class="hub-admin-cmd-go" aria-hidden="true">→</span>
-          </a>
-        </div>
+        <a class="hub-nav-btn" href="index.html#admin">Admin</a>
       </nav>
+      <a class="cmd-link is-current" href="command-center.html" aria-current="page">
+        <span class="cmd-dot" aria-hidden="true"></span>
+        <span class="cmd-text">Command<span class="cmd-text-full"> Center</span></span>
+        <span class="cmd-go" aria-hidden="true">&rarr;</span>
+      </a>
       <form class="header-search" action="index.html" method="get" role="search">
         <div class="search-box">
           <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
@@ -290,7 +285,7 @@ a{color:inherit}
     </div>
   </section>
 
-  <div class="sec-head"><span class="eyebrow">Needs attention</span><span class="sec-count tnum" id="attn-count"></span><span class="sec-rule"></span></div>
+  <div class="sec-head"><span class="eyebrow">Needs attention</span><span class="sec-rule"></span></div>
   <div id="lead"></div>
   <div class="feed" id="feed"></div>
 
@@ -442,12 +437,11 @@ a{color:inherit}
     $('chip').className='chip';
     $('chip-txt').textContent = 'Live · ' + fmtTime(d.generatedAt);
 
-    renderSysMeter(domains);
+    renderSevMeter(h);
 
     // ---- attention: lead card + rows ----
     var rank=function(s){return s==='crit'?0:(s==='warn'?1:9);};
     var items=(d.attention||[]).slice().sort(function(a,b){return rank(a.sev)-rank(b.sev);});
-    $('attn-count').textContent = items.length || '';
     var lead=$('lead'), feed=$('feed');
     lead.innerHTML=''; feed.innerHTML='';
 
@@ -513,16 +507,17 @@ a{color:inherit}
     $('foot').textContent='Live from Google Sheets · generated '+fmtTime(d.generatedAt);
   }
 
-  // 6 systems as a part-to-whole bar (≤3 classes, 2px surface gaps)
-  function renderSysMeter(domains){
-    if(!domains.length){ $('sysmeter').hidden=true; return; }
-    var c={action:0,watch:0,good:0};
-    domains.forEach(function(t){ c[t.state||'good']=(c[t.state||'good']||0)+1; });
+  // Part-to-whole of the SAME number the hero states. It used to split the six
+  // domains while the hero counted items — two different breakdowns stacked on
+  // top of each other, which read as one and reconciled with neither.
+  function renderSevMeter(h){
+    var urgent=h.urgent||0, soon=h.soon||0;
+    if(!(urgent+soon)){ $('sysmeter').hidden=true; return; }
     var bar='', keyHtml='';
-    [['action','Action','#e8756a'],['watch','Watch','var(--gold)'],['good','Healthy','rgba(255,255,255,.28)']].forEach(function(r){
-      if(!c[r[0]]) return;
-      bar+='<span class="s-'+r[0]+'" style="flex:'+c[r[0]]+'"></span>';
-      keyHtml+='<span><i style="background:'+r[2]+'"></i><b>'+c[r[0]]+'</b> '+r[1]+'</span>';
+    [[urgent,'action','Urgent','#e8756a'],[soon,'watch','Soon','var(--gold)']].forEach(function(r){
+      if(!r[0]) return;
+      bar+='<span class="s-'+r[1]+'" style="flex:'+r[0]+'"></span>';
+      keyHtml+='<span><i style="background:'+r[3]+'"></i><b>'+r[0]+'</b> '+r[2]+'</span>';
     });
     $('sysbar').innerHTML=bar;
     $('syskey').innerHTML=keyHtml;

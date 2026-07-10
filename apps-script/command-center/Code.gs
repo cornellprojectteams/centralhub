@@ -43,7 +43,7 @@ const CACHE_SECONDS = 180; // SpreadsheetApp reads are slow; serve cached JSON b
 // version in the key, a redeploy keeps serving the OLD code's output until the
 // TTL expires. That once showed "supplies need restocking" over "all supplies
 // stocked". Bumping the key makes a redeploy take effect immediately.
-const CACHE_VERSION = 'v5';   // v5: fleet driver-application status
+const CACHE_VERSION = 'v6';   // v6: de-duplicated subs; graduated applicants excluded
 const CACHE_KEY = 'stats_' + CACHE_VERSION;
 
 // --- Web entry point -------------------------------------------------------
@@ -182,11 +182,8 @@ function space_() {
     key: 'space', name: 'Space issues', dot: '#c0392b', live: true,
     value: open.length, unit: 'open', state: state,
     // Only facts that change what you'd do — never "0 red".
-    sub: joinBits_([
-      overdueList.length ? overdueList.length + ' overdue' : '',
-      redOpen ? redOpen + ' red' : '',
-      resolved ? resolved + ' resolved this term' : '',
-    ]) || 'Nothing open',
+    // Context, not alarms — "1 overdue" already has its own row in the feed.
+    sub: resolved ? resolved + ' resolved this term' : 'None resolved yet',
   };
   if (open.length + resolved > 0) {
     stat.meter = { value: open.length, of: open.length + resolved, label: 'unresolved' };
@@ -200,11 +197,10 @@ function space_() {
 
   const attention = [];
   if (overdueList.length) {
-    const oldest = overdueList[0];
     attention.push({
       sev: 'crit', domain: 'Space', dot: '#c0392b',
       title: overdueList.length + (overdueList.length === 1 ? ' space issue is overdue' : ' space issues are overdue'),
-      sub: 'Oldest: ' + describe(oldest),
+      sub: 'Past the resolution deadline for its severity',
       pill: 'Overdue', pillType: 'crit',
       items: overdueList.slice(0, 8).map(describe),
     });
@@ -214,7 +210,7 @@ function space_() {
     attention.push({
       sev: 'warn', domain: 'Space', dot: '#c0392b',
       title: redOpen + ' red-severity ' + (redOpen === 1 ? 'issue needs' : 'issues need') + ' same-day action',
-      sub: 'Reported today and not yet resolved', pill: 'Urgent', pillType: 'warn',
+      sub: 'Red severity requires same-day resolution', pill: 'Urgent', pillType: 'warn',
       items: reds.slice(0, 8).map(describe),
     });
   }
@@ -270,11 +266,7 @@ function ell_() {
     key: 'ell', name: 'Learning Lab', dot: '#c07a12', live: true,
     value: activity, unit: 'last shift',
     state: flags.length ? 'watch' : 'good',
-    sub: joinBits_([
-      flags.length ? flags.length + (flags.length === 1 ? ' safety flag' : ' safety flags') : '',
-      peak ? 'peak ' + peak : '',
-      logged ? logged + ' shifts logged' : '',
-    ]),
+    sub: joinBits_([peak ? 'peak ' + peak : '', logged ? logged + ' shifts logged' : '']),
   };
 
   const attention = [];
@@ -360,21 +352,18 @@ function fabman_() {
     value: fmtNum_(members), unit: 'members',
     state: (awaiting > 0 || gradActive > 0) ? 'watch' : 'good',
     sub: joinBits_([
-      awaiting ? awaiting + ' awaiting training' : '',
-      gradActive ? gradActive + ' graduated still active' : '',
       newThisWeek ? newThisWeek + ' new this week' : '',
-    ]) || 'All members trained',
+      locked ? locked + ' locked' : '',
+    ]) || 'All members active',
   };
-  if (members > 0 && gradActive > 0) {
-    stat.meter = { value: gradActive, of: members, label: 'stale access' };
-  }
+  // No meter here: it would restate the "graduated still active" alarm below.
 
   const attention = [];
   if (awaiting > 0) {
     attention.push({
       sev: 'warn', domain: 'Fabman', dot: '#2563c9',
       title: awaiting + (awaiting === 1 ? ' Fabman member is' : ' Fabman members are') + ' awaiting training',
-      sub: 'Active members with no apron tier recorded yet',
+      sub: 'They cannot use shop machines until an apron tier is assigned',
       pill: 'Pending', pillType: 'warn',
       items: groupTop_(awaitingByTeam, 8),
     });
@@ -383,7 +372,7 @@ function fabman_() {
     attention.push({
       sev: 'warn', domain: 'Fabman', dot: '#2563c9',
       title: gradActive + ' graduated ' + (gradActive === 1 ? 'member' : 'members') + ' still have active access',
-      sub: 'Graduated ' + cutoff + ' or earlier · machine-shop access should be locked',
+      sub: 'Class of ' + cutoff + ' and earlier — lock them to revoke machine access',
       pill: 'Access', pillType: 'warn',
       items: groupTop_(gradByTeam, 8),
     });
@@ -534,13 +523,7 @@ function fleet_() {
     value: todays.length, unit: 'booked today',
     state: clashes.length ? 'action'
          : ((incomplete.length || (appr && (appr.ready || appr.blocked || appr.missingInfo))) ? 'watch' : 'good'),
-    sub: joinBits_([
-      clashes.length ? clashes.length + ' conflict' + (clashes.length === 1 ? '' : 's') : '',
-      upcoming.length ? upcoming.length + ' booked this week' : '',
-      incomplete.length ? incomplete.length + ' missing details' : '',
-      (appr && appr.ready) ? appr.ready + ' ready to file' : '',
-      (appr && appr.blocked) ? appr.blocked + ' applications incomplete' : '',
-    ]) || 'Nothing booked today',
+    sub: (upcoming.length ? upcoming.length + ' booked this week' : 'Nothing booked this week'),
   };
 
   const attention = [];
@@ -548,7 +531,7 @@ function fleet_() {
     attention.push({
       sev: 'crit', domain: 'Fleet', dot: '#7c3aed',
       title: 'Tacoma is double-booked today',
-      sub: clashes.length + ' overlapping reservation' + (clashes.length === 1 ? '' : 's'),
+      sub: 'Two teams hold overlapping checkout times — one must move',
       pill: 'Conflict', pillType: 'crit',
       items: clashes.slice(0, 8),
     });
@@ -557,7 +540,7 @@ function fleet_() {
     attention.push({
       sev: 'warn', domain: 'Fleet', dot: '#7c3aed',
       title: incomplete.length + ' reservation' + (incomplete.length === 1 ? '' : 's') + ' this week ' + (incomplete.length === 1 ? 'is' : 'are') + ' missing details',
-      sub: 'A booking cannot be honoured without times and a destination',
+      sub: 'Fleet will not release the truck without times and a destination',
       pill: 'Incomplete', pillType: 'warn',
       // Team + date + what's missing. Never the driver's name — public endpoint.
       items: incomplete.slice(0, 8).map(function (x) {
@@ -570,11 +553,13 @@ function fleet_() {
     });
   }
 
+  // A `sub` says what happens NEXT. It never restates the title, and never
+  // mentions spreadsheet mechanics ("column P") at a human.
   if (appr && appr.ready > 0) {
     attention.push({
       sev: 'warn', domain: 'Fleet', dot: '#7c3aed',
       title: appr.ready + ' driver application' + (appr.ready === 1 ? ' is' : 's are') + ' ready to file',
-      sub: 'Complete, but column P is blank — not yet sent to Fleet Services',
+      sub: 'Email the rows to Fleet Services, then mark them requested',
       pill: 'Ready', pillType: 'warn',
       items: groupTop_(appr.readyByTeam, 8),
     });
@@ -583,7 +568,7 @@ function fleet_() {
     attention.push({
       sev: 'warn', domain: 'Fleet', dot: '#7c3aed',
       title: appr.blocked + ' driver application' + (appr.blocked === 1 ? '' : 's') + ' cannot be processed',
-      sub: 'Missing a required safety course, application or release',
+      sub: 'Fleet Services will reject these until the missing item is initialled',
       pill: 'Blocked', pillType: 'warn',
       items: groupTop_(appr.byRequirement, 6),   // which requirement, not who
     });
@@ -592,7 +577,7 @@ function fleet_() {
     attention.push({
       sev: 'warn', domain: 'Fleet', dot: '#7c3aed',
       title: appr.missingInfo + ' driver application' + (appr.missingInfo === 1 ? '' : 's') + ' missing required info',
-      sub: 'Name, grad year or team is blank — will not be processed',
+      sub: 'Ask the applicant to complete their details before it can be filed',
       pill: 'Missing info', pillType: 'warn',
       items: groupTop_(appr.infoByTeam, 8),
     });
@@ -636,12 +621,18 @@ function fleetApproval_() {
 
   let ready = 0, blocked = 0, missingInfo = 0;
   const byRequirement = {}, readyByTeam = {}, infoByTeam = {};
+  const cutoff = gradCutoff_();
 
   for (let i = hr + 1; i < v.length; i++) {
     const row = v[i];
     const netid = String(row[cNetId] || '').trim();
     if (!netid || norm_(netid) === 'count') continue;      // skip blanks + the pivot block
     const team = (cTeam >= 0 ? String(row[cTeam]).trim() : '') || 'Unassigned';
+
+    // This tab is a years-long log, not a queue. An application for someone who
+    // has already graduated can never be actioned — counting it drowns the feed.
+    const gy = parseInt(String(row[cGrad] || '').trim(), 10);
+    if (!isNaN(gy) && gy <= cutoff) continue;
 
     if (!filled(row, cName) || !filled(row, cGrad) || !filled(row, cTeam)) {
       missingInfo++;
@@ -712,10 +703,7 @@ function inventory_() {
     key: 'inventory', name: 'Inventory', dot: '#0d9488', live: true,
     value: openOrders, unit: 'open orders',
     state: locksOut > 0 ? 'watch' : 'good',
-    sub: joinBits_([
-      locksOut ? locksOut + ' locks out' : '',
-      millItems ? millItems + ' mill-room items' : '',
-    ]) || 'Nothing outstanding',
+    sub: millItems ? millItems + ' mill-room items tracked' : 'No items tracked',
   };
   if (millItems > 0) {
     stat.meter = { value: openOrders, of: millItems, label: 'not yet ordered' };
@@ -726,7 +714,7 @@ function inventory_() {
     attention.push({
       sev: 'warn', domain: 'Inventory', dot: '#0d9488',
       title: locksOut + ' lock' + (locksOut === 1 ? '' : 's') + ' not returned',
-      sub: 'Checked out with no return date recorded',
+      sub: 'Chase the key holder recorded in the Locks tab',
       pill: 'Outstanding', pillType: 'warn',
       items: lockItems.slice(0, 8),
     });

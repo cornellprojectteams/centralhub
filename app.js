@@ -21,6 +21,47 @@
   // live read-only open-issues page at SPACE_STATUS_URL?view=<team name>.
   const SPACE_STATUS_URL = 'https://script.google.com/macros/s/AKfycbwUlmKvPRu-xej2xs7rtURXbIzONR4-EFOKDZSuRREBhn0lid0B8v4nHLPZo5KO_j-7/exec';
 
+  // Ops Command Center stats API. Used only to put a live attention count on the
+  // Command button — the page still works fine if it never answers.
+  const STATS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbzSfUQgCfkOpXAmEExVh1bHIbIQ7LAipTzP_uW2x2XKKTmZuGvmxpPI6gS1cw7oLVOz/exec';
+
+  /**
+   * Badge the Command Center button with how many things need attention.
+   * JSONP, because a plain fetch() to script.google.com is blocked by CORS.
+   * Fails silently: a missing badge is better than a broken masthead.
+   */
+  function loadCommandBadge() {
+    const badge = document.getElementById('cmd-badge');
+    if (!badge || !STATS_ENDPOINT) return;
+
+    const cb = '__hub' + Math.random().toString(36).slice(2);
+    const script = document.createElement('script');
+    let settled = false;
+    const cleanup = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      delete window[cb];
+      if (script.parentNode) script.parentNode.removeChild(script);
+    };
+    const timer = setTimeout(cleanup, 12000);
+
+    window[cb] = data => {
+      const n = data && data.hero ? Number(data.hero.attention) : 0;
+      cleanup();
+      if (!Number.isFinite(n) || n <= 0) return;   // nothing wrong -> no badge
+      badge.textContent = n > 99 ? '99+' : String(n);
+      badge.hidden = false;
+      const link = badge.closest('.cmd-link');
+      if (link) link.setAttribute('aria-label', `Command Center — ${n} items need attention`);
+    };
+    script.onerror = cleanup;
+    script.src = STATS_ENDPOINT + '?callback=' + cb;
+    document.body.appendChild(script);
+  }
+
+  loadCommandBadge();
+
   const search = document.getElementById('search');
   const categories = document.querySelectorAll('.category');
   const zones = document.querySelectorAll('.hub-zone');
@@ -163,15 +204,6 @@
     navButtons.forEach(btn => {
       btn.classList.toggle('is-active', btn.dataset.view === view);
     });
-
-    const adminCluster = document.getElementById('hub-admin');
-    const adminTrigger = adminCluster && adminCluster.querySelector('[data-view="admin"]');
-    if (adminCluster) {
-      adminCluster.classList.toggle('is-open', view === 'admin');
-    }
-    if (adminTrigger) {
-      adminTrigger.setAttribute('aria-expanded', view === 'admin' ? 'true' : 'false');
-    }
 
     zones.forEach(zone => {
       zone.classList.toggle('is-active', zone.id === view);
