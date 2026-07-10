@@ -43,7 +43,7 @@ const CACHE_SECONDS = 180; // SpreadsheetApp reads are slow; serve cached JSON b
 // version in the key, a redeploy keeps serving the OLD code's output until the
 // TTL expires. That once showed "supplies need restocking" over "all supplies
 // stocked". Bumping the key makes a redeploy take effect immediately.
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v5';   // v5: fleet driver-application status
 const CACHE_KEY = 'stats_' + CACHE_VERSION;
 
 // --- Web entry point -------------------------------------------------------
@@ -483,16 +483,32 @@ function fleet_() {
   const cTeam  = findColContains_(H, ['team']);
   const cStart = findColContains_(H, ['checkout time', 'checkout', 'start']);
   const cEnd   = findColContains_(H, ['return time', 'return', 'end']);
+  const cDest  = findColContains_(H, ['destination']);
   if (cDate < 0) throw new Error('no date column in Log');
   if (cStart < 0 || cEnd < 0) throw new Error('no checkout/return time columns — cannot detect conflicts');
 
   const today = startOfDay_(new Date());
-  const todays = [];
+  const weekEnd = addDays_(today, 7);
+  const todays = [], upcoming = [], incomplete = [];
+
   for (let i = hr + 1; i < v.length; i++) {
-    const d = new Date(v[i][cDate]);
+    const row = v[i];
+    const d = new Date(row[cDate]);
     if (isNaN(d.getTime())) continue;
-    if (startOfDay_(d).getTime() === today.getTime()) todays.push(v[i]);
+    const d0 = startOfDay_(d);
+    if (d0.getTime() === today.getTime()) todays.push(row);
+    if (d0 < today) continue;                                  // past bookings aren't actionable
+    if (d0 > weekEnd) continue;                                // a trip in 3 months isn't today's problem
+    upcoming.push(row);
+
+    // A reservation that can't be honoured: no times, or no stated destination.
+    const missing = [];
+    if (toMinutes_(row[cStart]) == null) missing.push('checkout time');
+    if (toMinutes_(row[cEnd]) == null) missing.push('return time');
+    if (cDest >= 0 && !String(row[cDest]).trim()) missing.push('destination');
+    if (missing.length) incomplete.push({ row: row, missing: missing, date: d0 });
   }
+  incomplete.sort(function (a, b) { return a.date - b.date; });   // soonest first
 
   // Overlap detection on today's bookings: [checkout, return) intervals that intersect.
   // This endpoint is PUBLIC — label bookings by team only. Never fall back to the
@@ -511,12 +527,20 @@ function fleet_() {
     }
   }
 
+  const appr = safeCall_(fleetApproval_, null);   // approvals must never break bookings
+
   const stat = {
     key: 'fleet', name: 'Fleet · Tacoma', dot: '#7c3aed', live: true,
     value: todays.length, unit: 'booked today',
-    state: clashes.length ? 'action' : 'good',
-    sub: clashes.length ? (clashes.length + ' scheduling conflict' + (clashes.length === 1 ? '' : 's'))
-                        : (todays.length ? 'No conflicts today' : 'Nothing booked today'),
+    state: clashes.length ? 'action'
+         : ((incomplete.length || (appr && (appr.ready || appr.blocked || appr.missingInfo))) ? 'watch' : 'good'),
+    sub: joinBits_([
+      clashes.length ? clashes.length + ' conflict' + (clashes.length === 1 ? '' : 's') : '',
+      upcoming.length ? upcoming.length + ' booked this week' : '',
+      incomplete.length ? incomplete.length + ' missing details' : '',
+      (appr && appr.ready) ? appr.ready + ' ready to file' : '',
+      (appr && appr.blocked) ? appr.blocked + ' applications incomplete' : '',
+    ]) || 'Nothing booked today',
   };
 
   const attention = [];
@@ -529,7 +553,112 @@ function fleet_() {
       items: clashes.slice(0, 8),
     });
   }
+  if (incomplete.length) {
+    attention.push({
+      sev: 'warn', domain: 'Fleet', dot: '#7c3aed',
+      title: incomplete.length + ' reservation' + (incomplete.length === 1 ? '' : 's') + ' this week ' + (incomplete.length === 1 ? 'is' : 'are') + ' missing details',
+      sub: 'A booking cannot be honoured without times and a destination',
+      pill: 'Incomplete', pillType: 'warn',
+      // Team + date + what's missing. Never the driver's name — public endpoint.
+      items: incomplete.slice(0, 8).map(function (x) {
+        return joinBits_([
+          (cTeam >= 0 ? String(x.row[cTeam]).trim() : '') || 'Unlabelled booking',
+          fmtDay_(x.date),
+          'missing ' + x.missing.join(' + '),
+        ]);
+      }),
+    });
+  }
+
+  if (appr && appr.ready > 0) {
+    attention.push({
+      sev: 'warn', domain: 'Fleet', dot: '#7c3aed',
+      title: appr.ready + ' driver application' + (appr.ready === 1 ? ' is' : 's are') + ' ready to file',
+      sub: 'Complete, but column P is blank — not yet sent to Fleet Services',
+      pill: 'Ready', pillType: 'warn',
+      items: groupTop_(appr.readyByTeam, 8),
+    });
+  }
+  if (appr && appr.blocked > 0) {
+    attention.push({
+      sev: 'warn', domain: 'Fleet', dot: '#7c3aed',
+      title: appr.blocked + ' driver application' + (appr.blocked === 1 ? '' : 's') + ' cannot be processed',
+      sub: 'Missing a required safety course, application or release',
+      pill: 'Blocked', pillType: 'warn',
+      items: groupTop_(appr.byRequirement, 6),   // which requirement, not who
+    });
+  }
+  if (appr && appr.missingInfo > 0) {
+    attention.push({
+      sev: 'warn', domain: 'Fleet', dot: '#7c3aed',
+      title: appr.missingInfo + ' driver application' + (appr.missingInfo === 1 ? '' : 's') + ' missing required info',
+      sub: 'Name, grad year or team is blank — will not be processed',
+      pill: 'Missing info', pillType: 'warn',
+      items: groupTop_(appr.infoByTeam, 8),
+    });
+  }
   return { stat: stat, attention: attention };
+}
+
+// --- FLEET: driver applications (Approval tab) ------------------------------
+// Header is on row 2; row 1 is instructions. The sheet states its own rules:
+//   ">> Complete all fields (application not processed with missing info)"
+//   ">> Initial each upon completion (… without safety, fleet, and release)"
+// and the Process tab says "update column P when filed" — column P is `requested`.
+// Columns 17+ are a summary/pivot block, not driver rows; NetID gates them out.
+//
+// PUBLIC ENDPOINT: never emit Email, Name or NetID. Group by team / requirement.
+
+function fleetApproval_() {
+  const sh = pickSheet_(SpreadsheetApp.openById(SOURCES.drivers), ['Approval']);
+  if (!sh) return null;
+  const v = sh.getDataRange().getValues();
+  const hr = findHeaderRow_(v, ['netid', 'name', 'team'], 5);
+  if (hr < 0) return null;
+  const H = v[hr].map(normh_);
+
+  const cNetId   = findColContains_(H, ['netid']);
+  const cName    = findColContains_(H, ['name']);
+  const cGrad    = findColContains_(H, ['grad year']);
+  const cTeam    = findColContains_(H, ['team']);
+  const cSafety  = findColContains_(H, ['driver safety']);
+  const cApp     = findColContains_(H, ['fleet application']);
+  const cRelease = findColContains_(H, ['sign release']);
+  const cReq     = findColContains_(H, ['requested']);
+  if (cNetId < 0 || cSafety < 0 || cApp < 0 || cRelease < 0) return null;
+
+  const REQUIRED = [
+    { col: cSafety,  label: 'driver safety (RMI2100)' },
+    { col: cApp,     label: 'fleet application' },
+    { col: cRelease, label: 'sign release' },
+  ];
+  const filled = function (row, c) { return c >= 0 && String(row[c]).trim() !== ''; };
+
+  let ready = 0, blocked = 0, missingInfo = 0;
+  const byRequirement = {}, readyByTeam = {}, infoByTeam = {};
+
+  for (let i = hr + 1; i < v.length; i++) {
+    const row = v[i];
+    const netid = String(row[cNetId] || '').trim();
+    if (!netid || norm_(netid) === 'count') continue;      // skip blanks + the pivot block
+    const team = (cTeam >= 0 ? String(row[cTeam]).trim() : '') || 'Unassigned';
+
+    if (!filled(row, cName) || !filled(row, cGrad) || !filled(row, cTeam)) {
+      missingInfo++;
+      infoByTeam[team] = (infoByTeam[team] || 0) + 1;
+      continue;                                            // can't be processed regardless
+    }
+    const gaps = REQUIRED.filter(function (r) { return !filled(row, r.col); });
+    if (gaps.length) {
+      blocked++;
+      gaps.forEach(function (g) { byRequirement[g.label] = (byRequirement[g.label] || 0) + 1; });
+    } else if (!filled(row, cReq)) {
+      ready++;                                             // column P blank = never filed
+      readyByTeam[team] = (readyByTeam[team] || 0) + 1;
+    }
+  }
+  return { ready: ready, blocked: blocked, missingInfo: missingInfo,
+           byRequirement: byRequirement, readyByTeam: readyByTeam, infoByTeam: infoByTeam };
 }
 
 // --- INVENTORY (live) ------------------------------------------------------
@@ -620,6 +749,11 @@ function safe_(fn, key, name, dot) {
       attention: [],
     };
   }
+}
+
+// Run a sub-reader that must never take its parent domain down with it.
+function safeCall_(fn, fallback) {
+  try { return fn(); } catch (err) { Logger.log('sub-reader failed: ' + err); return fallback; }
 }
 
 // First existing tab from a list of candidate names.
@@ -782,6 +916,7 @@ function norm_(s) { return String(s == null ? '' : s).trim().toLowerCase(); }
 function startOfDay_(d) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
 function addDays_(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
 function dayKey_(d) { return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd'); }
+function fmtDay_(d) { return Utilities.formatDate(d, Session.getScriptTimeZone(), 'MMM d'); }
 
 // "Red (same-day)" / "🟥 Red" / "orange" -> canonical severity key.
 function parseColor_(s) {

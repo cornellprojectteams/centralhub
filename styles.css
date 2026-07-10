@@ -166,37 +166,42 @@ body {
   transform: rotate(180deg);
 }
 
+/* Anchored dropdown, NOT an inline slide-out. Animating max-width/padding in the
+   flex row re-flowed the whole header on every hover — that was the jitter. An
+   absolutely-positioned chip is taken out of flow, so the header never moves. */
 .hub-admin-cmd {
+  position: absolute;
+  top: calc(100% + .5rem);
+  right: 0;
+  z-index: 20;
   display: inline-flex;
   align-items: center;
   gap: .4rem;
-  max-width: 0;
-  opacity: 0;
-  overflow: hidden;
   white-space: nowrap;
-  padding: 0;
-  margin: 0;
+  padding: .45rem .8rem .45rem .7rem;
   font-family: var(--font-display);
   font-size: .75rem;
   font-weight: 800;
   letter-spacing: .02em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.9);
+  color: #fff;
   text-decoration: none;
-  background: rgba(255, 255, 255, 0.14);
-  border: 1px solid transparent;
+  background: linear-gradient(180deg, #a82a20, #8f1515);
+  border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 999px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
   cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-6px) scale(.96);
   pointer-events: none;
+  /* Deliberately NOT transitioning `visibility`: it flips instantly, so the chip
+     is reachable the moment it opens even if the opacity transition is throttled
+     (background tab / no compositor). Decoration must not gate reachability. */
   transition:
-    max-width .32s cubic-bezier(.22, 1, .36, 1),
-    opacity .2s ease,
-    padding .32s cubic-bezier(.22, 1, .36, 1),
-    margin .32s cubic-bezier(.22, 1, .36, 1),
-    color .15s,
+    opacity .18s ease,
+    transform .24s cubic-bezier(.22, 1, .36, 1),
     background .15s,
-    border-color .15s,
-    transform .15s,
     box-shadow .15s;
 }
 
@@ -224,24 +229,18 @@ body {
 .hub-admin:hover .hub-admin-cmd,
 .hub-admin:focus-within .hub-admin-cmd,
 .hub-admin.is-open .hub-admin-cmd {
-  max-width: 9.5rem;
   opacity: 1;
-  padding: .35rem .7rem .35rem .65rem;
-  margin: .15rem .2rem .15rem 0;
+  visibility: visible;
+  transform: none;
   pointer-events: auto;
 }
 
-.hub-admin:hover .hub-admin-cmd:hover,
-.hub-admin:focus-within .hub-admin-cmd:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.28);
-  border-color: rgba(255, 255, 255, 0.35);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+.hub-admin .hub-admin-cmd:hover {
+  background: linear-gradient(180deg, #c93a2c, #a82a20);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.34);
 }
 
-.hub-admin:hover .hub-admin-cmd:hover .hub-admin-cmd-go,
-.hub-admin:focus-within .hub-admin-cmd:hover .hub-admin-cmd-go {
+.hub-admin .hub-admin-cmd:hover .hub-admin-cmd-go {
   opacity: 1;
   transform: translateX(2px);
 }
@@ -260,6 +259,38 @@ body {
   color: var(--red-dark);
   background: transparent;
   box-shadow: none;
+}
+
+/* ---- Header responsiveness ----------------------------------------------
+   The masthead had no breakpoints: at 375px the logo alone was 267px, so the
+   nav and search overlapped and the page scrolled sideways by ~259px. Nothing
+   in a flex row shrinks unless you let it (min-width defaults to auto).      */
+
+.logo { min-width: 0; }
+.logo-text-block { min-width: 0; }
+.logo-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.header-search { min-width: 0; }
+.search-box { min-width: 0; }
+
+@media (max-width: 1000px) {
+  .hub-nav-btn { padding: .5rem 1rem; font-size: .9375rem; }
+}
+
+@media (max-width: 880px) {
+  .logo-sub { display: none; }
+  .logo-seal { width: 40px; height: 40px; }
+  .logo-text { font-size: 1rem; }
+}
+
+/* NB: the mobile header layout lives in the existing @media (max-width:768px)
+   block further down — don't add a second, competing breakpoint here. */
+
+@media (max-width: 420px) {
+  .logo-seal { width: 34px; height: 34px; }
+  .logo-text { font-size: .9375rem; }
+  .hub-nav { padding: .25rem; gap: .25rem; }
+  .hub-nav-btn { padding: .45rem .75rem; font-size: .875rem; }
+  .search-kbd { display: none; }
 }
 
 .hub-admin.is-open .hub-admin-cmd,
@@ -1365,17 +1396,26 @@ body.issues-panel-open { overflow: hidden; }
 @media (max-width: 768px) {
   .app-header { height: auto; min-height: var(--header-h); }
   .header-inner { flex-wrap: wrap; padding: .75rem 1.25rem; gap: .75rem; }
-  .header-tools { flex-wrap: wrap; width: 100%; }
+  /* `width:100%` is inert here — the base rule sets `flex:1` (= flex-basis:0%),
+     and basis wins over width when sizing a flex item. It stayed on the logo's
+     row, squeezed to ~116px, and its children spilled off-screen. Set the basis. */
+  .header-tools { flex-wrap: wrap; flex: 1 1 100%; }
   .hub-nav { width: 100%; order: 1; }
   .header-search { max-width: none; flex: 1 1 100%; order: 2; }
   .hub-nav-btn { flex: 1; text-align: center; }
-  .hub-admin { flex: 1; justify-content: center; }
+  .hub-admin { flex: 1; justify-content: center; gap: .25rem; }
+  /* No hover on touch — so on mobile the chip is a plain visible chip, back in
+     flow. (It must also un-hide: the desktop dropdown uses visibility:hidden.) */
   .hub-admin-cmd {
-    max-width: 9.5rem;
+    position: static;
     opacity: 1;
-    padding: .35rem .7rem .35rem .65rem;
-    margin: .15rem .2rem .15rem 0;
+    visibility: visible;
+    transform: none;
     pointer-events: auto;
+    box-shadow: none;
+    margin: .15rem .2rem .15rem 0;
+    padding: .3rem .6rem;
+    font-size: .6875rem;
   }
 }
 
