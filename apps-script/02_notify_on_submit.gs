@@ -15,7 +15,7 @@ const CONFIG = {
   sender: '',                          // go-live: 'eng_projectteams@cornell.edu' (send-as alias on this account)
   alwaysCc: [],                        // go-live: ['nhh5@cornell.edu']
   fallbackEmail: 'com34@cornell.edu',
-  webAppUrl: 'https://script.google.com/macros/s/AKfycbwOnNmpSXc3biH14Fm9iLcUQ2X0UK-Gx5kQpNmrBsHd3K-l2u0GjsMblOumiY73drM_/exec',
+  webAppUrl: 'https://script.google.com/macros/s/AKfycbwUlmKvPRu-xej2xs7rtURXbIzONR4-EFOKDZSuRREBhn0lid0B8v4nHLPZo5KO_j-7/exec',
   notifiedHeader: 'Notified at',
   issueTokenHeader: 'Issue token',
   addressedHeader: 'Addressed at',
@@ -338,8 +338,10 @@ function portalStyles_() {
     + '.card-team{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#b31b1b}'
     + '.card-title{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:18px;font-weight:800;letter-spacing:-.02em;line-height:1.25;margin-top:3px;color:#111}'
     + '.card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}'
-    + '.card-action{font-size:13.5px;color:#444;margin-top:7px;line-height:1.5}'
-    + '.card-details{font-size:13px;color:#8a857c;margin-top:5px;line-height:1.5}'
+    + '.card-field{margin-top:13px}'
+    + '.card-flabel{display:block;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:9.5px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:#a8a29e;margin-bottom:4px}'
+    + '.card-action{font-size:14.5px;color:#26231f;font-weight:600;line-height:1.5}'
+    + '.card-details{font-size:13.5px;color:#57534e;line-height:1.62;white-space:pre-line;padding-left:12px;border-left:2px solid #ece9e2}'
     + '.chip{flex:0 0 auto;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;padding:5px 11px;border-radius:999px}'
     + '.chip--overdue{color:#b31b1b;background:#fdecec;border:1px solid #f5d0d0}'
     + '.chip--due{color:#6b665e;background:#f0efe9;border:1px solid #e5e4de}'
@@ -591,7 +593,7 @@ function listAllIssues_() {
       action: cAction >= 0 ? String(v[i][cAction]).trim() : '',
       details: cDetails >= 0 ? String(v[i][cDetails]).trim() : '',
       photos: cPhoto >= 0 ? extractFileIds_(v[i][cPhoto]) : [],
-      deadline: deadline, overdue: overdue,
+      color: color, deadline: deadline, overdue: overdue,
     });
   }
   open.sort(function (a, b) {
@@ -651,15 +653,16 @@ function allIssuesPage_(embedded) {
       ? '<span class="chip chip--overdue">Overdue</span>'
       : (it.deadline ? '<span class="chip chip--due">' + daysLeftLabel_(it.deadline) + '</span>' : '');
     const hay = ((it.team || '') + ' ' + (it.issueType || '') + ' ' + (it.action || '') + ' ' + (it.details || '')).toLowerCase();
-    return '<div class="card" id="' + rid + '" data-team="' + escapeHtml_(it.team) + '" data-over="' + (it.overdue ? '1' : '0') + '" data-hay="' + escapeHtml_(hay) + '">'
+    const accent = COLOR_HEX[it.color] || '#d6d3ce';
+    return '<div class="card" id="' + rid + '" style="border-left:4px solid ' + accent + ';border-right:4px solid ' + accent + '" data-team="' + escapeHtml_(it.team) + '" data-over="' + (it.overdue ? '1' : '0') + '" data-hay="' + escapeHtml_(hay) + '">'
       + '<div class="card-body">'
       +   '<div class="card-head">'
       +     '<div><div class="card-team">' + escapeHtml_(it.team || 'Unassigned') + '</div>'
       +     '<div class="card-title">' + escapeHtml_(it.issueType ? phrase_(it.issueType) : 'Reported issue') + '</div></div>'
       +     chip
       +   '</div>'
-      +   (it.action ? '<div class="card-action">' + escapeHtml_(phrase_(it.action)) + '</div>' : '')
-      +   (it.details ? '<div class="card-details">' + escapeHtml_(it.details) + '</div>' : '')
+      +   (it.action ? '<div class="card-field"><span class="card-flabel">Required action</span><div class="card-action">' + escapeHtml_(phrase_(it.action)) + '</div></div>' : '')
+      +   (it.details ? '<div class="card-field"><span class="card-flabel">Details</span><div class="card-details">' + escapeHtml_(it.details) + '</div></div>' : '')
       +   (it.photos && it.photos.length ? photoStrip_(it.photos) : '')
       + '</div>'
       + '<div class="card-foot">'

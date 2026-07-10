@@ -19,7 +19,7 @@
 
   // Deployed Space Status web app /exec URL. The team picker opens a team's
   // live read-only open-issues page at SPACE_STATUS_URL?view=<team name>.
-  const SPACE_STATUS_URL = 'https://script.google.com/macros/s/AKfycbwOnNmpSXc3biH14Fm9iLcUQ2X0UK-Gx5kQpNmrBsHd3K-l2u0GjsMblOumiY73drM_/exec';
+  const SPACE_STATUS_URL = 'https://script.google.com/macros/s/AKfycbwUlmKvPRu-xej2xs7rtURXbIzONR4-EFOKDZSuRREBhn0lid0B8v4nHLPZo5KO_j-7/exec';
 
   const search = document.getElementById('search');
   const categories = document.querySelectorAll('.category');

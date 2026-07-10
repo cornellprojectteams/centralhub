@@ -4,7 +4,7 @@
     {
       "name": "ops-hub",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["serve", "-l", "4200", "/Users/okal/Desktop/Project-Teams-Ops-Hub"],
+      "runtimeArgs": ["serve", "-l", "4200", "/Users/okal/Desktop/centralhub"],
       "port": 4200
     }
   ]

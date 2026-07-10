@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Open issues — redesign preview</title>
+<style>
+/* ===== Mirror of portalStyles_() from 02_notify_on_submit.gs (dashboard classes) ===== */
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;font-family:Inter,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:13px;font-weight:700;line-height:1;padding:11px 20px;border-radius:10px;border:none;cursor:pointer;text-decoration:none;white-space:nowrap;transition:transform .16s ease,box-shadow .16s ease,background .16s ease,border-color .16s ease}
+.btn-primary{color:#fff;background:linear-gradient(180deg,#d62b2b 0%,#b31b1b 55%,#8f1515 100%);box-shadow:0 4px 14px rgba(179,27,27,.28)}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(179,27,27,.36)}
+.stats{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+.stat{flex:1;min-width:120px;padding:16px 18px;background:#fff;border:1.5px solid #e7e7e3;border-radius:14px;box-shadow:0 2px 8px rgba(20,20,30,.06);position:relative;overflow:hidden}
+.stat::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#8f1515,#b31b1b,#f0c050)}
+.stat-label{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#8a857c}
+.stat-val{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:28px;font-weight:800;letter-spacing:-.04em;line-height:1.1;margin-top:6px;color:#111}
+.stat-val--danger{color:#b31b1b}
+.filters{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 10px;padding:14px 16px;background:#fff;border:1.5px solid #e7e7e3;border-radius:14px;box-shadow:0 2px 8px rgba(20,20,30,.05)}
+.search-wrap{flex:1;min-width:180px;position:relative}
+.search-wrap input{width:100%;font:inherit;font-size:14px;padding:12px 14px 12px 40px;border:1.5px solid #e0e0dc;border-radius:10px;background:#fafaf8;outline:none}
+.filters select{font:inherit;font-size:14px;font-weight:600;padding:12px 14px;border:1.5px solid #e0e0dc;border-radius:10px;background:#fff;outline:none;cursor:pointer;min-width:150px;color:#333}
+.toggle{display:inline-flex;align-items:center;gap:8px;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:13px;font-weight:700;color:#444;padding:10px 14px;border-radius:10px;border:1.5px solid #e0e0dc;background:#fff;cursor:pointer;user-select:none}
+.section-head{display:flex;align-items:center;gap:11px;margin:26px 0 14px}
+.section-label{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}
+.section-label--late{color:#b31b1b}
+.section-label--open{color:#8a857c}
+.section-count{font-size:12px;color:#bbb;font-weight:700}
+.section-rule{flex:1;height:1.5px;background:linear-gradient(90deg,#e8e8e8,transparent)}
+.card{background:#fff;border-radius:14px;border:1.5px solid #ececea;box-shadow:0 2px 8px rgba(20,20,30,.06),0 1px 3px rgba(20,20,30,.04);overflow:hidden;margin-bottom:12px;transition:opacity .25s ease,transform .25s ease,box-shadow .25s ease}
+.card:hover{box-shadow:0 8px 24px rgba(20,20,30,.08);transform:translateY(-1px)}
+.card-body{padding:18px 20px 16px}
+.card-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;border-top:1.5px solid #f1f1f1;padding:13px 20px;background:linear-gradient(180deg,#fcfcfb 0%,#f8f8f6 100%)}
+.card-team{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#b31b1b}
+.card-title{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:18px;font-weight:800;letter-spacing:-.02em;line-height:1.25;margin-top:3px;color:#111}
+.card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+/* ===== UPDATED: field labels + readable body text (replaces washed-out gray) ===== */
+.card-field{margin-top:13px}
+.card-flabel{display:block;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:9.5px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:#a8a29e;margin-bottom:4px}
+.card-action{font-size:14.5px;color:#26231f;font-weight:600;line-height:1.5}
+.card-details{font-size:13.5px;color:#57534e;line-height:1.62;white-space:pre-line;padding-left:12px;border-left:2px solid #ece9e2}
+.chip{flex:0 0 auto;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;padding:5px 11px;border-radius:999px}
+.chip--overdue{color:#b31b1b;background:#fdecec;border:1px solid #f5d0d0}
+.chip--due{color:#6b665e;background:#f0efe9;border:1px solid #e5e4de}
+.due{font-size:13px;font-weight:600;color:#777}
+.due--late{color:#b31b1b}
+.page-kicker{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#9a958c}
+.page-title{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:30px;font-weight:800;letter-spacing:-.035em;line-height:1.05;margin-top:8px;color:#111}
+.page-rule{width:46px;height:3px;background:linear-gradient(90deg,#8f1515,#b31b1b,#f0c050);margin-top:12px;border-radius:99px}
+.photo-strip{display:flex;gap:8px;margin-top:13px;flex-wrap:wrap}
+.photo-strip img{width:120px;height:92px;object-fit:cover;border-radius:10px;border:1.5px solid #ececea}
+</style>
+</head>
+<body style="margin:0;background:#f5f4f0;min-height:100vh;color:#111">
+<div style="max-width:960px;margin:0 auto;padding:28px 22px 48px">
+
+  <div class="page-head">
+    <div class="page-kicker">Project Teams Ops Hub</div>
+    <div class="page-title">Open space issues</div>
+    <div class="page-rule"></div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-label">Open</div><div class="stat-val">3</div></div>
+    <div class="stat"><div class="stat-label">Overdue</div><div class="stat-val stat-val--danger">1</div></div>
+  </div>
+
+  <div class="filters">
+    <div class="search-wrap"><input type="search" placeholder="Search team, issue, details…"></div>
+    <select><option>All teams</option></select>
+    <label class="toggle"><input type="checkbox"> Overdue only</label>
+  </div>
+
+  <div class="section-head"><span class="section-label section-label--late">Overdue</span><span class="section-count">1</span><span class="section-rule"></span></div>
+
+  <div class="card" style="border-left:4px solid #b31b1b;border-right:4px solid #b31b1b">
+    <div class="card-body">
+      <div class="card-head">
+        <div><div class="card-team">Hyperloop</div><div class="card-title">Blocked egress path</div></div>
+        <span class="chip chip--overdue">Overdue</span>
+      </div>
+      <div class="card-field"><span class="card-flabel">Required action</span><div class="card-action">Clear the walkway to the emergency exit</div></div>
+      <div class="card-field"><span class="card-flabel">Details</span><div class="card-details">Pallets and a rolling cart are stacked in front of the west fire door. Facilities flagged this during the monthly walkthrough — it needs to be cleared before the next lab session.</div></div>
+    </div>
+    <div class="card-foot">
+      <span class="due due--late">Due July 6, 2026</span>
+      <span class="btn-row"><button type="button" class="btn btn-primary">Mark complete</button></span>
+    </div>
+  </div>
+
+  <div class="section-head"><span class="section-label section-label--open">Open</span><span class="section-count">2</span><span class="section-rule"></span></div>
+
+  <div class="card" style="border-left:4px solid #e08a1e;border-right:4px solid #e08a1e">
+    <div class="card-body">
+      <div class="card-head">
+        <div><div class="card-team">Baja</div><div class="card-title">Chemical storage</div></div>
+        <span class="chip chip--due">1 day left</span>
+      </div>
+      <div class="card-field"><span class="card-flabel">Required action</span><div class="card-action">Submit facilities work order</div></div>
+      <div class="card-field"><span class="card-flabel">Details</span><div class="card-details">Solvent cabinet is missing its secondary containment tray and the ventilation label is out of date. Team lead has the SDS binder; needs a work order raised so EHS can re-inspect and sign off before the next fabrication run.</div></div>
+      <div class="photo-strip"><img src="assets/cornell-seal.svg" alt=""><img src="assets/cornell-seal.svg" alt=""></div>
+    </div>
+    <div class="card-foot">
+      <span class="due">Due July 10, 2026</span>
+      <span class="btn-row"><button type="button" class="btn btn-primary">Mark complete</button></span>
+    </div>
+  </div>
+
+  <div class="card" style="border-left:4px solid #caa12a;border-right:4px solid #caa12a">
+    <div class="card-body">
+      <div class="card-head">
+        <div><div class="card-team">Rocketry</div><div class="card-title">Missing eyewash signage</div></div>
+        <span class="chip chip--due">6 days left</span>
+      </div>
+      <div class="card-field"><span class="card-flabel">Required action</span><div class="card-action">Post eyewash station signage</div></div>
+      <div class="card-field"><span class="card-flabel">Details</span><div class="card-details">The eyewash by the sink has no overhead sign. Print the standard placard and mount it at eye level within the week.</div></div>
+    </div>
+    <div class="card-foot">
+      <span class="due">Due July 15, 2026</span>
+      <span class="btn-row"><button type="button" class="btn btn-primary">Mark complete</button></span>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
