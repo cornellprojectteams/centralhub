@@ -67,12 +67,12 @@ function buildStats_() {
   // safe_() isolates failures: one unreadable sheet degrades to a single "unavailable"
   // tile instead of 500-ing the whole dashboard.
   const domains = [
-    safe_(space_,      'space',      'Space issues',   '#c0392b'),  // LIVE
-    safe_(ell_,        'ell',        'Learning Lab',   '#c07a12'),  // stub — TODO wire to ELL Shift Summary
-    safe_(fabman_,     'fabman',     'Fabman',         '#2563c9'),  // LIVE
-    safe_(compliance_, 'compliance', 'Compliance',     '#1f9d5b'),  // stub — TODO wire to Master Sheet
-    safe_(fleet_,      'fleet',      'Fleet · Tacoma', '#7c3aed'),  // stub — TODO wire to Student Drivers
-    safe_(inventory_,  'inventory',  'Inventory',      '#0d9488'),  // stub — TODO wire to Tool inventory
+    safe_(space_,      'space',      'Space issues',   '#c0392b'),
+    safe_(ell_,        'ell',        'Learning Lab',   '#c07a12'),
+    safe_(fabman_,     'fabman',     'Fabman',         '#2563c9'),
+    safe_(compliance_, 'compliance', 'Compliance',     '#1f9d5b'),  // informational — no expiry data exists
+    safe_(fleet_,      'fleet',      'Fleet · Tacoma', '#7c3aed'),  // header row auto-detected; verify
+    safe_(inventory_,  'inventory',  'Inventory',      '#0d9488'),
   ];
 
   // Flatten attention items, urgent (crit) before soon (warn), stable within.
@@ -160,6 +160,10 @@ function space_() {
     value: open.length, unit: 'open', state: state,
     sub: overdueList.length + ' overdue · ' + redOpen + ' red · ' + resolved + ' resolved this term',
   };
+  // Meter only where a ratio actually means something.
+  if (open.length + resolved > 0) {
+    stat.meter = { value: open.length, of: open.length + resolved, label: 'unresolved' };
+  }
 
   const attention = [];
   if (overdueList.length) {
@@ -220,8 +224,10 @@ function ell_() {
   if (!latest) throw new Error('no timestamped rows');
 
   const activity = cAct >= 0 ? firstWord_(latest[cAct]) : '—';
-  const flags    = cSafety >= 0 ? splitExcluding_(latest[cSafety], 'no issue') : [];
-  const supply   = cSupply >= 0 ? splitExcluding_(latest[cSupply], 'all stocked') : [];
+  // "No issues" / "All supplies stocked" are the nothing-to-report options. Match on
+  // the distinctive word, not the whole phrase — the sheet's wording drifts.
+  const flags    = cSafety >= 0 ? splitExcluding_(latest[cSafety], ['no issue']) : [];
+  const supply   = cSupply >= 0 ? splitExcluding_(latest[cSupply], ['stocked']) : [];
   const peak     = topKey_(shiftCounts);
 
   const bits = [flags.length + (flags.length === 1 ? ' safety flag' : ' safety flags')];
@@ -312,6 +318,9 @@ function fabman_() {
     state: (awaiting > 0 || gradActive > 0) ? 'watch' : 'good',
     sub: bits.join(' · '),
   };
+  if (members > 0 && gradActive > 0) {
+    stat.meter = { value: gradActive, of: members, label: 'stale access' };
+  }
 
   const attention = [];
   if (awaiting > 0) {
@@ -370,43 +379,165 @@ function signupsSince_(ss, since) {
   return n;
 }
 
+// --- COMPLIANCE (live, but informational) ----------------------------------
+// NOTE: every Master Sheet tab is a historical sign-up log (DATE | NAME | netID |
+// TEAM). There is NO expiry or renewal date anywhere, so "expiring in 30 days" /
+// "lapsed" CANNOT be computed — we do not fake it. To make this tile actionable,
+// the sheet needs either a renewal-date column or a stated validity window (e.g.
+// "usage agreements are valid 12 months from DATE"); then this becomes real.
+
 function compliance_() {
-  // TODO: read SOURCES.master → waiver/Workday expiries by date.
+  const ss = SpreadsheetApp.openById(SOURCES.master);
+  const byName = sheetsByTrimmedName_(ss);
+  const accessTabs = ['ELL', 'HVL', 'RHODES PENTHOUSE', 'Aquatic Center', 'Risk Waivers',
+                      'Private Vehicle Risk Waiver', 'Canoe waiver', 'Tang Room 403', 'Hollister room B55'];
+
+  let total = 0;
+  const counts = {};
+  accessTabs.forEach(function (name) {
+    const sh = byName[norm_(name)];
+    const rows = sh ? Math.max(0, sh.getLastRow() - 1) : 0;
+    counts[name] = rows;
+    total += rows;
+  });
+  const wd = byName[norm_('Workday Trainings')];
+  const workday = wd ? Math.max(0, wd.getLastRow() - 1) : 0;
+
   return {
-    stat: { key: 'compliance', name: 'Compliance', dot: '#1f9d5b', live: false,
-      value: 8, unit: 'expiring', state: 'action',
-      sub: '2 lapsed · 79 Workday complete' },
-    attention: [
-      { sev: 'crit', domain: 'Compliance', dot: '#1f9d5b',
-        title: '2 access waivers have lapsed', sub: 'High Voltage Lab · re-sign required before entry',
-        pill: 'Lapsed', pillType: 'crit' },
-      { sev: 'warn', domain: 'Compliance', dot: '#1f9d5b',
-        title: '8 compliance items expire within 30 days', sub: 'Workday EHS renewals across 5 teams',
-        pill: 'Soon', pillType: 'warn' },
-    ],
+    stat: {
+      key: 'compliance', name: 'Compliance', dot: '#1f9d5b', live: true,
+      value: fmtNum_(total), unit: 'records on file', state: 'good',
+      sub: counts['ELL'] + ' ELL · ' + counts['HVL'] + ' HVL · ' + workday + ' Workday complete',
+    },
+    attention: [],   // nothing actionable until an expiry rule exists
   };
 }
+
+// --- FLEET (live, best-effort) ---------------------------------------------
+// The Log tab's row 1 is a banner ("Project Teams Vehicle Reservations Toyota
+// Tacoma…"), not headers — so we scan the first few rows for the real header row.
+// If we can't find it we throw, and safe_() renders an honest "unavailable" tile
+// rather than inventing a booking. Run peekRows('drivers','Log',5) to confirm.
 
 function fleet_() {
-  // TODO: read SOURCES.drivers → Log tab → today's reservations + overlap detection.
-  return {
-    stat: { key: 'fleet', name: 'Fleet · Tacoma', dot: '#7c3aed', live: false,
-      value: 2, unit: 'booked today', state: 'action',
-      sub: '1 conflict · 4 pending approval' },
-    attention: [{ sev: 'crit', domain: 'Fleet', dot: '#7c3aed',
-      title: 'Tacoma is double-booked today', sub: 'Rocketry & Baja both hold 2:00–5:00 PM',
-      pill: 'Conflict', pillType: 'crit' }],
+  const sh = pickSheet_(SpreadsheetApp.openById(SOURCES.drivers), ['Log']);
+  if (!sh) throw new Error('no Log tab');
+  const v = sh.getDataRange().getValues();
+
+  // Real header lives on row 3: Team | Name | NetID | Phone Number |
+  // Date (doubleclick) | Checkout Time | Return Time | Destination | Parking Location
+  const hr = findHeaderRow_(v, ['team', 'name', 'date'], 6);
+  if (hr < 0) throw new Error('header row not found in Log — run peekFleetLog()');
+  const H = v[hr].map(normh_);
+
+  const cDate  = findColContains_(H, ['date']);
+  const cTeam  = findColContains_(H, ['team']);
+  const cName  = findColContains_(H, ['name']);
+  const cStart = findColContains_(H, ['checkout time', 'checkout', 'start']);
+  const cEnd   = findColContains_(H, ['return time', 'return', 'end']);
+  if (cDate < 0) throw new Error('no date column in Log');
+  if (cStart < 0 || cEnd < 0) throw new Error('no checkout/return time columns — cannot detect conflicts');
+
+  const today = startOfDay_(new Date());
+  const todays = [];
+  for (let i = hr + 1; i < v.length; i++) {
+    const d = new Date(v[i][cDate]);
+    if (isNaN(d.getTime())) continue;
+    if (startOfDay_(d).getTime() === today.getTime()) todays.push(v[i]);
+  }
+
+  // Overlap detection on today's bookings: [checkout, return) intervals that intersect.
+  const label = function (row) {
+    const t = cTeam >= 0 ? String(row[cTeam]).trim() : '';
+    const n = cName >= 0 ? String(row[cName]).trim() : '';
+    return t || n || 'a booking';
   };
+  const clashes = [];
+  for (let i = 0; i < todays.length; i++) {
+    for (let j = i + 1; j < todays.length; j++) {
+      const a0 = toMinutes_(todays[i][cStart]), a1 = toMinutes_(todays[i][cEnd]);
+      const b0 = toMinutes_(todays[j][cStart]), b1 = toMinutes_(todays[j][cEnd]);
+      if (a0 == null || a1 == null || b0 == null || b1 == null) continue;
+      if (a0 < b1 && b0 < a1) clashes.push(label(todays[i]) + ' & ' + label(todays[j]));
+    }
+  }
+
+  const stat = {
+    key: 'fleet', name: 'Fleet · Tacoma', dot: '#7c3aed', live: true,
+    value: todays.length, unit: 'booked today',
+    state: clashes.length ? 'action' : 'good',
+    sub: clashes.length ? (clashes.length + ' scheduling conflict' + (clashes.length === 1 ? '' : 's'))
+                        : (todays.length ? 'No conflicts today' : 'Nothing booked today'),
+  };
+
+  const attention = [];
+  if (clashes.length) {
+    attention.push({
+      sev: 'crit', domain: 'Fleet', dot: '#7c3aed',
+      title: 'Tacoma is double-booked today',
+      sub: clashes.slice(0, 2).join(' · ') + ' overlap',
+      pill: 'Conflict', pillType: 'crit',
+    });
+  }
+  return { stat: stat, attention: attention };
 }
 
+// --- INVENTORY (live) ------------------------------------------------------
+// Open order  = a "Mill room Tooling" item with a blank "Ordered" cell.
+// Lock out    = a "Locks" row with a "date out" but no "returned" date.
+
 function inventory_() {
-  // TODO: read SOURCES.inventory → open orders + unreturned locks.
-  return {
-    stat: { key: 'inventory', name: 'Inventory', dot: '#0d9488', live: false,
-      value: 5, unit: 'open orders', state: 'good',
-      sub: '2 locks out · 44 mill-room items' },
-    attention: [],
+  const ss = SpreadsheetApp.openById(SOURCES.inventory);
+
+  let openOrders = 0, millItems = 0;
+  const mill = pickSheet_(ss, ['Mill room Tooling']);
+  if (mill) {
+    const v = mill.getDataRange().getValues();
+    const H = v[0].map(normh_);
+    const cEq = findColContains_(H, ['equipment']);
+    const cOrd = findColContains_(H, ['ordered']);
+    for (let i = 1; i < v.length; i++) {
+      const eq = cEq >= 0 ? String(v[i][cEq]).trim() : '';
+      if (!eq) continue;
+      millItems++;
+      if (cOrd >= 0 && String(v[i][cOrd]).trim() === '') openOrders++;
+    }
+  }
+
+  let locksOut = 0;
+  const locks = pickSheet_(ss, ['Locks']);
+  if (locks) {
+    const v = locks.getDataRange().getValues();
+    const H = v[0].map(normh_);
+    const cOut = findColContains_(H, ['date out']);
+    const cRet = findColContains_(H, ['returned']);
+    for (let i = 1; i < v.length; i++) {
+      const out = cOut >= 0 ? String(v[i][cOut]).trim() : '';
+      const ret = cRet >= 0 ? String(v[i][cRet]).trim() : '';
+      if (out && !ret) locksOut++;
+    }
+  }
+
+  const stat = {
+    key: 'inventory', name: 'Inventory', dot: '#0d9488', live: true,
+    value: openOrders, unit: 'open orders',
+    state: locksOut > 0 ? 'watch' : 'good',
+    sub: locksOut + ' locks out · ' + millItems + ' mill-room items',
   };
+  if (millItems > 0) {
+    stat.meter = { value: openOrders, of: millItems, label: 'not yet ordered' };
+  }
+
+  const attention = [];
+  if (locksOut > 0) {
+    attention.push({
+      sev: 'warn', domain: 'Inventory', dot: '#0d9488',
+      title: locksOut + ' lock' + (locksOut === 1 ? '' : 's') + ' not returned',
+      sub: 'Checked out with no return date recorded',
+      pill: 'Outstanding', pillType: 'warn',
+    });
+  }
+  return { stat: stat, attention: attention };
 }
 
 // --- helpers ---------------------------------------------------------------
@@ -435,7 +566,7 @@ function pickSheet_(ss, names) {
   return null;
 }
 
-// Index of the first matching header (H is already normalized), else -1.
+// Index of the first EXACT matching header (H is already normalized), else -1.
 function findCol_(H, candidates) {
   for (let i = 0; i < candidates.length; i++) {
     const j = H.indexOf(norm_(candidates[i]));
@@ -443,6 +574,106 @@ function findCol_(H, candidates) {
   }
   return -1;
 }
+
+// Index of the first header CONTAINING any needle. Use when headers carry noise
+// like "Safety and Maintenance Issues  (check all that apply)".
+function findColContains_(H, needles) {
+  for (let n = 0; n < needles.length; n++) {
+    const needle = normh_(needles[n]);
+    for (let i = 0; i < H.length; i++) {
+      if (H[i].indexOf(needle) >= 0) return i;
+    }
+  }
+  return -1;
+}
+
+// Some tabs open with a banner/instructions instead of headers. Find the first
+// row (within maxScan) whose cells contain every required token.
+function findHeaderRow_(values, tokens, maxScan) {
+  const limit = Math.min(values.length, maxScan || 5);
+  for (let r = 0; r < limit; r++) {
+    const cells = values[r].map(normh_);
+    const ok = tokens.every(function (t) {
+      return cells.some(function (c) { return c.indexOf(normh_(t)) >= 0; });
+    });
+    if (ok) return r;
+  }
+  return -1;
+}
+
+// Tab names sometimes carry stray whitespace ("Tang Room 403 ").
+function sheetsByTrimmedName_(ss) {
+  const map = {};
+  ss.getSheets().forEach(function (sh) { map[norm_(sh.getName())] = sh; });
+  return map;
+}
+
+// Header normalizer: lowercase, trim, and collapse internal runs of whitespace.
+function normh_(s) { return norm_(s).replace(/\s+/g, ' '); }
+
+// Minutes since midnight from a sheet time cell (Date object or "2:00 PM").
+function toMinutes_(cell) {
+  if (cell instanceof Date && !isNaN(cell.getTime())) return cell.getHours() * 60 + cell.getMinutes();
+  const s = norm_(cell);
+  if (!s) return null;
+  const m = s.match(/^(\d{1,2})[:.](\d{2})\s*(am|pm)?/);
+  if (!m) return null;
+  let h = parseInt(m[1], 10);
+  const min = parseInt(m[2], 10);
+  if (m[3] === 'pm' && h < 12) h += 12;
+  if (m[3] === 'am' && h === 12) h = 0;
+  return h * 60 + min;
+}
+
+function firstWord_(s) {
+  const t = String(s == null ? '' : s).trim();
+  return t ? t.split(/[\s(]/)[0] : '—';
+}
+
+// Split a multi-select cell, dropping any "nothing to report" options.
+function splitExcluding_(cell, excludes) {
+  const ex = (Array.isArray(excludes) ? excludes : [excludes]).map(norm_);
+  return String(cell == null ? '' : cell).split(',')
+    .map(function (x) { return x.trim(); })
+    .filter(function (x) {
+      if (!x) return false;
+      const n = norm_(x);
+      return !ex.some(function (e) { return n.indexOf(e) >= 0; });
+    });
+}
+
+function topKey_(obj) {
+  let best = null, n = -1;
+  Object.keys(obj).forEach(function (k) { if (obj[k] > n) { n = obj[k]; best = k; } });
+  return best;
+}
+
+function fmtNum_(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+
+/**
+ * Print the first `n` rows of one tab — for tabs whose row 1 is a banner rather
+ * than headers (e.g. drivers/Log).
+ *
+ * The editor's Run button calls functions with NO arguments, so these default to
+ * the Fleet log. For another tab, call it from a zero-arg wrapper like
+ * peekFleetLog() below rather than clicking Run on this one.
+ */
+function peekRows(sourceKey, tabName, n) {
+  sourceKey = sourceKey || 'drivers';
+  tabName = tabName || 'Log';
+  n = n || 5;
+  const id = SOURCES[sourceKey];
+  if (!id) { Logger.log('unknown source "' + sourceKey + '" — one of: ' + Object.keys(SOURCES).join(', ')); return; }
+  const sh = SpreadsheetApp.openById(id).getSheetByName(tabName);
+  if (!sh) { Logger.log('no tab "' + tabName + '"'); return; }
+  const rows = Math.min(n, sh.getLastRow());
+  const v = sh.getRange(1, 1, rows, sh.getLastColumn()).getValues();
+  v.forEach(function (r, i) { Logger.log('row ' + (i + 1) + ' :: ' + r.join(' | ')); });
+}
+
+// Zero-arg wrappers, safe to click Run on.
+function peekFleetLog()      { peekRows('drivers', 'Log', 5); }
+function peekFleetApproval() { peekRows('drivers', 'Approval', 4); }
 
 /**
  * SCHEMA DISCOVERY — run manually from the editor (Run ▸ describeSources), then
