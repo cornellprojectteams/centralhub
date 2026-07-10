@@ -12,10 +12,10 @@ const CONFIG = {
   spreadsheetId: '1mZrlnA-GiVKB4_Um21aMH9jsSkf6TUJhauDWivnf7-I',
   responsesSheet: 'Form Responses',
   contactsSheet: 'Team Contacts',
-  sender: '',                          // go-live: 'eng_projectteams@cornell.edu' (send-as alias on this account)
-  alwaysCc: [],                        // go-live: ['nhh5@cornell.edu']
-  fallbackEmail: 'com34@cornell.edu',
-  webAppUrl: 'https://script.google.com/macros/s/AKfycbwUlmKvPRu-xej2xs7rtURXbIzONR4-EFOKDZSuRREBhn0lid0B8v4nHLPZo5KO_j-7/exec',
+  sender: 'eng_projectteams@cornell.edu',                          // go-live: 'eng_projectteams@cornell.edu' (send-as alias on this account)
+  alwaysCc: ['nhh5@cornell.edu'],                        // go-live: ['nhh5@cornell.edu']
+  fallbackEmail: 'nhh5@cornell.edu',
+  webAppUrl: 'https://script.google.com/macros/s/AKfycbwUlmKvPRu-xej2xs7rtURXbIzONR4-EFOKDZSuRREBhn0lid0B8v4nHLPZo5KO_j-7/exec',  // fallback only; email links use ScriptApp.getService().getUrl() at runtime
   notifiedHeader: 'Notified at',
   issueTokenHeader: 'Issue token',
   addressedHeader: 'Addressed at',
@@ -231,8 +231,12 @@ function daysLeftLabel_(d) {
 }
 
 function addressedButton_(token) {
-  if (!CONFIG.webAppUrl || !token) return '';
-  const url = CONFIG.webAppUrl + '?id=' + encodeURIComponent(token);
+  if (!token) return '';
+  // Prefer the live deployment URL so the link never needs a code edit on redeploy;
+  // fall back to CONFIG.webAppUrl only if getUrl() is unavailable.
+  const base = ScriptApp.getService().getUrl() || CONFIG.webAppUrl;
+  if (!base) return '';
+  const url = base + '?id=' + encodeURIComponent(token);
   return '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:20px 0 4px"><tr>'
     + '<td style="background:#8f1515;border-radius:6px"><a href="' + url + '" style="display:inline-block;padding:12px 24px;color:#fff;font:bold 14px Arial,sans-serif;text-decoration:none;border-radius:6px">Mark this issue as addressed</a></td>'
     + '</tr></table>';
