@@ -19,7 +19,7 @@
 
   // Deployed Space Status web app /exec URL. The team picker opens a team's
   // live read-only open-issues page at SPACE_STATUS_URL?view=<team name>.
-  const SPACE_STATUS_URL = 'https://script.google.com/macros/s/AKfycbwUlmKvPRu-xej2xs7rtURXbIzONR4-EFOKDZSuRREBhn0lid0B8v4nHLPZo5KO_j-7/exec';
+  const SPACE_STATUS_URL = 'https://script.google.com/macros/s/AKfycbwNbGjVcBrcsMZiOl2nXzpqZHz04nvKLm9D_aC0VJDz7Xxxf_4kLKlNSOHubPXj1X74/exec';
 
   // Ops Command Center stats API. Used only to put a live attention count on the
   // Command button — the page still works fine if it never answers.

@@ -15,7 +15,7 @@ const CONFIG = {
   sender: 'eng_projectteams@cornell.edu',                          // go-live: 'eng_projectteams@cornell.edu' (send-as alias on this account)
   alwaysCc: ['nhh5@cornell.edu'],                        // go-live: ['nhh5@cornell.edu']
   fallbackEmail: 'nhh5@cornell.edu',
-  webAppUrl: 'https://script.google.com/macros/s/AKfycbwUlmKvPRu-xej2xs7rtURXbIzONR4-EFOKDZSuRREBhn0lid0B8v4nHLPZo5KO_j-7/exec',  // fallback only; email links use ScriptApp.getService().getUrl() at runtime
+  webAppUrl: 'https://script.google.com/macros/s/AKfycbwNbGjVcBrcsMZiOl2nXzpqZHz04nvKLm9D_aC0VJDz7Xxxf_4kLKlNSOHubPXj1X74/exec',  // MUST be the published /exec URL; email acknowledge links use this
   notifiedHeader: 'Notified at',
   issueTokenHeader: 'Issue token',
   addressedHeader: 'Addressed at',
@@ -231,12 +231,11 @@ function daysLeftLabel_(d) {
 }
 
 function addressedButton_(token) {
-  if (!token) return '';
-  // Prefer the live deployment URL so the link never needs a code edit on redeploy;
-  // fall back to CONFIG.webAppUrl only if getUrl() is unavailable.
-  const base = ScriptApp.getService().getUrl() || CONFIG.webAppUrl;
-  if (!base) return '';
-  const url = base + '?id=' + encodeURIComponent(token);
+  // Must be the published /exec URL from CONFIG.webAppUrl.
+  // Do NOT use ScriptApp.getService().getUrl() here: from a trigger it returns the
+  // editor-only /dev URL, which recipients cannot open ("unable to open the file").
+  if (!CONFIG.webAppUrl || !token) return '';
+  const url = CONFIG.webAppUrl + '?id=' + encodeURIComponent(token);
   return '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:20px 0 4px"><tr>'
     + '<td style="background:#8f1515;border-radius:6px"><a href="' + url + '" style="display:inline-block;padding:12px 24px;color:#fff;font:bold 14px Arial,sans-serif;text-decoration:none;border-radius:6px">Mark this issue as addressed</a></td>'
     + '</tr></table>';
