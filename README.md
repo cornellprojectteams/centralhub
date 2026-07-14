@@ -6,10 +6,13 @@ Static web hub for Cornell Project Teams Safety & Operations. Links staff and ad
 
 | File | Purpose |
 |------|---------|
-| `index.html` | Main hub: staff tasks, admin tools, search, navigation |
-| `styles.css` | Layout, Cornell-themed staff (red) and admin (burgundy) styling |
-| `app.js` | View switching (`#staff` / `#admin`) and live search filtering |
-| `admin.html` | Redirects to `index.html#admin` for bookmark compatibility |
+| `index.html` | Staff page: everyday tasks + the Operations Team open-tasks panel |
+| `admin.html` | Admin page: back-office tools. Reached by shared link, not in the staff nav |
+| `command-center.html` | Ops metrics dashboard. Reached by shared link |
+| `team.html` | Shareable per-team open-issues page (`team.html?team=<name>`) |
+| `styles.css` | Layout and Cornell theming |
+| `app.js` | Live search, open-issues dashboard panel, admin sidebar (shared by the pages) |
+| `config.js` | Single source for the Space Status web app `/exec` URL |
 | `assets/` | Cornell seal and favicon SVGs |
 
 ## Running locally
