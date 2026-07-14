@@ -530,6 +530,7 @@ body.is-searching .hub-zone:not(.hidden) ~ .hub-zone:not(.hidden) {
 .action-note a { color: var(--red); font-weight: 600; text-decoration: none; border-bottom: 1.5px solid var(--gold); }
 .action-note a:hover { color: var(--red-dark); }
 
+
 /* Open issues dashboard — slide-over panel */
 
 .issues-panel {
@@ -1057,9 +1058,17 @@ body.issues-panel-open { overflow: hidden; }
   appearance: none;
 }
 
-/* Featured dashboard opener — Space admin hero CTA */
+/* Featured dashboard opener — hero CTA (Space admin, and Staff Ops tasks) */
 
-#space-admin .action-dashboard {
+/* Staff has no category color vars, so supply the red palette for its hero. */
+#staff .action-dashboard {
+  --cat: var(--red-bright);
+  --cat-deep: var(--red-dark);
+  --glow: rgba(179, 27, 27, 0.32);
+}
+
+#space-admin .action-dashboard,
+#staff .action-dashboard {
   padding: 1.35rem 3.75rem 1.4rem 1.35rem;
   border-radius: var(--radius-lg);
   background:
@@ -1070,7 +1079,8 @@ body.issues-panel-open { overflow: hidden; }
   overflow: hidden;
 }
 
-#space-admin .action-dashboard::before {
+#space-admin .action-dashboard::before,
+#staff .action-dashboard::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -1078,18 +1088,21 @@ body.issues-panel-open { overflow: hidden; }
   pointer-events: none;
 }
 
-#space-admin .action-dashboard .action-title {
+#space-admin .action-dashboard .action-title,
+#staff .action-dashboard .action-title {
   font-size: 1.25rem;
   letter-spacing: -0.035em;
 }
 
-#space-admin .action-dashboard .action-sub {
+#space-admin .action-dashboard .action-sub,
+#staff .action-dashboard .action-sub {
   font-size: .875rem;
   margin-top: .15rem;
   max-width: 28rem;
 }
 
-#space-admin .action-dashboard::after {
+#space-admin .action-dashboard::after,
+#staff .action-dashboard::after {
   content: '';
   width: 2.5rem;
   height: 2.5rem;
@@ -1099,7 +1112,8 @@ body.issues-panel-open { overflow: hidden; }
   transform: translateY(-50%);
 }
 
-#space-admin .action-dashboard:hover::after {
+#space-admin .action-dashboard:hover::after,
+#staff .action-dashboard:hover::after {
   background-color: rgba(255, 255, 255, 0.32);
   transform: translateY(-50%) translateX(3px);
 }

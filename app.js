@@ -1,17 +1,14 @@
 /**
- * Project Teams Ops Hub client script
+ * Project Teams Ops Hub client script (shared by index.html and admin.html)
  *
- * Two responsibilities:
- *   1. View switching between #staff and #admin via header nav buttons
- *   2. Live search filtering across tool links and section keywords
+ * Live search, the Command Center badge, the open-issues dashboard panel, and
+ * the admin sidebar scroll-spy. Every feature is guarded by element presence,
+ * so the same file runs on the staff page and the admin page unchanged.
  *
- * Markup conventions (see index.html):
- *   - .hub-zone          Top-level staff or admin panel
+ * Markup conventions:
+ *   - .hub-zone          The page's single panel (staff on index, admin on admin.html)
  *   - .category          Searchable block (task-block or admin-block)
- *   - .action            External tool link; may carry data-keywords
- *   - data-keywords       Extra terms matched by search (lowercase substring)
- *
- * URL hashes: #staff (default) and #admin (also used by admin.html redirect)
+ *   - .action            Tool link or button; may carry data-keywords
  */
 
 (function () {
@@ -66,7 +63,6 @@
   const categories = document.querySelectorAll('.category');
   const zones = document.querySelectorAll('.hub-zone');
   const noResults = document.getElementById('no-results');
-  const navButtons = document.querySelectorAll('.hub-nav-btn');
 
   const adminNav = document.getElementById('admin-nav');
 
@@ -86,12 +82,12 @@
   let issuesLoadTimer = null;
   let issuesLoadStepTimer = null;
 
-  const issuesUrl = SPACE_STATUS_URL
-    ? SPACE_STATUS_URL + (SPACE_STATUS_URL.indexOf('?') >= 0 ? '&' : '?') + 'view=all&embed=1'
-    : '';
-  const issuesFullUrl = SPACE_STATUS_URL
-    ? SPACE_STATUS_URL + (SPACE_STATUS_URL.indexOf('?') >= 0 ? '&' : '?') + 'view=all'
-    : '';
+  // Which view the panel embeds: admin = all teams, staff = one team (set via
+  // data-embed-query on #issues-panel). Defaults to the all-teams dashboard.
+  const embedQuery = (issuesPanel && issuesPanel.dataset.embedQuery) || 'view=all';
+  const sep = SPACE_STATUS_URL.indexOf('?') >= 0 ? '&' : '?';
+  const issuesUrl = SPACE_STATUS_URL ? SPACE_STATUS_URL + sep + embedQuery + '&embed=1' : '';
+  const issuesFullUrl = SPACE_STATUS_URL ? SPACE_STATUS_URL + sep + embedQuery : '';
 
   if (issuesFallbackLink && issuesFullUrl) issuesFallbackLink.href = issuesFullUrl;
   if (issuesPanelExt && issuesFullUrl) issuesPanelExt.href = issuesFullUrl;
@@ -190,54 +186,8 @@
     }
   });
 
-  /** @type {'staff' | 'admin'} */
-  let currentView = 'staff';
-
-  /**
-   * Show one hub zone and sync nav + URL hash.
-   * @param {'staff' | 'admin'} view
-   */
-  function setView(view) {
-    if (view !== 'staff' && view !== 'admin') return;
-    currentView = view;
-
-    navButtons.forEach(btn => {
-      btn.classList.toggle('is-active', btn.dataset.view === view);
-    });
-
-    zones.forEach(zone => {
-      zone.classList.toggle('is-active', zone.id === view);
-    });
-
-    if (location.hash !== `#${view}`) {
-      history.replaceState(null, '', `#${view}`);
-    }
-
-    document.body.dataset.view = view;
-
-    if (search && !search.value.trim()) {
-      document.body.classList.remove('is-searching');
-    }
-  }
-
-  navButtons.forEach(btn => {
-    // Only Staff/Admin buttons switch views (Command lives inside Admin).
-    if (!btn.dataset.view) return;
-    btn.addEventListener('click', () => setView(btn.dataset.view));
-  });
-
-  window.addEventListener('hashchange', () => {
-    const hash = location.hash.slice(1);
-    if (hash === 'staff' || hash === 'admin') setView(hash);
-  });
-
-  const initialHash = location.hash.slice(1);
-  if (initialHash === 'issues') {
-    setView('admin');
-    openIssuesPanel();
-  } else {
-    setView(initialHash === 'admin' ? 'admin' : 'staff');
-  }
+  // Open the issues dashboard straight away via a shared admin.html#issues link.
+  if (location.hash.slice(1) === 'issues') openIssuesPanel();
 
   // Scroll-spy: highlight the sidebar link for the section currently in view.
   if (adminNav && 'IntersectionObserver' in window) {
@@ -429,7 +379,7 @@
     zones.forEach(zone => {
       if (!tokens.length) {
         zone.classList.remove('hidden');
-        zone.classList.toggle('is-active', zone.id === currentView);
+        zone.classList.add('is-active');
         return;
       }
       const hasVisible = zone.querySelector('.category:not(.hidden), .action:not(.hidden)');

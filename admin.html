@@ -1,17 +1,266 @@
 <!DOCTYPE html>
 <html lang="en">
 <!--
-  Legacy entry point: forwards to the admin view on the main hub.
-  Keeps old bookmarks to admin.html working.
+  Admin: back-office tools for SPT staff. Reached only by a shared link,
+  it is not surfaced in the staff-facing navigation on index.html.
+  Shares styles.css and app.js with the rest of the hub.
 -->
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="refresh" content="0; url=index.html#admin">
-  <script>location.replace('index.html#admin');</script>
-  <title>Redirecting… | Project Teams Ops Hub</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin | Project Teams Ops Hub</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <p><a href="index.html#admin">Continue to Project Teams Ops Hub</a></p>
+
+<div class="app-shell">
+  <header class="app-header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">
+        <img src="assets/cornell-seal.svg" alt="Cornell University" class="logo-seal">
+        <div class="logo-text-block">
+          <div class="logo-text">Project Teams Ops Hub</div>
+          <div class="logo-sub">Admin</div>
+        </div>
+      </a>
+      <div class="header-tools">
+        <a class="cmd-link" href="command-center.html">
+          <span class="cmd-dot" aria-hidden="true"></span>
+          <span class="cmd-text">Command<span class="cmd-text-full"> Center</span></span>
+          <span class="cmd-badge" id="cmd-badge" hidden></span>
+          <span class="cmd-go" aria-hidden="true">&rarr;</span>
+        </a>
+        <div class="header-search" role="search">
+          <div class="search-box">
+            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input type="search" class="search-input" id="search" placeholder="Search admin tools…" autocomplete="off" aria-label="Search admin tools">
+            <button type="button" class="search-clear" id="search-clear" aria-label="Clear search" hidden>&#10005;</button>
+            <kbd class="search-kbd" id="search-kbd">/</kbd>
+          </div>
+          <div class="search-meta" id="search-meta" hidden>
+            <span class="search-count" id="search-count"></span>
+            <span class="search-hint"><kbd>&uarr;</kbd><kbd>&darr;</kbd> navigate &middot; <kbd>&crarr;</kbd> open &middot; <kbd>esc</kbd> clear</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="page-main">
+    <h1 class="sr-only">Admin tools</h1>
+
+    <section class="hub-zone is-active" id="admin">
+      <div class="admin-layout" id="admin-layout">
+        <aside class="admin-side">
+          <span class="admin-side-label">Admin</span>
+          <nav class="admin-nav" id="admin-nav" aria-label="Admin sections">
+            <a href="#space-admin" style="--chip:#c0392b"><span class="dot"></span>Space</a>
+            <a href="#ell-admin" style="--chip:#e08a1e"><span class="dot"></span>Experiential Learning Lab</a>
+            <a href="#access" style="--chip:#2563c9"><span class="dot"></span>Fabman</a>
+            <a href="#compliance" style="--chip:#1f9d5b"><span class="dot"></span>Compliance</a>
+            <a href="#fleet" style="--chip:#7c3aed"><span class="dot"></span>Fleet</a>
+            <a href="#inventory" style="--chip:#0d9488"><span class="dot"></span>Inventory</a>
+            <a href="#website" style="--chip:#444d56"><span class="dot"></span>Site &amp; code</a>
+          </nav>
+        </aside>
+
+      <div class="admin-list">
+        <section class="category admin-block" id="space-admin" data-keywords="space status tracking pending actions emailer edit form automation open issues dashboard photos">
+          <h3 class="admin-label">Space</h3>
+          <div class="action-group">
+            <button type="button" class="action action-dashboard" id="issues-open" data-keywords="open issues dashboard all teams filter mark complete photos">
+              <span class="action-badge">Live</span>
+              <span class="action-title">Open issues dashboard</span>
+              <span class="action-sub">Filter across all teams · view photos · mark complete</span>
+            </button>
+            <a class="action" href="team.html" data-keywords="share link team open issues operations team per-team shareable url copy">
+              <span class="action-title">Share a team&rsquo;s issue link</span>
+              <span class="action-sub">Get a clean link to one team&rsquo;s open issues, like Operations Team</span>
+            </a>
+            <a class="action" href="https://docs.google.com/spreadsheets/d/1mZrlnA-GiVKB4_Um21aMH9jsSkf6TUJhauDWivnf7-I/edit" target="_blank" rel="noopener" data-keywords="space status tracking spreadsheet sheet raw data responses pending actions team contacts">
+              <span class="action-title">Open the tracking spreadsheet</span>
+              <span class="action-sub">Space Status Tracking: raw responses and pending actions</span>
+            </a>
+            <a class="action" href="https://script.google.com/d/1DpKw0dXIQ5rH6_BQfIQnXpmTbTcPmfH3wq2Dzc6pJUA7lrmeFG7hh5P4/edit" target="_blank" rel="noopener" data-keywords="space status emailer script automation notification">
+              <span class="action-title">Space Status Emailer script</span>
+              <span class="action-sub">Apps Script for team notification emails</span>
+            </a>
+          </div>
+          <p class="action-note" data-keywords="documentation docs guide how it works system code reference deploy troubleshooting">
+            New here? <a href="docs.html">Read the system guide</a>
+          </p>
+        </section>
+
+        <section class="category admin-block" id="ell-admin" data-keywords="experiential learning lab ell shift responses data summary staffing">
+          <h3 class="admin-label">Experiential Learning Lab</h3>
+          <div class="action-group">
+            <a class="action" href="https://docs.google.com/spreadsheets/d/1yazhxA8nwYWDRSdQEN6Cc3UKKnPn6PWF_b3zAe0KoQk/edit" target="_blank" rel="noopener" data-keywords="ell shift responses data summary pivot">
+              <span class="action-title">View shift responses</span>
+              <span class="action-sub">Raw shift logs and summary views</span>
+            </a>
+          </div>
+        </section>
+
+        <section class="category admin-block" id="access" data-keywords="fabman admin dashboard sign-up api members training qualtrics">
+          <h3 class="admin-label">Fabman</h3>
+          <div class="action-group">
+            <a class="action" href="https://docs.google.com/spreadsheets/d/1lDAA4z1YexkjaABSPuXJyEXfSxN2QAsKWVk88TQCRLI/edit" target="_blank" rel="noopener" data-keywords="fabman admin dashboard members">
+              <span class="action-title">Manage Fabman members</span>
+              <span class="action-sub">Dashboard, sign-ups, and Qualtrics imports</span>
+            </a>
+            <a class="action" href="https://docs.google.com/document/d/1O-O-mpEGGtcD6QiLqjxw1y1rFtI7WzayoOroxpoxwfQ/edit" target="_blank" rel="noopener" data-keywords="fabman canvas training integration qualtrics apron">
+              <span class="action-title">Fabman-Canvas training integration</span>
+              <span class="action-sub">Training hierarchy and apron tier mapping</span>
+            </a>
+            <a class="action" href="https://docs.google.com/document/d/1nxQQiA-6W2hyB2ZZV71l9vbOelXYbMc70efr7XWPi8o/edit" target="_blank" rel="noopener" data-keywords="fabman su25 report dashboard training">
+              <span class="action-title">Fabman operations report</span>
+              <span class="action-sub">Procedures, courses, and supervisor scheduling</span>
+            </a>
+            <a class="action" href="https://docs.google.com/document/d/1wCMPnGjn5A07y06uOzXZRI2h7YL7LBqrwXQ8iKpD3Vw/edit" target="_blank" rel="noopener" data-keywords="fabman api guide scripts">
+              <span class="action-title">Fabman API guide</span>
+              <span class="action-sub">Apps Script reference for API calls</span>
+            </a>
+          </div>
+        </section>
+
+        <section class="category admin-block" id="compliance" data-keywords="master sheet building access workday learning qualtrics canvas waivers workspaces renewal">
+          <h3 class="admin-label">Compliance</h3>
+          <div class="action-group">
+            <a class="action" href="https://docs.google.com/spreadsheets/d/1k97Ey5aNcm58zaviaXxKvJtTgL1yeSI_fvUkXZFEyM4/edit" target="_blank" rel="noopener" data-keywords="master sheet building access workday qualtrics canvas ell hvl waivers">
+              <span class="action-title">Building access &amp; training records</span>
+              <span class="action-sub">Qualtrics waivers and Workday EHS by location</span>
+            </a>
+            <a class="action" href="https://docs.google.com/spreadsheets/d/1cKd-5815CafamF2AQpwTIqATjdkD4HgM404vQvwTvuM/edit" target="_blank" rel="noopener" data-keywords="workspaces team spaces master list renewal survey upson tang ell">
+              <span class="action-title">Project Teams workspaces</span>
+              <span class="action-sub">Space registry, renewals, and compliance docs</span>
+            </a>
+            <a class="action" href="https://docs.google.com/spreadsheets/d/1UrI5mBI4rqY9NeElobhzdd1lWsAlBDeYa1LZPVWHNnE/edit" target="_blank" rel="noopener" data-keywords="summer contact list seasonal team contacts">
+              <span class="action-title">Summer contact list 2026</span>
+              <span class="action-sub">Seasonal team contact roster</span>
+            </a>
+          </div>
+        </section>
+
+        <section class="category admin-block" id="fleet" data-keywords="student drivers tacoma vehicle reservation approval fleet mbn-4258">
+          <h3 class="admin-label">Fleet</h3>
+          <div class="action-group">
+            <a class="action" href="https://docs.google.com/spreadsheets/d/1KwJLTkdhrQ0jD7-75p6IuhYvh3Fq0B13KAXf2Pcvk_M/edit" target="_blank" rel="noopener" data-keywords="student drivers tacoma approval reservation log">
+              <span class="action-title">Student drivers &amp; reservations</span>
+              <span class="action-sub">Driver approvals and Tacoma (MBN-4258) log</span>
+            </a>
+          </div>
+        </section>
+
+        <section class="category admin-block" id="inventory" data-keywords="tool inventory purchasing locks mill room equipment facility">
+          <h3 class="admin-label">Inventory</h3>
+          <div class="action-group">
+            <a class="action" href="https://docs.google.com/spreadsheets/d/1QZf3LbKOsuwsxeno3f5aDTACObMRXaRY1yX6_5Aj_lU/edit" target="_blank" rel="noopener" data-keywords="tool inventory purchasing locks mill room">
+              <span class="action-title">Tools, purchasing &amp; locks</span>
+              <span class="action-sub">Team tools, mill room, and lock assignments</span>
+            </a>
+          </div>
+        </section>
+
+        <section class="category admin-block" id="website" data-keywords="website site code github codespaces copilot repo source hub maintain edit">
+          <h3 class="admin-label">Site &amp; code</h3>
+          <div class="action-group">
+            <a class="action" href="https://github.com/cornellprojectteams/centralhub" target="_blank" rel="noopener" data-keywords="github repository repo source code centralhub">
+              <span class="action-title">Open the GitHub repo</span>
+              <span class="action-sub">Source code and history for this hub</span>
+            </a>
+          </div>
+          <p class="action-note" data-keywords="edit website guide codespaces copilot github commit push publish browser documentation">
+            Editing the site? <a href="dev-guide.html">Read the editing guide</a>
+          </p>
+        </section>
+      </div>
+      </div>
+    </section>
+
+    <p class="no-results" id="no-results">No tools match your search.</p>
+  </main>
+
+  <div class="issues-panel" id="issues-panel" hidden data-embed-query="view=all">
+    <div class="issues-panel-backdrop" id="issues-panel-backdrop" aria-hidden="true"></div>
+    <div class="issues-panel-dialog" role="dialog" aria-modal="true" aria-labelledby="issues-panel-title">
+      <div class="issues-panel-accent" aria-hidden="true"></div>
+      <header class="issues-panel-head">
+        <div class="issues-panel-brand">
+          <img src="assets/cornell-seal.svg" alt="" class="issues-panel-seal" aria-hidden="true">
+          <div>
+            <p class="issues-panel-eyebrow">Space Status</p>
+            <h2 class="issues-panel-title" id="issues-panel-title">Open issues</h2>
+            <p class="issues-panel-sub">Live from the tracking sheet · photos when shared</p>
+          </div>
+        </div>
+        <div class="issues-panel-actions">
+          <a class="issues-panel-btn issues-panel-btn--secondary" id="issues-panel-ext" href="#" target="_blank" rel="noopener">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+            Open full page
+          </a>
+          <button type="button" class="issues-panel-btn issues-panel-btn--close" id="issues-panel-close" aria-label="Close dashboard">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
+        </div>
+      </header>
+      <div class="issues-embed-body is-loading" id="issues-embed-body">
+        <div class="issues-loading" id="issues-loading" role="status" aria-live="polite">
+          <div class="issues-loading-mark" aria-hidden="true"></div>
+          <p class="issues-loading-text" id="issues-loading-text">Connecting to Space Status…</p>
+          <p class="issues-loading-hint" id="issues-loading-hint">Fetching open issues and photos from Google Sheets</p>
+          <div class="issues-loading-cards" aria-hidden="true">
+            <div class="issues-skeleton-card"></div>
+            <div class="issues-skeleton-card"></div>
+            <div class="issues-skeleton-card issues-skeleton-card--short"></div>
+          </div>
+        </div>
+        <iframe id="issues-frame" class="issues-frame" title="Open space issues"></iframe>
+      </div>
+      <p class="issues-fallback" id="issues-fallback" hidden>
+        The dashboard could not load here.
+        <a class="issues-panel-btn issues-panel-btn--primary issues-panel-btn--inline" id="issues-fallback-link" href="#" target="_blank" rel="noopener">Open in a new tab</a>
+      </p>
+    </div>
+  </div>
+
+  <footer class="app-footer">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <img src="assets/cornell-seal.svg" alt="" class="footer-seal" aria-hidden="true">
+        <div>
+          <div class="footer-title">Project Teams Ops Hub</div>
+          <p class="footer-tagline">Back-office tools for Student Project Team safety and operations.</p>
+        </div>
+      </div>
+
+      <nav class="footer-nav" aria-label="Footer">
+        <div class="footer-col">
+          <h4>Admin sections</h4>
+          <a href="#space-admin">Space</a>
+          <a href="#compliance">Compliance</a>
+          <a href="command-center.html">&#8627; Command Center</a>
+        </div>
+        <div class="footer-col">
+          <h4>Elsewhere</h4>
+          <a href="index.html">Staff hub</a>
+          <a href="docs.html">System guide</a>
+          <a href="dev-guide.html">Editing guide</a>
+        </div>
+      </nav>
+    </div>
+
+    <div class="footer-bottom">
+      <span>&copy; 2026 Cornell University &middot; Student Project Team Program</span>
+      <span class="footer-press">Press <kbd>/</kbd> to search</span>
+    </div>
+  </footer>
+</div>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
 </body>
 </html>

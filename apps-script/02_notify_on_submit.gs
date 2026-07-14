@@ -292,7 +292,7 @@ function doGet(e) {
   const p = (e && e.parameter) ? e.parameter : {};
   if (p.team) { const t = lookupTeamByToken_(p.team); return t ? teamPortal_(t, false) : htmlPage_('Invalid link', 'This team link is not recognized.'); }
   if (p.view === 'all') return allIssuesPage_(p.embed === '1' || p.embed === 'true');
-  if (p.view) return teamPortal_(String(p.view), true);   // read-only, reached from the Ops Hub team picker
+  if (p.view) return teamPortal_(String(p.view), !(p.act === '1' || p.act === 'true'), p.embed === '1' || p.embed === 'true');   // ?view=<team> read-only; &act=1 markable; &embed=1 no top bar
   if (p.id) return confirmPage_(p.id);
   return pickerPage_();
 }
@@ -400,7 +400,7 @@ function confirmPage_(id) {
   return swissShell_(inner, 'Space Status');
 }
 
-function teamPortal_(team, readOnly) {
+function teamPortal_(team, readOnly, embedded) {
   if (!team) return htmlPage_('Invalid link', 'This team link is not recognized.');
   const data = listTeamIssues_(team);
   const issues = data.open;
@@ -428,7 +428,7 @@ function teamPortal_(team, readOnly) {
 
   if (!issues.length) {
     inner += '<div style="font-size:16px;line-height:1.7;color:#555;margin-top:30px">No open issues. Everything is in good shape.</div>';
-    return swissShell_(inner, 'Space Status - ' + team);
+    return swissShell_(inner, 'Space Status - ' + team, false, embedded);
   }
 
   let idx = 0;
@@ -496,7 +496,7 @@ function teamPortal_(team, readOnly) {
     +   'var fg=document.getElementById("ring-fg");if(fg)fg.setAttribute("stroke-dasharray",pct+" "+(100-pct));'
     + '}).withFailureHandler(function(){var a=document.getElementById(r+"-act");a.innerHTML="Please retry.";}).confirmAddressed(t);}'
     + '</script>';
-  return swissShell_(inner, 'Space Status - ' + team);
+  return swissShell_(inner, 'Space Status - ' + team, false, embedded);
 }
 
 function pickerPage_() {
