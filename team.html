@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+  Team open issues: a clean, shareable per-team view.
+  URL:  team.html?team=Operations%20Team
+  Embeds the read-only team portal from the Space Status web app, so the address
+  bar stays on this site instead of the script.google.com URL.
+  Header/footer + tokens come from styles.css; web app URL from config.js.
+-->
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Team open issues | Project Teams Ops Hub</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="config.js"></script>
+  <style>
+    .team-main { flex: 1; width: 100%; max-width: var(--page-max); margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+    .team-eyebrow { font-family: var(--font); font-size: .6875rem; font-weight: 800; text-transform: uppercase; letter-spacing: .14em; color: var(--red); }
+    .team-title { font-family: var(--font-display); font-size: 2rem; font-weight: 800; letter-spacing: -0.04em; line-height: 1.05; margin: .5rem 0 0; color: var(--text); }
+    .team-rule { width: 46px; height: 3px; background: linear-gradient(90deg, var(--red-dark), var(--red), var(--gold)); border-radius: 99px; margin: .85rem 0 1.25rem; }
+
+    .share-row { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-bottom: 1.25rem; }
+    .share-input {
+      flex: 1; min-width: 14rem; font: inherit; font-size: .8125rem; color: var(--sub);
+      padding: .6rem .75rem; border: 1.5px solid var(--line); border-radius: 9px; background: #fff;
+    }
+    .share-copy {
+      font-family: var(--font-display); font-size: .8125rem; font-weight: 700; color: #fff;
+      background: linear-gradient(180deg, var(--red-bright), var(--red) 55%, var(--red-dark));
+      border: none; border-radius: 9px; padding: .6rem 1.1rem; cursor: pointer; white-space: nowrap;
+      box-shadow: 0 3px 10px rgba(179,27,27,.28);
+    }
+    .share-copy:hover { filter: brightness(1.05); }
+
+    .team-frame { display: block; width: 100%; height: 76vh; min-height: 520px; border: 1.5px solid var(--line); border-radius: var(--radius-lg); background: #fafafa; box-shadow: var(--shadow-sm); }
+
+    .team-picker { display: flex; flex-wrap: wrap; gap: .625rem; max-width: 34rem; margin-top: 1rem; }
+    .team-select { flex: 1; min-width: 14rem; font: inherit; font-size: .9375rem; padding: .75rem .9rem; border: 1.5px solid var(--line); border-radius: 10px; background: #fff; color: var(--text); cursor: pointer; }
+    .team-go { font-family: var(--font-display); font-size: .9375rem; font-weight: 700; color: #fff; background: linear-gradient(180deg, var(--red-bright), var(--red) 55%, var(--red-dark)); border: none; border-radius: 10px; padding: 0 1.4rem; cursor: pointer; box-shadow: 0 4px 14px rgba(179,27,27,.28); }
+    .team-lede { font-size: .9375rem; color: var(--sub); max-width: 34rem; margin-top: .5rem; }
+    .team-note { font-size: .8125rem; color: var(--sub); margin-top: .5rem; }
+    .team-note a { color: var(--red); font-weight: 600; text-decoration: none; border-bottom: 1.5px solid var(--gold); }
+  </style>
+</head>
+<body>
+
+<div class="app-shell">
+  <header class="app-header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">
+        <img src="assets/cornell-seal.svg" alt="Cornell University" class="logo-seal">
+        <div class="logo-text-block">
+          <div class="logo-text">Project Teams Ops Hub</div>
+          <div class="logo-sub">Safety &amp; Operations</div>
+        </div>
+      </a>
+    </div>
+  </header>
+
+  <main class="team-main" id="team-main"></main>
+
+  <footer class="app-footer">
+    <div class="footer-bottom">
+      <span>&copy; 2026 Cornell University &middot; Student Project Team Program</span>
+      <a class="footer-back" href="index.html" style="color:rgba(255,255,255,.82);text-decoration:none">Back to the hub &rarr;</a>
+    </div>
+  </footer>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var TEAMS = ['AguaClara','AppDev','AutoBoat','Autonomous Drone','Autonomous Sailboat','Autonomous Underwater Vehicle','Baja','Biomedical Device','ChemE Car','Combat Robotics','Concrete Canoe','Cornell Assistive Technologies','Custom Silicon Systems','Data Science','DEBUT','Design Build Fly','Digital Technology and Innovation','Electric Vehicles','Engineering World Health','Engineers for a Sustainable World','Engineers in Action','Engineers Without Borders','Extended Reality','FSAE Racing','GeoData','Hack4Impact','Hyperloop','iGEM','Mars Rover','Nexus','Operations Team','Rocketry','Seismic Design','SensTech','Solar Boat','Steel Bridge','Unmanned Air System'];
+
+  var base = window.SPACE_STATUS_URL || '';
+  var main = document.getElementById('team-main');
+  var team = new URLSearchParams(location.search).get('team');
+
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+  if (team) { renderTeam(team.trim()); } else { renderPicker(); }
+
+  function renderTeam(name) {
+    document.title = name + ' open issues | Project Teams Ops Hub';
+    var src = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'view=' + encodeURIComponent(name);
+    main.innerHTML =
+      '<div class="team-eyebrow">Space Status</div>' +
+      '<h1 class="team-title">' + esc(name) + ' open issues</h1>' +
+      '<div class="team-rule"></div>' +
+      '<div class="share-row">' +
+        '<input class="share-input" id="share-input" readonly value="' + esc(location.href) + '">' +
+        '<button class="share-copy" id="share-copy" type="button">Copy link</button>' +
+      '</div>' +
+      (base
+        ? '<iframe class="team-frame" title="' + esc(name) + ' open issues" src="' + esc(src) + '"></iframe>'
+        : '<p class="team-lede">The web app URL is not set. Add it in config.js.</p>');
+
+    var btn = document.getElementById('share-copy');
+    var input = document.getElementById('share-input');
+    if (btn) {
+      btn.addEventListener('click', function () {
+        var done = function () { btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy link'; }, 1600); };
+        if (navigator.clipboard) { navigator.clipboard.writeText(location.href).then(done, function () { input.select(); document.execCommand('copy'); done(); }); }
+        else { input.select(); document.execCommand('copy'); done(); }
+      });
+    }
+  }
+
+  function renderPicker() {
+    var opts = '<option value="" disabled selected>Choose a team&hellip;</option>';
+    TEAMS.forEach(function (t) { opts += '<option value="' + esc(t) + '">' + esc(t) + '</option>'; });
+    main.innerHTML =
+      '<div class="team-eyebrow">Space Status</div>' +
+      '<h1 class="team-title">Share a team&rsquo;s open issues</h1>' +
+      '<div class="team-rule"></div>' +
+      '<p class="team-lede">Pick a team to open its live issues page. Copy that page&rsquo;s link to share it.</p>' +
+      '<form class="team-picker" id="team-picker">' +
+        '<select class="team-select" id="team-select" required>' + opts + '</select>' +
+        '<button class="team-go" type="submit">Open</button>' +
+      '</form>';
+    document.getElementById('team-picker').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var v = document.getElementById('team-select').value;
+      if (v) location.href = 'team.html?team=' + encodeURIComponent(v);
+    });
+  }
+})();
+</script>
+
+</body>
+</html>
