@@ -292,6 +292,7 @@ function doGet(e) {
   const p = (e && e.parameter) ? e.parameter : {};
   if (p.team) { const t = lookupTeamByToken_(p.team); return t ? teamPortal_(t, false) : htmlPage_('Invalid link', 'This team link is not recognized.'); }
   if (p.view === 'all') return allIssuesPage_(p.embed === '1' || p.embed === 'true');
+  if (p.registry) return registryPage_(String(p.registry), p.embed === '1' || p.embed === 'true');   // read-only Equipment / Inventory tables
   if (p.view) return teamPortal_(String(p.view), !(p.act === '1' || p.act === 'true'), p.embed === '1' || p.embed === 'true');   // ?view=<team> read-only; &act=1 markable; &embed=1 no top bar
   if (p.id) return confirmPage_(p.id);
   return pickerPage_();
@@ -709,6 +710,112 @@ function allIssuesPage_(embedded) {
     +   '}).withFailureHandler(function(){a.innerHTML="<button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"doMark(\'"+r+"\',\'"+t+"\',"+od+")\\">Retry</button>";}).confirmAddressed(t);}'
     + '</script>';
   return swissShell_(inner, 'Open issues', true, embedded);
+}
+
+// Read-only registry table (Equipment or Inventory) for the hub. Phase 1 CMMS.
+function registryPage_(which, embedded) {
+  const inv = String(which).toLowerCase() === 'inventory';
+  const tab = inv ? 'Inventory' : 'Equipment';
+  const title = inv ? 'Inventory' : 'Equipment registry';
+  const data = readTab_(tab);
+  const H = data.headers, rows = data.rows;
+
+  let head = '';
+  if (!embedded) {
+    head = '<div class="page-head"><div class="page-kicker">Ops registry</div>'
+      + '<div class="page-title">' + escapeHtml_(title) + '</div><div class="page-rule"></div></div>';
+  }
+
+  if (!rows.length) {
+    return swissShell_(head + '<div class="empty">Nothing here yet. Add rows in the "' + escapeHtml_(tab) + '" tab.</div>', title, true, embedded);
+  }
+
+  const idx = function (name) {
+    for (let i = 0; i < H.length; i++) { if (norm_(H[i]) === norm_(name)) return i; }
+    return -1;
+  };
+  const cOnHand = idx('On hand'), cReorder = idx('Reorder point'), cTeam = idx('Owning team');
+
+  let controls = '';
+  if (!inv && cTeam >= 0) {
+    const seen = {}, opts = [];
+    rows.forEach(function (r) { const t = String(r[cTeam]).trim(); if (t && !seen[t.toLowerCase()]) { seen[t.toLowerCase()] = 1; opts.push(t); } });
+    opts.sort();
+    controls += '<select id="team" onchange="flt()"><option value="">All teams</option>'
+      + opts.map(function (t) { return '<option value="' + escapeHtml_(t) + '">' + escapeHtml_(t) + '</option>'; }).join('') + '</select>';
+  }
+  if (inv) {
+    controls += '<label class="toggle"><input id="low" type="checkbox" onchange="this.closest(\'.toggle\').classList.toggle(\'is-on\', this.checked); flt()"> Low stock only</label>';
+  }
+
+  let inner = head
+    + '<div class="filters">'
+    +   '<div class="search-wrap"><input id="q" type="search" placeholder="Search ' + escapeHtml_(tab.toLowerCase()) + '" oninput="flt()"></div>'
+    +   controls
+    + '</div>'
+    + '<div class="reg-scroll"><table class="reg-table"><thead><tr>';
+  if (inv) inner += '<th></th>';
+  H.forEach(function (h) { inner += '<th>' + escapeHtml_(h) + '</th>'; });
+  inner += '</tr></thead><tbody>';
+
+  rows.forEach(function (r) {
+    const low = inv && cOnHand >= 0 && cReorder >= 0 && isNum_(r[cOnHand]) && isNum_(r[cReorder]) && Number(r[cOnHand]) < Number(r[cReorder]);
+    const hay = r.map(function (c) { return String(c); }).join(' ').toLowerCase();
+    const team = (!inv && cTeam >= 0) ? String(r[cTeam]).trim() : '';
+    inner += '<tr class="reg-row" data-hay="' + escapeHtml_(hay) + '" data-team="' + escapeHtml_(team) + '" data-low="' + (low ? '1' : '0') + '">';
+    if (inv) inner += '<td>' + (low ? '<span class="reg-chip">Low</span>' : '') + '</td>';
+    r.forEach(function (c, i) {
+      const cls = (inv && i === cOnHand && low) ? ' class="reg-lowval"' : '';
+      inner += '<td' + cls + '>' + regCell_(c) + '</td>';
+    });
+    inner += '</tr>';
+  });
+  inner += '</tbody></table></div>'
+    + '<div id="empty" class="empty" style="display:none">Nothing matches those filters.</div>';
+
+  inner += '<style>'
+    + '.reg-scroll{overflow-x:auto;margin-top:4px}'
+    + '.reg-table{width:100%;border-collapse:collapse;font-size:13.5px;white-space:nowrap}'
+    + '.reg-table th{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#8a857c;text-align:left;padding:0 14px 9px 0;border-bottom:2px solid #1c1a17}'
+    + '.reg-table td{padding:11px 14px 11px 0;border-bottom:1px solid #ececea;color:#26231f;vertical-align:top}'
+    + '.reg-table tbody tr:hover td{background:#fcfcfb}'
+    + '.reg-table a{color:#b31b1b;font-weight:600;text-decoration:none;border-bottom:1px solid #f0c050}'
+    + '.reg-lowval{color:#b31b1b;font-weight:800}'
+    + '.reg-chip{display:inline-block;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#b31b1b;background:#fdecec;border:1px solid #f5d0d0;padding:3px 8px;border-radius:999px}'
+    + '</style>';
+
+  inner += '<script>'
+    + 'function flt(){var q=document.getElementById("q").value.toLowerCase().trim();'
+    +   'var tmEl=document.getElementById("team");var tm=tmEl?tmEl.value:"";'
+    +   'var lowEl=document.getElementById("low");var low=lowEl?lowEl.checked:false;var n=0;'
+    +   'document.querySelectorAll(".reg-row").forEach(function(r){var ok=(!q||r.dataset.hay.indexOf(q)>=0)&&(!tm||r.dataset.team===tm)&&(!low||r.dataset.low==="1");r.style.display=ok?"":"none";if(ok)n++;});'
+    +   'document.getElementById("empty").style.display=n?"none":"block";}'
+    + '</script>';
+
+  return swissShell_(inner, title, true, embedded);
+}
+
+function regCell_(v) {
+  if (v instanceof Date) return escapeHtml_(fmtShort_(v));
+  const s = String(v == null ? '' : v).trim();
+  if (/^https?:\/\//i.test(s)) return '<a href="' + escapeHtml_(s) + '" target="_blank" rel="noopener">link</a>';
+  return escapeHtml_(s);
+}
+
+function isNum_(v) { return v !== '' && v != null && !isNaN(Number(v)); }
+
+function readTab_(name) {
+  const sh = ss_().getSheetByName(name);
+  if (!sh) return { headers: [], rows: [] };
+  const v = sh.getDataRange().getValues();
+  if (!v.length) return { headers: [], rows: [] };
+  const headers = v[0].map(function (h) { return String(h).trim(); });
+  const rows = [];
+  for (let i = 1; i < v.length; i++) {
+    if (v[i].every(function (c) { return String(c).trim() === ''; })) continue;
+    rows.push(v[i]);
+  }
+  return { headers: headers, rows: rows };
 }
 
 // Drive file IDs from a "Photo Upload" cell (one or more comma-separated URLs).

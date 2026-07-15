@@ -59,6 +59,13 @@
 
   loadCommandBadge();
 
+  // Registry viewer links (Equipment / Inventory) point at the web app.
+  document.querySelectorAll('a[data-registry]').forEach(a => {
+    if (!SPACE_STATUS_URL) return;
+    const sep = SPACE_STATUS_URL.indexOf('?') >= 0 ? '&' : '?';
+    a.href = SPACE_STATUS_URL + sep + 'registry=' + encodeURIComponent(a.dataset.registry);
+  });
+
   const search = document.getElementById('search');
   const categories = document.querySelectorAll('.category');
   const zones = document.querySelectorAll('.hub-zone');
