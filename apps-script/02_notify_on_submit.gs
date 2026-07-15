@@ -734,7 +734,7 @@ function registryPage_(which, embedded) {
     for (let i = 0; i < H.length; i++) { if (norm_(H[i]) === norm_(name)) return i; }
     return -1;
   };
-  const cOnHand = idx('On hand'), cReorder = idx('Reorder point'), cTeam = idx('Owning team');
+  const cOnHand = idx('On hand'), cTeam = idx('Owning team');
 
   let controls = '';
   if (!inv && cTeam >= 0) {
@@ -743,9 +743,6 @@ function registryPage_(which, embedded) {
     opts.sort();
     controls += '<select id="team" onchange="flt()"><option value="">All teams</option>'
       + opts.map(function (t) { return '<option value="' + escapeHtml_(t) + '">' + escapeHtml_(t) + '</option>'; }).join('') + '</select>';
-  }
-  if (inv) {
-    controls += '<label class="toggle"><input id="low" type="checkbox" onchange="this.closest(\'.toggle\').classList.toggle(\'is-on\', this.checked); flt()"> Low stock only</label>';
   }
 
   let inner = head
@@ -759,13 +756,13 @@ function registryPage_(which, embedded) {
   inner += '</tr></thead><tbody>';
 
   rows.forEach(function (r) {
-    const low = inv && cOnHand >= 0 && cReorder >= 0 && isNum_(r[cOnHand]) && isNum_(r[cReorder]) && Number(r[cOnHand]) < Number(r[cReorder]);
+    const out = inv && cOnHand >= 0 && isNum_(r[cOnHand]) && Number(r[cOnHand]) === 0;
     const hay = r.map(function (c) { return String(c); }).join(' ').toLowerCase();
     const team = (!inv && cTeam >= 0) ? String(r[cTeam]).trim() : '';
-    inner += '<tr class="reg-row" data-hay="' + escapeHtml_(hay) + '" data-team="' + escapeHtml_(team) + '" data-low="' + (low ? '1' : '0') + '">';
-    if (inv) inner += '<td>' + (low ? '<span class="reg-chip">Low</span>' : '') + '</td>';
+    inner += '<tr class="reg-row" data-hay="' + escapeHtml_(hay) + '" data-team="' + escapeHtml_(team) + '">';
+    if (inv) inner += '<td>' + (out ? '<span class="reg-chip">Out</span>' : '') + '</td>';
     r.forEach(function (c, i) {
-      const cls = (inv && i === cOnHand && low) ? ' class="reg-lowval"' : '';
+      const cls = (inv && i === cOnHand && out) ? ' class="reg-lowval"' : '';
       inner += '<td' + cls + '>' + regCell_(c) + '</td>';
     });
     inner += '</tr>';
@@ -786,9 +783,8 @@ function registryPage_(which, embedded) {
 
   inner += '<script>'
     + 'function flt(){var q=document.getElementById("q").value.toLowerCase().trim();'
-    +   'var tmEl=document.getElementById("team");var tm=tmEl?tmEl.value:"";'
-    +   'var lowEl=document.getElementById("low");var low=lowEl?lowEl.checked:false;var n=0;'
-    +   'document.querySelectorAll(".reg-row").forEach(function(r){var ok=(!q||r.dataset.hay.indexOf(q)>=0)&&(!tm||r.dataset.team===tm)&&(!low||r.dataset.low==="1");r.style.display=ok?"":"none";if(ok)n++;});'
+    +   'var tmEl=document.getElementById("team");var tm=tmEl?tmEl.value:"";var n=0;'
+    +   'document.querySelectorAll(".reg-row").forEach(function(r){var ok=(!q||r.dataset.hay.indexOf(q)>=0)&&(!tm||r.dataset.team===tm);r.style.display=ok?"":"none";if(ok)n++;});'
     +   'document.getElementById("empty").style.display=n?"none":"block";}'
     + '</script>';
 

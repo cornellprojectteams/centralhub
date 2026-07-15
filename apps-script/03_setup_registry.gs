@@ -13,8 +13,8 @@ function setupRegistry() {
     ['EX-001', 'Example: spray booth (delete this row)', 'Finishing', 'Composites lab', 'Operations Team', 'In service', '2024', 'Filters checked monthly']);
 
   ensureRegistryTab_(ss, 'Inventory',
-    ['Item', 'Location', 'On hand', 'Reorder point', 'Unit', 'Supplier', 'Product link', 'eShop info', 'Last restocked'],
-    ['Example: spray booth filter (delete this row)', 'Composites lab', 0, 2, 'each', 'Uline', '', 'eShop item #', '2026-05']);
+    ['Item', 'Location', 'On hand', 'Unit', 'Supplier', 'Product link', 'eShop info', 'Last restocked'],
+    ['Example: spray booth filter (delete this row)', 'Composites lab', 0, 'each', 'Uline', '', 'eShop item #', '2026-05']);
 
   Logger.log('Registry ready. Fill in the Equipment and Inventory tabs, then delete the example rows.');
 }

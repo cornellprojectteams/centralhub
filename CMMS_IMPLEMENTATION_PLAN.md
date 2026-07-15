@@ -34,8 +34,11 @@ Added once, used by all phases. The engine already ignores unknown columns, so t
 
 **Inventory** (consumables / parts)
 
-| Item | Location | On hand | Reorder point | Unit | Supplier | Product link | eShop info | Last restocked |
-|------|----------|---------|---------------|------|----------|-------------|-----------|----------------|
+| Item | Location | On hand | Unit | Supplier | Product link | eShop info | Last restocked |
+|------|----------|---------|------|----------|-------------|-----------|----------------|
+
+`On hand` is a plain count. No reorder-point threshold to configure. A count of `0` is
+treated as out of stock; a person (or a check) decides when a low count needs a restock.
 
 **PM Schedule** (recurring tasks)
 
@@ -63,12 +66,12 @@ Steps
 1. Create the `Equipment` and `Inventory` tabs with the columns above.
 2. Migrate the current "Tools, purchasing & locks" sheet into them (equipment rows into
    Equipment, consumables into Inventory). Fill Location and Owning team for every asset.
-3. Set a Reorder point on the consumables that matter (first aid, filters, common spares).
+3. Enter the current on-hand count for each consumable (first aid, filters, common spares).
 4. Update the hub: point Admin > Inventory at these tabs. Optionally add a read-only web
    view (reuse the `?view=` web app pattern) to browse equipment by team or location.
 
-Done when: every piece of equipment has a location and an owner, and stocked consumables
-have a reorder point.
+Done when: every piece of equipment has a location and an owner, and the consumables that
+matter have a current count.
 
 Effort: mostly data cleanup. Little to no new code.
 
@@ -103,17 +106,14 @@ What it delivers: a restock need becomes a Purchase action item that carries the
 eShop details and is assigned to a person, completed when the order is placed.
 
 Steps
-1. Confirm the `Inventory` tab has Reorder point, Supplier, Product link, and eShop info
-   (from Phase 1).
-2. Restock from a check: in the on-submit handler, if a submitted survey/check flags a
-   restock, look up the item in `Inventory`; if `On hand < Reorder point`, call
+1. Confirm the `Inventory` tab has Supplier, Product link, and eShop info (from Phase 1).
+2. Restock from a check: in the on-submit handler, if a submitted survey/check flags that an
+   item needs replacing, look it up in `Inventory`. If `On hand` is 0 (no spare), call
    `createActionItem_` with Type=Purchase, the product and eShop info in Details, Assignee,
-   and Source=`INV:<item>`. This is the first-aid example.
-3. Low-stock scan: add `generateLowStock()` (daily, or on inventory edit) that scans
-   `Inventory` and raises a Purchase action item for anything below its reorder point that
-   has no open one.
-4. On the card and in the email, show the Assignee and the purchasing details. Completing
-   the item means the order was placed; optionally bump `Last restocked` and clear the flag.
+   and Source=`INV:<item>`. If a spare exists, no purchase is needed; optionally decrement the
+   count. This is the first-aid and spray-booth-filter example.
+3. On the card and in the email, show the Assignee and the purchasing details. Completing the
+   item means the order was placed; optionally bump `Last restocked`.
 
 Done when: a restock need routes to Operations with the product link and "create an eShop
 cart, assign to Noah" instructions, and Noah completes it after ordering.
