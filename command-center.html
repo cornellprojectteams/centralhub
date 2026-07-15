@@ -15,11 +15,11 @@
   --line:#e9e7e1; --line-2:#ded9d0;
   --ink-1:#1c1a17; --ink-2:#57534e; --ink-3:#8f8a80; --ink-4:#b4afa4;
   --red:#b31b1b; --red-dark:#8f1515; --gold:#f0c050;
-  /* status — RESERVED: only ever means state, always paired with a word */
+  /* status, RESERVED: only ever means state, always paired with a word */
   --crit:#c0392b; --crit-bg:#fdeceb; --crit-line:#f5d3cf;
   --warn:#a8720f; --warn-bg:#fbf3e1; --warn-line:#eeddb4;
   --good:#157a47; --good-bg:#e9f6ef; --good-line:#cde8da;
-  /* domain identity — icon tint + dot, always beside a text label */
+  /* domain identity, icon tint + dot, always beside a text label */
   --d-space:#c0392b; --d-ell:#c07a12; --d-fabman:#2563c9; --d-comp:#1f9d5b; --d-fleet:#7c3aed; --d-inv:#0d9488;
   --font:'Inter',system-ui,-apple-system,sans-serif;
   --eyebrow:'Plus Jakarta Sans',var(--font);
@@ -42,7 +42,7 @@ a{color:inherit}
 
 .wrap{max-width:1160px;margin:0 auto;padding:24px 24px 64px}
 
-/* ================= hero — data-bearing, state-aware ================= */
+/* ================= hero, data-bearing, state-aware ================= */
 .hero{
   position:relative;overflow:hidden;border-radius:var(--r-lg);padding:26px 30px 22px;
   background:linear-gradient(140deg,#8f1515 0%,#6d1111 52%,#3d0a0a 100%);
@@ -83,7 +83,7 @@ a{color:inherit}
 .sec-head .eyebrow{color:var(--ink-2)}
 .sec-rule{flex:1;height:1px;background:var(--line)}
 
-/* ================= lead card — the one thing that matters most ============ */
+/* ================= lead card, the one thing that matters most ============ */
 .lead{
   position:relative;display:block;text-decoration:none;overflow:hidden;
   background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--lead,var(--crit));
@@ -139,7 +139,7 @@ a{color:inherit}
 .clear h3{font-family:var(--eyebrow);font-size:17px;font-weight:800;letter-spacing:-.02em}
 .clear p{font-size:13.5px;color:var(--ink-3);margin-top:5px}
 
-/* ================= status grid — weight follows state ================= */
+/* ================= status grid, weight follows state ================= */
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 @media(max-width:860px){.grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:540px){.grid{grid-template-columns:1fr}}
@@ -158,17 +158,17 @@ a{color:inherit}
 .stat[data-state="good"] .stat-val{color:var(--ink-2)}
 .stat[data-state="action"] .state .d{animation:pulse 2.2s ease-in-out infinite}
 .stat-top{display:flex;align-items:center;gap:10px;margin-bottom:16px}
-/* monochrome by default — five tinted chips read as a sticker sheet.
+/* monochrome by default, five tinted chips read as a sticker sheet.
    The domain hue is hover punctuation, not permanent decoration. */
 .ic{display:flex;align-items:center;justify-content:center;flex:0 0 auto;color:var(--ink-4);
   transition:color .2s ease,transform .3s var(--spring)}
 .stat:hover .ic{color:var(--tile);transform:scale(1.06)}
 .ic svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
-/* the name must never wrap — it's a label, not a paragraph */
+/* the name must never wrap, it's a label, not a paragraph */
 .stat-name{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   font-family:var(--eyebrow);font-weight:800;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-2)}
 /* NB: modifiers are namespaced (is-action, not action). styles.css is linked on
-   this page and defines a global .action {width:100%} for tool cards — an
+   this page and defines a global .action {width:100%} for tool cards, an
    unprefixed modifier gets hijacked by it and blows the layout apart. */
 .state{flex:0 0 auto;margin-left:auto;display:inline-flex;align-items:center;gap:5px;font-family:var(--eyebrow);font-weight:800;font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}
 .state .d{width:6px;height:6px;border-radius:50%;flex:0 0 auto}
@@ -210,7 +210,7 @@ a{color:inherit}
 .spark-wrap{position:relative}
 .spark{width:100%;height:72px;display:block}
 .spark-x{display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:var(--ink-4)}
-/* hover layer — a chart without one is a picture */
+/* hover layer, a chart without one is a picture */
 .tip{position:fixed;z-index:60;pointer-events:none;opacity:0;transform:translate(-50%,-130%);
   background:#231f1c;color:#fff;font-size:12px;font-weight:500;padding:7px 10px;border-radius:8px;white-space:nowrap;
   box-shadow:0 6px 20px rgba(0,0,0,.24);transition:opacity .12s}
@@ -219,7 +219,7 @@ a{color:inherit}
 
 .foot{margin-top:24px;font-size:11.5px;color:var(--ink-4);text-align:center}
 
-/* skeleton — never a fake number */
+/* skeleton, never a fake number */
 .sk{position:relative;overflow:hidden;background:#eae8e2;border-radius:6px}
 .sk::after{content:'';position:absolute;inset:0;transform:translateX(-100%);
   background:linear-gradient(90deg,transparent,rgba(255,255,255,.65),transparent);animation:shimmer 1.4s ease-in-out infinite}
@@ -265,7 +265,7 @@ a{color:inherit}
       <div>
         <div class="eyebrow" id="hero-eyebrow">Operations</div>
         <div class="hero-num" aria-live="polite">
-          <span class="n tnum" id="hero-num">—</span>
+          <span class="n tnum" id="hero-num"></span>
           <span class="t" id="hero-title">checking your sheets…</span>
         </div>
       </div>
@@ -294,7 +294,7 @@ a{color:inherit}
     </div>
     <div class="panel">
       <div class="panel-h"><span class="eyebrow">New space issues</span><span class="sub">last 14 days</span></div>
-      <div class="trend-val"><span class="n tnum" id="trend-today">—</span><span class="l" id="trend-sum">&nbsp;</span></div>
+      <div class="trend-val"><span class="n tnum" id="trend-today"></span><span class="l" id="trend-sum">&nbsp;</span></div>
       <div class="spark-wrap"><svg class="spark" id="spark" viewBox="0 0 280 76" preserveAspectRatio="none" aria-hidden="true"></svg></div>
       <div class="spark-x" id="spark-x"></div>
     </div>
@@ -322,16 +322,16 @@ a{color:inherit}
   // Icons name the DOMAIN, never its status. (A warning triangle on "Space" said
   // "something is wrong" even when nothing was.)
   var ICONS = {
-    // team spaces — a building
+    // team spaces, a building
     space:      '<path d="M3 21h18"/><path d="M5 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16"/><path d="M15 21V10h2a2 2 0 0 1 2 2v9"/><path d="M9 7h2M9 11h2M9 15h2"/>',
-    // the ELL tile reports an activity level — so, an activity trace
+    // the ELL tile reports an activity level, so, an activity trace
     ell:        '<path d="M3 12h3.5l2.5-7 4.5 14 2.5-7H21"/>',
-    // Fabman is machine-shop access — a key
+    // Fabman is machine-shop access, a key
     fabman:     '<circle cx="7.5" cy="15.5" r="4"/><path d="M10.4 12.6 20 3"/><path d="M17.5 5.5l2.2 2.2"/><path d="M15.3 7.7l2.2 2.2"/>',
     compliance: '<path d="M12 3l7 3v6c0 4.4-3 7.4-7 9-4-1.6-7-4.6-7-9V6l7-3z"/><path d="M9 12l2 2 4-4"/>',
-    // the Tacoma — a pickup, not a box truck
+    // the Tacoma, a pickup, not a box truck
     fleet:      '<path d="M2 16V9h9v7"/><path d="M11 11h4.6l2.9 3v2H11"/><path d="M2 16h2M9 16h4M18.5 16H21v-2"/><circle cx="6.5" cy="17" r="2"/><circle cx="16" cy="17" r="2"/>',
-    // tools, purchasing, locks — a crate
+    // tools, purchasing, locks, a crate
     inventory:  '<path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/>'
   };
   var WORD = { action:'Action', watch:'Watch', good:'Good' };
@@ -345,7 +345,7 @@ a{color:inherit}
   function subBold(s){ return esc(s).replace(/(\d[\d,]*)/g,'<b>$1</b>'); }
 
   // Detail lists are deliberately non-identifying: teams, issue types, equipment,
-  // lock numbers — never names, NetIDs or emails. This endpoint is public.
+  // lock numbers, never names, NetIDs or emails. This endpoint is public.
   function itemList(items){
     if(!items || !items.length) return '';
     return '<ul class="items">' + items.map(function(x){
@@ -418,10 +418,10 @@ a{color:inherit}
 
     $('hero-eyebrow').textContent = 'Operations · ' + fmtDate(d.generatedAt);
     countUp($('hero-num'), total);
-    // The brand gradient never encodes status — the rail does.
+    // The brand gradient never encodes status, the rail does.
     if (total===0){
       $('hero').style.setProperty('--rail','#3fbb78');
-      $('hero-title').textContent = 'All clear — nothing needs you';
+      $('hero-title').textContent = "you're all caught up";
     } else if (urgent>0){
       $('hero').style.setProperty('--rail','#e8756a');
       $('hero-title').textContent = (total===1?'thing needs':'things need') + ' your attention';
@@ -446,7 +446,7 @@ a{color:inherit}
         '<h3>All systems healthy</h3><p>No overdue issues, no conflicts, nothing expiring.</p>';
     } else {
       feed.className='feed';
-      // the single most urgent item gets editorial weight — and shows its detail up front
+      // the single most urgent item gets editorial weight, and shows its detail up front
       var top=items[0];
       var a=document.createElement('a');
       a.className='lead rise'; a.setAttribute('data-sev',top.sev);
@@ -503,7 +503,7 @@ a{color:inherit}
   }
 
   // Part-to-whole of the SAME number the hero states. It used to split the six
-  // domains while the hero counted items — two different breakdowns stacked on
+  // domains while the hero counted items, two different breakdowns stacked on
   // top of each other, which read as one and reconciled with neither.
   function renderSevMeter(h){
     var urgent=h.urgent||0, soon=h.soon||0;
@@ -522,12 +522,12 @@ a{color:inherit}
   function errorState(msg){
     $('chip').className='chip is-err'; $('chip-txt').textContent='Offline';
     $('hero').style.setProperty('--rail','rgba(255,255,255,.3)');
-    $('hero-num').textContent='—';
-    $('hero-title').textContent="couldn't reach the stats API";
+    $('hero-num').textContent='';
+    $('hero-title').textContent="couldn't reach the live data";
     $('sysmeter').hidden=true;
     $('lead').innerHTML='';
     var feed=$('feed'); feed.className='clear'; feed.style.display='';
-    feed.innerHTML='<div class="mark" style="background:var(--warn-bg);color:var(--warn)">!</div><h3>No live data</h3><p>'+esc(msg||'')+' — nothing is shown rather than guessed.</p>';
+    feed.innerHTML='<div class="mark" style="background:var(--warn-bg);color:var(--warn)">!</div><h3>No live data</h3><p>'+(msg?esc(msg)+'. ':'')+'We show nothing rather than guess a number.</p>';
     $('grid').innerHTML=''; $('bars').innerHTML=''; $('spark').innerHTML=''; $('foot').textContent='';
   }
 
