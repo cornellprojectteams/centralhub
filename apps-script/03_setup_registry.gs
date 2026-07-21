@@ -1,12 +1,29 @@
 /**
- * Ops CMMS, Phase 1 setup: creates the Equipment and Inventory tabs in the
- * Space Status Tracking spreadsheet. Run setupRegistry() once from the editor.
+ * Ops CMMS, Phase 1 setup. Creates the Equipment and Inventory tabs in the
+ * INVENTORY spreadsheet (not the space-issues sheet). Set REGISTRY_SS_ID to your
+ * inventory spreadsheet id. Run setupRegistry() once from the editor.
  *
  * Safe to re-run: it only creates a tab if missing and only writes headers when
  * the tab is empty, so it never overwrites data you have entered.
+ *
+ * If your inventory sheet already has data, run listRegistrySheet() first and send
+ * the log so the data can be mapped in rather than re-entered.
  */
+var REGISTRY_SS_ID = '1QZf3LbKOsuwsxeno3f5aDTACObMRXaRY1yX6_5Aj_lU';
+
+// Diagnostic: print every tab and its header row so the existing layout is visible.
+function listRegistrySheet() {
+  var ss = SpreadsheetApp.openById(REGISTRY_SS_ID);
+  Logger.log('Spreadsheet: ' + ss.getName());
+  ss.getSheets().forEach(function (sh) {
+    var lastCol = sh.getLastColumn();
+    var headers = lastCol ? sh.getRange(1, 1, 1, lastCol).getValues()[0] : [];
+    Logger.log('Tab "' + sh.getName() + '" (' + sh.getLastRow() + ' rows): ' + headers.join(' | '));
+  });
+}
+
 function setupRegistry() {
-  var ss = SpreadsheetApp.openById('1mZrlnA-GiVKB4_Um21aMH9jsSkf6TUJhauDWivnf7-I');
+  var ss = SpreadsheetApp.openById(REGISTRY_SS_ID);
 
   ensureRegistryTab_(ss, 'Equipment',
     ['Asset ID', 'Name', 'Category', 'Location', 'Owning team', 'Status', 'Installed', 'Notes'],

@@ -62,6 +62,7 @@
             <a href="#ell-admin" style="--chip:#e08a1e"><span class="dot"></span>Experiential Learning Lab</a>
             <a href="#access" style="--chip:#2563c9"><span class="dot"></span>Fabman</a>
             <a href="#compliance" style="--chip:#1f9d5b"><span class="dot"></span>Compliance</a>
+            <a href="#projects-admin" style="--chip:#b06a00"><span class="dot"></span>Projects</a>
             <a href="#fleet" style="--chip:#7c3aed"><span class="dot"></span>Fleet</a>
             <a href="#inventory" style="--chip:#0d9488"><span class="dot"></span>Equipment</a>
             <a href="#website" style="--chip:#444d56"><span class="dot"></span>Site &amp; code</a>
@@ -72,10 +73,10 @@
         <section class="category admin-block" id="space-admin" data-keywords="space status tracking pending actions emailer edit form automation open issues dashboard photos">
           <h3 class="admin-label">Space</h3>
           <div class="action-group">
-            <button type="button" class="action action-dashboard" id="issues-open" data-keywords="open issues dashboard all teams filter mark complete photos">
+            <button type="button" class="action action-dashboard" id="issues-open" data-keywords="open issues dashboard all teams filter mark complete photos tasks approve reject send back pending approval completion evidence unlock passcode">
               <span class="action-badge">Live</span>
               <span class="action-title">Open issues dashboard</span>
-              <span class="action-sub">Filter across all teams · view photos · mark complete</span>
+              <span class="action-sub">All teams · finish with a photo · approve or send back submissions</span>
             </button>
             <a class="action" href="team.html" data-keywords="share link team open issues operations team per-team shareable url copy">
               <span class="action-title">Share a team&rsquo;s issue link</span>
@@ -145,12 +146,33 @@
           </div>
         </section>
 
-        <section class="category admin-block" id="fleet" data-keywords="student drivers tacoma vehicle reservation approval fleet mbn-4258">
+        <section class="category admin-block" id="projects-admin" data-keywords="projects assign create multi student before after photo in progress completed assignees tasks approve reject completion evidence confetti">
+          <h3 class="admin-label">Projects</h3>
+          <div class="action-group">
+            <a class="action" data-module="projects" href="#" target="_blank" rel="noopener" data-keywords="assign create project multi student before after photo in progress completed">
+              <span class="action-title">Assign &amp; track projects</span>
+              <span class="action-sub">Create projects, watch assignees, before &amp; after on completion</span>
+            </a>
+            <a class="action" href="https://docs.google.com/spreadsheets/d/1mZrlnA-GiVKB4_Um21aMH9jsSkf6TUJhauDWivnf7-I/edit" target="_blank" rel="noopener" data-keywords="projects tab spreadsheet raw data edit rows completion photo completed at">
+              <span class="action-title">Edit the Projects tab</span>
+              <span class="action-sub">Author projects directly in the tracking spreadsheet</span>
+            </a>
+          </div>
+          <p class="action-note" data-keywords="setup run once apps script setupTasksProjects passcode bigred tasks are open issues approve">
+            Approving completed <em>tasks</em>? Those are your open issues &mdash; use the Open issues dashboard above. First run: open the Space Status script and run <code>setupTasksProjects()</code> once.
+          </p>
+        </section>
+
+        <section class="category admin-block" id="fleet" data-keywords="student drivers tacoma vehicle reservation approval fleet mbn-4258 remove graduated cleanup">
           <h3 class="admin-label">Fleet</h3>
           <div class="action-group">
             <a class="action" href="https://docs.google.com/spreadsheets/d/1KwJLTkdhrQ0jD7-75p6IuhYvh3Fq0B13KAXf2Pcvk_M/edit" target="_blank" rel="noopener" data-keywords="student drivers tacoma approval reservation log">
               <span class="action-title">Student drivers &amp; reservations</span>
               <span class="action-sub">Driver approvals and Tacoma (MBN-4258) log</span>
+            </a>
+            <a class="action" href="https://docs.google.com/spreadsheets/d/1KwJLTkdhrQ0jD7-75p6IuhYvh3Fq0B13KAXf2Pcvk_M/edit" target="_blank" rel="noopener" data-keywords="remove graduated drivers bulk cleanup access rows netid year script menu">
+              <span class="action-title">Remove graduated drivers</span>
+              <span class="action-sub">Open the sheet, then run the Driver cleanup menu</span>
             </a>
           </div>
         </section>
@@ -166,13 +188,9 @@
               <span class="action-title">Inventory &amp; stock</span>
               <span class="action-sub">Consumables and stock counts, out of stock flagged</span>
             </a>
-            <a class="action" href="https://docs.google.com/spreadsheets/d/1mZrlnA-GiVKB4_Um21aMH9jsSkf6TUJhauDWivnf7-I/edit" target="_blank" rel="noopener" data-keywords="edit registry equipment inventory sheet tabs space status tracking">
-              <span class="action-title">Edit the registry</span>
-              <span class="action-sub">Equipment and Inventory tabs in the tracking sheet</span>
-            </a>
-            <a class="action" href="https://docs.google.com/spreadsheets/d/1QZf3LbKOsuwsxeno3f5aDTACObMRXaRY1yX6_5Aj_lU/edit" target="_blank" rel="noopener" data-keywords="tools purchasing locks mill room original migrate">
-              <span class="action-title">Tools, purchasing &amp; locks (original)</span>
-              <span class="action-sub">The old sheet, migrate its data into the registry</span>
+            <a class="action" href="https://docs.google.com/spreadsheets/d/1QZf3LbKOsuwsxeno3f5aDTACObMRXaRY1yX6_5Aj_lU/edit" target="_blank" rel="noopener" data-keywords="edit inventory equipment sheet tabs tools purchasing locks">
+              <span class="action-title">Edit the inventory sheet</span>
+              <span class="action-sub">The Equipment and Inventory tabs and existing tools data</span>
             </a>
           </div>
         </section>

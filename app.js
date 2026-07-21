@@ -66,6 +66,13 @@
     a.href = SPACE_STATUS_URL + sep + 'registry=' + encodeURIComponent(a.dataset.registry);
   });
 
+  // Module links (Tasks / Projects) point at the same web app via ?module=.
+  document.querySelectorAll('a[data-module]').forEach(a => {
+    if (!SPACE_STATUS_URL) return;
+    const sep = SPACE_STATUS_URL.indexOf('?') >= 0 ? '&' : '?';
+    a.href = SPACE_STATUS_URL + sep + 'module=' + encodeURIComponent(a.dataset.module);
+  });
+
   const search = document.getElementById('search');
   const categories = document.querySelectorAll('.category');
   const zones = document.querySelectorAll('.hub-zone');

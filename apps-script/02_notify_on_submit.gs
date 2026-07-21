@@ -10,6 +10,13 @@
 
 const CONFIG = {
   spreadsheetId: '1mZrlnA-GiVKB4_Um21aMH9jsSkf6TUJhauDWivnf7-I',
+  // Equipment / Inventory registry lives in its OWN spreadsheet, not the space-issues one.
+  // Set this to your inventory spreadsheet id (this default is "Tools, purchasing & locks").
+  registrySpreadsheetId: '1QZf3LbKOsuwsxeno3f5aDTACObMRXaRY1yX6_5Aj_lU',
+  // Fleet driver-cleanup tool (?tool=drivers). Runs on the reservation sheet.
+  fleetSpreadsheetId: '1KwJLTkdhrQ0jD7-75p6IuhYvh3Fq0B13KAXf2Pcvk_M',
+  fleetGradYearThrough: 0,   // remove this graduation year and earlier; 0 = current year.
+  toolPassHash: '993b97603778a944ff00c86775aeb4c852a6deae031dbee58206dc3ae1e3242c',   // SHA-256 of the tool passcode (default "bigred")
   responsesSheet: 'Form Responses',
   contactsSheet: 'Team Contacts',
   sender: 'eng_projectteams@cornell.edu',                          // go-live: 'eng_projectteams@cornell.edu' (send-as alias on this account)
@@ -18,8 +25,10 @@ const CONFIG = {
   webAppUrl: 'https://script.google.com/macros/s/AKfycbwNbGjVcBrcsMZiOl2nXzpqZHz04nvKLm9D_aC0VJDz7Xxxf_4kLKlNSOHubPXj1X74/exec',  // MUST be the published /exec URL; email acknowledge links use this
   notifiedHeader: 'Notified at',
   issueTokenHeader: 'Issue token',
-  addressedHeader: 'Addressed at',
+  addressedHeader: 'Addressed at',            // set on ADMIN APPROVAL = Completed
   lastReminderHeader: 'Last reminder',
+  completionPhotoHeader: 'Completion photo',  // evidence uploaded by the doer
+  completedAtHeader: 'Completed at',           // doer submitted -> Pending approval
   headers: {
     timestamp: 'Timestamp',
     email: 'Email Address',
@@ -124,6 +133,7 @@ function sendReminders() {
   const cEmail = ci(CONFIG.headers.email), cNotified = ci(CONFIG.notifiedHeader), cToken = ci(CONFIG.issueTokenHeader);
   const cAddr = ensureColumn_(sh, CONFIG.addressedHeader) - 1;
   const cLast = ensureColumn_(sh, CONFIG.lastReminderHeader) - 1;
+  const cCompleted = ci(CONFIG.completedAtHeader);   // -1 until first completion is submitted
   const DAY = 86400000;
   const today = new Date(); today.setHours(0, 0, 0, 0);
   let sent = 0;
@@ -132,6 +142,7 @@ function sendReminders() {
     const row = v[i];
     if (cNotified < 0 || !row[cNotified]) continue;            // never notified
     if (row[cAddr]) continue;                                   // addressed / closed
+    if (cCompleted >= 0 && row[cCompleted]) continue;          // completion submitted, awaiting approval -> pause reminders
     if (cToken < 0 || !row[cToken]) continue;
     const color = parseColor_(row[cStatus]);
     if (!color || SLA_DAYS[color] == null) continue;            // purple / unknown -> no deadline, no reminders
@@ -237,7 +248,7 @@ function addressedButton_(token) {
   if (!CONFIG.webAppUrl || !token) return '';
   const url = CONFIG.webAppUrl + '?id=' + encodeURIComponent(token);
   return '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:20px 0 4px"><tr>'
-    + '<td style="background:#8f1515;border-radius:6px"><a href="' + url + '" style="display:inline-block;padding:12px 24px;color:#fff;font:bold 14px Arial,sans-serif;text-decoration:none;border-radius:6px">Mark this issue as addressed</a></td>'
+    + '<td style="background:#8f1515;border-radius:6px"><a href="' + url + '" style="display:inline-block;padding:12px 24px;color:#fff;font:bold 14px Arial,sans-serif;text-decoration:none;border-radius:6px">Mark complete (photo required)</a></td>'
     + '</tr></table>';
 }
 
@@ -290,6 +301,8 @@ function buildReminder_(data, color, token, deadline) {
 
 function doGet(e) {
   const p = (e && e.parameter) ? e.parameter : {};
+  const embed = p.embed === '1' || p.embed === 'true';
+  if (p.module === 'projects') return projectsPage_(embed);   // Multi-user projects (04_tasks_projects.gs)
   if (p.team) { const t = lookupTeamByToken_(p.team); return t ? teamPortal_(t, false) : htmlPage_('Invalid link', 'This team link is not recognized.'); }
   if (p.view === 'all') return allIssuesPage_(p.embed === '1' || p.embed === 'true');
   if (p.registry) return registryPage_(String(p.registry), p.embed === '1' || p.embed === 'true');   // read-only Equipment / Inventory tables
@@ -384,21 +397,32 @@ function htmlPage_(title, bodyHtml) {
   return swissShell_(inner, 'Space Status');
 }
 
+// Reached from the "Mark complete" button in the notification email (?id=token).
+// Completion now requires an evidence photo -> Pending approval (no instant close).
 function confirmPage_(id) {
   const info = findIssue_(id);
-  if (!info) return htmlPage_('Not found', 'We could not find that issue. It may have been removed.');
-  if (info.addressed) return htmlPage_('Already addressed', 'This was marked as addressed on ' + escapeHtml_(fmtShort_(info.addressed)) + '.');
+  if (!info) return htmlPage_('Not found', 'We could not find that item. It may have been removed.');
+  if (info.addressed) return htmlPage_('Already completed', 'This was approved as complete on ' + escapeHtml_(fmtShort_(info.addressed)) + '.');
+  if (info.completedAt) return htmlPage_('Pending approval', 'A completion photo was already submitted on ' + escapeHtml_(fmtShort_(info.completedAt)) + '. It is waiting for an admin to review.');
+  const what = info.issueType ? lcFirst_(phrase_(info.issueType)) : 'this';
   const inner = '<div style="font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#999">Space Status</div>'
-    + '<div class="swh" style="font-size:30px;font-weight:800;letter-spacing:-.025em;line-height:1.1;margin-top:16px">Mark this issue as addressed?</div>'
-    + '<div id="act" style="margin-top:28px"><a class="b" href="javascript:void(0)" onclick="go()" style="display:inline-block;font-size:14px;font-weight:700;color:#fff;background:#b31b1b;padding:13px 28px;border-radius:4px;text-decoration:none">Yes, mark as addressed</a></div>'
-    + '<div id="done" style="display:none;font-size:22px;font-weight:800;letter-spacing:-.02em;color:#1d7a46;margin-top:6px"></div>'
+    + '<div class="swh" style="font-size:30px;font-weight:800;letter-spacing:-.025em;line-height:1.1;margin-top:16px">Mark complete</div>'
+    + '<div style="font-size:16px;line-height:1.7;color:#555;margin-top:12px">Upload a photo showing ' + escapeHtml_(what) + ' is done. An admin reviews and approves it.</div>'
+    + '<div id="act" style="margin-top:24px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+    +   '<input type="file" accept="image/*" id="cf-file" style="display:none" onchange="cfFile(this)">'
+    +   '<span class="tp-hint">Photo required</span>'
+    +   '<button type="button" class="btn btn-primary" onclick="document.getElementById(\'cf-file\').click()">Choose a photo</button>'
+    + '</div>'
+    + '<div id="cf-photo"></div>'
+    + '<div id="done" style="display:none;font-size:22px;font-weight:800;letter-spacing:-.02em;color:#1d7a46;margin-top:14px"></div>'
     + '<script>'
-    + 'function go(){document.getElementById("act").innerHTML="Saving...";'
-    + 'google.script.run.withSuccessHandler(ok).withFailureHandler(err).confirmAddressed(' + JSON.stringify(id) + ');}'
-    + 'function ok(m){document.getElementById("act").style.display="none";var d=document.getElementById("done");d.style.display="block";d.innerHTML="\\u2713 Marked as addressed";}'
-    + 'function err(x){document.getElementById("act").innerHTML="Something went wrong. Please reply to the email instead.";}'
+    + 'function cfFile(input){tpReadFile(input,function(res){if(!res)return;var a=document.getElementById("act");a.innerHTML="<span class=\\"tp-hint\\">Uploading photo\\u2026</span>";'
+    + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Upload failed")+"</span>";return;}'
+    + 'tpConfetti();a.style.display="none";document.getElementById("cf-photo").innerHTML="<div class=\\"tp-photos\\"><div class=\\"tp-photo\\"><figure><figcaption>Completion photo</figcaption><img src=\\"https://drive.google.com/thumbnail?id="+r.photoId+"&sz=w600\\" style=\\"max-width:100%;max-height:220px;border-radius:10px;border:1px solid #ececec\\"></figure></div></div>";'
+    + 'var d=document.getElementById("done");d.style.display="block";d.innerHTML="\\u2713 Submitted \\u2014 pending approval";'
+    + '}).withFailureHandler(function(){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Upload failed. Please retry.</span>";}).submitIssueCompletion(' + JSON.stringify(id) + ',res.dataUrl,res.name);});}'
     + '</script>';
-  return swissShell_(inner, 'Space Status');
+  return swissShell_(tpStyles_() + inner + tpSharedJs_(), 'Space Status');
 }
 
 function teamPortal_(team, readOnly, embedded) {
@@ -427,44 +451,50 @@ function teamPortal_(team, readOnly, embedded) {
     +   '</div>'
     + '</div></div>';
 
+  if (!readOnly) inner += tpAdminBar_('approve or send back');
+
   if (!issues.length) {
     inner += '<div style="font-size:16px;line-height:1.7;color:#555;margin-top:30px">No open issues. Everything is in good shape.</div>';
-    return swissShell_(inner, 'Space Status - ' + team, false, embedded);
+    return swissShell_(tpStyles_() + inner + tpSharedJs_(), 'Space Status - ' + team, false, embedded);
   }
 
   let idx = 0;
   const renderCard = function (it) {
     const rid = 'iss' + (idx++);
+    const isPending = it.pending;
     const dl = it.deadline ? fmtShort_(it.deadline) : 'No set deadline';
-    const dueColor = it.overdue ? '#b31b1b' : '#777';
-    const chip = it.overdue
-      ? '<span style="flex:0 0 auto;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#b31b1b;background:#fbeaea;padding:4px 10px;border-radius:999px">Overdue</span>'
-      : (it.deadline ? '<span style="flex:0 0 auto;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#8a857c;background:#f0efe9;padding:4px 10px;border-radius:999px">' + daysLeftLabel_(it.deadline) + '</span>' : '');
-    return '<div id="' + rid + '" style="background:#fff;border-radius:14px;box-shadow:0 2px 8px rgba(20,20,30,.06),0 1px 3px rgba(20,20,30,.05);overflow:hidden;margin-bottom:12px">'
-      + '<div style="padding:18px 22px 16px">'
-      +   '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px">'
-      +     '<div style="font-size:18px;font-weight:800;letter-spacing:-.02em">' + escapeHtml_(it.issueType ? phrase_(it.issueType) : 'Reported issue') + '</div>'
-      +     chip
+    const dueCls = it.overdue ? 'due due--late' : 'due';
+    const chip = isPending
+      ? '<span class="tp-pill tp-pill--pending">Pending approval</span>'
+      : (it.overdue
+        ? '<span class="chip chip--overdue">Overdue</span>'
+        : (it.deadline ? '<span class="chip chip--due">' + daysLeftLabel_(it.deadline) + '</span>' : ''));
+    const statusTxt = isPending ? 'Submitted — awaiting approval' : ('Due ' + escapeHtml_(dl));
+    const accent = COLOR_HEX[it.color] || '#d6d3ce';
+    let foot = '';
+    if (!readOnly) foot = isPending ? icPendingFoot_(rid, it.token) : icOpenFoot_(rid, it.token);
+    return '<div class="card" id="' + rid + '" style="border-left:4px solid ' + accent + ';border-right:4px solid ' + accent + '" data-state="' + (isPending ? 'pending' : 'open') + '">'
+      + '<div class="card-body">'
+      +   '<div class="card-head"><div>'
+      +     '<div class="card-title">' + escapeHtml_(it.issueType ? phrase_(it.issueType) : 'Reported issue') + '</div></div>'
+      +     '<span id="' + rid + '-pill">' + chip + '</span>'
       +   '</div>'
-      +   (it.action ? '<div style="font-size:14px;color:#555;margin-top:6px">' + escapeHtml_(phrase_(it.action)) + '</div>' : '')
-      +   (it.details ? '<div style="font-size:13px;color:#8a857c;margin-top:4px">' + escapeHtml_(it.details) + '</div>' : '')
+      +   (it.action ? '<div class="card-field"><span class="card-flabel">Required action</span><div class="card-action">' + escapeHtml_(phrase_(it.action)) + '</div></div>' : '')
+      +   (it.details ? '<div class="card-field"><span class="card-flabel">Details</span><div class="card-details">' + escapeHtml_(it.details) + '</div></div>' : '')
       +   (it.photos && it.photos.length ? photoStrip_(it.photos) : '')
+      +   icPhotoBlock_(rid, it.completionPhoto)
       + '</div>'
-      + '<div class="swfoot" style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid #f1f1f1;padding:13px 22px;background:#fcfcfb">'
-      +   '<span id="' + rid + '-status" style="font-size:13px;color:' + dueColor + ';font-weight:600">Due ' + escapeHtml_(dl) + '</span>'
-      +   (readOnly ? '' : '<span id="' + rid + '-act">'
-      +     '<span id="' + rid + '-btn"><a class="b" href="javascript:void(0)" onclick="ask(\'' + rid + '\')" style="font-size:13px;font-weight:700;color:#fff;background:#b31b1b;padding:10px 18px;border-radius:6px;text-decoration:none;white-space:nowrap">Mark addressed</a></span>'
-      +     '<span id="' + rid + '-confirm" style="display:none;white-space:nowrap">'
-      +       '<a class="b" href="javascript:void(0)" onclick="doMark(\'' + rid + '\',\'' + it.token + '\',' + (it.overdue ? 'true' : 'false') + ')" style="font-size:13px;font-weight:700;color:#fff;background:#b31b1b;padding:10px 16px;border-radius:6px;text-decoration:none">Confirm</a>'
-      +       '<a href="javascript:void(0)" onclick="cancelMark(\'' + rid + '\')" style="font-size:13px;color:#8a857c;text-decoration:none;margin-left:12px">Cancel</a>'
-      +     '</span>'
-      +   '</span>')
+      + '<div class="card-foot">'
+      +   '<span id="' + rid + '-status" class="' + (isPending ? 'due' : dueCls) + '">' + statusTxt + '</span>'
+      +   (readOnly ? '' : '<span id="' + rid + '-act" class="btn-row">' + foot + '</span>')
       + '</div>'
       + '</div>';
   };
 
-  const overdueList = issues.filter(function (x) { return x.overdue; });
-  const openList = issues.filter(function (x) { return !x.overdue; });
+  const pendingList = issues.filter(function (x) { return x.pending; });
+  const activeList = issues.filter(function (x) { return !x.pending; });
+  const overdueList = activeList.filter(function (x) { return x.overdue; });
+  const openList = activeList.filter(function (x) { return !x.overdue; });
   const sectionHeader = function (label, count, color) {
     return '<div style="display:flex;align-items:center;gap:11px;margin:28px 0 14px">'
       + '<span style="font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:' + color + '">' + label + '</span>'
@@ -480,24 +510,13 @@ function teamPortal_(team, readOnly, embedded) {
     inner += sectionHeader('Open', openList.length, '#8a857c');
     openList.forEach(function (it) { inner += renderCard(it); });
   }
+  if (pendingList.length) {
+    inner += sectionHeader('Pending approval', pendingList.length, '#b06a00');
+    pendingList.forEach(function (it) { inner += renderCard(it); });
+  }
 
-  if (!readOnly) inner += '<script>'
-    + 'var ssRes=' + data.resolved + ',ssOpen=' + issues.length + ',ssOver=' + overdue + ',ssTot=' + total + ';'
-    + 'function setT(id,t){var e=document.getElementById(id);if(e)e.textContent=t;}'
-    + 'function ask(r){document.getElementById(r+"-btn").style.display="none";document.getElementById(r+"-confirm").style.display="inline";}'
-    + 'function cancelMark(r){document.getElementById(r+"-confirm").style.display="none";document.getElementById(r+"-btn").style.display="inline";}'
-    + 'function doMark(r,t,od){var a=document.getElementById(r+"-act");a.innerHTML="Saving...";'
-    + 'google.script.run.withSuccessHandler(function(){'
-    +   'a.innerHTML="";var s=document.getElementById(r+"-status");if(s){s.textContent="\\u2713 Addressed";s.style.color="#1d7a46";}'
-    +   'document.getElementById(r).style.opacity="0.55";'
-    +   'ssRes++;ssOpen--;if(od)ssOver--;'
-    +   'var pct=ssTot>0?Math.round(ssRes/ssTot*100):0;'
-    +   'setT("res-n",ssRes);setT("open-n",ssOpen);setT("ring-pct",pct+"%");setT("over-n",ssOver);'
-    +   'var ow=document.getElementById("over-wrap");if(ow)ow.style.display=ssOver>0?"inline":"none";'
-    +   'var fg=document.getElementById("ring-fg");if(fg)fg.setAttribute("stroke-dasharray",pct+" "+(100-pct));'
-    + '}).withFailureHandler(function(){var a=document.getElementById(r+"-act");a.innerHTML="Please retry.";}).confirmAddressed(t);}'
-    + '</script>';
-  return swissShell_(inner, 'Space Status - ' + team, false, embedded);
+  const scripts = tpSharedJs_() + (readOnly ? '' : icClientJs_());
+  return swissShell_(tpStyles_() + inner + scripts, 'Space Status - ' + team, false, embedded);
 }
 
 function pickerPage_() {
@@ -539,7 +558,8 @@ function listTeamIssues_(teamName) {
   const ci = function (n) { return H.indexOf(norm_(n)); };
   const cTeam = ci(CONFIG.headers.team), cStatus = ci(CONFIG.headers.status), cIssue = ci(CONFIG.headers.issueType),
         cAction = ci(CONFIG.headers.action), cDetails = ci(CONFIG.headers.details), cTs = ci(CONFIG.headers.timestamp),
-        cTok = ci(CONFIG.issueTokenHeader), cAddr = ci(CONFIG.addressedHeader), cPhoto = ci(CONFIG.headers.photo);
+        cTok = ci(CONFIG.issueTokenHeader), cAddr = ci(CONFIG.addressedHeader), cPhoto = ci(CONFIG.headers.photo),
+        cCompletedAt = ci(CONFIG.completedAtHeader), cCompletionPhoto = ci(CONFIG.completionPhotoHeader);
   const open = [];
   let resolved = 0;
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -547,12 +567,14 @@ function listTeamIssues_(teamName) {
     if (cTeam < 0 || norm_(v[i][cTeam]) !== norm_(teamName)) continue;
     if (cTok < 0 || !v[i][cTok]) continue;
     if (cAddr >= 0 && v[i][cAddr]) { resolved++; continue; }
+    const pending = cCompletedAt >= 0 && v[i][cCompletedAt] ? true : false;
     const color = parseColor_(v[i][cStatus]);
     let deadline = null, overdue = false;
     if (color && color !== 'purple') {
       const rd = new Date(v[i][cTs]);
       if (!isNaN(rd.getTime())) { deadline = new Date(rd); deadline.setDate(deadline.getDate() + SLA_DAYS[color]); deadline.setHours(0, 0, 0, 0); overdue = today > deadline; }
     }
+    if (pending) overdue = false;   // waiting on review, not late
     open.push({
       token: String(v[i][cTok]),
       issueType: cIssue >= 0 ? String(v[i][cIssue]).trim() : '',
@@ -560,6 +582,7 @@ function listTeamIssues_(teamName) {
       details: cDetails >= 0 ? String(v[i][cDetails]).trim() : '',
       photos: cPhoto >= 0 ? extractFileIds_(v[i][cPhoto]) : [],
       color: color, deadline: deadline, overdue: overdue,
+      pending: pending, completionPhoto: cCompletionPhoto >= 0 ? String(v[i][cCompletionPhoto] || '').trim() : '',
     });
   }
   open.sort(function (a, b) {
@@ -577,19 +600,22 @@ function listAllIssues_() {
   const ci = function (n) { return H.indexOf(norm_(n)); };
   const cTeam = ci(CONFIG.headers.team), cStatus = ci(CONFIG.headers.status), cIssue = ci(CONFIG.headers.issueType),
         cAction = ci(CONFIG.headers.action), cDetails = ci(CONFIG.headers.details), cTs = ci(CONFIG.headers.timestamp),
-        cTok = ci(CONFIG.issueTokenHeader), cAddr = ci(CONFIG.addressedHeader), cPhoto = ci(CONFIG.headers.photo);
+        cTok = ci(CONFIG.issueTokenHeader), cAddr = ci(CONFIG.addressedHeader), cPhoto = ci(CONFIG.headers.photo),
+        cCompletedAt = ci(CONFIG.completedAtHeader), cCompletionPhoto = ci(CONFIG.completionPhotoHeader);
   const open = [];
   let resolved = 0;
   const today = new Date(); today.setHours(0, 0, 0, 0);
   for (let i = 1; i < v.length; i++) {
     if (cTok < 0 || !v[i][cTok]) continue;
     if (cAddr >= 0 && v[i][cAddr]) { resolved++; continue; }
+    const pending = cCompletedAt >= 0 && v[i][cCompletedAt] ? true : false;
     const color = parseColor_(v[i][cStatus]);
     let deadline = null, overdue = false;
     if (color && color !== 'purple') {
       const rd = new Date(v[i][cTs]);
       if (!isNaN(rd.getTime())) { deadline = new Date(rd); deadline.setDate(deadline.getDate() + SLA_DAYS[color]); deadline.setHours(0, 0, 0, 0); overdue = today > deadline; }
     }
+    if (pending) overdue = false;   // the team already did their part; it is waiting on review, not late
     open.push({
       team: cTeam >= 0 ? String(v[i][cTeam]).trim() : '',
       token: String(v[i][cTok]),
@@ -598,6 +624,7 @@ function listAllIssues_() {
       details: cDetails >= 0 ? String(v[i][cDetails]).trim() : '',
       photos: cPhoto >= 0 ? extractFileIds_(v[i][cPhoto]) : [],
       color: color, deadline: deadline, overdue: overdue,
+      pending: pending, completionPhoto: cCompletionPhoto >= 0 ? String(v[i][cCompletionPhoto] || '').trim() : '',
     });
   }
   open.sort(function (a, b) {
@@ -608,11 +635,17 @@ function listAllIssues_() {
   return { open: open, resolved: resolved };
 }
 
-// Every open issue across all teams, with filters and Mark complete. Embedded in the hub panel when embed=1.
+// Every open issue across all teams. Completing one now requires an evidence
+// photo -> confetti -> Pending approval, then an admin approves/sends back.
+// Embedded in the hub panel when embed=1.
 function allIssuesPage_(embedded) {
   const data = listAllIssues_();
   const issues = data.open;
-  const overdue = issues.filter(function (x) { return x.overdue; }).length;
+  const pendingList = issues.filter(function (x) { return x.pending; });
+  const active = issues.filter(function (x) { return !x.pending; });   // not yet submitted
+  const overdueList = active.filter(function (x) { return x.overdue; });
+  const openList = active.filter(function (x) { return !x.overdue; });
+  const overdue = overdueList.length;
   const teamSet = {};
   issues.forEach(function (it) { if (it.team) teamSet[it.team] = 1; });
   const teamOpts = Object.keys(teamSet).sort().map(function (t) { return '<option value="' + escapeHtml_(t) + '">' + escapeHtml_(t) + '</option>'; }).join('');
@@ -626,8 +659,11 @@ function allIssuesPage_(embedded) {
       + '</div>';
   }
 
+  inner += tpAdminBar_('approve or send back');
+
   inner += '<div class="stats">'
-    + '<div class="stat"><div class="stat-label">Open</div><div class="stat-val" id="sum-open">' + issues.length + '</div></div>'
+    + '<div class="stat"><div class="stat-label">Open</div><div class="stat-val" id="sum-open">' + active.length + '</div></div>'
+    + '<div class="stat"><div class="stat-label">Pending approval</div><div class="stat-val" id="sum-pending">' + pendingList.length + '</div></div>'
     + '<div class="stat"><div class="stat-label">Overdue</div><div class="stat-val stat-val--danger" id="sum-over">' + overdue + '</div></div>'
     + '</div>';
 
@@ -639,7 +675,7 @@ function allIssuesPage_(embedded) {
 
   if (!issues.length) {
     inner += '<div class="empty">No open issues. Everything is in good shape.</div>';
-    return swissShell_(inner, 'Open issues', true, embedded);
+    return swissShell_(tpStyles_() + inner + tpSharedJs_(), 'Open issues', true, embedded);
   }
 
   const sectionHead = function (label, count, cls) {
@@ -649,42 +685,40 @@ function allIssuesPage_(embedded) {
       + '<span class="section-rule"></span></div>';
   };
 
+  let idx = 0;
   const renderCard = function (it) {
     const rid = 'iss' + (idx++);
+    const isPending = it.pending;
     const dl = it.deadline ? fmtShort_(it.deadline) : 'No set deadline';
     const dueCls = it.overdue ? 'due due--late' : 'due';
-    const chip = it.overdue
-      ? '<span class="chip chip--overdue">Overdue</span>'
-      : (it.deadline ? '<span class="chip chip--due">' + daysLeftLabel_(it.deadline) + '</span>' : '');
+    const chip = isPending
+      ? '<span class="tp-pill tp-pill--pending">Pending approval</span>'
+      : (it.overdue
+        ? '<span class="chip chip--overdue">Overdue</span>'
+        : (it.deadline ? '<span class="chip chip--due">' + daysLeftLabel_(it.deadline) + '</span>' : ''));
     const hay = ((it.team || '') + ' ' + (it.issueType || '') + ' ' + (it.action || '') + ' ' + (it.details || '')).toLowerCase();
     const accent = COLOR_HEX[it.color] || '#d6d3ce';
-    return '<div class="card" id="' + rid + '" style="border-left:4px solid ' + accent + ';border-right:4px solid ' + accent + '" data-team="' + escapeHtml_(it.team) + '" data-over="' + (it.overdue ? '1' : '0') + '" data-hay="' + escapeHtml_(hay) + '">'
+    const statusTxt = isPending ? 'Submitted — awaiting approval' : ('Due ' + escapeHtml_(dl));
+    const foot = isPending ? icPendingFoot_(rid, it.token) : icOpenFoot_(rid, it.token);
+    return '<div class="card" id="' + rid + '" style="border-left:4px solid ' + accent + ';border-right:4px solid ' + accent + '" data-team="' + escapeHtml_(it.team) + '" data-over="' + (it.overdue ? '1' : '0') + '" data-state="' + (isPending ? 'pending' : 'open') + '" data-hay="' + escapeHtml_(hay) + '">'
       + '<div class="card-body">'
       +   '<div class="card-head">'
       +     '<div><div class="card-team">' + escapeHtml_(it.team || 'Unassigned') + '</div>'
       +     '<div class="card-title">' + escapeHtml_(it.issueType ? phrase_(it.issueType) : 'Reported issue') + '</div></div>'
-      +     chip
+      +     '<span id="' + rid + '-pill">' + chip + '</span>'
       +   '</div>'
       +   (it.action ? '<div class="card-field"><span class="card-flabel">Required action</span><div class="card-action">' + escapeHtml_(phrase_(it.action)) + '</div></div>' : '')
       +   (it.details ? '<div class="card-field"><span class="card-flabel">Details</span><div class="card-details">' + escapeHtml_(it.details) + '</div></div>' : '')
       +   (it.photos && it.photos.length ? photoStrip_(it.photos) : '')
+      +   icPhotoBlock_(rid, it.completionPhoto)
       + '</div>'
       + '<div class="card-foot">'
-      +   '<span id="' + rid + '-status" class="' + dueCls + '">Due ' + escapeHtml_(dl) + '</span>'
-      +   '<span id="' + rid + '-act" class="btn-row">'
-      +     '<span id="' + rid + '-btn"><button type="button" class="btn btn-primary" onclick="ask(\'' + rid + '\')">Mark complete</button></span>'
-      +     '<span id="' + rid + '-confirm" style="display:none" class="btn-row">'
-      +       '<button type="button" class="btn btn-confirm" onclick="doMark(\'' + rid + '\',\'' + it.token + '\',' + (it.overdue ? 'true' : 'false') + ')">Confirm</button>'
-      +       '<button type="button" class="btn btn-ghost" onclick="cancelMark(\'' + rid + '\')">Cancel</button>'
-      +     '</span>'
-      +   '</span>'
+      +   '<span id="' + rid + '-status" class="' + (isPending ? 'due' : dueCls) + '">' + statusTxt + '</span>'
+      +   '<span id="' + rid + '-act" class="btn-row">' + foot + '</span>'
       + '</div>'
       + '</div>';
   };
 
-  let idx = 0;
-  const overdueList = issues.filter(function (x) { return x.overdue; });
-  const openList = issues.filter(function (x) { return !x.overdue; });
   if (overdueList.length) {
     inner += sectionHead('Overdue', overdueList.length, 'section-label--late');
     overdueList.forEach(function (it) { inner += renderCard(it); });
@@ -693,23 +727,19 @@ function allIssuesPage_(embedded) {
     inner += sectionHead('Open', openList.length, 'section-label--open');
     openList.forEach(function (it) { inner += renderCard(it); });
   }
+  if (pendingList.length) {
+    inner += sectionHead('Pending approval', pendingList.length, 'section-label--open');
+    pendingList.forEach(function (it) { inner += renderCard(it); });
+  }
 
   inner += '<div id="empty" class="empty" style="display:none">No issues match those filters.</div>';
 
   inner += '<script>'
-    + 'var ssOpen=' + issues.length + ',ssOver=' + overdue + ';'
     + 'function flt(){var q=document.getElementById("q").value.toLowerCase().trim();var tm=document.getElementById("team").value;var od=document.getElementById("odue").checked;var n=0;'
-    +   'document.querySelectorAll(".card").forEach(function(c){var ok=c.dataset.done!=="1"&&(!q||c.dataset.hay.indexOf(q)>=0)&&(!tm||c.dataset.team===tm)&&(!od||c.dataset.over==="1");c.style.display=ok?"":"none";if(ok)n++;});'
+    +   'document.querySelectorAll(".card").forEach(function(c){var ok=(!q||c.dataset.hay.indexOf(q)>=0)&&(!tm||c.dataset.team===tm)&&(!od||c.dataset.over==="1");c.style.display=ok?"":"none";if(ok)n++;});'
     +   'document.getElementById("empty").style.display=n?"none":"block";}'
-    + 'function ask(r){document.getElementById(r+"-btn").style.display="none";document.getElementById(r+"-confirm").style.display="inline-flex";}'
-    + 'function cancelMark(r){document.getElementById(r+"-confirm").style.display="none";document.getElementById(r+"-btn").style.display="inline";}'
-    + 'function doMark(r,t,od){var a=document.getElementById(r+"-act");a.innerHTML="<span class=\\"btn btn-ghost\\">Saving…</span>";'
-    +   'google.script.run.withSuccessHandler(function(){'
-    +     'var c=document.getElementById(r);c.dataset.done="1";a.innerHTML="";var s=document.getElementById(r+"-status");if(s){s.textContent="\\u2713 Completed";s.className="due due--done";}c.style.opacity="0.55";'
-    +     'ssOpen--;if(od)ssOver--;document.getElementById("sum-open").textContent=ssOpen;document.getElementById("sum-over").textContent=ssOver;'
-    +   '}).withFailureHandler(function(){a.innerHTML="<button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"doMark(\'"+r+"\',\'"+t+"\',"+od+")\\">Retry</button>";}).confirmAddressed(t);}'
     + '</script>';
-  return swissShell_(inner, 'Open issues', true, embedded);
+  return swissShell_(tpStyles_() + inner + tpSharedJs_() + icClientJs_(), 'Open issues', true, embedded);
 }
 
 // Read-only registry table (Equipment or Inventory) for the hub. Phase 1 CMMS.
@@ -801,7 +831,7 @@ function regCell_(v) {
 function isNum_(v) { return v !== '' && v != null && !isNaN(Number(v)); }
 
 function readTab_(name) {
-  const sh = ss_().getSheetByName(name);
+  const sh = registrySs_().getSheetByName(name);
   if (!sh) return { headers: [], rows: [] };
   const v = sh.getDataRange().getValues();
   if (!v.length) return { headers: [], rows: [] };
@@ -875,6 +905,7 @@ function findIssue_(id) {
   const cTeam = H.indexOf(norm_(CONFIG.headers.team));
   const cIssue = H.indexOf(norm_(CONFIG.headers.issueType));
   const cAddr = H.indexOf(norm_(CONFIG.addressedHeader));
+  const cComp = H.indexOf(norm_(CONFIG.completedAtHeader));
   for (let i = 1; i < v.length; i++) {
     if (String(v[i][cTok]) === String(id)) {
       return {
@@ -882,6 +913,7 @@ function findIssue_(id) {
         team: cTeam >= 0 ? String(v[i][cTeam]).trim() : '',
         issueType: cIssue >= 0 ? String(v[i][cIssue]).trim() : '',
         addressed: cAddr >= 0 ? v[i][cAddr] : '',
+        completedAt: cComp >= 0 ? v[i][cComp] : '',
       };
     }
   }
@@ -916,6 +948,7 @@ function fillTeamTokens() {
 }
 
 function ss_() { return SpreadsheetApp.openById(CONFIG.spreadsheetId); }
+function registrySs_() { return SpreadsheetApp.openById(CONFIG.registrySpreadsheetId); }
 function newToken_() { return Utilities.getUuid().replace(/-/g, ''); }
 function norm_(s) { return String(s == null ? '' : s).trim().toLowerCase().replace(/\s+/g, ' '); }
 function lcFirst_(s) { return s ? s.charAt(0).toLowerCase() + s.slice(1) : s; }

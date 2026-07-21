@@ -50,6 +50,40 @@ Admin tools are grouped in `<section class="category admin-block">` blocks with 
 - Admin actions use the burgundy gradient theme (`--burgundy-*` tokens).
 - Design tokens live in `:root` at the top of `styles.css`.
 
+## Completion evidence &amp; Projects
+
+Backed by `apps-script/04_tasks_projects.gs`, served by the same Space Status web app.
+
+**Tasks are the open issues — there is no separate task list.** Completing any open
+action item (in the Open-issues dashboard, a team portal, or via the *Mark complete*
+button in the notification email) now works like this:
+
+1. The doer uploads a photo as **evidence of completion** (required — the single
+   upload *is* the completion action).
+2. Submitting fires a client-side **confetti burst** and moves the item to
+   *Pending approval* (stamps `Completed at`; reminder emails pause).
+3. An admin **Approves** → stamps `Addressed at` (= Completed/resolved), or
+   **Sends back** → clears the submission (back to Open / Uncompleted).
+
+This reuses the one `Form Responses` tracking sheet, adding two columns
+(`Completion photo`, `Completed at`) — no parallel system.
+
+**Projects** (`?module=projects`, linked from the hub via a `data-module` attribute
+that `app.js` rewrites to `…/exec?module=projects`) are multi-user work
+created/assigned by an admin. Any student can **pick (join)** a project; the first
+pick auto-flips it *Assigned → In Progress*. Multiple assignees are tracked.
+Completion is a manual trigger that **enforces both a before and an after photo**.
+
+**Roles.** Everyone is a doer by default. Admin-only actions (approve or send back
+completions, create/assign projects) are gated by the shared passcode
+(`CONFIG.toolPassHash`, same as the other admin tools), validated server-side on
+every mutating call; unlock with the **Admin** bar on the page. Project completion
+is open to assignees. Photo uploads go to a dedicated Drive folder.
+
+**First run:** open the Space Status Apps Script project, run `setupTasksProjects()`
+once (creates the `Projects` tab and the two completion columns), then push a **new
+deployment version** — any change to web-app logic needs one; the URL stays the same.
+
 ## Related docs
 
 `SHEETS_INVENTORY.md` describes the underlying Google Workspace assets this hub links to.
