@@ -120,26 +120,35 @@ function tpIsAdmin_(pass) {
 // Client-callable: lets the unlock bar confirm a passcode before revealing controls.
 function tpCheckPass(pass) { return tpIsAdmin_(pass); }
 
-// Save a base64 data URL to Drive, share by link (so thumbnails render), return the file id.
+// Save a base64 data URL to Drive, return the file id. Sharing is inherited from the
+// uploads folder (set once in tpUploadsFolder_), so there is no per-upload Drive
+// permission round-trip here.
 function tpSaveUpload_(dataUrl, filename) {
   var m = /^data:([^;]+);base64,(.*)$/.exec(String(dataUrl || ''));
   if (!m) throw new Error('That upload was not a valid image.');
   var bytes = Utilities.base64Decode(m[2]);
   var blob = Utilities.newBlob(bytes, m[1], filename || ('upload_' + Date.now()));
-  var file = tpUploadsFolder_().createFile(blob);
-  try { file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); }
-  catch (err) { Logger.log('Upload share failed: ' + err); }
-  return file.getId();
+  return tpUploadsFolder_().createFile(blob).getId();
 }
 
+// Find-or-create the uploads folder and link-share it ONCE (tracked by a script
+// property), so every file dropped in it is viewable by link without a per-file call.
 function tpUploadsFolder_() {
   var props = PropertiesService.getScriptProperties();
   var id = props.getProperty('TP_UPLOADS_FOLDER');
-  if (id) { try { return DriveApp.getFolderById(id); } catch (err) { /* recreate below */ } }
-  var it = DriveApp.getFoldersByName(TP.uploadsFolderName);
-  var f = it.hasNext() ? it.next() : DriveApp.createFolder(TP.uploadsFolderName);
-  props.setProperty('TP_UPLOADS_FOLDER', f.getId());
-  return f;
+  var folder = null;
+  if (id) { try { folder = DriveApp.getFolderById(id); } catch (err) { /* recreate below */ } }
+  if (!folder) {
+    var it = DriveApp.getFoldersByName(TP.uploadsFolderName);
+    folder = it.hasNext() ? it.next() : DriveApp.createFolder(TP.uploadsFolderName);
+    props.setProperty('TP_UPLOADS_FOLDER', folder.getId());
+    props.deleteProperty('TP_UPLOADS_SHARED');   // re-share if the folder changed
+  }
+  if (props.getProperty('TP_UPLOADS_SHARED') !== '1') {
+    try { folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); props.setProperty('TP_UPLOADS_SHARED', '1'); }
+    catch (err) { Logger.log('Folder share failed: ' + err); }
+  }
+  return folder;
 }
 
 function tpViewUrl_(id) { return 'https://drive.google.com/file/d/' + id + '/view'; }
@@ -269,28 +278,25 @@ function tpJoinProject(projectId, name) {
   return { ok: true, status: status, assignees: list };
 }
 
-// Manual completion. ENFORCES both a before and an after photo (open to assignees).
-function tpCompleteProject(projectId, beforeUrl, afterUrl, beforeName, afterName) {
-  if (!beforeUrl || !afterUrl) {
-    return { ok: false, error: 'Both a "before" and an "after" photo are required to complete a project.' };
-  }
+// Manual completion (open to assignees). The "before" photo was captured at creation,
+// so completion only requires an "after" photo of the finished work.
+function tpCompleteProject(projectId, afterUrl, afterName) {
+  if (!afterUrl) return { ok: false, error: 'An "after" photo is required to complete a project.' };
   var o = tpOpen_(TP.projectsSheet, TP.projectHeaders);
   var r = tpFindRow_(o.sh, o.col['Project ID'], projectId);
   if (r < 0) return { ok: false, error: 'That project could not be found.' };
-  var beforeId, afterId;
-  try {
-    beforeId = tpSaveUpload_(beforeUrl, beforeName || 'before');
-    afterId = tpSaveUpload_(afterUrl, afterName || 'after');
-  } catch (err) { return { ok: false, error: String(err.message || err) }; }
-  o.sh.getRange(r, o.col['Before photo']).setValue(tpViewUrl_(beforeId));
+  var afterId;
+  try { afterId = tpSaveUpload_(afterUrl, afterName || 'after'); }
+  catch (err) { return { ok: false, error: String(err.message || err) }; }
   o.sh.getRange(r, o.col['After photo']).setValue(tpViewUrl_(afterId));
   o.sh.getRange(r, o.col['Status']).setValue(TP.projectStatus.done);
   o.sh.getRange(r, o.col['Completed at']).setValue(new Date());
-  return { ok: true, status: TP.projectStatus.done, beforeId: beforeId, afterId: afterId };
+  var beforeIds = extractFileIds_(String(o.sh.getRange(r, o.col['Before photo']).getValue() || ''));
+  return { ok: true, status: TP.projectStatus.done, afterId: afterId, beforeId: (beforeIds[0] || '') };
 }
 
-// Admin creates/assigns a project.
-function tpCreateProject(title, description, assignees, pass) {
+// Admin creates/assigns a project, optionally with a "before" photo of the starting state.
+function tpCreateProject(title, description, assignees, beforeUrl, beforeName, pass) {
   if (!tpIsAdmin_(pass)) return { ok: false, error: 'Admin passcode required.' };
   title = String(title || '').trim();
   if (!title) return { ok: false, error: 'A project title is required.' };
@@ -304,7 +310,11 @@ function tpCreateProject(title, description, assignees, pass) {
   o.sh.getRange(r, o.col['Status']).setValue(TP.projectStatus.assigned);
   o.sh.getRange(r, o.col['Assignees']).setValue(list.join(', '));
   o.sh.getRange(r, o.col['Created at']).setValue(new Date());
-  return { ok: true, project: { id: id, title: title, description: String(description || '').trim(), status: TP.projectStatus.assigned, assignees: list } };
+  if (beforeUrl) {
+    try { o.sh.getRange(r, o.col['Before photo']).setValue(tpViewUrl_(tpSaveUpload_(beforeUrl, beforeName || 'before'))); }
+    catch (err) { Logger.log('Before photo save failed: ' + err); }
+  }
+  return { ok: true, project: { id: id, title: title } };
 }
 
 // ---- Shared page furniture ----
@@ -384,7 +394,18 @@ function tpSharedJs_() {
     + 'var start=Date.now();(function frame(){var t=Date.now()-start;ctx.clearRect(0,0,W,H);'
     + 'P.forEach(function(p){p.vy+=p.g;p.x+=p.vx;p.y+=p.vy;p.rot+=p.vr;p.vx*=0.99;ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.rot);ctx.globalAlpha=Math.max(0,1-t/2600);ctx.fillStyle=p.col;ctx.fillRect(-p.s/2,-p.s/2,p.s,p.s*0.62);ctx.restore();});'
     + 'if(t<2600){requestAnimationFrame(frame);}else{ctx.clearRect(0,0,W,H);}})();}'
-    + 'function tpReadFile(input,cb){var f=input.files&&input.files[0];if(!f){cb(null);return;}if(!/^image\\//.test(f.type)){alert("Please choose an image file.");input.value="";cb(null);return;}var r=new FileReader();r.onload=function(){cb({dataUrl:r.result,name:f.name});};r.onerror=function(){alert("Could not read that file.");cb(null);};r.readAsDataURL(f);}'
+    // Downscale + JPEG-compress in the browser before upload. A 12MP phone photo
+    // (~8MB) becomes a ~1600px JPEG (~0.3MB), so google.script.run and the Drive
+    // write handle a fraction of the bytes. Falls back to the original if the image
+    // cannot be decoded (e.g. an unusual format).
+    + 'function tpReadFile(input,cb){var f=input.files&&input.files[0];if(!f){cb(null);return;}if(!/^image\\//.test(f.type)){alert("Please choose an image file.");input.value="";cb(null);return;}'
+    + 'var r=new FileReader();r.onerror=function(){alert("Could not read that file.");cb(null);};'
+    + 'r.onload=function(){var img=new Image();'
+    + 'img.onload=function(){var max=1600,w=img.width,h=img.height;if(w>max||h>max){var s=Math.min(max/w,max/h);w=Math.round(w*s);h=Math.round(h*s);}'
+    + 'try{var c=document.createElement("canvas");c.width=w;c.height=h;var x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,w,h);x.drawImage(img,0,0,w,h);'
+    + 'cb({dataUrl:c.toDataURL("image/jpeg",0.82),name:(f.name||"photo").replace(/\\.[^.]+$/,"")+".jpg"});}catch(e){cb({dataUrl:r.result,name:f.name});}};'
+    + 'img.onerror=function(){cb({dataUrl:r.result,name:f.name});};img.src=r.result;};'
+    + 'r.readAsDataURL(f);}'
     + '</script>';
 }
 
@@ -486,14 +507,19 @@ function projectsPage_(embedded) {
     + '<div class="tp-field"><label>Title</label><input id="tp-c-title" placeholder="e.g. Rebuild the tool crib shelving" required></div>'
     + '<div class="tp-field"><label>Description</label><textarea id="tp-c-desc" rows="2" placeholder="Scope, location, and what done looks like"></textarea></div>'
     + '<div class="tp-field"><label>Assignees (optional, comma-separated)</label><input id="tp-c-assignees" placeholder="Alex Rivera, Sam Chen"></div>'
+    + '<div class="tp-field"><label>Before photo (optional)</label>'
+    +   '<div class="tp-slot" id="tp-c-slot-b" style="max-width:280px"><input type="file" accept="image/*" id="tp-c-before" style="display:none" onchange="tpCreateSlot(this)"><div class="tp-slot-btn" onclick="document.getElementById(\'tp-c-before\').click()"><span id="tp-c-blabel">Add a &ldquo;before&rdquo; photo</span></div></div>'
+    + '</div>'
     + '<button type="submit" class="btn btn-primary">Create project</button>'
     + '<span id="tp-c-msg" class="tp-lock-msg" style="margin-left:10px"></span>'
     + '</form>';
 
-  inner += '<div class="stats">'
-    + '<div class="stat"><div class="stat-label">Assigned</div><div class="stat-val" id="tp-n-assigned">' + assigned.length + '</div></div>'
-    + '<div class="stat"><div class="stat-label">In progress</div><div class="stat-val" id="tp-n-active">' + active.length + '</div></div>'
-    + '<div class="stat"><div class="stat-label">Completed</div><div class="stat-val" id="tp-n-done">' + done.length + '</div></div>'
+  inner += '<div class="ic-summary">'
+    + '<span class="ic-sum"><b id="tp-n-assigned">' + assigned.length + '</b> assigned</span>'
+    + '<span class="ic-dot"></span>'
+    + '<span class="ic-sum"><b id="tp-n-active">' + active.length + '</b> in progress</span>'
+    + '<span class="ic-dot"></span>'
+    + '<span class="ic-sum"><b id="tp-n-done">' + done.length + '</b> completed</span>'
     + '</div>';
 
   var sectionHead = function (label, count, cls) {
@@ -517,15 +543,10 @@ function projectsPage_(embedded) {
       ? p.assignees.map(function (a) { return '<span class="tp-chip">' + escapeHtml_(a) + '</span>'; }).join('')
       : '<span class="tp-chip tp-chip--empty">No one yet</span>';
 
-    var photos = '';
-    if (isDone && (p.before || p.after)) {
-      photos = '<div class="tp-photos" id="' + rid + '-photos">'
-        + '<div class="tp-photo"><figure><figcaption>Before</figcaption>' + tpThumb_(p.before) + '</figure></div>'
-        + '<div class="tp-photo"><figure><figcaption>After</figcaption>' + tpThumb_(p.after) + '</figure></div>'
-        + '</div>';
-    } else {
-      photos = '<div id="' + rid + '-photos"></div>';
-    }
+    var photoInner = '';
+    if (p.before) photoInner += '<div class="tp-photo"><figure><figcaption>Before</figcaption>' + tpThumb_(p.before) + '</figure></div>';
+    if (isDone && p.after) photoInner += '<div class="tp-photo"><figure><figcaption>After</figcaption>' + tpThumb_(p.after) + '</figure></div>';
+    var photos = '<div id="' + rid + '-photos">' + (photoInner ? '<div class="tp-photos">' + photoInner + '</div>' : '') + '</div>';
 
     var body = '<div class="card-body">'
       + '<div class="card-head"><div><div class="card-team">Project</div>'
@@ -545,9 +566,8 @@ function projectsPage_(embedded) {
         + '<button type="button" class="btn btn-primary" onclick="tpCompleteOpen(\'' + rid + '\')">Complete</button>'
         + '</span></div>'
         + '<div id="' + rid + '-uploader" class="tp-uploader" style="display:none">'
-        + '<div class="tp-hint" style="margin-bottom:10px">Completing a project requires both a <b>before</b> and an <b>after</b> photo.</div>'
+        + '<div class="tp-hint" style="margin-bottom:10px">Add an <b>after</b> photo of the finished work to complete this project.</div>'
         + '<div class="tp-drop">'
-        + '<div class="tp-slot" id="' + rid + '-slot-b"><input type="file" accept="image/*" id="' + rid + '-before" style="display:none" onchange="tpSlot(this,\'' + rid + '\',\'b\')"><div class="tp-slot-btn" onclick="document.getElementById(\'' + rid + '-before\').click()"><span id="' + rid + '-blabel">Add “before” photo</span></div></div>'
         + '<div class="tp-slot" id="' + rid + '-slot-a"><input type="file" accept="image/*" id="' + rid + '-after" style="display:none" onchange="tpSlot(this,\'' + rid + '\',\'a\')"><div class="tp-slot-btn" onclick="document.getElementById(\'' + rid + '-after\').click()"><span id="' + rid + '-alabel">Add “after” photo</span></div></div>'
         + '</div>'
         + '<div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
@@ -572,7 +592,8 @@ function projectsPage_(embedded) {
   inner += '</div>';
 
   inner += '<script>'
-    + 'var TPUP={};'
+    + 'var TPUP={};var TPCB=null;'
+    + 'function tpCreateSlot(input){tpReadFile(input,function(res){if(!res)return;TPCB=res;var s=document.getElementById("tp-c-slot-b");if(s)s.classList.add("is-set");var l=document.getElementById("tp-c-blabel");if(l)l.textContent="\\u2713 Before: "+res.name;});}'
     + 'function tpBump(id,d){var e=document.getElementById(id);if(e)e.textContent=Math.max(0,(parseInt(e.textContent,10)||0)+d);}'
     + 'function tpSetPill(rid,cls,txt){document.getElementById(rid+"-pill").innerHTML="<span class=\\"tp-pill "+cls+"\\">"+txt+"</span>";}'
     + 'function tpJoinOpen(rid){document.getElementById(rid+"-join").style.display="none";document.getElementById(rid+"-joinbox").style.display="inline-flex";document.getElementById(rid+"-name").focus();}'
@@ -591,23 +612,23 @@ function projectsPage_(embedded) {
     + 'var slot=document.getElementById(rid+"-slot-"+which);slot.classList.add("is-set");'
     + 'document.getElementById(rid+"-"+(which==="b"?"blabel":"alabel")).textContent=(which==="b"?"\\u2713 Before: ":"\\u2713 After: ")+res.name;});}'
     + 'function tpComplete(rid,pid){var buf=TPUP[rid]||{};var msg=document.getElementById(rid+"-cmsg");'
-    + 'if(!buf.b||!buf.a){msg.style.color="#b31b1b";msg.textContent="Add both a before and an after photo first.";return;}'
-    + 'msg.style.color="";msg.textContent="Uploading both photos\\u2026";document.getElementById(rid+"-finish").disabled=true;'
+    + 'if(!buf.a){msg.style.color="#b31b1b";msg.textContent="Add an after photo first.";return;}'
+    + 'msg.style.color="";msg.textContent="Uploading photo\\u2026";document.getElementById(rid+"-finish").disabled=true;'
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){msg.style.color="#b31b1b";msg.textContent=(r&&r.error)||"Failed";document.getElementById(rid+"-finish").disabled=false;return;}'
     + 'tpConfetti();tpSetPill(rid,"tp-pill--done","Completed");'
-    + 'document.getElementById(rid+"-photos").innerHTML="<div class=\\"tp-photos\\"><div class=\\"tp-photo\\"><figure><figcaption>Before</figcaption><a href=\\"https://drive.google.com/file/d/"+r.beforeId+"/view\\" target=\\"_blank\\" rel=\\"noopener\\" style=\\"display:inline-block;line-height:0\\"><img src=\\"https://drive.google.com/thumbnail?id="+r.beforeId+"&sz=w600\\" style=\\"max-width:100%;max-height:200px;border-radius:10px;border:1px solid #ececec\\"></a></figure></div>"'
-    + '+"<div class=\\"tp-photo\\"><figure><figcaption>After</figcaption><a href=\\"https://drive.google.com/file/d/"+r.afterId+"/view\\" target=\\"_blank\\" rel=\\"noopener\\" style=\\"display:inline-block;line-height:0\\"><img src=\\"https://drive.google.com/thumbnail?id="+r.afterId+"&sz=w600\\" style=\\"max-width:100%;max-height:200px;border-radius:10px;border:1px solid #ececec\\"></a></figure></div></div>";'
+    + 'var bh=r.beforeId?"<div class=\\"tp-photo\\"><figure><figcaption>Before</figcaption><a href=\\"https://drive.google.com/file/d/"+r.beforeId+"/view\\" target=\\"_blank\\" rel=\\"noopener\\" style=\\"display:inline-block;line-height:0\\"><img src=\\"https://drive.google.com/thumbnail?id="+r.beforeId+"&sz=w600\\" style=\\"max-width:100%;max-height:200px;border-radius:10px;border:1px solid #ececec\\"></a></figure></div>":"";'
+    + 'document.getElementById(rid+"-photos").innerHTML="<div class=\\"tp-photos\\">"+bh+"<div class=\\"tp-photo\\"><figure><figcaption>After</figcaption><a href=\\"https://drive.google.com/file/d/"+r.afterId+"/view\\" target=\\"_blank\\" rel=\\"noopener\\" style=\\"display:inline-block;line-height:0\\"><img src=\\"https://drive.google.com/thumbnail?id="+r.afterId+"&sz=w600\\" style=\\"max-width:100%;max-height:200px;border-radius:10px;border:1px solid #ececec\\"></a></figure></div></div>";'
     + 'var card=document.getElementById(rid);var was=(card.dataset.status||"").toLowerCase();'
     + 'var up=document.getElementById(rid+"-uploader");if(up)up.parentNode.removeChild(up);'
     + 'var foot=card.querySelector(".card-foot");if(foot)foot.innerHTML="<span class=\\"due due--done\\">\\u2713 Completed</span>";'
     + 'if(was==="in progress")tpBump("tp-n-active",-1);else tpBump("tp-n-assigned",-1);tpBump("tp-n-done",1);card.dataset.status="Completed";'
-    + '}).withFailureHandler(function(){msg.style.color="#b31b1b";msg.textContent="Upload failed. Please retry.";document.getElementById(rid+"-finish").disabled=false;}).tpCompleteProject(pid,buf.b.dataUrl,buf.a.dataUrl,buf.b.name,buf.a.name);}'
+    + '}).withFailureHandler(function(){msg.style.color="#b31b1b";msg.textContent="Upload failed. Please retry.";document.getElementById(rid+"-finish").disabled=false;}).tpCompleteProject(pid,buf.a.dataUrl,buf.a.name);}'
     + 'function tpCreate(ev){ev.preventDefault();var t=document.getElementById("tp-c-title").value.trim();var d=document.getElementById("tp-c-desc").value.trim();var a=document.getElementById("tp-c-assignees").value.trim();var msg=document.getElementById("tp-c-msg");'
     + 'if(!t){msg.className="tp-lock-msg bad";msg.textContent="A title is required.";return false;}'
     + 'msg.className="tp-lock-msg";msg.textContent="Creating\\u2026";'
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){msg.className="tp-lock-msg bad";msg.textContent=(r&&r.error)||"Failed";return;}'
     + 'msg.className="tp-lock-msg ok";msg.textContent="\\u2713 Project created, reloading\\u2026";setTimeout(function(){location.reload();},700);'
-    + '}).withFailureHandler(function(){msg.className="tp-lock-msg bad";msg.textContent="Failed. Retry.";}).tpCreateProject(t,d,a,ADMIN_PASS);return false;}'
+    + '}).withFailureHandler(function(){msg.className="tp-lock-msg bad";msg.textContent="Failed. Retry.";}).tpCreateProject(t,d,a,TPCB?TPCB.dataUrl:"",TPCB?TPCB.name:"",ADMIN_PASS);return false;}'
     + '</script>';
 
   return swissShell_(tpStyles_() + inner + tpSharedJs_(), 'Projects', true, embedded);

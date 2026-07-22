@@ -429,27 +429,22 @@ function teamPortal_(team, readOnly, embedded) {
   if (!team) return htmlPage_('Invalid link', 'This team link is not recognized.');
   const data = listTeamIssues_(team);
   const issues = data.open;
+  const pendingCount = issues.filter(function (x) { return x.pending; }).length;
+  const activeCount = issues.length - pendingCount;
   const overdue = issues.filter(function (x) { return x.overdue; }).length;
-  const total = issues.length + data.resolved;
-  const pct = total > 0 ? Math.round(data.resolved / total * 100) : 0;
 
   let inner = '<div style="font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#9a958c">Project Teams Ops Hub</div>'
     + '<div class="swh" style="font-size:34px;font-weight:800;letter-spacing:-.035em;line-height:1;margin-top:10px">' + escapeHtml_(team) + '</div>'
     + '<div style="width:46px;height:3px;background:#b31b1b;margin-top:12px"></div>';
 
-  inner += '<div style="display:flex;align-items:center;gap:26px;margin-top:26px">'
-    + '<svg width="84" height="84" viewBox="0 0 42 42" aria-hidden="true">'
-    +   '<circle cx="21" cy="21" r="15.915" fill="none" stroke="#e9e9e9" stroke-width="3.4"></circle>'
-    +   '<circle id="ring-fg" cx="21" cy="21" r="15.915" fill="none" stroke="#1d7a46" stroke-width="3.4" stroke-linecap="round" stroke-dasharray="' + pct + ' ' + (100 - pct) + '" transform="rotate(-90 21 21)"></circle>'
-    +   '<text id="ring-pct" x="21" y="20.5" text-anchor="middle" font-size="9" font-weight="800" fill="#111">' + pct + '%</text>'
-    +   '<text x="21" y="27" text-anchor="middle" font-size="3.3" letter-spacing="0.4" fill="#9a958c">RESOLVED</text>'
-    + '</svg>'
-    + '<div style="font-size:15px;line-height:2;color:#555">'
-    +   '<div><b id="res-n" style="color:#111;font-size:17px">' + data.resolved + '</b> &nbsp;resolved</div>'
-    +   '<div><b id="open-n" style="color:#111;font-size:17px">' + issues.length + '</b> &nbsp;open'
-    +     '<span id="over-wrap" style="' + (overdue ? '' : 'display:none;') + 'color:#b31b1b;font-weight:700;margin-left:6px"><span id="over-n">' + overdue + '</span> overdue</span>'
-    +   '</div>'
-    + '</div></div>';
+  inner += '<div class="ic-summary" style="margin-top:18px">'
+    + '<span class="ic-sum"><b id="sum-open">' + activeCount + '</b> open</span>'
+    + '<span class="ic-dot"></span>'
+    + '<span class="ic-sum"><b id="sum-pending">' + pendingCount + '</b> pending</span>'
+    + '<span class="ic-dot"></span>'
+    + '<span class="ic-sum ic-sum--danger"><b id="sum-over">' + overdue + '</b> overdue</span>'
+    + (data.resolved ? '<span class="ic-dot"></span><span class="ic-sum"><b>' + data.resolved + '</b> done</span>' : '')
+    + '</div>';
 
   if (!issues.length) {
     inner += '<div style="font-size:16px;line-height:1.7;color:#555;margin-top:30px">No open issues. Everything is in good shape.</div>';
