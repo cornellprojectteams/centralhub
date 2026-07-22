@@ -59,10 +59,10 @@
           <span class="admin-side-label">Admin</span>
           <nav class="admin-nav" id="admin-nav" aria-label="Admin sections">
             <a href="#space-admin" style="--chip:#c0392b"><span class="dot"></span>Space</a>
+            <a href="#projects-admin" style="--chip:#b8791a"><span class="dot"></span>Projects</a>
             <a href="#ell-admin" style="--chip:#e08a1e"><span class="dot"></span>Experiential Learning Lab</a>
             <a href="#access" style="--chip:#2563c9"><span class="dot"></span>Fabman</a>
             <a href="#compliance" style="--chip:#1f9d5b"><span class="dot"></span>Compliance</a>
-            <a href="#projects-admin" style="--chip:#b06a00"><span class="dot"></span>Projects</a>
             <a href="#fleet" style="--chip:#7c3aed"><span class="dot"></span>Fleet</a>
             <a href="#inventory" style="--chip:#0d9488"><span class="dot"></span>Equipment</a>
             <a href="#website" style="--chip:#444d56"><span class="dot"></span>Site &amp; code</a>
@@ -76,15 +76,11 @@
             <button type="button" class="action action-dashboard" id="issues-open" data-keywords="open issues dashboard all teams filter mark complete photos tasks approve reject send back pending approval completion evidence unlock passcode">
               <span class="action-badge">Live</span>
               <span class="action-title">Open issues dashboard</span>
-              <span class="action-sub">All teams · finish with a photo · approve or send back submissions</span>
+              <span class="action-sub">Every open job across all teams. When someone finishes one, check their photo and approve it or send it back.</span>
             </button>
             <a class="action" href="team.html" data-keywords="share link team open issues operations team per-team shareable url copy">
               <span class="action-title">Share a team&rsquo;s issue link</span>
               <span class="action-sub">Get a clean link to one team&rsquo;s open issues, like Operations Team</span>
-            </a>
-            <a class="action" href="https://docs.google.com/spreadsheets/d/1mZrlnA-GiVKB4_Um21aMH9jsSkf6TUJhauDWivnf7-I/edit" target="_blank" rel="noopener" data-keywords="space status tracking spreadsheet sheet raw data responses pending actions team contacts">
-              <span class="action-title">Open the tracking spreadsheet</span>
-              <span class="action-sub">Space Status Tracking: raw responses and pending actions</span>
             </a>
             <a class="action" href="https://script.google.com/d/1DpKw0dXIQ5rH6_BQfIQnXpmTbTcPmfH3wq2Dzc6pJUA7lrmeFG7hh5P4/edit" target="_blank" rel="noopener" data-keywords="space status emailer script automation notification">
               <span class="action-title">Space Status Emailer script</span>
@@ -94,6 +90,20 @@
           <p class="action-note" data-keywords="documentation docs guide how it works system code reference deploy troubleshooting">
             New here? <a href="docs.html">Read the system guide</a>
           </p>
+        </section>
+
+        <section class="category admin-block" id="projects-admin" data-keywords="projects assign create multi student before after photo in progress completed assignees tasks approve reject completion evidence confetti">
+          <h3 class="admin-label">Projects</h3>
+          <div class="action-group">
+            <a class="action" data-module="projects" href="#" target="_blank" rel="noopener" data-keywords="assign create project multi student before after photo in progress completed">
+              <span class="action-title">Assign &amp; track projects</span>
+              <span class="action-sub">Hand out bigger jobs, see who&rsquo;s working on each, and view the before and after photos when they wrap up.</span>
+            </a>
+            <a class="action" href="https://docs.google.com/spreadsheets/d/1mZrlnA-GiVKB4_Um21aMH9jsSkf6TUJhauDWivnf7-I/edit" target="_blank" rel="noopener" data-keywords="projects tab spreadsheet raw data edit rows completion photo completed at">
+              <span class="action-title">Edit the Projects tab</span>
+              <span class="action-sub">Add or change projects straight in the spreadsheet.</span>
+            </a>
+          </div>
         </section>
 
         <section class="category admin-block" id="ell-admin" data-keywords="experiential learning lab ell shift responses data summary staffing">
@@ -144,23 +154,6 @@
               <span class="action-sub">Seasonal team contact roster</span>
             </a>
           </div>
-        </section>
-
-        <section class="category admin-block" id="projects-admin" data-keywords="projects assign create multi student before after photo in progress completed assignees tasks approve reject completion evidence confetti">
-          <h3 class="admin-label">Projects</h3>
-          <div class="action-group">
-            <a class="action" data-module="projects" href="#" target="_blank" rel="noopener" data-keywords="assign create project multi student before after photo in progress completed">
-              <span class="action-title">Assign &amp; track projects</span>
-              <span class="action-sub">Create projects, watch assignees, before &amp; after on completion</span>
-            </a>
-            <a class="action" href="https://docs.google.com/spreadsheets/d/1mZrlnA-GiVKB4_Um21aMH9jsSkf6TUJhauDWivnf7-I/edit" target="_blank" rel="noopener" data-keywords="projects tab spreadsheet raw data edit rows completion photo completed at">
-              <span class="action-title">Edit the Projects tab</span>
-              <span class="action-sub">Author projects directly in the tracking spreadsheet</span>
-            </a>
-          </div>
-          <p class="action-note" data-keywords="setup run once apps script setupTasksProjects passcode bigred tasks are open issues approve">
-            Approving completed <em>tasks</em>? Those are your open issues &mdash; use the Open issues dashboard above. First run: open the Space Status script and run <code>setupTasksProjects()</code> once.
-          </p>
         </section>
 
         <section class="category admin-block" id="fleet" data-keywords="student drivers tacoma vehicle reservation approval fleet mbn-4258 remove graduated cleanup">

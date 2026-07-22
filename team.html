@@ -3,8 +3,9 @@
 <!--
   Team open issues: a clean, shareable per-team view.
   URL:  team.html?team=Operations%20Team
-  Embeds the read-only team portal from the Space Status web app, so the address
-  bar stays on this site instead of the script.google.com URL.
+  Embeds the team portal from the Space Status web app (markable via &act=1, so the
+  team can mark items complete with a photo), keeping the address bar on this site
+  instead of the script.google.com URL.
   Header/footer + tokens come from styles.css; web app URL from config.js.
 -->
 <head>
@@ -87,7 +88,7 @@
 
   function renderTeam(name) {
     document.title = name + ' open issues | Project Teams Ops Hub';
-    var src = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'view=' + encodeURIComponent(name);
+    var src = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'view=' + encodeURIComponent(name) + '&act=1';
     main.innerHTML =
       '<div class="team-eyebrow">Space Status</div>' +
       '<h1 class="team-title">' + esc(name) + ' open issues</h1>' +

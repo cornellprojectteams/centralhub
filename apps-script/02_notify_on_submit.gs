@@ -407,7 +407,7 @@ function confirmPage_(id) {
   const what = info.issueType ? lcFirst_(phrase_(info.issueType)) : 'this';
   const inner = '<div style="font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#999">Space Status</div>'
     + '<div class="swh" style="font-size:30px;font-weight:800;letter-spacing:-.025em;line-height:1.1;margin-top:16px">Mark complete</div>'
-    + '<div style="font-size:16px;line-height:1.7;color:#555;margin-top:12px">Upload a photo showing ' + escapeHtml_(what) + ' is done. An admin reviews and approves it.</div>'
+    + '<div style="font-size:16px;line-height:1.7;color:#555;margin-top:12px">Upload a photo showing ' + escapeHtml_(what) + ' is done.</div>'
     + '<div id="act" style="margin-top:24px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
     +   '<input type="file" accept="image/*" id="cf-file" style="display:none" onchange="cfFile(this)">'
     +   '<span class="tp-hint">Photo required</span>'
@@ -419,7 +419,7 @@ function confirmPage_(id) {
     + 'function cfFile(input){tpReadFile(input,function(res){if(!res)return;var a=document.getElementById("act");a.innerHTML="<span class=\\"tp-hint\\">Uploading photo\\u2026</span>";'
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Upload failed")+"</span>";return;}'
     + 'tpConfetti();a.style.display="none";document.getElementById("cf-photo").innerHTML="<div class=\\"tp-photos\\"><div class=\\"tp-photo\\"><figure><figcaption>Completion photo</figcaption><img src=\\"https://drive.google.com/thumbnail?id="+r.photoId+"&sz=w600\\" style=\\"max-width:100%;max-height:220px;border-radius:10px;border:1px solid #ececec\\"></figure></div></div>";'
-    + 'var d=document.getElementById("done");d.style.display="block";d.innerHTML="\\u2713 Submitted \\u2014 pending approval";'
+    + 'var d=document.getElementById("done");d.style.display="block";d.innerHTML="\\u2713 Submitted, pending approval";'
     + '}).withFailureHandler(function(){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Upload failed. Please retry.</span>";}).submitIssueCompletion(' + JSON.stringify(id) + ',res.dataUrl,res.name);});}'
     + '</script>';
   return swissShell_(tpStyles_() + inner + tpSharedJs_(), 'Space Status');
@@ -451,8 +451,6 @@ function teamPortal_(team, readOnly, embedded) {
     +   '</div>'
     + '</div></div>';
 
-  if (!readOnly) inner += tpAdminBar_('approve or send back');
-
   if (!issues.length) {
     inner += '<div style="font-size:16px;line-height:1.7;color:#555;margin-top:30px">No open issues. Everything is in good shape.</div>';
     return swissShell_(tpStyles_() + inner + tpSharedJs_(), 'Space Status - ' + team, false, embedded);
@@ -469,7 +467,7 @@ function teamPortal_(team, readOnly, embedded) {
       : (it.overdue
         ? '<span class="chip chip--overdue">Overdue</span>'
         : (it.deadline ? '<span class="chip chip--due">' + daysLeftLabel_(it.deadline) + '</span>' : ''));
-    const statusTxt = isPending ? 'Submitted — awaiting approval' : ('Due ' + escapeHtml_(dl));
+    const statusTxt = isPending ? 'Submitted, awaiting approval' : ('Due ' + escapeHtml_(dl));
     const accent = COLOR_HEX[it.color] || '#d6d3ce';
     let foot = '';
     if (!readOnly) foot = isPending ? icPendingFoot_(rid, it.token) : icOpenFoot_(rid, it.token);
@@ -483,6 +481,7 @@ function teamPortal_(team, readOnly, embedded) {
       +   (it.details ? '<div class="card-field"><span class="card-flabel">Details</span><div class="card-details">' + escapeHtml_(it.details) + '</div></div>' : '')
       +   (it.photos && it.photos.length ? photoStrip_(it.photos) : '')
       +   icPhotoBlock_(rid, it.completionPhoto)
+      +   icDoerNote_(rid, !isPending && !readOnly)
       + '</div>'
       + '<div class="card-foot">'
       +   '<span id="' + rid + '-status" class="' + (isPending ? 'due' : dueCls) + '">' + statusTxt + '</span>'
@@ -661,10 +660,12 @@ function allIssuesPage_(embedded) {
 
   inner += tpAdminBar_('approve or send back');
 
-  inner += '<div class="stats">'
-    + '<div class="stat"><div class="stat-label">Open</div><div class="stat-val" id="sum-open">' + active.length + '</div></div>'
-    + '<div class="stat"><div class="stat-label">Pending approval</div><div class="stat-val" id="sum-pending">' + pendingList.length + '</div></div>'
-    + '<div class="stat"><div class="stat-label">Overdue</div><div class="stat-val stat-val--danger" id="sum-over">' + overdue + '</div></div>'
+  inner += '<div class="ic-summary">'
+    + '<span class="ic-sum"><b id="sum-open">' + active.length + '</b> open</span>'
+    + '<span class="ic-dot"></span>'
+    + '<span class="ic-sum"><b id="sum-pending">' + pendingList.length + '</b> pending</span>'
+    + '<span class="ic-dot"></span>'
+    + '<span class="ic-sum ic-sum--danger"><b id="sum-over">' + overdue + '</b> overdue</span>'
     + '</div>';
 
   inner += '<div class="filters">'
@@ -698,7 +699,7 @@ function allIssuesPage_(embedded) {
         : (it.deadline ? '<span class="chip chip--due">' + daysLeftLabel_(it.deadline) + '</span>' : ''));
     const hay = ((it.team || '') + ' ' + (it.issueType || '') + ' ' + (it.action || '') + ' ' + (it.details || '')).toLowerCase();
     const accent = COLOR_HEX[it.color] || '#d6d3ce';
-    const statusTxt = isPending ? 'Submitted — awaiting approval' : ('Due ' + escapeHtml_(dl));
+    const statusTxt = isPending ? 'Submitted, awaiting approval' : ('Due ' + escapeHtml_(dl));
     const foot = isPending ? icPendingFoot_(rid, it.token) : icOpenFoot_(rid, it.token);
     return '<div class="card" id="' + rid + '" style="border-left:4px solid ' + accent + ';border-right:4px solid ' + accent + '" data-team="' + escapeHtml_(it.team) + '" data-over="' + (it.overdue ? '1' : '0') + '" data-state="' + (isPending ? 'pending' : 'open') + '" data-hay="' + escapeHtml_(hay) + '">'
       + '<div class="card-body">'
@@ -711,6 +712,7 @@ function allIssuesPage_(embedded) {
       +   (it.details ? '<div class="card-field"><span class="card-flabel">Details</span><div class="card-details">' + escapeHtml_(it.details) + '</div></div>' : '')
       +   (it.photos && it.photos.length ? photoStrip_(it.photos) : '')
       +   icPhotoBlock_(rid, it.completionPhoto)
+      +   icDoerNote_(rid, !isPending)
       + '</div>'
       + '<div class="card-foot">'
       +   '<span id="' + rid + '-status" class="' + (isPending ? 'due' : dueCls) + '">' + statusTxt + '</span>'

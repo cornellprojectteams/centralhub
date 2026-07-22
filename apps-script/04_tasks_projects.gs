@@ -9,7 +9,7 @@
  *      "Pending approval" (stamps `Completed at`; reminders pause).
  *   3. An admin (passcode) Approves -> stamps `Addressed at` (Completed), or
  *      Sends back -> clears the submission (back to Open / Uncompleted).
- * This reuses the one Form Responses tracking sheet — no parallel system.
+ * This reuses the one Form Responses tracking sheet, with no parallel system.
  *
  *   ?module=projects  Multi-user projects created/assigned by an admin. Any
  *                     student can pick (join) a project; the first pick flips it
@@ -35,7 +35,7 @@ var TP = {
   projectsSheet: 'Projects',
   projectHeaders: ['Project ID', 'Title', 'Description', 'Status', 'Assignees', 'Before photo', 'After photo', 'Started at', 'Completed at', 'Created at'],
   projectStatus: { assigned: 'Assigned', active: 'In Progress', done: 'Completed' },
-  uploadsFolderName: 'Ops Hub — completion & project uploads',
+  uploadsFolderName: 'Ops Hub completion and project uploads',
 };
 
 // ---- One-time setup (mirrors setupRegistry). Safe to re-run. ----
@@ -311,10 +311,17 @@ function tpCreateProject(title, description, assignees, pass) {
 
 function tpStyles_() {
   return '<style>'
-    + '.tp-lock{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:16px 0 4px;padding:12px 16px;background:#fff;border:1.5px solid #e7e7e3;border-radius:14px;box-shadow:0 2px 8px rgba(20,20,30,.05)}'
-    + '.tp-lock-eyebrow{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#8a857c}'
-    + '.tp-lock input{font:inherit;font-size:14px;padding:10px 12px;border:1.5px solid #e0e0dc;border-radius:10px;background:#fafaf8;outline:none;min-width:200px;flex:1}'
-    + '.tp-lock input:focus{border-color:#b31b1b;box-shadow:0 0 0 4px rgba(179,27,27,.12);background:#fff}'
+    + '[hidden]{display:none!important}'   // hidden attr must beat class display rules (.btn-row/.ic-admin-fields) so admin controls stay hidden until unlock
+    + '.ic-summary{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:12px 0 2px;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:13.5px;font-weight:600;color:#8a857c}'
+    + '.ic-sum b{font-weight:800;color:#111;font-size:16px;margin-right:5px}'
+    + '.ic-sum--danger b{color:#b31b1b}'
+    + '.ic-dot{width:4px;height:4px;border-radius:50%;background:#d6d3ce}'
+    + '.ic-adminbar{display:flex;align-items:center;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin:2px 0}'
+    + '.ic-admin-toggle{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#b5b0a8;background:none;border:none;cursor:pointer;padding:4px 2px}'
+    + '.ic-admin-toggle:hover{color:#8f1515}'
+    + '.ic-admin-fields{display:inline-flex;gap:8px;align-items:center;flex-wrap:wrap}'
+    + '.ic-admin-fields input{font:inherit;font-size:13px;padding:8px 11px;border:1.5px solid #e0e0dc;border-radius:9px;background:#fff;outline:none;min-width:150px}'
+    + '.ic-admin-fields input:focus{border-color:#b31b1b;box-shadow:0 0 0 3px rgba(179,27,27,.1)}'
     + '.tp-lock-msg{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12px;font-weight:700}'
     + '.tp-lock-msg.ok{color:#157a47}.tp-lock-msg.bad{color:#b31b1b}'
     + '.tp-assignees{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}'
@@ -346,6 +353,10 @@ function tpStyles_() {
     + '.tp-inline-join input{font:inherit;font-size:14px;padding:9px 12px;border:1.5px solid #e0e0dc;border-radius:10px;background:#fff;outline:none;min-width:160px}'
     + '.tp-inline-join input:focus{border-color:#b31b1b;box-shadow:0 0 0 4px rgba(179,27,27,.12)}'
     + '#tp-cfx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9999}'
+    + '.ic-note{margin-top:12px;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12.5px;font-weight:600;line-height:1.55;color:#6b665e;background:#f7f6f2;border:1px solid #ece9e2;border-radius:10px;padding:10px 13px}'
+    + '.ic-note b{color:#8f1515}'
+    + '#tp-cheer{position:fixed;left:50%;top:20%;transform:translate(-50%,-10px) scale(.92);z-index:10000;pointer-events:none;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-weight:800;font-size:18px;color:#fff;background:linear-gradient(180deg,#1d9d5b 0%,#157a47 100%);padding:14px 22px;border-radius:14px;box-shadow:0 14px 34px rgba(21,122,71,.34);opacity:0;transition:opacity .3s ease,transform .35s cubic-bezier(.2,.9,.3,1.4);max-width:88vw;text-align:center}'
+    + '#tp-cheer.show{opacity:1;transform:translate(-50%,0) scale(1)}'
     + '</style>';
 }
 
@@ -362,7 +373,11 @@ function tpSharedJs_() {
     + 'var lb=document.getElementById("tp-lock-fields");if(lb)lb.style.display="none";}'
     + 'else if(m){m.textContent="Incorrect passcode";m.className="tp-lock-msg bad";}'
     + '}).withFailureHandler(function(){if(m){m.textContent="Could not verify. Try again.";m.className="tp-lock-msg bad";}}).tpCheckPass(p);}'
-    + 'function tpConfetti(){var c=document.getElementById("tp-cfx");if(!c){c=document.createElement("canvas");c.id="tp-cfx";document.body.appendChild(c);}'
+    + 'function tpAdminToggle(){var f=document.getElementById("tp-lock-fields");if(f)f.hidden=false;var t=document.getElementById("tp-admin-toggle");if(t)t.style.display="none";var p=document.getElementById("tp-pass");if(p)p.focus();}'
+    + 'function tpConfetti(msg){var c=document.getElementById("tp-cfx");if(!c){c=document.createElement("canvas");c.id="tp-cfx";document.body.appendChild(c);}'
+    + 'var cheer=document.getElementById("tp-cheer");if(!cheer){cheer=document.createElement("div");cheer.id="tp-cheer";document.body.appendChild(cheer);}'
+    + 'var msgs=["\\uD83C\\uDF89 Boom! Thanks for taking care of that.","\\uD83D\\uDE4C Nice work. The space thanks you!","\\u2B50 Legend. Thanks for closing that out!","\\u2728 Done and dusted. Thank you!","\\uD83D\\uDCAA You crushed it. Thanks a ton!","\\uD83D\\uDE80 One down. Thanks for handling it!","\\uD83E\\uDD73 High five! Thanks for getting it done."];'
+    + 'cheer.textContent=msg||msgs[Math.floor(Math.random()*msgs.length)];cheer.className="";void cheer.offsetWidth;cheer.className="show";clearTimeout(cheer._t);cheer._t=setTimeout(function(){cheer.className="";},2600);'
     + 'var ctx=c.getContext("2d");var W=c.width=window.innerWidth,H=c.height=window.innerHeight;'
     + 'var cols=["#b31b1b","#e08a1e","#f0c050","#1d9d5b","#2563c9","#7c3aed"];var P=[];'
     + 'for(var i=0;i<150;i++){P.push({x:W/2+(Math.random()-0.5)*W*0.35,y:H*0.34+(Math.random()-0.5)*60,vx:(Math.random()-0.5)*15,vy:Math.random()*-15-4,g:0.30+Math.random()*0.22,s:6+Math.random()*7,rot:Math.random()*6.28,vr:(Math.random()-0.5)*0.45,col:cols[i%cols.length]});}'
@@ -373,14 +388,16 @@ function tpSharedJs_() {
     + '</script>';
 }
 
+// Discreet admin entry: a small "Admin" link that expands a passcode field on click.
+// Kept low-key so it does not shout at doers who never need it.
 function tpAdminBar_(purpose) {
-  return '<div class="tp-lock">'
-    + '<span class="tp-lock-eyebrow">Admin</span>'
-    + '<span id="tp-lock-fields" style="display:flex;gap:10px;flex:1;flex-wrap:wrap;align-items:center">'
+  return '<div class="ic-adminbar">'
+    + '<span id="tp-lock-msg" class="tp-lock-msg"></span>'
+    + '<button type="button" class="ic-admin-toggle" id="tp-admin-toggle" onclick="tpAdminToggle()">Admin</button>'
+    + '<span id="tp-lock-fields" class="ic-admin-fields" hidden>'
     + '<input type="password" id="tp-pass" placeholder="Passcode to ' + escapeHtml_(purpose) + '" onkeydown="if(event.key===\'Enter\')tpUnlock()">'
     + '<button type="button" class="btn btn-ghost" onclick="tpUnlock()">Unlock</button>'
     + '</span>'
-    + '<span id="tp-lock-msg" class="tp-lock-msg"></span>'
     + '</div>';
 }
 
@@ -394,10 +411,16 @@ function icPhotoBlock_(rid, url) {
   return '<div id="' + rid + '-photo">' + inner + '</div>';
 }
 
+// Plain-language instruction shown on an open item so people know what to do.
+function icNoteText_() {
+  return 'Done with this? Take a photo of the finished work, then tap <b>Mark complete</b> to upload it.';
+}
+function icNoteInner_() { return '<div class="ic-note">' + icNoteText_() + '</div>'; }
+function icDoerNote_(rid, show) { return '<div id="' + rid + '-note">' + (show ? icNoteInner_() : '') + '</div>'; }
+
 // Foot action for an OPEN item: hidden file input + "Mark complete" (photo required).
 function icOpenFoot_(rid, token) {
   return '<input type="file" accept="image/*" id="' + rid + '-file" style="display:none" onchange="icFile(this,\'' + rid + '\',\'' + token + '\')">'
-    + '<span class="tp-hint">Photo required</span>'
     + '<button type="button" class="btn btn-primary" onclick="document.getElementById(\'' + rid + '-file\').click()">Mark complete</button>';
 }
 
@@ -417,12 +440,14 @@ function icClientJs_() {
     + 'function icSetPill(rid,cls,txt){var p=document.getElementById(rid+"-pill");if(p)p.innerHTML="<span class=\\"tp-pill "+cls+"\\">"+txt+"</span>";}'
     + 'function icBump(id,d){var e=document.getElementById(id);if(e)e.textContent=Math.max(0,(parseInt(e.textContent,10)||0)+d);}'
     + 'function icThumb(pid){return "<div class=\\"tp-photos\\"><div class=\\"tp-photo\\"><figure><figcaption>Completion photo</figcaption><a href=\\"https://drive.google.com/file/d/"+pid+"/view\\" target=\\"_blank\\" rel=\\"noopener\\" style=\\"display:inline-block;line-height:0\\"><img src=\\"https://drive.google.com/thumbnail?id="+pid+"&sz=w600\\" style=\\"max-width:100%;max-height:200px;border-radius:10px;border:1px solid #ececec\\"></a></figure></div></div>";}'
-    + 'function icOpenFootJs(rid,token){return "<input type=\\"file\\" accept=\\"image/*\\" id=\\""+rid+"-file\\" style=\\"display:none\\" onchange=\\"icFile(this,\'"+rid+"\',\'"+token+"\')\\"><span class=\\"tp-hint\\">Photo required</span><button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"document.getElementById(\'"+rid+"-file\').click()\\">Mark complete</button>";}'
+    + 'function icOpenFootJs(rid,token){return "<input type=\\"file\\" accept=\\"image/*\\" id=\\""+rid+"-file\\" style=\\"display:none\\" onchange=\\"icFile(this,\'"+rid+"\',\'"+token+"\')\\"><button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"document.getElementById(\'"+rid+"-file\').click()\\">Mark complete</button>";}'
+    + 'function icNoteInner(){return "<div class=\\"ic-note\\">Done with this? Take a photo of the finished work, then tap <b>Mark complete</b> to upload it.</div>";}'
     + 'function icAdminFootJs(rid,token){return ADMIN_PASS?"<span class=\\"tp-admin btn-row\\"><button type=\\"button\\" class=\\"btn btn-confirm\\" onclick=\\"icApprove(\'"+rid+"\',\'"+token+"\')\\">Approve</button><button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"icReject(\'"+rid+"\',\'"+token+"\')\\">Send back</button></span>":"";}'
     + 'function icFile(input,rid,token){tpReadFile(input,function(res){if(!res)return;var act=document.getElementById(rid+"-act");act.innerHTML="<span class=\\"tp-hint\\">Uploading photo\\u2026</span>";'
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Upload failed")+"</span>";return;}'
     + 'tpConfetti();icSetPill(rid,"tp-pill--pending","Pending approval");var ph=document.getElementById(rid+"-photo");if(ph)ph.innerHTML=icThumb(r.photoId);'
-    + 'var s=document.getElementById(rid+"-status");if(s){s.textContent="Submitted \\u2014 awaiting approval";s.className="due";}'
+    + 'var s=document.getElementById(rid+"-status");if(s){s.textContent="Submitted, awaiting approval";s.className="due";}'
+    + 'var nt=document.getElementById(rid+"-note");if(nt)nt.innerHTML="";'
     + 'act.innerHTML=icAdminFootJs(rid,token);var c=document.getElementById(rid);if(c){if(c.dataset.over==="1"){icBump("sum-over",-1);c.dataset.over="0";}c.dataset.state="pending";}'
     + 'icBump("sum-open",-1);icBump("sum-pending",1);'
     + '}).withFailureHandler(function(){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Upload failed. Please retry.</span>";}).submitIssueCompletion(token,res.dataUrl,res.name);});}'
@@ -432,7 +457,8 @@ function icClientJs_() {
     + '}).withFailureHandler(function(){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).approveIssueCompletion(token,ADMIN_PASS);}'
     + 'function icReject(rid,token){var act=document.getElementById(rid+"-act");act.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed")+"</span>";return;}'
-    + 'icSetPill(rid,"tp-pill--todo","Open");var ph=document.getElementById(rid+"-photo");if(ph)ph.innerHTML="";var s=document.getElementById(rid+"-status");if(s){s.textContent="Sent back \\u2014 needs a new photo";s.className="due";}'
+    + 'icSetPill(rid,"tp-pill--todo","Open");var ph=document.getElementById(rid+"-photo");if(ph)ph.innerHTML="";var s=document.getElementById(rid+"-status");if(s){s.textContent="Sent back, please add a new photo";s.className="due";}'
+    + 'var nt=document.getElementById(rid+"-note");if(nt)nt.innerHTML=icNoteInner();'
     + 'act.innerHTML=icOpenFootJs(rid,token);var c=document.getElementById(rid);if(c)c.dataset.state="open";icBump("sum-pending",-1);icBump("sum-open",1);'
     + '}).withFailureHandler(function(){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).rejectIssueCompletion(token,ADMIN_PASS);}'
     + '</script>';
@@ -580,7 +606,7 @@ function projectsPage_(embedded) {
     + 'if(!t){msg.className="tp-lock-msg bad";msg.textContent="A title is required.";return false;}'
     + 'msg.className="tp-lock-msg";msg.textContent="Creating\\u2026";'
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){msg.className="tp-lock-msg bad";msg.textContent=(r&&r.error)||"Failed";return;}'
-    + 'msg.className="tp-lock-msg ok";msg.textContent="\\u2713 Project created \\u2014 reloading\\u2026";setTimeout(function(){location.reload();},700);'
+    + 'msg.className="tp-lock-msg ok";msg.textContent="\\u2713 Project created, reloading\\u2026";setTimeout(function(){location.reload();},700);'
     + '}).withFailureHandler(function(){msg.className="tp-lock-msg bad";msg.textContent="Failed. Retry.";}).tpCreateProject(t,d,a,ADMIN_PASS);return false;}'
     + '</script>';
 

@@ -906,6 +906,7 @@ body.issues-panel-open { overflow: hidden; }
 #ell-admin   { --cat: #e08a1e; --cat-deep: #a4630f; --glow: rgba(224, 138, 30, 0.3); }
 #access      { --cat: #2563c9; --cat-deep: #1a468f; --glow: rgba(37, 99, 201, 0.3); }
 #compliance  { --cat: #1f9d5b; --cat-deep: #156f40; --glow: rgba(31, 157, 91, 0.3); }
+#projects-admin { --cat: #b8791a; --cat-deep: #82530b; --glow: rgba(184, 121, 26, 0.3); }
 #fleet       { --cat: #7c3aed; --cat-deep: #5b27b0; --glow: rgba(124, 58, 237, 0.3); }
 #inventory   { --cat: #0d9488; --cat-deep: #0a6d64; --glow: rgba(13, 148, 136, 0.3); }
 #website     { --cat: #444d56; --cat-deep: #1b1f24; --glow: rgba(27, 31, 36, 0.3); }
