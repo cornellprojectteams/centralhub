@@ -303,10 +303,13 @@ function buildReminder_(data, color, token, deadline) {
 function doGet(e) {
   const p = (e && e.parameter) ? e.parameter : {};
   const embed = p.embed === '1' || p.embed === 'true';
-  if (p.module === 'projects') return projectsPage_(embed);   // Multi-user projects (04_tasks_projects.gs)
+  // Admin mode: set only by links from the (unlisted) admin page. It unlocks the
+  // admin controls without a passcode - the admin page's obscurity is the gate.
+  const admin = p.admin === '1' || p.admin === 'true';
+  if (p.module === 'projects') return projectsPage_(embed, admin);   // Multi-user projects (04_tasks_projects.gs)
   if (p.module === 'projects-dash') return projectsDashboardPage_(embed);   // Projects dashboard (04_tasks_projects.gs)
   if (p.team) { const t = lookupTeamByToken_(p.team); return t ? teamPortal_(t, false) : htmlPage_('Invalid link', 'This team link is not recognized.'); }
-  if (p.view === 'all') return allIssuesPage_(p.embed === '1' || p.embed === 'true');
+  if (p.view === 'all') return allIssuesPage_(embed, admin);
   if (p.registry) return registryPage_(String(p.registry), p.embed === '1' || p.embed === 'true');   // read-only Equipment / Inventory tables
   if (p.view) return teamPortal_(String(p.view), !(p.act === '1' || p.act === 'true'), p.embed === '1' || p.embed === 'true');   // ?view=<team> read-only; &act=1 markable; &embed=1 no top bar
   if (p.id) return confirmPage_(p.id);
@@ -643,7 +646,7 @@ function listAllIssues_() {
 // Every open issue across all teams. Completing one now requires an evidence
 // photo -> confetti -> Pending approval, then an admin approves/sends back.
 // Embedded in the hub panel when embed=1.
-function allIssuesPage_(embedded) {
+function allIssuesPage_(embedded, admin) {
   const data = listAllIssues_();
   const issues = data.open;
   const pendingList = issues.filter(function (x) { return x.pending; });
@@ -664,7 +667,6 @@ function allIssuesPage_(embedded) {
       + '</div>';
   }
 
-  inner += tpAdminBar_('approve or send back');
 
   inner += '<div class="ic-summary">'
     + '<span class="ic-sum"><b id="sum-open">' + active.length + '</b> open</span>'
@@ -682,7 +684,7 @@ function allIssuesPage_(embedded) {
 
   if (!issues.length) {
     inner += '<div class="empty">No open issues. Everything is in good shape.</div>';
-    return swissShell_(tpStyles_() + inner + tpSharedJs_(), 'Open issues', true, embedded);
+    return swissShell_(tpStyles_() + inner + tpSharedJs_() + tpAdminRevealJs_(admin), 'Open issues', true, embedded);
   }
 
   const sectionHead = function (label, count, cls) {
@@ -751,7 +753,7 @@ function allIssuesPage_(embedded) {
     +   'document.querySelectorAll(".card").forEach(function(c){var ok=(!q||c.dataset.hay.indexOf(q)>=0)&&(!tm||c.dataset.team===tm)&&(!od||c.dataset.over==="1");c.style.display=ok?"":"none";if(ok)n++;});'
     +   'document.getElementById("empty").style.display=n?"none":"block";}'
     + '</script>';
-  return swissShell_(tpStyles_() + inner + tpSharedJs_() + icClientJs_(), 'Open issues', true, embedded);
+  return swissShell_(tpStyles_() + inner + tpSharedJs_() + icClientJs_() + tpAdminRevealJs_(admin), 'Open issues', true, embedded);
 }
 
 // Read-only registry table (Equipment or Inventory) for the hub. Phase 1 CMMS.

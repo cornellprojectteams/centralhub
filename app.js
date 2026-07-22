@@ -66,11 +66,14 @@
     a.href = SPACE_STATUS_URL + sep + 'registry=' + encodeURIComponent(a.dataset.registry);
   });
 
-  // Module links (Tasks / Projects) point at the same web app via ?module=.
+  // Module links (Projects) point at the same web app via ?module=.
+  // data-admin links (only on the unlisted admin page) add &admin=1, which unlocks
+  // the admin controls without a passcode. Regular staff links never carry it.
   document.querySelectorAll('a[data-module]').forEach(a => {
     if (!SPACE_STATUS_URL) return;
     const sep = SPACE_STATUS_URL.indexOf('?') >= 0 ? '&' : '?';
-    a.href = SPACE_STATUS_URL + sep + 'module=' + encodeURIComponent(a.dataset.module);
+    a.href = SPACE_STATUS_URL + sep + 'module=' + encodeURIComponent(a.dataset.module)
+      + (a.hasAttribute('data-admin') ? '&admin=1' : '');
   });
 
   const search = document.getElementById('search');

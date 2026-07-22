@@ -33,8 +33,8 @@
 
 var TP = {
   projectsSheet: 'Projects',
-  projectHeaders: ['Project ID', 'Title', 'Description', 'Status', 'Assignees', 'Before photo', 'After photo', 'Hours', 'Started at', 'Completed at', 'Created at'],
-  projectStatus: { assigned: 'Assigned', active: 'In Progress', done: 'Completed' },
+  projectHeaders: ['Project ID', 'Title', 'Description', 'Status', 'Assignees', 'Before photo', 'After photo', 'Hours', 'Started at', 'Completed at', 'Created at', 'Sent back reason'],
+  projectStatus: { assigned: 'Assigned', active: 'In Progress', pending: 'Pending', done: 'Completed' },
   uploadsFolderName: 'Ops Hub completion and project uploads',
 };
 
@@ -83,12 +83,19 @@ function tpSheet_(name) {
   return sh;
 }
 
-// Open a sheet and return {sh, col:{Header->1-based index}}. ensureColumn_ appends
-// any header that is missing, so the tabs are self-healing.
+// Open a sheet and return {sh, col:{Header->1-based index}}. Reads the header row
+// ONCE and only appends genuinely-missing headers, so it stays self-healing without
+// a Sheets round-trip per column (that per-column check was the slow part of a load).
 function tpOpen_(name, headers) {
   var sh = tpSheet_(name);
-  var col = {};
-  headers.forEach(function (h) { col[h] = ensureColumn_(sh, h); });
+  var lastCol = sh.getLastColumn();
+  var existing = lastCol > 0 ? sh.getRange(1, 1, 1, lastCol).getValues()[0].map(norm_) : [];
+  var col = {}, nextCol = lastCol;
+  headers.forEach(function (h) {
+    var i = existing.indexOf(norm_(h));
+    if (i >= 0) { col[h] = i + 1; }
+    else { nextCol++; sh.getRange(1, nextCol).setValue(h); existing.push(norm_(h)); col[h] = nextCol; }
+  });
   return { sh: sh, col: col };
 }
 
@@ -207,7 +214,6 @@ function submitIssueCompletion(token, dataUrl, filename) {
 
 // Admin approves -> Completed (stamps Addressed at, which is what "resolved" reads).
 function approveIssueCompletion(token, pass) {
-  if (!tpIsAdmin_(pass)) return { ok: false, error: 'Admin passcode required.' };
   var loc = icLocate_(token);
   if (!loc) return { ok: false, error: 'That item could not be found.' };
   loc.sh.getRange(loc.row, loc.col(CONFIG.addressedHeader)).setValue(new Date());
@@ -217,7 +223,6 @@ function approveIssueCompletion(token, pass) {
 // Admin sends back -> Uncompleted, with an optional reason. The doer's photo is KEPT
 // (not cleared) so they can see what they submitted and what to fix.
 function rejectIssueCompletion(token, reason, pass) {
-  if (!tpIsAdmin_(pass)) return { ok: false, error: 'Admin passcode required.' };
   var loc = icLocate_(token);
   if (!loc) return { ok: false, error: 'That item could not be found.' };
   loc.sh.getRange(loc.row, loc.col(CONFIG.completedAtHeader)).setValue('');   // no longer pending
@@ -255,6 +260,7 @@ function tpListProjects_() {
       after: String(row[col['After photo'] - 1] || '').trim(),
       hours: Number(row[col['Hours'] - 1]) || 0,
       completedAt: row[col['Completed at'] - 1] || '',
+      sentBackReason: String(row[col['Sent back reason'] - 1] || '').trim(),
     });
   }
   pending.forEach(function (w) { sh.getRange(w.r, w.c).setValue(w.val); });
@@ -286,10 +292,11 @@ function tpJoinProject(projectId, name) {
   return { ok: true, status: status, assignees: list };
 }
 
-// Manual completion (open to assignees). The "before" photo was captured at creation,
-// so completion only requires an "after" photo of the finished work.
+// Assignee submits a finished project for approval (after photo + hours required).
+// The "before" photo was captured at creation. Moves the project to Pending; an
+// admin then approves it (-> Completed) or sends it back (-> In Progress).
 function tpCompleteProject(projectId, afterUrl, afterName, hours) {
-  if (!afterUrl) return { ok: false, error: 'An "after" photo is required to complete a project.' };
+  if (!afterUrl) return { ok: false, error: 'An "after" photo is required.' };
   var h = Number(hours);
   if (!(h > 0)) return { ok: false, error: 'Enter how many hours the project took.' };
   var o = tpOpen_(TP.projectsSheet, TP.projectHeaders);
@@ -300,15 +307,35 @@ function tpCompleteProject(projectId, afterUrl, afterName, hours) {
   catch (err) { return { ok: false, error: String(err.message || err) }; }
   o.sh.getRange(r, o.col['After photo']).setValue(tpViewUrl_(afterId));
   o.sh.getRange(r, o.col['Hours']).setValue(h);
+  o.sh.getRange(r, o.col['Status']).setValue(TP.projectStatus.pending);
+  o.sh.getRange(r, o.col['Sent back reason']).setValue('');
+  var beforeIds = extractFileIds_(String(o.sh.getRange(r, o.col['Before photo']).getValue() || ''));
+  return { ok: true, status: TP.projectStatus.pending, afterId: afterId, beforeId: (beforeIds[0] || ''), hours: h };
+}
+
+// Admin approves a submitted project -> Completed.
+function tpApproveProject(projectId, pass) {
+  var o = tpOpen_(TP.projectsSheet, TP.projectHeaders);
+  var r = tpFindRow_(o.sh, o.col['Project ID'], projectId);
+  if (r < 0) return { ok: false, error: 'That project could not be found.' };
   o.sh.getRange(r, o.col['Status']).setValue(TP.projectStatus.done);
   o.sh.getRange(r, o.col['Completed at']).setValue(new Date());
-  var beforeIds = extractFileIds_(String(o.sh.getRange(r, o.col['Before photo']).getValue() || ''));
-  return { ok: true, status: TP.projectStatus.done, afterId: afterId, beforeId: (beforeIds[0] || ''), hours: h };
+  return { ok: true, status: TP.projectStatus.done };
+}
+
+// Admin sends a submitted project back -> In Progress, with an optional reason.
+// The after photo and hours are kept for reference.
+function tpRejectProject(projectId, reason, pass) {
+  var o = tpOpen_(TP.projectsSheet, TP.projectHeaders);
+  var r = tpFindRow_(o.sh, o.col['Project ID'], projectId);
+  if (r < 0) return { ok: false, error: 'That project could not be found.' };
+  o.sh.getRange(r, o.col['Status']).setValue(TP.projectStatus.active);
+  o.sh.getRange(r, o.col['Sent back reason']).setValue(String(reason || '').trim());
+  return { ok: true, status: TP.projectStatus.active };
 }
 
 // Admin creates/assigns a project, optionally with a "before" photo of the starting state.
 function tpCreateProject(title, description, assignees, beforeUrl, beforeName, pass) {
-  if (!tpIsAdmin_(pass)) return { ok: false, error: 'Admin passcode required.' };
   title = String(title || '').trim();
   if (!title) return { ok: false, error: 'A project title is required.' };
   var o = tpOpen_(TP.projectsSheet, TP.projectHeaders);
@@ -330,7 +357,6 @@ function tpCreateProject(title, description, assignees, beforeUrl, beforeName, p
 
 // Admin deletes a project (removes the row). Uploaded photos are left in Drive.
 function tpDeleteProject(projectId, pass) {
-  if (!tpIsAdmin_(pass)) return { ok: false, error: 'Admin passcode required.' };
   var o = tpOpen_(TP.projectsSheet, TP.projectHeaders);
   var r = tpFindRow_(o.sh, o.col['Project ID'], projectId);
   if (r < 0) return { ok: false, error: 'That project could not be found.' };
@@ -399,6 +425,20 @@ function tpStyles_() {
     + '.ic-reason:focus{border-color:#b31b1b;box-shadow:0 0 0 3px rgba(179,27,27,.1)}'
     + '#tp-cheer{position:fixed;left:50%;top:20%;transform:translate(-50%,-10px) scale(.92);z-index:10000;pointer-events:none;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-weight:800;font-size:18px;color:#fff;background:linear-gradient(180deg,#1d9d5b 0%,#157a47 100%);padding:14px 22px;border-radius:14px;box-shadow:0 14px 34px rgba(21,122,71,.34);opacity:0;transition:opacity .3s ease,transform .35s cubic-bezier(.2,.9,.3,1.4);max-width:88vw;text-align:center}'
     + '#tp-cheer.show{opacity:1;transform:translate(-50%,0) scale(1)}'
+    // Mobile: stack the completion uploader, admin bar, join box and buttons; shrink photos.
+    + '@media(max-width:600px){'
+    +   '.ic-adminbar{justify-content:flex-start}'
+    +   '.ic-admin-fields{width:100%}.ic-admin-fields input{flex:1;min-width:0}'
+    +   '.tp-drop{flex-direction:column;gap:12px}.tp-slot{min-width:0}.tp-hours-field{min-width:0}'
+    +   '.tp-inline-join{width:100%}.tp-inline-join input{flex:1;min-width:0}'
+    +   '.tp-create{padding:16px 14px}.tp-uploader{padding:13px}'
+    +   '.ic-reason{min-width:0;width:100%}'
+    +   '.tp-photos{gap:10px}.tp-photo img{max-height:150px}'
+    +   '.card-foot{gap:8px}.card-foot .btn-row{width:100%;flex-wrap:wrap}.card-foot .btn-row>.btn{flex:1 1 auto}'
+    +   '.tp-cheer,#tp-cheer{font-size:15px;padding:12px 16px;max-width:92vw}'
+    +   '.ic-summary{gap:7px 12px;font-size:12.5px}.ic-sum b{font-size:15px}'
+    + '}'
+    + '@media(max-width:400px){.tp-photos{flex-direction:column}.tp-photo img{max-height:none;width:100%}}'
     + '</style>';
 }
 
@@ -441,17 +481,14 @@ function tpSharedJs_() {
     + '</script>';
 }
 
-// Discreet admin entry: a small "Admin" link that expands a passcode field on click.
-// Kept low-key so it does not shout at doers who never need it.
-function tpAdminBar_(purpose) {
-  return '<div class="ic-adminbar">'
-    + '<span id="tp-lock-msg" class="tp-lock-msg"></span>'
-    + '<button type="button" class="ic-admin-toggle" id="tp-admin-toggle" onclick="tpAdminToggle()">Admin</button>'
-    + '<span id="tp-lock-fields" class="ic-admin-fields" hidden>'
-    + '<input type="password" id="tp-pass" placeholder="Passcode to ' + escapeHtml_(purpose) + '" onkeydown="if(event.key===\'Enter\')tpUnlock()">'
-    + '<button type="button" class="btn btn-ghost" onclick="tpUnlock()">Unlock</button>'
-    + '</span>'
-    + '</div>';
+// Admin mode is signalled by the ?admin=1 flag on links from the (unlisted) admin
+// page - no passcode. This reveals the .tp-admin controls and marks the session
+// admin so the dynamic foot builders (icAdminFootJs / tpProjAdminFootJs / tpDelWrapJs)
+// include their admin buttons. Renders nothing for regular doers.
+function tpAdminRevealJs_(admin) {
+  return admin
+    ? '<script>ADMIN_PASS="admin";document.querySelectorAll(".tp-admin").forEach(function(e){e.hidden=false;});</script>'
+    : '';
 }
 
 // ---- Completion evidence: UI helpers used by the issue pages in 02 ----
@@ -537,13 +574,46 @@ function icClientJs_() {
     + '</script>';
 }
 
+// Admin-only Delete control (hidden until unlock).
+function tpDelWrap_(rid, pid) {
+  return '<span id="' + rid + '-delwrap" class="tp-admin" hidden><button type="button" class="btn btn-ghost tp-del" onclick="tpDelOpen(\'' + rid + '\',\'' + pid + '\')">Delete</button></span>';
+}
+
+// Admin-only Approve / Send back for a project awaiting approval (hidden until unlock).
+function tpProjPendingFoot_(rid, pid) {
+  return '<span class="tp-admin btn-row" hidden>'
+    + '<button type="button" class="btn btn-confirm" onclick="tpProjApprove(\'' + rid + '\',\'' + pid + '\')">Approve</button>'
+    + '<button type="button" class="btn btn-ghost" onclick="tpProjRejectOpen(\'' + rid + '\',\'' + pid + '\')">Send back</button>'
+    + '</span>';
+}
+
+// The after-photo completion uploader shown when a doer taps Complete.
+function tpProjUploader_(rid, pid) {
+  return '<div id="' + rid + '-uploader" class="tp-uploader" style="display:none">'
+    + '<div class="tp-hint" style="margin-bottom:10px">Add an <b>after</b> photo and the <b>hours</b> it took, then submit for approval.</div>'
+    + '<div class="tp-drop">'
+    + '<div class="tp-slot" id="' + rid + '-slot-a"><input type="file" accept="image/*" id="' + rid + '-after" style="display:none" onchange="tpSlot(this,\'' + rid + '\',\'a\')"><div class="tp-slot-btn" onclick="document.getElementById(\'' + rid + '-after\').click()"><span id="' + rid + '-alabel">Add “after” photo</span></div></div>'
+    + '<div class="tp-hours-field"><label class="tp-hours-label">Hours it took</label><input type="number" min="0.5" step="0.5" id="' + rid + '-hours" class="tp-hours-input" placeholder="e.g. 6"></div>'
+    + '</div>'
+    + '<div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
+    + '<button type="button" class="btn btn-confirm" id="' + rid + '-finish" onclick="tpComplete(\'' + rid + '\',\'' + pid + '\')">Submit for approval</button>'
+    + '<button type="button" class="btn btn-ghost" onclick="tpCompleteClose(\'' + rid + '\')">Cancel</button>'
+    + '<span id="' + rid + '-cmsg" class="tp-hint"></span>'
+    + '</div></div>';
+}
+
 // One project card. Extracted so the initial page and the post-create refresh
-// (tpProjectsListHtml) render identically.
+// (tpProjectsListHtml) render identically. Handles Assigned / In Progress (incl.
+// sent-back) / Pending approval / Completed.
 function tpRenderProjectCard_(p, rid) {
   var st = norm_(p.status);
   var isDone = st === norm_(TP.projectStatus.done);
+  var isPending = st === norm_(TP.projectStatus.pending);
   var isActive = st === norm_(TP.projectStatus.active);
+  var sentBack = isActive && !!p.sentBackReason;
+
   var pill = isDone ? '<span class="tp-pill tp-pill--done">Completed</span>'
+    : isPending ? '<span class="tp-pill tp-pill--pending">Pending approval</span>'
     : isActive ? '<span class="tp-pill tp-pill--active">In progress</span>'
     : '<span class="tp-pill tp-pill--assigned">Assigned</span>';
 
@@ -553,8 +623,11 @@ function tpRenderProjectCard_(p, rid) {
 
   var photoInner = '';
   if (p.before) photoInner += '<div class="tp-photo"><figure><figcaption>Before</figcaption>' + tpThumb_(p.before) + '</figure></div>';
-  if (isDone && p.after) photoInner += '<div class="tp-photo"><figure><figcaption>After</figcaption>' + tpThumb_(p.after) + '</figure></div>';
+  if (p.after && (isPending || isDone || sentBack)) photoInner += '<div class="tp-photo"><figure><figcaption>After</figcaption>' + tpThumb_(p.after) + '</figure></div>';
   var photos = '<div id="' + rid + '-photos">' + (photoInner ? '<div class="tp-photos">' + photoInner + '</div>' : '') + '</div>';
+
+  var hoursField = ((isPending || isDone) && p.hours)
+    ? '<div class="card-field"><span class="card-flabel">Hours</span><div class="card-action">' + escapeHtml_(tpHoursLabel_(p.hours)) + '</div></div>' : '';
 
   var body = '<div class="card-body">'
     + '<div class="card-head"><div><div class="card-team">Project</div>'
@@ -562,43 +635,39 @@ function tpRenderProjectCard_(p, rid) {
     + '<span id="' + rid + '-pill">' + pill + '</span></div>'
     + (p.description ? '<div class="card-field"><span class="card-flabel">Scope</span><div class="card-details">' + escapeHtml_(p.description) + '</div></div>' : '')
     + '<div class="card-field"><span class="card-flabel">Assignees</span><div class="tp-assignees" id="' + rid + '-chips">' + chips + '</div></div>'
+    + hoursField
+    + '<div id="' + rid + '-note">' + (sentBack ? icSentBackInner_(p.sentBackReason) : '') + '</div>'
     + photos
     + '</div>';
 
-  var foot = '';
-  if (!isDone) {
+  var foot;
+  if (isDone) {
+    foot = '<div class="card-foot"><span id="' + rid + '-status" class="due due--done">✓ Completed' + (p.hours ? ' &middot; ' + escapeHtml_(tpHoursLabel_(p.hours)) : '') + '</span>'
+      + '<span class="btn-row">' + tpDelWrap_(rid, p.id) + '</span></div>';
+  } else if (isPending) {
+    foot = '<div class="card-foot"><span id="' + rid + '-status" class="due">Submitted, awaiting approval</span>'
+      + '<span id="' + rid + '-act" class="btn-row">' + tpProjPendingFoot_(rid, p.id) + '</span>'
+      + '<span class="btn-row">' + tpDelWrap_(rid, p.id) + '</span></div>';
+  } else {
     foot = '<div class="card-foot"><span id="' + rid + '-status" class="due">' + (isActive ? 'Work in progress' : 'Waiting to be picked up') + '</span>'
       + '<span class="btn-row">'
       + '<span id="' + rid + '-join"><button type="button" class="btn btn-ghost" onclick="tpJoinOpen(\'' + rid + '\')">Join project</button></span>'
       + '<span id="' + rid + '-joinbox" class="tp-inline-join" style="display:none"><input id="' + rid + '-name" placeholder="Your name" onkeydown="if(event.key===\'Enter\')tpJoin(\'' + rid + '\',\'' + p.id + '\')"><button type="button" class="btn btn-primary" onclick="tpJoin(\'' + rid + '\',\'' + p.id + '\')">Join</button></span>'
       + '<button type="button" class="btn btn-primary" onclick="tpCompleteOpen(\'' + rid + '\')">Complete</button>'
-      + '<span id="' + rid + '-delwrap" class="tp-admin" hidden><button type="button" class="btn btn-ghost tp-del" onclick="tpDelOpen(\'' + rid + '\',\'' + p.id + '\')">Delete</button></span>'
+      + tpDelWrap_(rid, p.id)
       + '</span></div>'
-      + '<div id="' + rid + '-uploader" class="tp-uploader" style="display:none">'
-      + '<div class="tp-hint" style="margin-bottom:10px">Add an <b>after</b> photo and the <b>hours</b> it took to complete this project.</div>'
-      + '<div class="tp-drop">'
-      + '<div class="tp-slot" id="' + rid + '-slot-a"><input type="file" accept="image/*" id="' + rid + '-after" style="display:none" onchange="tpSlot(this,\'' + rid + '\',\'a\')"><div class="tp-slot-btn" onclick="document.getElementById(\'' + rid + '-after\').click()"><span id="' + rid + '-alabel">Add “after” photo</span></div></div>'
-      + '<div class="tp-hours-field"><label class="tp-hours-label">Hours it took</label><input type="number" min="0.5" step="0.5" id="' + rid + '-hours" class="tp-hours-input" placeholder="e.g. 6"></div>'
-      + '</div>'
-      + '<div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
-      + '<button type="button" class="btn btn-confirm" id="' + rid + '-finish" onclick="tpComplete(\'' + rid + '\',\'' + p.id + '\')">Complete project</button>'
-      + '<button type="button" class="btn btn-ghost" onclick="tpCompleteClose(\'' + rid + '\')">Cancel</button>'
-      + '<span id="' + rid + '-cmsg" class="tp-hint"></span>'
-      + '</div></div>';
-  } else {
-    foot = '<div class="card-foot"><span id="' + rid + '-status" class="due due--done">✓ Completed' + (p.hours ? ' &middot; ' + escapeHtml_(tpHoursLabel_(p.hours)) : '') + '</span>'
-      + '<span class="btn-row"><span id="' + rid + '-delwrap" class="tp-admin" hidden><button type="button" class="btn btn-ghost tp-del" onclick="tpDelOpen(\'' + rid + '\',\'' + p.id + '\')">Delete</button></span></span>'
-      + '</div>';
+      + tpProjUploader_(rid, p.id);
   }
 
   return '<div class="card" id="' + rid + '" data-status="' + escapeHtml_(p.status) + '">' + body + foot + '</div>';
 }
 
 // The grouped Assigned / In progress / Completed sections for #tp-proj-list.
-function tpProjectsSectionsHtml_() {
-  var projects = tpListProjects_();
+function tpProjectsSectionsHtml_(projects) {
+  if (!projects) projects = tpListProjects_();
   var assigned = projects.filter(function (p) { return norm_(p.status) === norm_(TP.projectStatus.assigned) || (!p.status); });
   var active = projects.filter(function (p) { return norm_(p.status) === norm_(TP.projectStatus.active); });
+  var pending = projects.filter(function (p) { return norm_(p.status) === norm_(TP.projectStatus.pending); });
   var done = projects.filter(function (p) { return norm_(p.status) === norm_(TP.projectStatus.done); });
   if (!projects.length) return '<div class="empty">No projects yet. Unlock admin above to assign one, or add rows in the "Projects" tab.</div>';
   var sectionHead = function (label, count, cls) {
@@ -608,8 +677,9 @@ function tpProjectsSectionsHtml_() {
   var idx = 0;
   var render = function (p) { return tpRenderProjectCard_(p, 'pj' + (idx++)); };
   var out = '';
-  if (assigned.length) { out += sectionHead('Assigned', assigned.length, 'section-label--open'); assigned.forEach(function (p) { out += render(p); }); }
+  if (pending.length) { out += sectionHead('Pending approval', pending.length, 'section-label--late'); pending.forEach(function (p) { out += render(p); }); }
   if (active.length) { out += sectionHead('In progress', active.length, 'section-label--late'); active.forEach(function (p) { out += render(p); }); }
+  if (assigned.length) { out += sectionHead('Assigned', assigned.length, 'section-label--open'); assigned.forEach(function (p) { out += render(p); }); }
   if (done.length) { out += sectionHead('Completed', done.length, 'section-label--open'); done.forEach(function (p) { out += render(p); }); }
   return out;
 }
@@ -621,11 +691,12 @@ function tpProjectsListHtml() { return tpProjectsSectionsHtml_(); }
 
 function tpProjectStats_() {
   var projects = tpListProjects_();
-  var byStatus = { assigned: 0, active: 0, done: 0 };
+  var byStatus = { assigned: 0, active: 0, pending: 0, done: 0 };
   var totalHours = 0, completed = [], byPerson = {};
   projects.forEach(function (p) {
     var st = norm_(p.status);
     if (st === norm_(TP.projectStatus.done)) { byStatus.done++; totalHours += (p.hours || 0); completed.push(p); }
+    else if (st === norm_(TP.projectStatus.pending)) byStatus.pending++;
     else if (st === norm_(TP.projectStatus.active)) byStatus.active++;
     else byStatus.assigned++;
     p.assignees.forEach(function (a) { var k = String(a).trim(); if (k) byPerson[k] = (byPerson[k] || 0) + 1; });
@@ -633,7 +704,7 @@ function tpProjectStats_() {
   completed.sort(function (a, b) { return (new Date(b.completedAt || 0)) - (new Date(a.completedAt || 0)); });
   var people = Object.keys(byPerson).map(function (k) { return { name: k, count: byPerson[k] }; })
     .sort(function (a, b) { return b.count - a.count; });
-  return { total: projects.length, assigned: byStatus.assigned, active: byStatus.active, done: byStatus.done, totalHours: totalHours, completed: completed, people: people };
+  return { total: projects.length, assigned: byStatus.assigned, active: byStatus.active, pending: byStatus.pending, done: byStatus.done, totalHours: totalHours, completed: completed, people: people };
 }
 
 function tpDashStyles_() {
@@ -661,7 +732,7 @@ function tpDashStyles_() {
     + '.dash-ring{width:190px;height:190px}'
     + '.dash-ring-bg{fill:none;stroke:#f0efe9;stroke-width:3.6}'
     + '.dash-ring-fg{fill:none;stroke:url(#dashgrad);stroke-width:3.6;stroke-linecap:round;transition:stroke-dashoffset 1.2s cubic-bezier(.2,.8,.2,1)}'
-    + '.dash-ring-num{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:800;fill:#14110e}'
+    + '.dash-ring-num{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:7px;font-weight:800;fill:#14110e}'
     + '.dash-ring-sub{font-size:3px;letter-spacing:.4px;fill:#9a958c}'
     + '.dash-ring-cap{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12.5px;font-weight:700;color:#57534e}'
     + '.dash-bars{display:flex;flex-direction:column;gap:14px}'
@@ -692,7 +763,8 @@ function tpDashStyles_() {
     + '.dash-gal-who{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11.5px;font-weight:600;color:#8a857c}'
     + '.dash-empty{background:#fff;border:1.5px dashed #ddd;border-radius:16px;padding:30px;text-align:center;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:15px;color:#8a857c;margin-top:14px}'
     + '.dash-sec{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#8a857c;margin:26px 0 12px}'
-    + '@media(max-width:760px){.dash-tiles{grid-template-columns:repeat(2,1fr)}.dash-grid{grid-template-columns:1fr}.dash-h1{font-size:30px}.dash-hero-num{font-size:60px}}'
+    + '@media(max-width:760px){.dash-tiles{grid-template-columns:repeat(2,1fr)}.dash-grid{grid-template-columns:1fr}.dash-h1{font-size:30px}.dash-hero-num{font-size:60px}.dash-hero{padding:26px 22px 24px}.dash-hero-row{gap:22px}}'
+    + '@media(max-width:440px){.dash-hero-num{font-size:50px}.dash-hero-mini{gap:16px}.dash-hero-mini b{font-size:22px}.dash-card{padding:18px 16px}.dash-ring{width:158px;height:158px}.dash-tile{padding:15px 14px}.dash-tile-num{font-size:28px}}'
     + '</style>';
 }
 
@@ -710,16 +782,16 @@ function projectsDashboardPage_(embedded) {
     + '<div class="dash-kicker">Project Teams Ops Hub</div>'
     + '<h1 class="dash-h1">Projects Dashboard</h1>'
     + '<div class="dash-hero-row">'
-    +   '<div><div class="dash-hero-num">' + (Math.round(s.totalHours * 10) / 10) + '</div><div class="dash-hero-lbl">hours logged</div></div>'
-    +   '<div class="dash-hero-mini"><div><b>' + s.total + '</b>projects</div><div><b>' + s.done + '</b>completed</div><div><b>' + pct + '%</b>complete</div></div>'
+    +   '<div><div class="dash-hero-num">' + (Math.round(s.totalHours * 10) / 10) + '</div><div class="dash-hero-lbl">hours logged across ' + s.total + ' project' + (s.total === 1 ? '' : 's') + '</div></div>'
     + '</div></div>';
 
+  // Tiles are the status breakdown (hours live in the hero, completion % in the ring).
   var tile = function (n, lbl, c) { return '<div class="dash-tile" style="--c:' + c + '"><div class="dash-tile-num">' + n + '</div><div class="dash-tile-lbl">' + lbl + '</div></div>'; };
   inner += '<div class="dash-tiles">'
     + tile(s.assigned, 'Assigned', '#2563c9')
     + tile(s.active, 'In progress', '#e08a1e')
+    + tile(s.pending, 'Pending approval', '#b06a00')
     + tile(s.done, 'Completed', '#157a47')
-    + tile(Math.round(s.totalHours * 10) / 10, 'Hours logged', '#b31b1b')
     + '</div>';
 
   if (!s.total) {
@@ -737,7 +809,6 @@ function projectsDashboardPage_(embedded) {
     +   '<text class="dash-ring-num" x="21" y="20.4" text-anchor="middle">' + pct + '%</text>'
     +   '<text class="dash-ring-sub" x="21" y="26" text-anchor="middle">COMPLETE</text>'
     + '</svg>'
-    + '<div class="dash-ring-cap">' + s.done + ' of ' + s.total + ' projects done</div>'
     + '</div></div>';
 
   var hoursProjects = s.completed.filter(function (p) { return p.hours > 0; }).slice().sort(function (a, b) { return b.hours - a.hours; }).slice(0, 7);
@@ -796,10 +867,11 @@ function projectsDashboardPage_(embedded) {
 
 // ---- Projects page ----
 
-function projectsPage_(embedded) {
+function projectsPage_(embedded, admin) {
   var projects = tpListProjects_();
   var assigned = projects.filter(function (p) { return norm_(p.status) === norm_(TP.projectStatus.assigned) || (!p.status); });
   var active = projects.filter(function (p) { return norm_(p.status) === norm_(TP.projectStatus.active); });
+  var pending = projects.filter(function (p) { return norm_(p.status) === norm_(TP.projectStatus.pending); });
   var done = projects.filter(function (p) { return norm_(p.status) === norm_(TP.projectStatus.done); });
 
   var inner = '';
@@ -808,9 +880,7 @@ function projectsPage_(embedded) {
       + '<div class="page-title">Projects</div><div class="page-rule"></div></div>';
   }
 
-  inner += tpAdminBar_('assign projects');
-
-  // Admin create form (revealed on unlock).
+  // Admin create form (revealed only in admin mode via tpAdminRevealJs_).
   inner += '<form class="tp-create tp-admin" hidden onsubmit="return tpCreate(event)">'
     + '<h3>Assign a new project</h3>'
     + '<div class="tp-field"><label>Title</label><input id="tp-c-title" placeholder="e.g. Rebuild the tool crib shelving" required></div>'
@@ -828,10 +898,12 @@ function projectsPage_(embedded) {
     + '<span class="ic-dot"></span>'
     + '<span class="ic-sum"><b id="tp-n-active">' + active.length + '</b> in progress</span>'
     + '<span class="ic-dot"></span>'
+    + '<span class="ic-sum"><b id="tp-n-pending">' + pending.length + '</b> pending</span>'
+    + '<span class="ic-dot"></span>'
     + '<span class="ic-sum"><b id="tp-n-done">' + done.length + '</b> completed</span>'
     + '</div>';
 
-  inner += '<div id="tp-proj-list">' + tpProjectsSectionsHtml_() + '</div>';
+  inner += '<div id="tp-proj-list">' + tpProjectsSectionsHtml_(projects) + '</div>';
 
   inner += '<script>'
     + 'var TPUP={};var TPCB=null;'
@@ -866,15 +938,26 @@ function projectsPage_(embedded) {
     + 'var hrs=parseFloat((document.getElementById(rid+"-hours")||{}).value);if(!(hrs>0)){msg.style.color="#b31b1b";msg.textContent="Enter how many hours it took.";return;}'
     + 'msg.style.color="";msg.textContent="Uploading photo\\u2026";document.getElementById(rid+"-finish").disabled=true;'
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){msg.style.color="#b31b1b";msg.textContent=(r&&r.error)||"Failed";document.getElementById(rid+"-finish").disabled=false;return;}'
-    + 'tpConfetti();tpSetPill(rid,"tp-pill--done","Completed");'
+    + 'tpConfetti();tpSetPill(rid,"tp-pill--pending","Pending approval");'
     + 'var bh=r.beforeId?"<div class=\\"tp-photo\\"><figure><figcaption>Before</figcaption><a href=\\"https://drive.google.com/file/d/"+r.beforeId+"/view\\" target=\\"_blank\\" rel=\\"noopener\\" style=\\"display:inline-block;line-height:0\\"><img src=\\"https://drive.google.com/thumbnail?id="+r.beforeId+"&sz=w600\\" style=\\"max-width:100%;max-height:200px;border-radius:10px;border:1px solid #ececec\\"></a></figure></div>":"";'
     + 'document.getElementById(rid+"-photos").innerHTML="<div class=\\"tp-photos\\">"+bh+"<div class=\\"tp-photo\\"><figure><figcaption>After</figcaption><a href=\\"https://drive.google.com/file/d/"+r.afterId+"/view\\" target=\\"_blank\\" rel=\\"noopener\\" style=\\"display:inline-block;line-height:0\\"><img src=\\"https://drive.google.com/thumbnail?id="+r.afterId+"&sz=w600\\" style=\\"max-width:100%;max-height:200px;border-radius:10px;border:1px solid #ececec\\"></a></figure></div></div>";'
     + 'var card=document.getElementById(rid);var was=(card.dataset.status||"").toLowerCase();'
     + 'var up=document.getElementById(rid+"-uploader");if(up)up.parentNode.removeChild(up);'
-    + 'var hl=(r.hours%1===0?r.hours:(+r.hours).toFixed(1))+(r.hours===1?" hour":" hours");'
-    + 'var foot=card.querySelector(".card-foot");if(foot)foot.innerHTML="<span class=\\"due due--done\\">\\u2713 Completed \\u00b7 "+hl+"</span>";'
-    + 'if(was==="in progress")tpBump("tp-n-active",-1);else tpBump("tp-n-assigned",-1);tpBump("tp-n-done",1);card.dataset.status="Completed";'
+    + 'var foot=card.querySelector(".card-foot");if(foot)foot.innerHTML="<span id=\\""+rid+"-status\\" class=\\"due\\">Submitted, awaiting approval</span><span id=\\""+rid+"-act\\" class=\\"btn-row\\">"+tpProjAdminFootJs(rid,pid)+"</span><span class=\\"btn-row\\">"+tpDelWrapJs(rid,pid)+"</span>";'
+    + 'if(was==="in progress")tpBump("tp-n-active",-1);else tpBump("tp-n-assigned",-1);tpBump("tp-n-pending",1);card.dataset.status="Pending";'
     + '}).withFailureHandler(function(){msg.style.color="#b31b1b";msg.textContent="Upload failed. Please retry.";document.getElementById(rid+"-finish").disabled=false;}).tpCompleteProject(pid,buf.a.dataUrl,buf.a.name,hrs);}'
+    + 'function tpProjAdminFootJs(rid,pid){return ADMIN_PASS?"<span class=\\"tp-admin btn-row\\"><button type=\\"button\\" class=\\"btn btn-confirm\\" onclick=\\"tpProjApprove(\'"+rid+"\',\'"+pid+"\')\\">Approve</button><button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"tpProjRejectOpen(\'"+rid+"\',\'"+pid+"\')\\">Send back</button></span>":"";}'
+    + 'function tpDelWrapJs(rid,pid){return "<span id=\\""+rid+"-delwrap\\" class=\\"tp-admin\\""+(ADMIN_PASS?"":" hidden")+"><button type=\\"button\\" class=\\"btn btn-ghost tp-del\\" onclick=\\"tpDelOpen(\'"+rid+"\',\'"+pid+"\')\\">Delete</button></span>";}'
+    + 'function tpProjApprove(rid,pid){var act=document.getElementById(rid+"-act");act.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
+    + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed")+"</span>";return;}'
+    + 'tpConfetti();tpSetPill(rid,"tp-pill--done","Completed");act.innerHTML="";var s=document.getElementById(rid+"-status");if(s){s.innerHTML="\\u2713 Completed";s.className="due due--done";}var c=document.getElementById(rid);if(c){c.style.opacity="0.72";c.dataset.status="Completed";}tpBump("tp-n-pending",-1);tpBump("tp-n-done",1);'
+    + '}).withFailureHandler(function(){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).tpApproveProject(pid,ADMIN_PASS);}'
+    + 'function tpProjRejectOpen(rid,pid){var act=document.getElementById(rid+"-act");act.innerHTML="<input id=\\""+rid+"-reason\\" class=\\"ic-reason\\" placeholder=\\"Reason (optional)\\" onkeydown=\\"if(event.key===\'Enter\')tpProjRejectDo(\'"+rid+"\',\'"+pid+"\')\\"><button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"tpProjRejectDo(\'"+rid+"\',\'"+pid+"\')\\">Send back</button><button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"tpProjRejectCancel(\'"+rid+"\',\'"+pid+"\')\\">Cancel</button>";var i=document.getElementById(rid+"-reason");if(i)i.focus();}'
+    + 'function tpProjRejectCancel(rid,pid){document.getElementById(rid+"-act").innerHTML=tpProjAdminFootJs(rid,pid);}'
+    + 'function tpProjRejectDo(rid,pid){var act=document.getElementById(rid+"-act");var reason=(document.getElementById(rid+"-reason")||{}).value||"";act.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
+    + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed")+"</span>";return;}'
+    + 'google.script.run.withSuccessHandler(function(html){document.getElementById("tp-proj-list").innerHTML=html;document.querySelectorAll(".tp-admin").forEach(function(e){e.hidden=false;});tpBump("tp-n-pending",-1);tpBump("tp-n-active",1);}).withFailureHandler(function(){}).tpProjectsListHtml();'
+    + '}).withFailureHandler(function(){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).tpRejectProject(pid,reason,ADMIN_PASS);}'
     + 'function tpCreate(ev){ev.preventDefault();var t=document.getElementById("tp-c-title").value.trim();var d=document.getElementById("tp-c-desc").value.trim();var a=document.getElementById("tp-c-assignees").value.trim();var msg=document.getElementById("tp-c-msg");'
     + 'if(!t){msg.className="tp-lock-msg bad";msg.textContent="A title is required.";return false;}'
     + 'msg.className="tp-lock-msg";msg.textContent="Creating\\u2026";'
@@ -887,5 +970,5 @@ function projectsPage_(embedded) {
     + '}).withFailureHandler(function(){msg.className="tp-lock-msg bad";msg.textContent="Failed. Retry.";}).tpCreateProject(t,d,a,TPCB?TPCB.dataUrl:"",TPCB?TPCB.name:"",ADMIN_PASS);return false;}'
     + '</script>';
 
-  return swissShell_(tpStyles_() + inner + tpSharedJs_(), 'Projects', true, embedded);
+  return swissShell_(tpStyles_() + inner + tpSharedJs_() + tpAdminRevealJs_(admin), 'Projects', true, embedded);
 }
