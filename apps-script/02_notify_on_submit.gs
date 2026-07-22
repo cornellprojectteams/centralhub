@@ -29,6 +29,7 @@ const CONFIG = {
   lastReminderHeader: 'Last reminder',
   completionPhotoHeader: 'Completion photo',  // evidence uploaded by the doer
   completedAtHeader: 'Completed at',           // doer submitted -> Pending approval
+  sentBackHeader: 'Sent back reason',          // admin's note when sending a submission back (photo is kept)
   headers: {
     timestamp: 'Timestamp',
     email: 'Email Address',
@@ -303,6 +304,7 @@ function doGet(e) {
   const p = (e && e.parameter) ? e.parameter : {};
   const embed = p.embed === '1' || p.embed === 'true';
   if (p.module === 'projects') return projectsPage_(embed);   // Multi-user projects (04_tasks_projects.gs)
+  if (p.module === 'projects-dash') return projectsDashboardPage_(embed);   // Projects dashboard (04_tasks_projects.gs)
   if (p.team) { const t = lookupTeamByToken_(p.team); return t ? teamPortal_(t, false) : htmlPage_('Invalid link', 'This team link is not recognized.'); }
   if (p.view === 'all') return allIssuesPage_(p.embed === '1' || p.embed === 'true');
   if (p.registry) return registryPage_(String(p.registry), p.embed === '1' || p.embed === 'true');   // read-only Equipment / Inventory tables
@@ -405,9 +407,13 @@ function confirmPage_(id) {
   if (info.addressed) return htmlPage_('Already completed', 'This was approved as complete on ' + escapeHtml_(fmtShort_(info.addressed)) + '.');
   if (info.completedAt) return htmlPage_('Pending approval', 'A completion photo was already submitted on ' + escapeHtml_(fmtShort_(info.completedAt)) + '. It is waiting for an admin to review.');
   const what = info.issueType ? lcFirst_(phrase_(info.issueType)) : 'this';
+  const sentBackBanner = info.sentBackReason
+    ? '<div style="margin-top:14px;font:600 14px/1.6 Arial,sans-serif;color:#8a4b00;background:#fdf2df;border:1px solid #f4dfb0;border-radius:10px;padding:11px 14px"><b>Sent back:</b> ' + escapeHtml_(info.sentBackReason) + '</div>'
+    : '';
   const inner = '<div style="font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#999">Space Status</div>'
     + '<div class="swh" style="font-size:30px;font-weight:800;letter-spacing:-.025em;line-height:1.1;margin-top:16px">Mark complete</div>'
     + '<div style="font-size:16px;line-height:1.7;color:#555;margin-top:12px">Upload a photo showing ' + escapeHtml_(what) + ' is done.</div>'
+    + sentBackBanner
     + '<div id="act" style="margin-top:24px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
     +   '<input type="file" accept="image/*" id="cf-file" style="display:none" onchange="cfFile(this)">'
     +   '<span class="tp-hint">Photo required</span>'
@@ -457,12 +463,15 @@ function teamPortal_(team, readOnly, embedded) {
     const isPending = it.pending;
     const dl = it.deadline ? fmtShort_(it.deadline) : 'No set deadline';
     const dueCls = it.overdue ? 'due due--late' : 'due';
+    const isSentBack = !isPending && !!it.sentBackReason;
     const chip = isPending
       ? '<span class="tp-pill tp-pill--pending">Pending approval</span>'
-      : (it.overdue
-        ? '<span class="chip chip--overdue">Overdue</span>'
-        : (it.deadline ? '<span class="chip chip--due">' + daysLeftLabel_(it.deadline) + '</span>' : ''));
-    const statusTxt = isPending ? 'Submitted, awaiting approval' : ('Due ' + escapeHtml_(dl));
+      : (isSentBack
+        ? '<span class="tp-pill tp-pill--sent">Sent back</span>'
+        : (it.overdue
+          ? '<span class="chip chip--overdue">Overdue</span>'
+          : (it.deadline ? '<span class="chip chip--due">' + daysLeftLabel_(it.deadline) + '</span>' : '')));
+    const statusTxt = isPending ? 'Submitted, awaiting approval' : (isSentBack ? 'Sent back' : ('Due ' + escapeHtml_(dl)));
     const accent = COLOR_HEX[it.color] || '#d6d3ce';
     let foot = '';
     if (!readOnly) foot = isPending ? icPendingFoot_(rid, it.token) : icOpenFoot_(rid, it.token);
@@ -476,7 +485,7 @@ function teamPortal_(team, readOnly, embedded) {
       +   (it.details ? '<div class="card-field"><span class="card-flabel">Details</span><div class="card-details">' + escapeHtml_(it.details) + '</div></div>' : '')
       +   (it.photos && it.photos.length ? photoStrip_(it.photos) : '')
       +   icPhotoBlock_(rid, it.completionPhoto)
-      +   icDoerNote_(rid, !isPending && !readOnly)
+      +   icNoteContainer_(rid, isPending, it.sentBackReason, !readOnly)
       + '</div>'
       + '<div class="card-foot">'
       +   '<span id="' + rid + '-status" class="' + (isPending ? 'due' : dueCls) + '">' + statusTxt + '</span>'
@@ -553,7 +562,7 @@ function listTeamIssues_(teamName) {
   const cTeam = ci(CONFIG.headers.team), cStatus = ci(CONFIG.headers.status), cIssue = ci(CONFIG.headers.issueType),
         cAction = ci(CONFIG.headers.action), cDetails = ci(CONFIG.headers.details), cTs = ci(CONFIG.headers.timestamp),
         cTok = ci(CONFIG.issueTokenHeader), cAddr = ci(CONFIG.addressedHeader), cPhoto = ci(CONFIG.headers.photo),
-        cCompletedAt = ci(CONFIG.completedAtHeader), cCompletionPhoto = ci(CONFIG.completionPhotoHeader);
+        cCompletedAt = ci(CONFIG.completedAtHeader), cCompletionPhoto = ci(CONFIG.completionPhotoHeader), cSentBack = ci(CONFIG.sentBackHeader);
   const open = [];
   let resolved = 0;
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -577,6 +586,7 @@ function listTeamIssues_(teamName) {
       photos: cPhoto >= 0 ? extractFileIds_(v[i][cPhoto]) : [],
       color: color, deadline: deadline, overdue: overdue,
       pending: pending, completionPhoto: cCompletionPhoto >= 0 ? String(v[i][cCompletionPhoto] || '').trim() : '',
+      sentBackReason: (!pending && cSentBack >= 0) ? String(v[i][cSentBack] || '').trim() : '',
     });
   }
   open.sort(function (a, b) {
@@ -595,7 +605,7 @@ function listAllIssues_() {
   const cTeam = ci(CONFIG.headers.team), cStatus = ci(CONFIG.headers.status), cIssue = ci(CONFIG.headers.issueType),
         cAction = ci(CONFIG.headers.action), cDetails = ci(CONFIG.headers.details), cTs = ci(CONFIG.headers.timestamp),
         cTok = ci(CONFIG.issueTokenHeader), cAddr = ci(CONFIG.addressedHeader), cPhoto = ci(CONFIG.headers.photo),
-        cCompletedAt = ci(CONFIG.completedAtHeader), cCompletionPhoto = ci(CONFIG.completionPhotoHeader);
+        cCompletedAt = ci(CONFIG.completedAtHeader), cCompletionPhoto = ci(CONFIG.completionPhotoHeader), cSentBack = ci(CONFIG.sentBackHeader);
   const open = [];
   let resolved = 0;
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -619,6 +629,7 @@ function listAllIssues_() {
       photos: cPhoto >= 0 ? extractFileIds_(v[i][cPhoto]) : [],
       color: color, deadline: deadline, overdue: overdue,
       pending: pending, completionPhoto: cCompletionPhoto >= 0 ? String(v[i][cCompletionPhoto] || '').trim() : '',
+      sentBackReason: (!pending && cSentBack >= 0) ? String(v[i][cSentBack] || '').trim() : '',
     });
   }
   open.sort(function (a, b) {
@@ -687,14 +698,17 @@ function allIssuesPage_(embedded) {
     const isPending = it.pending;
     const dl = it.deadline ? fmtShort_(it.deadline) : 'No set deadline';
     const dueCls = it.overdue ? 'due due--late' : 'due';
+    const isSentBack = !isPending && !!it.sentBackReason;
     const chip = isPending
       ? '<span class="tp-pill tp-pill--pending">Pending approval</span>'
-      : (it.overdue
-        ? '<span class="chip chip--overdue">Overdue</span>'
-        : (it.deadline ? '<span class="chip chip--due">' + daysLeftLabel_(it.deadline) + '</span>' : ''));
+      : (isSentBack
+        ? '<span class="tp-pill tp-pill--sent">Sent back</span>'
+        : (it.overdue
+          ? '<span class="chip chip--overdue">Overdue</span>'
+          : (it.deadline ? '<span class="chip chip--due">' + daysLeftLabel_(it.deadline) + '</span>' : '')));
     const hay = ((it.team || '') + ' ' + (it.issueType || '') + ' ' + (it.action || '') + ' ' + (it.details || '')).toLowerCase();
     const accent = COLOR_HEX[it.color] || '#d6d3ce';
-    const statusTxt = isPending ? 'Submitted, awaiting approval' : ('Due ' + escapeHtml_(dl));
+    const statusTxt = isPending ? 'Submitted, awaiting approval' : (isSentBack ? 'Sent back' : ('Due ' + escapeHtml_(dl)));
     const foot = isPending ? icPendingFoot_(rid, it.token) : icOpenFoot_(rid, it.token);
     return '<div class="card" id="' + rid + '" style="border-left:4px solid ' + accent + ';border-right:4px solid ' + accent + '" data-team="' + escapeHtml_(it.team) + '" data-over="' + (it.overdue ? '1' : '0') + '" data-state="' + (isPending ? 'pending' : 'open') + '" data-hay="' + escapeHtml_(hay) + '">'
       + '<div class="card-body">'
@@ -707,7 +721,7 @@ function allIssuesPage_(embedded) {
       +   (it.details ? '<div class="card-field"><span class="card-flabel">Details</span><div class="card-details">' + escapeHtml_(it.details) + '</div></div>' : '')
       +   (it.photos && it.photos.length ? photoStrip_(it.photos) : '')
       +   icPhotoBlock_(rid, it.completionPhoto)
-      +   icDoerNote_(rid, !isPending)
+      +   icNoteContainer_(rid, isPending, it.sentBackReason, true)
       + '</div>'
       + '<div class="card-foot">'
       +   '<span id="' + rid + '-status" class="' + (isPending ? 'due' : dueCls) + '">' + statusTxt + '</span>'
@@ -716,6 +730,11 @@ function allIssuesPage_(embedded) {
       + '</div>';
   };
 
+  // Pending approval first: these are the items waiting on the admin's action.
+  if (pendingList.length) {
+    inner += sectionHead('Pending approval', pendingList.length, 'section-label--late');
+    pendingList.forEach(function (it) { inner += renderCard(it); });
+  }
   if (overdueList.length) {
     inner += sectionHead('Overdue', overdueList.length, 'section-label--late');
     overdueList.forEach(function (it) { inner += renderCard(it); });
@@ -723,10 +742,6 @@ function allIssuesPage_(embedded) {
   if (openList.length) {
     inner += sectionHead('Open', openList.length, 'section-label--open');
     openList.forEach(function (it) { inner += renderCard(it); });
-  }
-  if (pendingList.length) {
-    inner += sectionHead('Pending approval', pendingList.length, 'section-label--open');
-    pendingList.forEach(function (it) { inner += renderCard(it); });
   }
 
   inner += '<div id="empty" class="empty" style="display:none">No issues match those filters.</div>';
@@ -903,6 +918,7 @@ function findIssue_(id) {
   const cIssue = H.indexOf(norm_(CONFIG.headers.issueType));
   const cAddr = H.indexOf(norm_(CONFIG.addressedHeader));
   const cComp = H.indexOf(norm_(CONFIG.completedAtHeader));
+  const cSent = H.indexOf(norm_(CONFIG.sentBackHeader));
   for (let i = 1; i < v.length; i++) {
     if (String(v[i][cTok]) === String(id)) {
       return {
@@ -911,6 +927,7 @@ function findIssue_(id) {
         issueType: cIssue >= 0 ? String(v[i][cIssue]).trim() : '',
         addressed: cAddr >= 0 ? v[i][cAddr] : '',
         completedAt: cComp >= 0 ? v[i][cComp] : '',
+        sentBackReason: cSent >= 0 ? String(v[i][cSent] || '').trim() : '',
       };
     }
   }

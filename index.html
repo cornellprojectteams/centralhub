@@ -62,10 +62,10 @@
           </p>
         </div>
 
-        <button type="button" class="action category action-dashboard" id="issues-open" data-keywords="operations team your open tasks issues mark complete dashboard photos assigned">
+        <button type="button" class="action category action-dashboard" id="issues-open" data-keywords="your work tasks projects operations team open issues mark complete photos assigned join before after pick">
           <span class="action-badge">Live</span>
-          <span class="action-title">Your open tasks</span>
-          <span class="action-sub">The jobs your team still needs to do. Finished one? Add a photo of the completed work to mark it done.</span>
+          <span class="action-title">Your work</span>
+          <span class="action-sub">Your team&rsquo;s tasks and projects in one place. Finish a job by adding a photo.</span>
         </button>
 
         <a class="action category task-block" id="ell" href="https://docs.google.com/forms/d/e/1FAIpQLSfUSbqVXJ8si5c-efXQl8k5LAvvhkTSrSVPWlNCaKUEbNGgog/viewform" target="_blank" rel="noopener" data-keywords="experiential learning lab ell shift summary form log student employee activity lab supply safety">
@@ -75,10 +75,6 @@
         <a class="action category task-block" id="teams" href="https://docs.google.com/spreadsheets/d/1Md3bugxLvqHJQ7Htf3tHI-ARXeEQRFBU2zh6ho3XAfQ/edit" target="_blank" rel="noopener" data-keywords="project team names directory lookup abbreviation">
           <span class="action-title">Look up a team</span>
           <span class="action-sub">Official names, abbreviations, and team websites</span>
-        </a>
-        <a class="action category task-block" id="projects" data-module="projects" href="#" target="_blank" rel="noopener" data-keywords="projects pick join assignee before after photo in progress multi student work">
-          <span class="action-title">Projects</span>
-          <span class="action-sub">Bigger jobs you can join and work on with teammates. Wrap up by adding a before and after photo.</span>
         </a>
       </div>
 
@@ -96,8 +92,8 @@
           <img src="assets/cornell-seal.svg" alt="" class="issues-panel-seal" aria-hidden="true">
           <div>
             <p class="issues-panel-eyebrow">Operations Team</p>
-            <h2 class="issues-panel-title" id="issues-panel-title">Your open tasks</h2>
-            <p class="issues-panel-sub">Live from Space Status · mark a task complete when it&rsquo;s done</p>
+            <h2 class="issues-panel-title" id="issues-panel-title">Your work</h2>
+            <p class="issues-panel-sub">Your team&rsquo;s tasks and projects &middot; finish a job with a photo</p>
           </div>
         </div>
         <div class="issues-panel-actions">
@@ -110,6 +106,10 @@
           </button>
         </div>
       </header>
+      <div class="issues-seg" id="issues-seg" role="tablist" aria-label="Tasks or projects">
+        <button type="button" class="issues-seg-btn is-active" id="seg-tasks" role="tab" aria-selected="true">Tasks</button>
+        <button type="button" class="issues-seg-btn" id="seg-projects" role="tab" aria-selected="false">Projects</button>
+      </div>
       <div class="issues-embed-body is-loading" id="issues-embed-body">
         <div class="issues-loading" id="issues-loading" role="status" aria-live="polite">
           <div class="issues-loading-mark" aria-hidden="true"></div>
@@ -122,6 +122,18 @@
           </div>
         </div>
         <iframe id="issues-frame" class="issues-frame" title="Operations Team open tasks"></iframe>
+      </div>
+      <div class="issues-embed-body is-loading" id="projects-embed-body" hidden>
+        <div class="issues-loading" role="status" aria-live="polite">
+          <div class="issues-loading-mark" aria-hidden="true"></div>
+          <p class="issues-loading-text">Loading projects…</p>
+          <p class="issues-loading-hint">Fetching projects you can join</p>
+          <div class="issues-loading-cards" aria-hidden="true">
+            <div class="issues-skeleton-card"></div>
+            <div class="issues-skeleton-card issues-skeleton-card--short"></div>
+          </div>
+        </div>
+        <iframe id="projects-frame" class="issues-frame" title="Projects"></iframe>
       </div>
       <p class="issues-fallback" id="issues-fallback" hidden>
         Could not load your tasks here.

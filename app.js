@@ -106,6 +106,39 @@
   if (issuesFallbackLink && issuesFullUrl) issuesFallbackLink.href = issuesFullUrl;
   if (issuesPanelExt && issuesFullUrl) issuesPanelExt.href = issuesFullUrl;
 
+  // Combined Tasks/Projects segmented toggle. Present only on the student panel
+  // (index.html); the admin dashboard panel has no toggle, so these are no-ops there.
+  // The Projects iframe is lazy-loaded the first time its tab is opened.
+  const segTasks = document.getElementById('seg-tasks');
+  const segProjects = document.getElementById('seg-projects');
+  const projectsFrame = document.getElementById('projects-frame');
+  const projectsEmbedBody = document.getElementById('projects-embed-body');
+  const projectsUrl = SPACE_STATUS_URL ? SPACE_STATUS_URL + sep + 'module=projects&embed=1' : '';
+  const projectsFullUrl = SPACE_STATUS_URL ? SPACE_STATUS_URL + sep + 'module=projects' : '';
+  let projectsFrameStarted = false;
+
+  function loadProjectsFrame() {
+    if (projectsFrameStarted || !projectsFrame || !projectsUrl) return;
+    projectsFrameStarted = true;
+    projectsFrame.addEventListener('load', () => {
+      if (projectsEmbedBody) projectsEmbedBody.classList.remove('is-loading');
+    }, { once: true });
+    projectsFrame.src = projectsUrl;
+  }
+
+  function showPanelView(view) {
+    const tasks = view !== 'projects';
+    if (issuesEmbedBody) issuesEmbedBody.hidden = !tasks;
+    if (projectsEmbedBody) projectsEmbedBody.hidden = tasks;
+    if (segTasks) { segTasks.classList.toggle('is-active', tasks); segTasks.setAttribute('aria-selected', String(tasks)); }
+    if (segProjects) { segProjects.classList.toggle('is-active', !tasks); segProjects.setAttribute('aria-selected', String(!tasks)); }
+    if (issuesPanelExt) issuesPanelExt.href = tasks ? issuesFullUrl : projectsFullUrl;
+    if (!tasks) loadProjectsFrame();
+  }
+
+  if (segTasks) segTasks.addEventListener('click', () => showPanelView('tasks'));
+  if (segProjects) segProjects.addEventListener('click', () => showPanelView('projects'));
+
   function setIssuesLoadingMessage(primary, hint) {
     if (issuesLoadingText && primary) issuesLoadingText.textContent = primary;
     if (issuesLoadingHint && hint) issuesLoadingHint.textContent = hint;
@@ -175,6 +208,7 @@
     issuesPanel.hidden = false;
     requestAnimationFrame(() => issuesPanel.classList.add('is-open'));
     document.body.classList.add('issues-panel-open');
+    if (segTasks) showPanelView('tasks');   // always open on the Tasks tab
     loadIssuesFrame();
     if (issuesCloseBtn) issuesCloseBtn.focus();
   }

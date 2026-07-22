@@ -704,6 +704,37 @@ body.is-searching .hub-zone:not(.hidden) ~ .hub-zone:not(.hidden) {
   box-shadow: 0 8px 20px rgba(179, 27, 27, 0.36);
 }
 
+.issues-seg {
+  display: flex;
+  gap: .25rem;
+  align-self: center;
+  flex: 0 0 auto;
+  margin: .75rem 0 .1rem;
+  padding: .25rem;
+  background: #efeee9;
+  border-radius: 11px;
+}
+.issues-seg-btn {
+  appearance: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: .8125rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--sub);
+  background: transparent;
+  padding: .5rem 1.2rem;
+  border-radius: 8px;
+  transition: background .16s ease, color .16s ease, box-shadow .16s ease;
+}
+.issues-seg-btn:hover { color: var(--text); }
+.issues-seg-btn.is-active {
+  color: var(--red);
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(20, 20, 30, .12);
+}
+
 .issues-embed-body {
   position: relative;
   flex: 1;
