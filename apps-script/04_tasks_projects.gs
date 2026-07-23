@@ -198,15 +198,30 @@ function icLocate_(token) {
 }
 
 // Doer submits completion evidence. A photo is REQUIRED -> Pending approval.
+// Photo evidence is MANDATORY for most tasks, but OPTIONAL for these action types
+// (they often have no visible before/after): informational notices, facilities work
+// orders, unsafe-practice corrections, and "Other".
+function icPhotoOptional_(action) {
+  var a = norm_(action);
+  if (!a) return false;
+  return a === 'other'
+    || a.indexOf('no action needed') >= 0 || a.indexOf('informational') >= 0
+    || a.indexOf('facilities work order') >= 0 || a.indexOf('unsafe work practice') >= 0;
+}
+
 function submitIssueCompletion(token, dataUrl, filename) {
-  if (!dataUrl) return { ok: false, error: 'A photo is required to mark this complete.' };
   var loc = icLocate_(token);
   if (!loc) return { ok: false, error: 'That item could not be found.' };
   if (loc.addressed) return { ok: false, error: 'This was already approved as complete.' };
-  var id;
-  try { id = tpSaveUpload_(dataUrl, filename); }
-  catch (err) { return { ok: false, error: String(err.message || err) }; }
-  loc.sh.getRange(loc.row, loc.col(CONFIG.completionPhotoHeader)).setValue(tpViewUrl_(id));
+  if (!dataUrl && !icPhotoOptional_(loc.sh.getRange(loc.row, loc.col(CONFIG.headers.action)).getValue())) {
+    return { ok: false, error: 'A photo is required to complete this task.' };
+  }
+  var id = '';
+  if (dataUrl) {
+    try { id = tpSaveUpload_(dataUrl, filename); }
+    catch (err) { return { ok: false, error: String(err.message || err) }; }
+  }
+  loc.sh.getRange(loc.row, loc.col(CONFIG.completionPhotoHeader)).setValue(id ? tpViewUrl_(id) : '');
   loc.sh.getRange(loc.row, loc.col(CONFIG.completedAtHeader)).setValue(new Date());
   loc.sh.getRange(loc.row, loc.col(CONFIG.sentBackHeader)).setValue('');   // clear any prior send-back reason
   return { ok: true, photoId: id, status: 'Pending' };
@@ -418,6 +433,7 @@ function tpStyles_() {
     + '.ic-note b{color:#8f1515}'
     + '.ic-note--warn{color:#8a4b00;background:#fdf2df;border-color:#f4dfb0}'
     + '.ic-note--warn b{color:#8a4b00}'
+    + '.ic-note-cta{display:block;margin-top:5px;font-weight:600;opacity:.82}'
     + '.tp-pill--sent{color:#b31b1b;background:#fdecec;border:1px solid #f5d0d0}'
     + '.tp-del{color:#b31b1b;border-color:#f0d0d0}'
     + '.tp-del:hover{border-color:#e0a0a0;background:#fdf6f6;color:#8f1515}'
@@ -519,33 +535,44 @@ function icPhotoBlock_(rid, url) {
 }
 
 // Plain-language instruction shown on an open item so people know what to do.
-function icNoteText_() {
-  return 'Done with this? Take a photo of the finished work, then tap <b>Mark complete</b> to upload it.';
+// Copy adapts to whether this task needs photo evidence.
+function icNoteText_(photoOptional) {
+  return photoOptional
+    ? 'Finished? Tap <b>Mark done</b> and an admin gives it a quick review. A photo is optional here, so add one only if it helps.'
+    : 'Finished? Add a photo of the completed work and an admin gives it a quick review.';
 }
-function icNoteInner_() { return '<div class="ic-note">' + icNoteText_() + '</div>'; }
+function icNoteInner_(photoOptional) { return '<div class="ic-note">' + icNoteText_(photoOptional) + '</div>'; }
 
 // Amber banner shown when a submission was sent back, with the admin's reason.
 function icSentBackInner_(reason) {
   var r = String(reason || '').trim();
-  var lead = r ? '<b>Sent back:</b> ' + escapeHtml_(r) + ' ' : '<b>Sent back.</b> ';
-  return '<div class="ic-note ic-note--warn">' + lead + 'Take a new photo of the finished work and tap <b>Mark complete</b> to resubmit.</div>';
+  var lead = r ? '<b>Sent back:</b> ' + escapeHtml_(r) : '<b>Sent back.</b>';
+  return '<div class="ic-note ic-note--warn">' + lead + '<span class="ic-note-cta">Make the fix, then send it in again.</span></div>';
 }
 
 // The card's note slot: sent-back banner if there's a reason, else the plain
 // instruction on a fresh open item, else nothing (pending / read-only).
-function icNoteContainer_(rid, isPending, sentBackReason, show) {
+function icNoteContainer_(rid, isPending, sentBackReason, show, photoOptional) {
   var inner = '';
   if (show) {
     if (sentBackReason) inner = icSentBackInner_(sentBackReason);
-    else if (!isPending) inner = icNoteInner_();
+    else if (!isPending) inner = icNoteInner_(photoOptional);
   }
   return '<div id="' + rid + '-note">' + inner + '</div>';
 }
 
-// Foot action for an OPEN item: hidden file input + "Mark complete" (photo required).
-function icOpenFoot_(rid, token) {
-  return '<input type="file" accept="image/*" id="' + rid + '-file" style="display:none" onchange="icFile(this,\'' + rid + '\',\'' + token + '\')">'
-    + '<button type="button" class="btn btn-primary" onclick="document.getElementById(\'' + rid + '-file\').click()">Mark complete</button>';
+// Foot action for an OPEN item. Mandatory tasks get a single "Add a photo to
+// finish" (the photo is how they complete). Optional tasks get a one-tap
+// "Mark done" plus a quieter "Add a photo" for anyone who wants to attach one.
+function icOpenFoot_(rid, token, photoOptional) {
+  var input = '<input type="file" accept="image/*" id="' + rid + '-file" style="display:none" onchange="icFile(this,\'' + rid + '\',\'' + token + '\')">';
+  if (photoOptional) {
+    return input
+      + '<button type="button" class="btn btn-ghost" onclick="document.getElementById(\'' + rid + '-file\').click()">Add a photo</button>'
+      + '<button type="button" class="btn btn-primary" onclick="icDone(\'' + rid + '\',\'' + token + '\')">Mark done</button>';
+  }
+  return input
+    + '<button type="button" class="btn btn-primary" onclick="document.getElementById(\'' + rid + '-file\').click()">Add a photo</button>';
 }
 
 // Foot action for a PENDING item: admin-only Approve / Send back (revealed on unlock).
@@ -564,18 +591,21 @@ function icClientJs_() {
     + 'function icSetPill(rid,cls,txt){var p=document.getElementById(rid+"-pill");if(p)p.innerHTML="<span class=\\"tp-pill "+cls+"\\">"+txt+"</span>";}'
     + 'function icBump(id,d){var e=document.getElementById(id);if(e)e.textContent=Math.max(0,(parseInt(e.textContent,10)||0)+d);}'
     + 'function icThumb(pid){return "<div class=\\"tp-photos\\"><div class=\\"tp-photo\\"><figure><figcaption>Completion photo</figcaption><a href=\\"https://drive.google.com/file/d/"+pid+"/view\\" target=\\"_blank\\" rel=\\"noopener\\" style=\\"display:inline-block;line-height:0\\"><img src=\\"https://drive.google.com/thumbnail?id="+pid+"&sz=w600\\" style=\\"max-width:100%;max-height:200px;border-radius:10px;border:1px solid #ececec\\"></a></figure></div></div>";}'
-    + 'function icOpenFootJs(rid,token){return "<input type=\\"file\\" accept=\\"image/*\\" id=\\""+rid+"-file\\" style=\\"display:none\\" onchange=\\"icFile(this,\'"+rid+"\',\'"+token+"\')\\"><button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"document.getElementById(\'"+rid+"-file\').click()\\">Mark complete</button>";}'
-    + 'function icNoteInner(){return "<div class=\\"ic-note\\">Done with this? Take a photo of the finished work, then tap <b>Mark complete</b> to upload it.</div>";}'
+    + 'function icOpenFootJs(rid,token){var c=document.getElementById(rid);var po=c&&c.dataset.po==="1";var input="<input type=\\"file\\" accept=\\"image/*\\" id=\\""+rid+"-file\\" style=\\"display:none\\" onchange=\\"icFile(this,\'"+rid+"\',\'"+token+"\')\\">";if(po){return input+"<button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"document.getElementById(\'"+rid+"-file\').click()\\">Add a photo</button><button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"icDone(\'"+rid+"\',\'"+token+"\')\\">Mark done</button>";}return input+"<button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"document.getElementById(\'"+rid+"-file\').click()\\">Add a photo</button>";}'
+    + 'function icNoteInner(){return "<div class=\\"ic-note\\">Finished? Add a photo of the completed work and an admin gives it a quick review.</div>";}'
     + 'function icAdminFootJs(rid,token){return ADMIN_PASS?"<span class=\\"tp-admin btn-row\\"><button type=\\"button\\" class=\\"btn btn-confirm\\" onclick=\\"icApprove(\'"+rid+"\',\'"+token+"\')\\">Approve</button><button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"icRejectOpen(\'"+rid+"\',\'"+token+"\')\\">Send back</button></span>":"";}'
-    + 'function icSentBackInner(reason){var r=(reason||"").trim();var esc=function(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");};var lead=r?"<b>Sent back:</b> "+esc(r)+" ":"<b>Sent back.</b> ";return "<div class=\\"ic-note ic-note--warn\\">"+lead+"Take a new photo of the finished work and tap <b>Mark complete</b> to resubmit.</div>";}'
-    + 'function icFile(input,rid,token){tpReadFile(input,function(res){if(!res)return;var act=document.getElementById(rid+"-act");act.innerHTML="<span class=\\"tp-hint\\">Uploading photo\\u2026</span>";'
-    + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Upload failed")+"</span>";return;}'
-    + 'tpConfetti();icSetPill(rid,"tp-pill--pending","Pending approval");var ph=document.getElementById(rid+"-photo");if(ph)ph.innerHTML=icThumb(r.photoId);'
+    + 'function icSentBackInner(reason){var r=(reason||"").trim();var esc=function(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");};var lead=r?"<b>Sent back:</b> "+esc(r):"<b>Sent back.</b>";return "<div class=\\"ic-note ic-note--warn\\">"+lead+"<span class=\\"ic-note-cta\\">Make the fix, then send it in again.</span></div>";}'
+    + 'function icAfterSubmit(rid,token,photoId){tpConfetti();icSetPill(rid,"tp-pill--pending","Pending approval");var ph=document.getElementById(rid+"-photo");if(ph)ph.innerHTML=photoId?icThumb(photoId):"";'
     + 'var s=document.getElementById(rid+"-status");if(s){s.textContent="Submitted, awaiting approval";s.className="due";}'
     + 'var nt=document.getElementById(rid+"-note");if(nt)nt.innerHTML="";'
-    + 'act.innerHTML=icAdminFootJs(rid,token);var c=document.getElementById(rid);if(c){if(c.dataset.over==="1"){icBump("sum-over",-1);c.dataset.over="0";}c.dataset.state="pending";}'
-    + 'icBump("sum-open",-1);icBump("sum-pending",1);'
+    + 'var act=document.getElementById(rid+"-act");if(act)act.innerHTML=icAdminFootJs(rid,token);var c=document.getElementById(rid);if(c){if(c.dataset.over==="1"){icBump("sum-over",-1);c.dataset.over="0";}c.dataset.state="pending";}'
+    + 'icBump("sum-open",-1);icBump("sum-pending",1);}'
+    + 'function icFile(input,rid,token){tpReadFile(input,function(res){if(!res)return;var act=document.getElementById(rid+"-act");act.innerHTML="<span class=\\"tp-hint\\">Uploading photo\\u2026</span>";'
+    + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Upload failed")+"</span>";return;}icAfterSubmit(rid,token,r.photoId);'
     + '}).withFailureHandler(function(){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Upload failed. Please retry.</span>";}).submitIssueCompletion(token,res.dataUrl,res.name);});}'
+    + 'function icDone(rid,token){var act=document.getElementById(rid+"-act");act.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
+    + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed")+"</span>";return;}icAfterSubmit(rid,token,"");'
+    + '}).withFailureHandler(function(){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).submitIssueCompletion(token,"","");}'
     + 'function icApprove(rid,token){var act=document.getElementById(rid+"-act");act.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed")+"</span>";return;}'
     + 'icSetPill(rid,"tp-pill--done","Completed");act.innerHTML="";var s=document.getElementById(rid+"-status");if(s){s.innerHTML="\\u2713 Completed";s.className="due due--done";}var c=document.getElementById(rid);if(c)c.style.opacity="0.72";icBump("sum-pending",-1);'

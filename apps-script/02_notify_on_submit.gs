@@ -249,7 +249,7 @@ function addressedButton_(token) {
   if (!CONFIG.webAppUrl || !token) return '';
   const url = CONFIG.webAppUrl + '?id=' + encodeURIComponent(token);
   return '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:20px 0 4px"><tr>'
-    + '<td style="background:#8f1515;border-radius:6px"><a href="' + url + '" style="display:inline-block;padding:12px 24px;color:#fff;font:bold 14px Arial,sans-serif;text-decoration:none;border-radius:6px">Mark complete (photo required)</a></td>'
+    + '<td style="background:#8f1515;border-radius:6px"><a href="' + url + '" style="display:inline-block;padding:12px 24px;color:#fff;font:bold 14px Arial,sans-serif;text-decoration:none;border-radius:6px">Mark complete</a></td>'
     + '</tr></table>';
 }
 
@@ -403,33 +403,42 @@ function htmlPage_(title, bodyHtml) {
 }
 
 // Reached from the "Mark complete" button in the notification email (?id=token).
-// Completion now requires an evidence photo -> Pending approval (no instant close).
+// Most tasks need an evidence photo; the photo-optional action types (see
+// icPhotoOptional_) can also be finished with one tap. Either way -> Pending approval.
 function confirmPage_(id) {
   const info = findIssue_(id);
   if (!info) return htmlPage_('Not found', 'We could not find that item. It may have been removed.');
   if (info.addressed) return htmlPage_('Already completed', 'This was approved as complete on ' + escapeHtml_(fmtShort_(info.addressed)) + '.');
-  if (info.completedAt) return htmlPage_('Pending approval', 'A completion photo was already submitted on ' + escapeHtml_(fmtShort_(info.completedAt)) + '. It is waiting for an admin to review.');
-  const what = info.issueType ? lcFirst_(phrase_(info.issueType)) : 'this';
+  if (info.completedAt) return htmlPage_('Pending approval', 'This was already submitted on ' + escapeHtml_(fmtShort_(info.completedAt)) + '. It is waiting for an admin to review.');
+  const photoOptional = icPhotoOptional_(info.action);
   const sentBackBanner = info.sentBackReason
     ? '<div style="margin-top:14px;font:600 14px/1.6 Arial,sans-serif;color:#8a4b00;background:#fdf2df;border:1px solid #f4dfb0;border-radius:10px;padding:11px 14px"><b>Sent back:</b> ' + escapeHtml_(info.sentBackReason) + '</div>'
     : '';
+  const lead = photoOptional
+    ? 'Tap <b>Mark done</b> and an admin gives it a quick review. A photo is optional here, so add one only if it helps.'
+    : 'Add a photo of the completed work and an admin gives it a quick review.';
+  const controls = photoOptional
+    ? '<button type="button" class="btn btn-ghost" onclick="document.getElementById(\'cf-file\').click()">Add a photo</button>'
+      + '<button type="button" class="btn btn-primary" onclick="cfDone()">Mark done</button>'
+    : '<button type="button" class="btn btn-primary" onclick="document.getElementById(\'cf-file\').click()">Add a photo</button>';
   const inner = '<div style="font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#999">Space Status</div>'
     + '<div class="swh" style="font-size:30px;font-weight:800;letter-spacing:-.025em;line-height:1.1;margin-top:16px">Mark complete</div>'
-    + '<div style="font-size:16px;line-height:1.7;color:#555;margin-top:12px">Upload a photo showing ' + escapeHtml_(what) + ' is done.</div>'
+    + '<div style="font-size:16px;line-height:1.7;color:#555;margin-top:12px">' + lead + '</div>'
     + sentBackBanner
     + '<div id="act" style="margin-top:24px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
     +   '<input type="file" accept="image/*" id="cf-file" style="display:none" onchange="cfFile(this)">'
-    +   '<span class="tp-hint">Photo required</span>'
-    +   '<button type="button" class="btn btn-primary" onclick="document.getElementById(\'cf-file\').click()">Choose a photo</button>'
+    +   controls
     + '</div>'
     + '<div id="cf-photo"></div>'
     + '<div id="done" style="display:none;font-size:22px;font-weight:800;letter-spacing:-.02em;color:#1d7a46;margin-top:14px"></div>'
     + '<script>'
+    + 'function cfDoneUi(photoId){tpConfetti();var a=document.getElementById("act");a.style.display="none";if(photoId){document.getElementById("cf-photo").innerHTML="<div class=\\"tp-photos\\"><div class=\\"tp-photo\\"><figure><figcaption>Completion photo</figcaption><img src=\\"https://drive.google.com/thumbnail?id="+photoId+"&sz=w600\\" style=\\"max-width:100%;max-height:220px;border-radius:10px;border:1px solid #ececec\\"></figure></div></div>";}var d=document.getElementById("done");d.style.display="block";d.innerHTML="\\u2713 Submitted, pending approval";}'
     + 'function cfFile(input){tpReadFile(input,function(res){if(!res)return;var a=document.getElementById("act");a.innerHTML="<span class=\\"tp-hint\\">Uploading photo\\u2026</span>";'
-    + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Upload failed")+"</span>";return;}'
-    + 'tpConfetti();a.style.display="none";document.getElementById("cf-photo").innerHTML="<div class=\\"tp-photos\\"><div class=\\"tp-photo\\"><figure><figcaption>Completion photo</figcaption><img src=\\"https://drive.google.com/thumbnail?id="+r.photoId+"&sz=w600\\" style=\\"max-width:100%;max-height:220px;border-radius:10px;border:1px solid #ececec\\"></figure></div></div>";'
-    + 'var d=document.getElementById("done");d.style.display="block";d.innerHTML="\\u2713 Submitted, pending approval";'
+    + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Upload failed")+"</span>";return;}cfDoneUi(r.photoId);'
     + '}).withFailureHandler(function(){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Upload failed. Please retry.</span>";}).submitIssueCompletion(' + JSON.stringify(id) + ',res.dataUrl,res.name);});}'
+    + 'function cfDone(){var a=document.getElementById("act");a.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
+    + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Could not save")+"</span>";return;}cfDoneUi("");'
+    + '}).withFailureHandler(function(){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Could not save. Please retry.</span>";}).submitIssueCompletion(' + JSON.stringify(id) + ',"","");}'
     + '</script>';
   return swissShell_(tpStyles_() + inner + tpSharedJs_(), 'Space Status');
 }
@@ -477,8 +486,8 @@ function teamPortal_(team, readOnly, embedded) {
     const statusTxt = isPending ? 'Submitted, awaiting approval' : (isSentBack ? 'Sent back' : ('Due ' + escapeHtml_(dl)));
     const accent = COLOR_HEX[it.color] || '#d6d3ce';
     let foot = '';
-    if (!readOnly) foot = isPending ? icPendingFoot_(rid, it.token) : icOpenFoot_(rid, it.token);
-    return '<div class="card" id="' + rid + '" style="border-left:4px solid ' + accent + ';border-right:4px solid ' + accent + '" data-state="' + (isPending ? 'pending' : 'open') + '">'
+    if (!readOnly) foot = isPending ? icPendingFoot_(rid, it.token) : icOpenFoot_(rid, it.token, it.photoOptional);
+    return '<div class="card" id="' + rid + '" style="border-left:4px solid ' + accent + ';border-right:4px solid ' + accent + '" data-state="' + (isPending ? 'pending' : 'open') + '" data-po="' + (it.photoOptional ? '1' : '0') + '">'
       + '<div class="card-body">'
       +   '<div class="card-head"><div>'
       +     '<div class="card-title">' + escapeHtml_(it.issueType ? phrase_(it.issueType) : 'Reported issue') + '</div></div>'
@@ -488,7 +497,7 @@ function teamPortal_(team, readOnly, embedded) {
       +   (it.details ? '<div class="card-field"><span class="card-flabel">Details</span><div class="card-details">' + escapeHtml_(it.details) + '</div></div>' : '')
       +   (it.photos && it.photos.length ? photoStrip_(it.photos) : '')
       +   icPhotoBlock_(rid, it.completionPhoto)
-      +   icNoteContainer_(rid, isPending, it.sentBackReason, !readOnly)
+      +   icNoteContainer_(rid, isPending, it.sentBackReason, !readOnly, it.photoOptional)
       + '</div>'
       + '<div class="card-foot">'
       +   '<span id="' + rid + '-status" class="' + (isPending ? 'due' : dueCls) + '">' + statusTxt + '</span>'
@@ -585,6 +594,7 @@ function listTeamIssues_(teamName) {
       token: String(v[i][cTok]),
       issueType: cIssue >= 0 ? String(v[i][cIssue]).trim() : '',
       action: cAction >= 0 ? String(v[i][cAction]).trim() : '',
+      photoOptional: icPhotoOptional_(cAction >= 0 ? v[i][cAction] : ''),
       details: cDetails >= 0 ? String(v[i][cDetails]).trim() : '',
       photos: cPhoto >= 0 ? extractFileIds_(v[i][cPhoto]) : [],
       color: color, deadline: deadline, overdue: overdue,
@@ -628,6 +638,7 @@ function listAllIssues_() {
       token: String(v[i][cTok]),
       issueType: cIssue >= 0 ? String(v[i][cIssue]).trim() : '',
       action: cAction >= 0 ? String(v[i][cAction]).trim() : '',
+      photoOptional: icPhotoOptional_(cAction >= 0 ? v[i][cAction] : ''),
       details: cDetails >= 0 ? String(v[i][cDetails]).trim() : '',
       photos: cPhoto >= 0 ? extractFileIds_(v[i][cPhoto]) : [],
       color: color, deadline: deadline, overdue: overdue,
@@ -711,8 +722,8 @@ function allIssuesPage_(embedded, admin) {
     const hay = ((it.team || '') + ' ' + (it.issueType || '') + ' ' + (it.action || '') + ' ' + (it.details || '')).toLowerCase();
     const accent = COLOR_HEX[it.color] || '#d6d3ce';
     const statusTxt = isPending ? 'Submitted, awaiting approval' : (isSentBack ? 'Sent back' : ('Due ' + escapeHtml_(dl)));
-    const foot = isPending ? icPendingFoot_(rid, it.token) : icOpenFoot_(rid, it.token);
-    return '<div class="card" id="' + rid + '" style="border-left:4px solid ' + accent + ';border-right:4px solid ' + accent + '" data-team="' + escapeHtml_(it.team) + '" data-over="' + (it.overdue ? '1' : '0') + '" data-state="' + (isPending ? 'pending' : 'open') + '" data-hay="' + escapeHtml_(hay) + '">'
+    const foot = isPending ? icPendingFoot_(rid, it.token) : icOpenFoot_(rid, it.token, it.photoOptional);
+    return '<div class="card" id="' + rid + '" style="border-left:4px solid ' + accent + ';border-right:4px solid ' + accent + '" data-team="' + escapeHtml_(it.team) + '" data-over="' + (it.overdue ? '1' : '0') + '" data-state="' + (isPending ? 'pending' : 'open') + '" data-po="' + (it.photoOptional ? '1' : '0') + '" data-hay="' + escapeHtml_(hay) + '">'
       + '<div class="card-body">'
       +   '<div class="card-head">'
       +     '<div><div class="card-team">' + escapeHtml_(it.team || 'Unassigned') + '</div>'
@@ -723,7 +734,7 @@ function allIssuesPage_(embedded, admin) {
       +   (it.details ? '<div class="card-field"><span class="card-flabel">Details</span><div class="card-details">' + escapeHtml_(it.details) + '</div></div>' : '')
       +   (it.photos && it.photos.length ? photoStrip_(it.photos) : '')
       +   icPhotoBlock_(rid, it.completionPhoto)
-      +   icNoteContainer_(rid, isPending, it.sentBackReason, true)
+      +   icNoteContainer_(rid, isPending, it.sentBackReason, true, it.photoOptional)
       + '</div>'
       + '<div class="card-foot">'
       +   '<span id="' + rid + '-status" class="' + (isPending ? 'due' : dueCls) + '">' + statusTxt + '</span>'
@@ -918,6 +929,7 @@ function findIssue_(id) {
   if (cTok < 0) return null;
   const cTeam = H.indexOf(norm_(CONFIG.headers.team));
   const cIssue = H.indexOf(norm_(CONFIG.headers.issueType));
+  const cAction = H.indexOf(norm_(CONFIG.headers.action));
   const cAddr = H.indexOf(norm_(CONFIG.addressedHeader));
   const cComp = H.indexOf(norm_(CONFIG.completedAtHeader));
   const cSent = H.indexOf(norm_(CONFIG.sentBackHeader));
@@ -927,6 +939,7 @@ function findIssue_(id) {
         rowIndex: i + 1,
         team: cTeam >= 0 ? String(v[i][cTeam]).trim() : '',
         issueType: cIssue >= 0 ? String(v[i][cIssue]).trim() : '',
+        action: cAction >= 0 ? String(v[i][cAction]).trim() : '',
         addressed: cAddr >= 0 ? v[i][cAddr] : '',
         completedAt: cComp >= 0 ? v[i][cComp] : '',
         sentBackReason: cSent >= 0 ? String(v[i][cSent] || '').trim() : '',
