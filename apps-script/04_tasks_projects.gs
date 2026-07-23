@@ -419,7 +419,15 @@ function tpStyles_() {
     + '.tp-hours-label{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#8a857c;margin-bottom:5px}'
     + '.tp-hours-input{font:inherit;font-size:14px;padding:12px 12px;border:1.5px solid #e0e0dc;border-radius:10px;background:#fff;outline:none;width:100%}'
     + '.tp-hours-input:focus{border-color:#b31b1b;box-shadow:0 0 0 3px rgba(179,27,27,.1)}'
-    + '.tp-create{margin:6px 0 20px;padding:18px 20px;background:#fff;border:1.5px solid #e7e7e3;border-radius:14px;box-shadow:0 2px 8px rgba(20,20,30,.05)}'
+    + '.tp-create-wrap{margin:6px 0 20px}'
+    + '.tp-create-toggle{display:inline-flex;align-items:center;gap:8px;cursor:pointer;list-style:none;user-select:none;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12.5px;font-weight:700;letter-spacing:.02em;color:#8f1515;background:#fff;border:1.5px dashed #e0ddd6;border-radius:10px;padding:9px 14px;transition:border-color .15s ease}'
+    + '.tp-create-toggle:hover{border-color:#d6b26a}'
+    + '.tp-create-toggle::-webkit-details-marker{display:none}'
+    + '.tp-create-toggle::marker{content:""}'
+    + '.tp-create-caret{display:inline-block;font-weight:800;font-size:15px;line-height:1;transition:transform .15s ease}'
+    + '.tp-create-wrap[open] .tp-create-caret{transform:rotate(45deg)}'
+    + '.tp-create-wrap[open] .tp-create-toggle{border-style:solid;border-color:#e7e7e3;color:#111}'
+    + '.tp-create{margin:10px 0 0;padding:18px 20px;background:#fff;border:1.5px solid #e7e7e3;border-radius:14px;box-shadow:0 2px 8px rgba(20,20,30,.05)}'
     + '.tp-create h3{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:13px;font-weight:800;letter-spacing:.04em;color:#111;margin:0 0 12px}'
     + '.tp-field{margin-bottom:12px}'
     + '.tp-field label{display:block;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#8a857c;margin-bottom:5px}'
@@ -928,17 +936,20 @@ function projectsPage_(embedded, admin) {
   }
 
   // Admin create form (revealed only in admin mode via tpAdminRevealJs_).
-  inner += '<form class="tp-create tp-admin" hidden onsubmit="return tpCreate(event)">'
-    + '<h3>Assign a new project</h3>'
+  // Collapsed into a disclosure so it stays out of the way until needed.
+  inner += '<details class="tp-create-wrap tp-admin" hidden>'
+    + '<summary class="tp-create-toggle"><span class="tp-create-caret">&#43;</span> New project</summary>'
+    + '<form class="tp-create" onsubmit="return tpCreate(event)">'
     + '<div class="tp-field"><label>Title</label><input id="tp-c-title" placeholder="e.g. Rebuild the tool crib shelving" required></div>'
     + '<div class="tp-field"><label>Description</label><textarea id="tp-c-desc" rows="2" placeholder="Scope, location, and what done looks like"></textarea></div>'
     + '<div class="tp-field"><label>Assignees (optional, comma-separated)</label><input id="tp-c-assignees" placeholder="Alex Rivera, Sam Chen"></div>'
-    + '<div class="tp-field"><label>Before photo &mdash; the starting state (optional)</label>'
+    + '<div class="tp-field"><label>Before photo: the starting state (optional)</label>'
     +   '<div class="tp-slot tp-c-photo" id="tp-c-slot-b"><input type="file" accept="image/*" id="tp-c-before" style="display:none" onchange="tpCreateSlot(this)"><div class="tp-slot-btn" onclick="document.getElementById(\'tp-c-before\').click()"><span class="tp-c-cam" aria-hidden="true">&#128247;</span> <span id="tp-c-blabel">Add a &ldquo;before&rdquo; photo</span></div></div>'
     + '</div>'
     + '<button type="submit" class="btn btn-primary">Create project</button>'
     + '<span id="tp-c-msg" class="tp-lock-msg" style="margin-left:10px"></span>'
-    + '</form>';
+    + '</form>'
+    + '</details>';
 
   inner += '<div class="ic-summary">'
     + '<span class="ic-sum"><b id="tp-n-assigned">' + assigned.length + '</b> assigned</span>'
