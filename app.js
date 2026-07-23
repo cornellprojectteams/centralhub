@@ -116,8 +116,11 @@
   const segProjects = document.getElementById('seg-projects');
   const projectsFrame = document.getElementById('projects-frame');
   const projectsEmbedBody = document.getElementById('projects-embed-body');
-  const projectsUrl = SPACE_STATUS_URL ? SPACE_STATUS_URL + sep + 'module=projects&embed=1' : '';
-  const projectsFullUrl = SPACE_STATUS_URL ? SPACE_STATUS_URL + sep + 'module=projects' : '';
+  // Admin panels (data-embed-query carries admin=1) open the Projects tab in admin
+  // mode so create / approve / delete are available; staff panels stay student-mode.
+  const adminSuffix = /(?:^|&)admin=1(?:&|$)/.test(embedQuery || '') ? '&admin=1' : '';
+  const projectsUrl = SPACE_STATUS_URL ? SPACE_STATUS_URL + sep + 'module=projects&embed=1' + adminSuffix : '';
+  const projectsFullUrl = SPACE_STATUS_URL ? SPACE_STATUS_URL + sep + 'module=projects' + adminSuffix : '';
   let projectsFrameStarted = false;
 
   function loadProjectsFrame() {
