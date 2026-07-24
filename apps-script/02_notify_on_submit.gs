@@ -566,14 +566,12 @@ function teamPortal_(team, readOnly, embedded) {
     return '<div class="card" id="' + rid + '" data-state="' + (isPending ? 'pending' : 'open') + '" data-po="' + (it.photoOptional ? '1' : '0') + '">'
       + '<div class="card-accent" id="' + rid + '-accent" style="background:' + accent + '"></div>'
       + '<div class="card-body">'
-      +   '<div class="card-head"><div class="card-hgroup">' + tpMono_(rid, it.issueType || 'Task', accent, accent + '1a')
-      +     '<div style="min-width:0"><div class="card-team">Task</div>'
-      +     '<div class="card-title">' + escapeHtml_(it.issueType ? phrase_(it.issueType) : 'Reported issue') + '</div></div></div>'
+      +   '<div class="card-head"><div>'
+      +     '<div class="card-title">' + escapeHtml_(it.issueType ? phrase_(it.issueType) : 'Reported issue') + '</div></div>'
       +     '<span id="' + rid + '-pill">' + chip + '</span>'
       +   '</div>'
       +   (it.action ? '<div class="card-field"><span class="card-flabel">Required action</span><div class="card-action">' + escapeHtml_(phrase_(it.action)) + '</div></div>' : '')
       +   (it.details ? '<div class="card-field"><span class="card-flabel">Details</span><div class="card-details">' + escapeHtml_(it.details) + '</div></div>' : '')
-      +   tpTrackHtml_(rid, ['Open', 'In review', 'Done'], isPending ? 1 : 0, isPending ? '#b06a00' : accent)
       +   (it.photos && it.photos.length ? photoStrip_(it.photos) : '')
       +   icPhotoBlock_(rid, it.completionPhoto)
       +   icNoteContainer_(rid, isPending, it.sentBackReason, !readOnly, it.photoOptional)
@@ -808,14 +806,13 @@ function allIssuesPage_(embedded, admin) {
       + '<div class="card-accent" id="' + rid + '-accent" style="background:' + accent + '"></div>'
       + '<div class="card-body">'
       +   '<div id="' + rid + '-view">'
-      +     '<div class="card-head"><div class="card-hgroup">' + tpMono_(rid, it.team || it.issueType || 'Issue', accent, accent + '1a')
-      +       '<div style="min-width:0"><div class="card-team" id="' + rid + '-vteam">' + escapeHtml_(it.team || 'Unassigned') + '</div>'
-      +       '<div class="card-title" id="' + rid + '-vtype">' + escapeHtml_(it.issueType ? phrase_(it.issueType) : 'Reported issue') + '</div></div></div>'
+      +     '<div class="card-head">'
+      +       '<div><div class="card-team" id="' + rid + '-vteam">' + escapeHtml_(it.team || 'Unassigned') + '</div>'
+      +       '<div class="card-title" id="' + rid + '-vtype">' + escapeHtml_(it.issueType ? phrase_(it.issueType) : 'Reported issue') + '</div></div>'
       +       '<span id="' + rid + '-pill">' + chip + '</span>'
       +     '</div>'
       +     '<div class="card-field" id="' + rid + '-vaction-wrap"' + (it.action ? '' : ' hidden') + '><span class="card-flabel">Required action</span><div class="card-action" id="' + rid + '-vaction">' + escapeHtml_(phrase_(it.action)) + '</div></div>'
       +     '<div class="card-field" id="' + rid + '-vdetails-wrap"' + (it.details ? '' : ' hidden') + '><span class="card-flabel">Details</span><div class="card-details" id="' + rid + '-vdetails">' + escapeHtml_(it.details) + '</div></div>'
-      +     tpTrackHtml_(rid, ['Open', 'In review', 'Done'], isPending ? 1 : 0, isPending ? '#b06a00' : accent)
       +     (it.photos && it.photos.length ? photoStrip_(it.photos) : '')
       +     icPhotoBlock_(rid, it.completionPhoto)
       +     icNoteContainer_(rid, isPending, it.sentBackReason, true, it.photoOptional)

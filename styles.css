@@ -986,7 +986,7 @@ body.issues-panel-open { overflow: hidden; }
 
 /* Admin sidebar layout */
 
-.admin-layout { display: grid; grid-template-columns: 184px 1fr; gap: 2.25rem; align-items: start; min-width: 0; }
+.admin-layout { display: grid; grid-template-columns: 184px minmax(0, 1fr); gap: 2.25rem; align-items: start; min-width: 0; }
 .admin-layout[hidden] { display: none; }
 
 .admin-list { display: flex; flex-direction: column; gap: 2rem; min-width: 0; }
@@ -1041,16 +1041,17 @@ body.issues-panel-open { overflow: hidden; }
 }
 
 @media (max-width: 720px) {
-  .admin-layout { grid-template-columns: 1fr; gap: 0; }
+  .admin-layout { grid-template-columns: minmax(0, 1fr); gap: 0; }
   .admin-side {
     position: static;
+    min-width: 0;
     margin: 0 0 .9rem;
     padding: 0 0 .55rem;
     background: transparent;
     backdrop-filter: none;
     border-bottom: 1.5px solid var(--line);
     width: 100%!important;
-    display: none;
+  
   }
   .admin-side-label { display: block; padding-left: 0; margin-bottom: .4rem; }
   .admin-nav {
