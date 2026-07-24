@@ -218,6 +218,78 @@ function lookupTeamByToken_(token) {
   return '';
 }
 
+// All known team names from the contacts sheet (for the admin reassign dropdown).
+function icTeamNames_() {
+  const sh = ss_().getSheetByName(CONFIG.contactsSheet);
+  if (!sh) return [];
+  const v = sh.getDataRange().getValues();
+  if (v.length < 2) return [];
+  const cTeam = v[0].map(norm_).indexOf(norm_('Team'));
+  if (cTeam < 0) return [];
+  const out = [];
+  for (let i = 1; i < v.length; i++) {
+    const t = String(v[i][cTeam] || '').trim();
+    if (t && out.indexOf(t) < 0) out.push(t);
+  }
+  return out;
+}
+
+// <option> list for the team select, keeping the current value even if unlisted.
+function icTeamOptions_(teams, current) {
+  const list = teams.slice();
+  const cur = String(current || '').trim();
+  if (cur && list.indexOf(cur) < 0) list.unshift(cur);
+  let out = '<option value=""' + (cur ? '' : ' selected') + '>Unassigned</option>';
+  list.forEach(function (t) {
+    out += '<option value="' + escapeHtml_(t) + '"' + (t === cur ? ' selected' : '') + '>' + escapeHtml_(t) + '</option>';
+  });
+  return out;
+}
+
+// Distinct existing values from the sheet, so the editor's pick-lists only offer
+// values that already exist rather than free text (no typos, no invented values).
+function icFieldOptions_() {
+  const sh = ss_().getSheetByName(CONFIG.responsesSheet);
+  if (!sh) return { actions: [], issueTypes: [] };
+  const v = sh.getDataRange().getValues();
+  if (v.length < 2) return { actions: [], issueTypes: [] };
+  const H = v[0].map(norm_);
+  const cAct = H.indexOf(norm_(CONFIG.headers.action));
+  const cType = H.indexOf(norm_(CONFIG.headers.issueType));
+  const actions = [], types = [];
+  for (let i = 1; i < v.length; i++) {
+    if (cAct >= 0) { const a = String(v[i][cAct] || '').trim(); if (a && actions.indexOf(a) < 0) actions.push(a); }
+    if (cType >= 0) { const t = String(v[i][cType] || '').trim(); if (t && types.indexOf(t) < 0) types.push(t); }
+  }
+  actions.sort(); types.sort();
+  return { actions: actions, issueTypes: types };
+}
+
+// <option> list keeping the current value even if unlisted. The value is the raw
+// stored text (what downstream logic reads); the label is the tidied phrase_ form.
+function icPickOptions_(values, current) {
+  const list = values.slice();
+  const cur = String(current || '').trim();
+  if (cur && list.indexOf(cur) < 0) list.unshift(cur);
+  let out = '<option value=""' + (cur ? '' : ' selected') + '>Not set</option>';
+  list.forEach(function (val) {
+    out += '<option value="' + escapeHtml_(val) + '"' + (val === cur ? ' selected' : '') + '>' + escapeHtml_(phrase_(val)) + '</option>';
+  });
+  return out;
+}
+
+// Admin-only edit form for one issue card (hidden until Edit is tapped).
+function icEditForm_(rid, it, teams, issueTypes) {
+  return '<div id="' + rid + '-edit" class="ic-edit" hidden>'
+    + '<label class="ic-edit-lbl">Team<select id="' + rid + '-eteam" class="ic-edit-in">' + icTeamOptions_(teams, it.team) + '</select></label>'
+    + '<label class="ic-edit-lbl">Issue type<select id="' + rid + '-etype" class="ic-edit-in">' + icPickOptions_(issueTypes, it.issueType) + '</select></label>'
+    + '<label class="ic-edit-lbl">Details<textarea id="' + rid + '-edetails" class="ic-edit-in" rows="3">' + escapeHtml_(it.details || '') + '</textarea></label>'
+    + '<div class="ic-edit-btns"><button type="button" class="btn btn-primary" onclick="icEditSave(\'' + rid + '\',\'' + it.token + '\')">Save changes</button>'
+    + '<button type="button" class="btn btn-ghost" onclick="icEditCancel(\'' + rid + '\')">Cancel</button>'
+    + '<span id="' + rid + '-emsg" class="ic-edit-msg"></span></div>'
+    + '</div>';
+}
+
 function parseColor_(status) {
   if (!status) return '';
   const m = String(status).trim().match(/^[A-Za-z]+/);
@@ -354,9 +426,13 @@ function portalStyles_() {
     + '.section-count{font-size:12px;color:#bbb;font-weight:700}'
     + '.section-rule{flex:1;height:1.5px;background:linear-gradient(90deg,#e8e8e8,transparent)}'
     + '.card{background:#fff;border-radius:14px;border:1.5px solid #ececea;box-shadow:0 2px 8px rgba(20,20,30,.06),0 1px 3px rgba(20,20,30,.04);overflow:hidden;margin-bottom:12px;transition:opacity .25s ease,transform .25s ease,box-shadow .25s ease}'
+    + '@keyframes cardApprove{0%{box-shadow:0 0 0 0 rgba(21,122,71,0)}22%{box-shadow:0 0 0 3px rgba(21,122,71,.5),0 6px 18px rgba(21,122,71,.22)}100%{box-shadow:0 0 0 0 rgba(21,122,71,0)}}'
+    + '.card--approved{animation:cardApprove .85s ease-out}'
     + '.card:hover{box-shadow:0 8px 24px rgba(20,20,30,.08);transform:translateY(-1px)}'
     + '.card-body{padding:18px 20px 16px}'
-    + '.card-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;border-top:1.5px solid #f1f1f1;padding:13px 20px;background:linear-gradient(180deg,#fcfcfb 0%,#f8f8f6 100%)}'
+    + '.card-foot{display:flex;align-items:center;gap:8px;flex-wrap:wrap;border-top:1.5px solid #f1f1f1;padding:13px 20px;background:linear-gradient(180deg,#fcfcfb 0%,#f8f8f6 100%)}'
+    + '.card-foot>:first-child{margin-right:auto}'
+    + '.card-foot .btn-row{gap:8px}'
     + '.card-team{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#b31b1b}'
     + '.card-title{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:18px;font-weight:800;letter-spacing:-.02em;line-height:1.25;margin-top:3px;color:#111}'
     + '.card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}'
@@ -364,7 +440,7 @@ function portalStyles_() {
     + '.card-flabel{display:block;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:9.5px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:#a8a29e;margin-bottom:4px}'
     + '.card-action{font-size:14.5px;color:#26231f;font-weight:600;line-height:1.5}'
     + '.card-details{font-size:13.5px;color:#57534e;line-height:1.62;white-space:pre-line;padding-left:12px;border-left:2px solid #ece9e2}'
-    + '.chip{flex:0 0 auto;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;padding:5px 11px;border-radius:999px}'
+    + '.chip{flex:0 0 auto;white-space:nowrap;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;padding:5px 11px;border-radius:999px}'
     + '.chip--overdue{color:#b31b1b;background:#fdecec;border:1px solid #f5d0d0}'
     + '.chip--due{color:#6b665e;background:#f0efe9;border:1px solid #e5e4de}'
     + '.due{font-size:13px;font-weight:600;color:#777}'
@@ -420,7 +496,7 @@ function confirmPage_(id) {
   const controls = photoOptional
     ? '<button type="button" class="btn btn-ghost" onclick="document.getElementById(\'cf-file\').click()">Add a photo</button>'
       + '<button type="button" class="btn btn-primary" onclick="cfDone()">Mark done</button>'
-    : '<button type="button" class="btn btn-primary" onclick="document.getElementById(\'cf-file\').click()">Add a photo</button>';
+    : '<button type="button" class="btn btn-primary" onclick="document.getElementById(\'cf-file\').click()">Complete with a photo</button>';
   const inner = '<div style="font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#999">Space Status</div>'
     + '<div class="swh" style="font-size:30px;font-weight:800;letter-spacing:-.025em;line-height:1.1;margin-top:16px">Mark complete</div>'
     + '<div style="font-size:16px;line-height:1.7;color:#555;margin-top:12px">' + lead + '</div>'
@@ -706,6 +782,8 @@ function allIssuesPage_(embedded, admin) {
   };
 
   let idx = 0;
+  const teams = icTeamNames_();
+  const fieldOpts = icFieldOptions_();
   const renderCard = function (it) {
     const rid = 'iss' + (idx++);
     const isPending = it.pending;
@@ -725,20 +803,25 @@ function allIssuesPage_(embedded, admin) {
     const foot = isPending ? icPendingFoot_(rid, it.token) : icOpenFoot_(rid, it.token, it.photoOptional);
     return '<div class="card" id="' + rid + '" style="border-left:4px solid ' + accent + ';border-right:4px solid ' + accent + '" data-team="' + escapeHtml_(it.team) + '" data-over="' + (it.overdue ? '1' : '0') + '" data-state="' + (isPending ? 'pending' : 'open') + '" data-po="' + (it.photoOptional ? '1' : '0') + '" data-hay="' + escapeHtml_(hay) + '">'
       + '<div class="card-body">'
-      +   '<div class="card-head">'
-      +     '<div><div class="card-team">' + escapeHtml_(it.team || 'Unassigned') + '</div>'
-      +     '<div class="card-title">' + escapeHtml_(it.issueType ? phrase_(it.issueType) : 'Reported issue') + '</div></div>'
-      +     '<span id="' + rid + '-pill">' + chip + '</span>'
+      +   '<div id="' + rid + '-view">'
+      +     '<div class="card-head">'
+      +       '<div><div class="card-team" id="' + rid + '-vteam">' + escapeHtml_(it.team || 'Unassigned') + '</div>'
+      +       '<div class="card-title" id="' + rid + '-vtype">' + escapeHtml_(it.issueType ? phrase_(it.issueType) : 'Reported issue') + '</div></div>'
+      +       '<span id="' + rid + '-pill">' + chip + '</span>'
+      +     '</div>'
+      +     '<div class="card-field" id="' + rid + '-vaction-wrap"' + (it.action ? '' : ' hidden') + '><span class="card-flabel">Required action</span><div class="card-action" id="' + rid + '-vaction">' + escapeHtml_(phrase_(it.action)) + '</div></div>'
+      +     '<div class="card-field" id="' + rid + '-vdetails-wrap"' + (it.details ? '' : ' hidden') + '><span class="card-flabel">Details</span><div class="card-details" id="' + rid + '-vdetails">' + escapeHtml_(it.details) + '</div></div>'
+      +     (it.photos && it.photos.length ? photoStrip_(it.photos) : '')
+      +     icPhotoBlock_(rid, it.completionPhoto)
+      +     icNoteContainer_(rid, isPending, it.sentBackReason, true, it.photoOptional)
       +   '</div>'
-      +   (it.action ? '<div class="card-field"><span class="card-flabel">Required action</span><div class="card-action">' + escapeHtml_(phrase_(it.action)) + '</div></div>' : '')
-      +   (it.details ? '<div class="card-field"><span class="card-flabel">Details</span><div class="card-details">' + escapeHtml_(it.details) + '</div></div>' : '')
-      +   (it.photos && it.photos.length ? photoStrip_(it.photos) : '')
-      +   icPhotoBlock_(rid, it.completionPhoto)
-      +   icNoteContainer_(rid, isPending, it.sentBackReason, true, it.photoOptional)
+      +   icEditForm_(rid, it, teams, fieldOpts.issueTypes)
       + '</div>'
       + '<div class="card-foot">'
       +   '<span id="' + rid + '-status" class="' + (isPending ? 'due' : dueCls) + '">' + statusTxt + '</span>'
       +   '<span id="' + rid + '-act" class="btn-row">' + foot + '</span>'
+      +   '<span class="tp-admin btn-row" hidden><button type="button" class="btn btn-ghost" onclick="icEditOpen(\'' + rid + '\')">Edit</button>'
+      +     '<span id="' + rid + '-delwrap"><button type="button" class="btn btn-ghost tp-del" onclick="icDelOpen(\'' + rid + '\',\'' + it.token + '\')">Delete</button></span></span>'
       + '</div>'
       + '</div>';
   };

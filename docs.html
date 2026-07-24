@@ -62,6 +62,7 @@
         <a href="#severity" class="doc-sidebar-link"><strong>Severity</strong><small>Deadlines by color</small></a>
         <a href="#reminders" class="doc-sidebar-link"><strong>Reminders</strong><small>Daily follow-ups</small></a>
         <a href="#pages" class="doc-sidebar-link"><strong>Web pages</strong><small>Portal routes</small></a>
+        <a href="#workflow" class="doc-sidebar-link"><strong>Completion &amp; approval</strong><small>Photos, approve, edit, delete</small></a>
         <a href="#changes" class="doc-sidebar-link"><strong>Making changes</strong><small>Contacts, teams, deploy</small></a>
         <a href="#utilities" class="doc-sidebar-link"><strong>Utilities</strong><small>Script editor functions</small></a>
         <a href="#links" class="doc-sidebar-link"><strong>Links</strong><small>All resources</small></a>
@@ -91,6 +92,7 @@
       <a href="#severity">Severity &amp; deadlines</a>
       <a href="#reminders">Reminders</a>
       <a href="#pages">Web pages</a>
+      <a href="#workflow">Completion &amp; approval</a>
       <a href="#changes">Making changes</a>
       <a href="#utilities">Utilities</a>
       <a href="#links">Links</a>
@@ -100,15 +102,16 @@
       <h2><span class="doc-num">01</span>Overview</h2>
       <p>
         The system runs on a Google Form, a Google Sheet, and one Apps Script. A form submission
-        triggers an email to the responsible team with a deadline. Reminders repeat until the team
-        marks the issue addressed. Each team has a status page. The sheet is the database.
+        triggers an email to the responsible team with a deadline. Reminders repeat until the work is
+        completed with a photo and an admin approves it. Each team has a status page. The sheet is the database.
       </p>
       <div class="doc-flow">
         <span>Form</span><span class="arr">&rarr;</span>
         <span>Sheet</span><span class="arr">&rarr;</span>
         <span>Script</span><span class="arr">&rarr;</span>
         <span>Email</span><span class="arr">&rarr;</span>
-        <span>Team marks it addressed</span>
+        <span>Complete with a photo</span><span class="arr">&rarr;</span>
+        <span>Admin approves</span>
       </div>
     </section>
 
@@ -188,9 +191,10 @@
       <p>Four routes on one URL:</p>
       <div class="cmd">
         /exec&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">team picker (default)</span><br>
-        /exec?view=all&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">all open issues — embedded in Admin hub</span><br>
+        /exec?view=all&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">Admin hub: all issues + projects, with approve / edit / delete</span><br>
+        /exec?module=projects&nbsp;<span class="c">projects list (assign, join, complete, approve)</span><br>
         /exec?view=Baja&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">read-only status page for one team</span><br>
-        /exec?team=TOKEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">full portal with Mark addressed buttons</span><br>
+        /exec?team=TOKEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">team page: complete a job with a photo</span><br>
         /exec?id=TOKEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">confirm page, opened by the email button</span>
       </div>
       <p>
@@ -198,13 +202,34 @@
         issues on its own. Nothing changes until a person clicks confirm.
       </p>
       <p>
-        Closing an issue writes a timestamp into <code>Addressed at</code>. Clear that cell to reopen
+        Approving an issue writes a timestamp into <code>Addressed at</code>. Clear that cell to reopen
         the issue.
       </p>
     </section>
 
+    <section class="doc-section" id="workflow">
+      <h2><span class="doc-num">07</span>Completion &amp; approval</h2>
+      <p>
+        Finishing a job is a two-step, accountable flow: the person doing the work submits it,
+        then an admin reviews and approves. Nothing closes on a single click.
+      </p>
+      <ul>
+        <li><strong>Complete with a photo.</strong> On a team page or the confirm page, the doer adds a photo of the finished work. The item moves to <em>Pending approval</em> (it stamps <code>Completed at</code> and reminders pause). It is not closed yet.</li>
+        <li><strong>Photo-optional tasks.</strong> A photo is required for most tasks, but optional for four Required-action types: informational notices, facilities work orders, unsafe-practice corrections, and &ldquo;Other&rdquo;. Those show a one-tap <em>Mark done</em>. The server enforces this, so a photo cannot be skipped where it is required.</li>
+        <li><strong>Approve or send back.</strong> In the Open issues dashboard (Admin hub) each pending item shows Approve and Send back. Approve stamps <code>Addressed at</code> = Completed. Send back reopens the item with an optional reason shown to the doer, and keeps the submitted photo.</li>
+        <li><strong>Edit in place.</strong> Admins can edit an item without leaving the dashboard: team, issue type, and details on a space issue; title, scope, and assignees on a project. Team and issue type are picklists so values stay valid; Required action is fixed at submission and not editable.</li>
+        <li><strong>Delete.</strong> Admins can permanently remove a task or project from the dashboard, behind a confirm step. It deletes the row.</li>
+      </ul>
+      <p>
+        <strong>Projects</strong> are larger jobs an admin assigns. A student joins a project, then completes it
+        with an &ldquo;after&rdquo; photo and the hours it took, which also goes to Pending approval. The Projects
+        dashboard tracks hours, completion, and contributors. Projects live in the <code>Projects</code> tab;
+        space issues stay in Form Responses.
+      </p>
+    </section>
+
     <section class="doc-section" id="changes">
-      <h2><span class="doc-num">07</span>Making changes</h2>
+      <h2><span class="doc-num">08</span>Making changes</h2>
       <ul>
         <li><strong>Contacts and recipients:</strong> edit Team Contacts.</li>
         <li><strong>Wording, deadlines, sender:</strong> edit the constants at the top of the script and save.</li>
@@ -219,7 +244,7 @@
     </section>
 
     <section class="doc-section" id="utilities">
-      <h2><span class="doc-num">08</span>Utilities</h2>
+      <h2><span class="doc-num">09</span>Utilities</h2>
       <p>Run from the script editor:</p>
       <ul>
         <li><code>fillTeamTokens</code> Creates tokens for teams that lack one.</li>
@@ -230,7 +255,7 @@
     </section>
 
     <section class="doc-section" id="links">
-      <h2><span class="doc-num">09</span>Links</h2>
+      <h2><span class="doc-num">10</span>Links</h2>
       <ul class="doc-links">
         <li>
           <a href="https://docs.google.com/spreadsheets/d/1mZrlnA-GiVKB4_Um21aMH9jsSkf6TUJhauDWivnf7-I/edit" target="_blank" rel="noopener">Space Status Tracking sheet</a>

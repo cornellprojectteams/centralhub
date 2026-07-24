@@ -197,10 +197,9 @@ function icLocate_(token) {
   return null;
 }
 
-// Doer submits completion evidence. A photo is REQUIRED -> Pending approval.
-// Photo evidence is MANDATORY for most tasks, but OPTIONAL for these action types
-// (they often have no visible before/after): informational notices, facilities work
-// orders, unsafe-practice corrections, and "Other".
+// Which Required-action types can be finished without a photo (they usually have no
+// visible before/after): informational notices, facilities work orders, unsafe-
+// practice corrections, and "Other". Everything else needs evidence.
 function icPhotoOptional_(action) {
   var a = norm_(action);
   if (!a) return false;
@@ -209,6 +208,8 @@ function icPhotoOptional_(action) {
     || a.indexOf('facilities work order') >= 0 || a.indexOf('unsafe work practice') >= 0;
 }
 
+// Doer submits completion evidence -> Pending approval. A photo is required unless
+// the action type is photo-optional.
 function submitIssueCompletion(token, dataUrl, filename) {
   var loc = icLocate_(token);
   if (!loc) return { ok: false, error: 'That item could not be found.' };
@@ -225,6 +226,26 @@ function submitIssueCompletion(token, dataUrl, filename) {
   loc.sh.getRange(loc.row, loc.col(CONFIG.completedAtHeader)).setValue(new Date());
   loc.sh.getRange(loc.row, loc.col(CONFIG.sentBackHeader)).setValue('');   // clear any prior send-back reason
   return { ok: true, photoId: id, status: 'Pending' };
+}
+
+// Admin edits an issue's fields in place. Team drives reminder routing, so the
+// dashboard offers it as a picklist. Required action is fixed at submission.
+function updateIssueFields(token, team, issueType, details) {
+  var loc = icLocate_(token);
+  if (!loc) return { ok: false, error: 'That item could not be found.' };
+  var t = String(team || '').trim(), iss = String(issueType || '').trim(), det = String(details || '').trim();
+  loc.sh.getRange(loc.row, loc.col(CONFIG.headers.team)).setValue(t);
+  loc.sh.getRange(loc.row, loc.col(CONFIG.headers.issueType)).setValue(iss);
+  loc.sh.getRange(loc.row, loc.col(CONFIG.headers.details)).setValue(det);
+  return { ok: true, team: t, issueType: phrase_(iss), details: det };
+}
+
+// Admin deletes an issue -> the row is removed for good.
+function deleteIssue(token) {
+  var loc = icLocate_(token);
+  if (!loc) return { ok: false, error: 'That item could not be found.' };
+  loc.sh.deleteRow(loc.row);
+  return { ok: true };
 }
 
 // Admin approves -> Completed (stamps Addressed at, which is what "resolved" reads).
@@ -305,6 +326,21 @@ function tpJoinProject(projectId, name) {
     }
   }
   return { ok: true, status: status, assignees: list };
+}
+
+// Admin edits a project's entered fields in place: title, scope, and the assignees.
+function tpUpdateProject(projectId, title, description, assignees) {
+  var o = tpOpen_(TP.projectsSheet, TP.projectHeaders);
+  var r = tpFindRow_(o.sh, o.col['Project ID'], projectId);
+  if (r < 0) return { ok: false, error: 'That project could not be found.' };
+  var t = String(title || '').trim();
+  if (!t) return { ok: false, error: 'A title is required.' };
+  var desc = String(description || '').trim();
+  var list = tpSplitList_(assignees);
+  o.sh.getRange(r, o.col['Title']).setValue(t);
+  o.sh.getRange(r, o.col['Description']).setValue(desc);
+  o.sh.getRange(r, o.col['Assignees']).setValue(list.join(', '));
+  return { ok: true, title: t, description: desc, assignees: list };
 }
 
 // Assignee submits a finished project for approval (after photo + hours required).
@@ -399,7 +435,7 @@ function tpStyles_() {
     + '.tp-assignees{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}'
     + '.tp-chip{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;color:#3f3a34;background:#f0efe9;border:1px solid #e5e4de;border-radius:999px;padding:4px 11px}'
     + '.tp-chip--empty{color:#a8a29e;background:transparent;border-style:dashed}'
-    + '.tp-pill{flex:0 0 auto;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;padding:5px 11px;border-radius:999px}'
+    + '.tp-pill{flex:0 0 auto;white-space:nowrap;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;padding:5px 11px;border-radius:999px}'
     + '.tp-pill--todo{color:#6b665e;background:#f0efe9;border:1px solid #e5e4de}'
     + '.tp-pill--assigned{color:#2563c9;background:#eaf1fd;border:1px solid #cfe0fb}'
     + '.tp-pill--active{color:#e08a1e;background:#fdf3e3;border:1px solid #f6e2bf}'
@@ -442,6 +478,13 @@ function tpStyles_() {
     + '.ic-note--warn{color:#8a4b00;background:#fdf2df;border-color:#f4dfb0}'
     + '.ic-note--warn b{color:#8a4b00}'
     + '.ic-note-cta{display:block;margin-top:5px;font-weight:600;opacity:.82}'
+    + '.ic-edit{margin-top:8px;padding:14px 15px;background:#faf9f6;border:1px solid #e9e6df;border-radius:12px}'
+    + '.ic-edit-lbl{display:block;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:9.5px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:#a8a29e;margin-bottom:12px}'
+    + '.ic-edit-in{display:block;width:100%;box-sizing:border-box;margin-top:5px;padding:9px 11px;border:1.5px solid #e2ddd6;border-radius:9px;font-family:inherit;font-size:13.5px;color:#111;background:#fff}'
+    + '.ic-edit-in:focus{outline:none;border-color:#b31b1b}'
+    + 'textarea.ic-edit-in{resize:vertical;line-height:1.5}'
+    + '.ic-edit-btns{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:2px}'
+    + '.ic-edit-msg{font-size:12px;font-weight:600;color:#8a857c}'
     + '.tp-pill--sent{color:#b31b1b;background:#fdecec;border:1px solid #f5d0d0}'
     + '.tp-del{color:#b31b1b;border-color:#f0d0d0}'
     + '.tp-del:hover{border-color:#e0a0a0;background:#fdf6f6;color:#8f1515}'
@@ -497,6 +540,7 @@ function tpSharedJs_() {
     + 'else if(m){m.textContent="Incorrect passcode";m.className="tp-lock-msg bad";}'
     + '}).withFailureHandler(function(){if(m){m.textContent="Could not verify. Try again.";m.className="tp-lock-msg bad";}}).tpCheckPass(p);}'
     + 'function tpAdminToggle(){var f=document.getElementById("tp-lock-fields");if(f)f.hidden=false;var t=document.getElementById("tp-admin-toggle");if(t)t.style.display="none";var p=document.getElementById("tp-pass");if(p)p.focus();}'
+    + 'function tpApproveFx(rid){var c=document.getElementById(rid);if(!c)return;c.classList.remove("card--approved");void c.offsetWidth;c.classList.add("card--approved");setTimeout(function(){if(c)c.classList.remove("card--approved");},900);}'
     + 'function tpConfetti(msg){var c=document.getElementById("tp-cfx");if(!c){c=document.createElement("canvas");c.id="tp-cfx";document.body.appendChild(c);}'
     + 'var cheer=document.getElementById("tp-cheer");if(!cheer){cheer=document.createElement("div");cheer.id="tp-cheer";document.body.appendChild(cheer);}'
     + 'var msgs=["\\uD83C\\uDF89 Boom! Thanks for taking care of that.","\\uD83D\\uDE4C Nice work. The space thanks you!","\\u2B50 Legend. Thanks for closing that out!","\\u2728 Done and dusted. Thank you!","\\uD83D\\uDCAA You crushed it. Thanks a ton!","\\uD83D\\uDE80 One down. Thanks for handling it!","\\uD83E\\uDD73 High five! Thanks for getting it done."];'
@@ -542,8 +586,8 @@ function icPhotoBlock_(rid, url) {
   return '<div id="' + rid + '-photo">' + inner + '</div>';
 }
 
-// Plain-language instruction shown on an open item so people know what to do.
-// Copy adapts to whether this task needs photo evidence.
+// Plain-language instruction on an open item. Wording adapts to whether the task
+// needs a photo.
 function icNoteText_(photoOptional) {
   return photoOptional
     ? 'Finished? Tap <b>Mark done</b> and an admin gives it a quick review. A photo is optional here, so add one only if it helps.'
@@ -569,9 +613,8 @@ function icNoteContainer_(rid, isPending, sentBackReason, show, photoOptional) {
   return '<div id="' + rid + '-note">' + inner + '</div>';
 }
 
-// Foot action for an OPEN item. Mandatory tasks get a single "Add a photo to
-// finish" (the photo is how they complete). Optional tasks get a one-tap
-// "Mark done" plus a quieter "Add a photo" for anyone who wants to attach one.
+// Foot action for an OPEN item. Photo-required tasks get a single "Complete with a
+// photo"; photo-optional tasks get a one-tap "Mark done" plus a quieter "Add a photo".
 function icOpenFoot_(rid, token, photoOptional) {
   var input = '<input type="file" accept="image/*" id="' + rid + '-file" style="display:none" onchange="icFile(this,\'' + rid + '\',\'' + token + '\')">';
   if (photoOptional) {
@@ -580,7 +623,7 @@ function icOpenFoot_(rid, token, photoOptional) {
       + '<button type="button" class="btn btn-primary" onclick="icDone(\'' + rid + '\',\'' + token + '\')">Mark done</button>';
   }
   return input
-    + '<button type="button" class="btn btn-primary" onclick="document.getElementById(\'' + rid + '-file\').click()">Add a photo</button>';
+    + '<button type="button" class="btn btn-primary" onclick="document.getElementById(\'' + rid + '-file\').click()">Complete with a photo</button>';
 }
 
 // Foot action for a PENDING item: admin-only Approve / Send back (revealed on unlock).
@@ -599,7 +642,7 @@ function icClientJs_() {
     + 'function icSetPill(rid,cls,txt){var p=document.getElementById(rid+"-pill");if(p)p.innerHTML="<span class=\\"tp-pill "+cls+"\\">"+txt+"</span>";}'
     + 'function icBump(id,d){var e=document.getElementById(id);if(e)e.textContent=Math.max(0,(parseInt(e.textContent,10)||0)+d);}'
     + 'function icThumb(pid){return "<div class=\\"tp-photos\\"><div class=\\"tp-photo\\"><figure><figcaption>Completion photo</figcaption><a href=\\"https://drive.google.com/file/d/"+pid+"/view\\" target=\\"_blank\\" rel=\\"noopener\\" style=\\"display:inline-block;line-height:0\\"><img src=\\"https://drive.google.com/thumbnail?id="+pid+"&sz=w600\\" style=\\"max-width:100%;max-height:200px;border-radius:10px;border:1px solid #ececec\\"></a></figure></div></div>";}'
-    + 'function icOpenFootJs(rid,token){var c=document.getElementById(rid);var po=c&&c.dataset.po==="1";var input="<input type=\\"file\\" accept=\\"image/*\\" id=\\""+rid+"-file\\" style=\\"display:none\\" onchange=\\"icFile(this,\'"+rid+"\',\'"+token+"\')\\">";if(po){return input+"<button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"document.getElementById(\'"+rid+"-file\').click()\\">Add a photo</button><button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"icDone(\'"+rid+"\',\'"+token+"\')\\">Mark done</button>";}return input+"<button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"document.getElementById(\'"+rid+"-file\').click()\\">Add a photo</button>";}'
+    + 'function icOpenFootJs(rid,token){var c=document.getElementById(rid);var po=c&&c.dataset.po==="1";var input="<input type=\\"file\\" accept=\\"image/*\\" id=\\""+rid+"-file\\" style=\\"display:none\\" onchange=\\"icFile(this,\'"+rid+"\',\'"+token+"\')\\">";if(po){return input+"<button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"document.getElementById(\'"+rid+"-file\').click()\\">Add a photo</button><button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"icDone(\'"+rid+"\',\'"+token+"\')\\">Mark done</button>";}return input+"<button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"document.getElementById(\'"+rid+"-file\').click()\\">Complete with a photo</button>";}'
     + 'function icNoteInner(){return "<div class=\\"ic-note\\">Finished? Add a photo of the completed work and an admin gives it a quick review.</div>";}'
     + 'function icAdminFootJs(rid,token){return ADMIN_PASS?"<span class=\\"tp-admin btn-row\\"><button type=\\"button\\" class=\\"btn btn-confirm\\" onclick=\\"icApprove(\'"+rid+"\',\'"+token+"\')\\">Approve</button><button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"icRejectOpen(\'"+rid+"\',\'"+token+"\')\\">Send back</button></span>":"";}'
     + 'function icSentBackInner(reason){var r=(reason||"").trim();var esc=function(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");};var lead=r?"<b>Sent back:</b> "+esc(r):"<b>Sent back.</b>";return "<div class=\\"ic-note ic-note--warn\\">"+lead+"<span class=\\"ic-note-cta\\">Make the fix, then send it in again.</span></div>";}'
@@ -614,9 +657,24 @@ function icClientJs_() {
     + 'function icDone(rid,token){var act=document.getElementById(rid+"-act");act.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed")+"</span>";return;}icAfterSubmit(rid,token,"");'
     + '}).withFailureHandler(function(){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).submitIssueCompletion(token,"","");}'
+    + 'function icEditOpen(rid){var v=document.getElementById(rid+"-view"),e=document.getElementById(rid+"-edit"),c=document.getElementById(rid);if(v)v.hidden=true;if(e)e.hidden=false;var f=c&&c.querySelector(".card-foot");if(f)f.style.display="none";}'
+    + 'function icEditCancel(rid){var v=document.getElementById(rid+"-view"),e=document.getElementById(rid+"-edit"),m=document.getElementById(rid+"-emsg"),c=document.getElementById(rid);if(e)e.hidden=true;if(v)v.hidden=false;if(m)m.textContent="";var f=c&&c.querySelector(".card-foot");if(f)f.style.display="";}'
+    + 'function icEditSave(rid,token){var g=function(s){var el=document.getElementById(rid+s);return el?el.value:"";};var team=g("-eteam"),type=g("-etype"),det=g("-edetails");var m=document.getElementById(rid+"-emsg");if(m){m.style.color="";m.textContent="Saving\\u2026";}'
+    + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){if(m){m.style.color="#b31b1b";m.textContent=(r&&r.error)||"Could not save";}return;}'
+    + 'var st=function(s,t){var el=document.getElementById(rid+s);if(el)el.textContent=t;};st("-vteam",r.team||"Unassigned");st("-vtype",r.issueType||"Reported issue");'
+    + 'var dw=document.getElementById(rid+"-vdetails-wrap");if(dw){if(r.details){dw.hidden=false;st("-vdetails",r.details);}else dw.hidden=true;}'
+    + 'var c=document.getElementById(rid);if(c){var ca=(document.getElementById(rid+"-vaction")||{}).textContent||"";c.dataset.team=r.team||"";c.dataset.hay=((r.team||"")+" "+(r.issueType||"")+" "+ca+" "+(r.details||"")).toLowerCase();}'
+    + 'icEditCancel(rid);'
+    + '}).withFailureHandler(function(){if(m){m.style.color="#b31b1b";m.textContent="Could not save. Retry.";}}).updateIssueFields(token,team,type,det);}'
+    + 'function icDelOpen(rid,token){document.getElementById(rid+"-delwrap").innerHTML="<span class=\\"tp-hint\\" style=\\"margin-right:6px\\">Delete this task?</span><button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"icDelDo(\'"+rid+"\',\'"+token+"\')\\">Yes, delete</button><button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"icDelCancel(\'"+rid+"\',\'"+token+"\')\\">Cancel</button>";}'
+    + 'function icDelCancel(rid,token){document.getElementById(rid+"-delwrap").innerHTML="<button type=\\"button\\" class=\\"btn btn-ghost tp-del\\" onclick=\\"icDelOpen(\'"+rid+"\',\'"+token+"\')\\">Delete</button>";}'
+    + 'function icDelDo(rid,token){var w=document.getElementById(rid+"-delwrap");w.innerHTML="<span class=\\"tp-hint\\">Deleting\\u2026</span>";'
+    + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){w.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed")+"</span>";return;}'
+    + 'var c=document.getElementById(rid);if(c){if(c.dataset.state==="pending")icBump("sum-pending",-1);else{icBump("sum-open",-1);if(c.dataset.over==="1")icBump("sum-over",-1);}c.parentNode.removeChild(c);}'
+    + '}).withFailureHandler(function(){w.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).deleteIssue(token);}'
     + 'function icApprove(rid,token){var act=document.getElementById(rid+"-act");act.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed")+"</span>";return;}'
-    + 'icSetPill(rid,"tp-pill--done","Completed");act.innerHTML="";var s=document.getElementById(rid+"-status");if(s){s.innerHTML="\\u2713 Completed";s.className="due due--done";}var c=document.getElementById(rid);if(c)c.style.opacity="0.72";icBump("sum-pending",-1);'
+    + 'icSetPill(rid,"tp-pill--done","Completed");act.innerHTML="";var s=document.getElementById(rid+"-status");if(s){s.innerHTML="\\u2713 Completed";s.className="due due--done";}tpApproveFx(rid);var c=document.getElementById(rid);if(c)c.style.opacity="0.72";icBump("sum-pending",-1);'
     + '}).withFailureHandler(function(){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).approveIssueCompletion(token,ADMIN_PASS);}'
     + 'function icRejectOpen(rid,token){var act=document.getElementById(rid+"-act");act.innerHTML="<input id=\\""+rid+"-reason\\" class=\\"ic-reason\\" placeholder=\\"Reason (optional)\\" onkeydown=\\"if(event.key===\'Enter\')icRejectDo(\'"+rid+"\',\'"+token+"\')\\"><button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"icRejectDo(\'"+rid+"\',\'"+token+"\')\\">Send back</button><button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"icRejectCancel(\'"+rid+"\',\'"+token+"\')\\">Cancel</button>";var i=document.getElementById(rid+"-reason");if(i)i.focus();}'
     + 'function icRejectCancel(rid,token){document.getElementById(rid+"-act").innerHTML=icAdminFootJs(rid,token);}'
@@ -657,6 +715,23 @@ function tpProjUploader_(rid, pid) {
     + '</div></div>';
 }
 
+// Admin-only edit form for one project card (hidden until Edit is tapped).
+function tpEditForm_(rid, p) {
+  return '<div id="' + rid + '-edit" class="ic-edit" hidden>'
+    + '<label class="ic-edit-lbl">Title<input id="' + rid + '-etitle" class="ic-edit-in" value="' + escapeHtml_(p.title || '') + '"></label>'
+    + '<label class="ic-edit-lbl">Scope<textarea id="' + rid + '-edesc" class="ic-edit-in" rows="3">' + escapeHtml_(p.description || '') + '</textarea></label>'
+    + '<label class="ic-edit-lbl">Assignees (comma-separated)<input id="' + rid + '-eassignees" class="ic-edit-in" value="' + escapeHtml_(p.assignees.join(', ')) + '"></label>'
+    + '<div class="ic-edit-btns"><button type="button" class="btn btn-primary" onclick="tpEditSave(\'' + rid + '\',\'' + p.id + '\')">Save changes</button>'
+    + '<button type="button" class="btn btn-ghost" onclick="tpEditCancel(\'' + rid + '\')">Cancel</button>'
+    + '<span id="' + rid + '-emsg" class="ic-edit-msg"></span></div>'
+    + '</div>';
+}
+
+// Admin-only Edit button (revealed with the other .tp-admin controls).
+function tpEditBtn_(rid) {
+  return '<span class="tp-admin" hidden><button type="button" class="btn btn-ghost" onclick="tpEditOpen(\'' + rid + '\')">Edit</button></span>';
+}
+
 // One project card. Extracted so the initial page and the post-create refresh
 // (tpProjectsListHtml) render identically. Handles Assigned / In Progress (incl.
 // sent-back) / Pending approval / Completed.
@@ -685,31 +760,34 @@ function tpRenderProjectCard_(p, rid) {
     ? '<div class="card-field"><span class="card-flabel">Hours</span><div class="card-action">' + escapeHtml_(tpHoursLabel_(p.hours)) + '</div></div>' : '';
 
   var body = '<div class="card-body">'
+    + '<div id="' + rid + '-view">'
     + '<div class="card-head"><div><div class="card-team">Project</div>'
-    + '<div class="card-title">' + escapeHtml_(p.title) + '</div></div>'
+    + '<div class="card-title" id="' + rid + '-vtitle">' + escapeHtml_(p.title) + '</div></div>'
     + '<span id="' + rid + '-pill">' + pill + '</span></div>'
-    + (p.description ? '<div class="card-field"><span class="card-flabel">Scope</span><div class="card-details">' + escapeHtml_(p.description) + '</div></div>' : '')
+    + '<div class="card-field" id="' + rid + '-vscope-wrap"' + (p.description ? '' : ' hidden') + '><span class="card-flabel">Scope</span><div class="card-details" id="' + rid + '-vscope">' + escapeHtml_(p.description) + '</div></div>'
     + '<div class="card-field"><span class="card-flabel">Assignees</span><div class="tp-assignees" id="' + rid + '-chips">' + chips + '</div></div>'
     + hoursField
     + '<div id="' + rid + '-note">' + (sentBack ? icSentBackInner_(p.sentBackReason) : '') + '</div>'
     + photos
+    + '</div>'
+    + tpEditForm_(rid, p)
     + '</div>';
 
   var foot;
   if (isDone) {
     foot = '<div class="card-foot"><span id="' + rid + '-status" class="due due--done">✓ Completed' + (p.hours ? ' &middot; ' + escapeHtml_(tpHoursLabel_(p.hours)) : '') + '</span>'
-      + '<span class="btn-row">' + tpDelWrap_(rid, p.id) + '</span></div>';
+      + '<span class="btn-row">' + tpEditBtn_(rid) + tpDelWrap_(rid, p.id) + '</span></div>';
   } else if (isPending) {
     foot = '<div class="card-foot"><span id="' + rid + '-status" class="due">Submitted, awaiting approval</span>'
       + '<span id="' + rid + '-act" class="btn-row">' + tpProjPendingFoot_(rid, p.id) + '</span>'
-      + '<span class="btn-row">' + tpDelWrap_(rid, p.id) + '</span></div>';
+      + '<span class="btn-row">' + tpEditBtn_(rid) + tpDelWrap_(rid, p.id) + '</span></div>';
   } else {
     foot = '<div class="card-foot"><span id="' + rid + '-status" class="due">' + (isActive ? 'Work in progress' : 'Waiting to be picked up') + '</span>'
       + '<span class="btn-row">'
       + '<span id="' + rid + '-join"><button type="button" class="btn btn-ghost" onclick="tpJoinOpen(\'' + rid + '\')">Join project</button></span>'
       + '<span id="' + rid + '-joinbox" class="tp-inline-join" style="display:none"><input id="' + rid + '-name" placeholder="Your name" onkeydown="if(event.key===\'Enter\')tpJoin(\'' + rid + '\',\'' + p.id + '\')"><button type="button" class="btn btn-primary" onclick="tpJoin(\'' + rid + '\',\'' + p.id + '\')">Join</button></span>'
       + '<button type="button" class="btn btn-primary" onclick="tpCompleteOpen(\'' + rid + '\')">Complete</button>'
-      + tpDelWrap_(rid, p.id)
+      + tpEditBtn_(rid) + tpDelWrap_(rid, p.id)
       + '</span></div>'
       + tpProjUploader_(rid, p.id);
   }
@@ -986,6 +1064,16 @@ function projectsPage_(embedded, admin) {
     + 'document.getElementById(rid+"-joinbox").style.display="none";document.getElementById(rid+"-join").style.display="inline";'
     + 'document.getElementById(rid+"-join").innerHTML="<span class=\\"tp-hint\\">\\u2713 You\'re on this project</span>";'
     + '}).withFailureHandler(function(){box.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).tpJoinProject(pid,nm);}'
+    + 'function tpEditOpen(rid){var v=document.getElementById(rid+"-view"),e=document.getElementById(rid+"-edit"),c=document.getElementById(rid);if(v)v.hidden=true;if(e)e.hidden=false;var f=c&&c.querySelector(".card-foot");if(f)f.style.display="none";}'
+    + 'function tpEditCancel(rid){var v=document.getElementById(rid+"-view"),e=document.getElementById(rid+"-edit"),m=document.getElementById(rid+"-emsg"),c=document.getElementById(rid);if(e)e.hidden=true;if(v)v.hidden=false;if(m)m.textContent="";var f=c&&c.querySelector(".card-foot");if(f)f.style.display="";}'
+    + 'function tpEditSave(rid,pid){var g=function(s){var el=document.getElementById(rid+s);return el?el.value:"";};var title=g("-etitle"),desc=g("-edesc"),asg=g("-eassignees");var m=document.getElementById(rid+"-emsg");if(m){m.style.color="";m.textContent="Saving\\u2026";}'
+    + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){if(m){m.style.color="#b31b1b";m.textContent=(r&&r.error)||"Could not save";}return;}'
+    + 'var esc=function(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;");};'
+    + 'var vt=document.getElementById(rid+"-vtitle");if(vt)vt.textContent=r.title;'
+    + 'var sw=document.getElementById(rid+"-vscope-wrap");if(sw){if(r.description){sw.hidden=false;var sv=document.getElementById(rid+"-vscope");if(sv)sv.textContent=r.description;}else sw.hidden=true;}'
+    + 'var chips=document.getElementById(rid+"-chips");if(chips){chips.innerHTML=r.assignees.length?r.assignees.map(function(a){return "<span class=\\"tp-chip\\">"+esc(a)+"</span>";}).join(""):"<span class=\\"tp-chip tp-chip--empty\\">No one yet</span>";}'
+    + 'tpEditCancel(rid);'
+    + '}).withFailureHandler(function(){if(m){m.style.color="#b31b1b";m.textContent="Could not save. Retry.";}}).tpUpdateProject(pid,title,desc,asg);}'
     + 'function tpCompleteOpen(rid){document.getElementById(rid+"-uploader").style.display="block";}'
     + 'function tpCompleteClose(rid){document.getElementById(rid+"-uploader").style.display="none";}'
     + 'function tpSlot(input,rid,which){tpReadFile(input,function(res){if(!res)return;TPUP[rid]=TPUP[rid]||{};TPUP[rid][which]=res;'
@@ -1008,7 +1096,7 @@ function projectsPage_(embedded, admin) {
     + 'function tpDelWrapJs(rid,pid){return "<span id=\\""+rid+"-delwrap\\" class=\\"tp-admin\\""+(ADMIN_PASS?"":" hidden")+"><button type=\\"button\\" class=\\"btn btn-ghost tp-del\\" onclick=\\"tpDelOpen(\'"+rid+"\',\'"+pid+"\')\\">Delete</button></span>";}'
     + 'function tpProjApprove(rid,pid){var act=document.getElementById(rid+"-act");act.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed")+"</span>";return;}'
-    + 'tpConfetti();tpSetPill(rid,"tp-pill--done","Completed");act.innerHTML="";var s=document.getElementById(rid+"-status");if(s){s.innerHTML="\\u2713 Completed";s.className="due due--done";}var c=document.getElementById(rid);if(c){c.style.opacity="0.72";c.dataset.status="Completed";}tpBump("tp-n-pending",-1);tpBump("tp-n-done",1);'
+    + 'tpApproveFx(rid);tpSetPill(rid,"tp-pill--done","Completed");act.innerHTML="";var s=document.getElementById(rid+"-status");if(s){s.innerHTML="\\u2713 Completed";s.className="due due--done";}var c=document.getElementById(rid);if(c){c.style.opacity="0.72";c.dataset.status="Completed";}tpBump("tp-n-pending",-1);tpBump("tp-n-done",1);'
     + '}).withFailureHandler(function(){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).tpApproveProject(pid,ADMIN_PASS);}'
     + 'function tpProjRejectOpen(rid,pid){var act=document.getElementById(rid+"-act");act.innerHTML="<input id=\\""+rid+"-reason\\" class=\\"ic-reason\\" placeholder=\\"Reason (optional)\\" onkeydown=\\"if(event.key===\'Enter\')tpProjRejectDo(\'"+rid+"\',\'"+pid+"\')\\"><button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"tpProjRejectDo(\'"+rid+"\',\'"+pid+"\')\\">Send back</button><button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"tpProjRejectCancel(\'"+rid+"\',\'"+pid+"\')\\">Cancel</button>";var i=document.getElementById(rid+"-reason");if(i)i.focus();}'
     + 'function tpProjRejectCancel(rid,pid){document.getElementById(rid+"-act").innerHTML=tpProjAdminFootJs(rid,pid);}'
