@@ -1049,6 +1049,8 @@ body.issues-panel-open { overflow: hidden; }
     background: transparent;
     backdrop-filter: none;
     border-bottom: 1.5px solid var(--line);
+    width: 100%!important;
+    display: none;
   }
   .admin-side-label { display: block; padding-left: 0; margin-bottom: .4rem; }
   .admin-nav {
@@ -1367,7 +1369,7 @@ body.issues-panel-open { overflow: hidden; }
   /* `width:100%` is inert here — the base rule sets `flex:1` (= flex-basis:0%),
      and basis wins over width when sizing a flex item. It stayed on the logo's
      row, squeezed to ~116px, and its children spilled off-screen. Set the basis. */
-  .header-tools { flex-wrap: wrap; flex: 1 1 100%; justify-content: flex-start; gap: .5rem; }
+  .header-tools { flex: 1 1 100%; justify-content: flex-start; gap: .5rem; }
   /* Row 2 = views + Command side by side; row 3 = search. Command must never
      drop below the fold of the header or it becomes easy to miss again. */
   .hub-nav { order: 1; flex: 0 1 auto; }

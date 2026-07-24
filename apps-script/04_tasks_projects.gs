@@ -434,6 +434,27 @@ function tpStyles_() {
     + '.tp-lock-msg.ok{color:#157a47}.tp-lock-msg.bad{color:#b31b1b}'
     + '.tp-assignees{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}'
     + '.tp-chip{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;color:#3f3a34;background:#f0efe9;border:1px solid #e5e4de;border-radius:999px;padding:4px 11px}'
+    + '.card-accent{height:3px}'
+    + '.card-hgroup{display:flex;gap:13px;align-items:flex-start;min-width:0;flex:1}'
+    + '.tp-mono{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-weight:800;font-size:15px;flex-shrink:0;letter-spacing:.01em}'
+    + '.card-mrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px}'
+    + '.tp-rlabel{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:9.5px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:#a8a29e}'
+    + '.tp-avatars{display:inline-flex}'
+    + '.tp-avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:800;color:#fff;box-shadow:0 0 0 2px #fff;margin-left:-7px}'
+    + '.tp-avatar:first-child{margin-left:0}'
+    + '.tp-avatar-empty{width:28px;height:28px;border-radius:50%;border:1.5px dashed #cfc9c0;display:inline-flex;align-items:center;justify-content:center;color:#a8a29e;font-size:15px;line-height:1}'
+    + '.tp-unassigned,.tp-who{font-size:12.5px;color:#78716c;font-weight:600}'
+    + '.tp-track{display:flex;align-items:center;margin-top:16px}'
+    + '.tp-step{display:flex;flex-direction:column;align-items:center;gap:6px;flex:0 0 auto}'
+    + '.tp-dot{width:11px;height:11px;border-radius:50%;background:#e2ddd4;transition:background .25s ease,box-shadow .25s ease}'
+    + '.tp-step--done .tp-dot{background:#157a47}'
+    + '.tp-slabel{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:9.5px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:#a8a29e;white-space:nowrap;transition:color .25s ease}'
+    + '.tp-step--done .tp-slabel{color:#157a47}'
+    + '.tp-seg{flex:1;height:2px;background:#e8e4dc;border-radius:2px;margin:0 5px 18px;transition:background .25s ease}'
+    + '.tp-seg--filled{background:#157a47}'
+    + '@keyframes cardIn{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}'
+    + '.card{position:relative;animation:cardIn .32s cubic-bezier(.22,1,.36,1)}'
+    + '.card:hover{transform:translateY(-2px);box-shadow:0 7px 24px rgba(20,20,30,.09)}'
     + '.tp-chip--empty{color:#a8a29e;background:transparent;border-style:dashed}'
     + '.tp-pill{flex:0 0 auto;white-space:nowrap;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;padding:5px 11px;border-radius:999px}'
     + '.tp-pill--todo{color:#6b665e;background:#f0efe9;border:1px solid #e5e4de}'
@@ -519,6 +540,9 @@ function tpStyles_() {
     +   '.ic-reason{min-width:0;width:100%}'
     +   '.tp-photos{gap:10px}.tp-photo img{max-height:150px}'
     +   '.card-foot{gap:8px}.card-foot .btn-row{width:100%;flex-wrap:wrap}.card-foot .btn-row>.btn{flex:1 1 auto}'
+    +   '.tp-mono{width:38px;height:38px;border-radius:11px;font-size:13px}.card-hgroup{gap:11px}'
+    +   '.tp-slabel{font-size:8.5px}.tp-seg{margin:0 3px 17px}.tp-track{margin-top:14px}'
+    +   '.card:hover{transform:none;box-shadow:0 2px 8px rgba(20,20,30,.06),0 1px 3px rgba(20,20,30,.04)}'
     +   '.tp-cheer,#tp-cheer{font-size:15px;padding:12px 16px;max-width:92vw}'
     +   '.ic-summary{gap:7px 12px;font-size:12.5px}.ic-sum b{font-size:15px}'
     + '}'
@@ -541,6 +565,7 @@ function tpSharedJs_() {
     + '}).withFailureHandler(function(){if(m){m.textContent="Could not verify. Try again.";m.className="tp-lock-msg bad";}}).tpCheckPass(p);}'
     + 'function tpAdminToggle(){var f=document.getElementById("tp-lock-fields");if(f)f.hidden=false;var t=document.getElementById("tp-admin-toggle");if(t)t.style.display="none";var p=document.getElementById("tp-pass");if(p)p.focus();}'
     + 'function tpApproveFx(rid){var c=document.getElementById(rid);if(!c)return;c.classList.remove("card--approved");void c.offsetWidth;c.classList.add("card--approved");setTimeout(function(){if(c)c.classList.remove("card--approved");},900);}'
+    + 'function tpAdvance(rid,hex,tint,cur){var a=document.getElementById(rid+"-accent");if(a)a.style.background=hex;var m=document.getElementById(rid+"-mono");if(m){m.style.background=tint;m.style.color=hex;}var t=document.getElementById(rid+"-track");if(!t)return;var steps=t.querySelectorAll(".tp-step"),segs=t.querySelectorAll(".tp-seg");for(var i=0;i<steps.length;i++){steps[i].className="tp-step"+(i<cur?" tp-step--done":(i===cur?" tp-step--cur":""));var d=steps[i].querySelector(".tp-dot"),l=steps[i].querySelector(".tp-slabel");if(i===cur){d.style.background=hex;d.style.boxShadow="0 0 0 3px "+hex+"2e";l.style.color=hex;}else{d.style.background="";d.style.boxShadow="";l.style.color="";}}for(var j=0;j<segs.length;j++){segs[j].className="tp-seg"+(j<cur?" tp-seg--filled":"");}}'
     + 'function tpConfetti(msg){var c=document.getElementById("tp-cfx");if(!c){c=document.createElement("canvas");c.id="tp-cfx";document.body.appendChild(c);}'
     + 'var cheer=document.getElementById("tp-cheer");if(!cheer){cheer=document.createElement("div");cheer.id="tp-cheer";document.body.appendChild(cheer);}'
     + 'var msgs=["\\uD83C\\uDF89 Boom! Thanks for taking care of that.","\\uD83D\\uDE4C Nice work. The space thanks you!","\\u2B50 Legend. Thanks for closing that out!","\\u2728 Done and dusted. Thank you!","\\uD83D\\uDCAA You crushed it. Thanks a ton!","\\uD83D\\uDE80 One down. Thanks for handling it!","\\uD83E\\uDD73 High five! Thanks for getting it done."];'
@@ -646,7 +671,7 @@ function icClientJs_() {
     + 'function icNoteInner(){return "<div class=\\"ic-note\\">Finished? Add a photo of the completed work and an admin gives it a quick review.</div>";}'
     + 'function icAdminFootJs(rid,token){return ADMIN_PASS?"<span class=\\"tp-admin btn-row\\"><button type=\\"button\\" class=\\"btn btn-confirm\\" onclick=\\"icApprove(\'"+rid+"\',\'"+token+"\')\\">Approve</button><button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"icRejectOpen(\'"+rid+"\',\'"+token+"\')\\">Send back</button></span>":"";}'
     + 'function icSentBackInner(reason){var r=(reason||"").trim();var esc=function(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");};var lead=r?"<b>Sent back:</b> "+esc(r):"<b>Sent back.</b>";return "<div class=\\"ic-note ic-note--warn\\">"+lead+"<span class=\\"ic-note-cta\\">Make the fix, then send it in again.</span></div>";}'
-    + 'function icAfterSubmit(rid,token,photoId){tpConfetti();icSetPill(rid,"tp-pill--pending","Pending approval");var ph=document.getElementById(rid+"-photo");if(ph)ph.innerHTML=photoId?icThumb(photoId):"";'
+    + 'function icAfterSubmit(rid,token,photoId){tpConfetti();icSetPill(rid,"tp-pill--pending","Pending approval");tpAdvance(rid,"#b06a00","#f7edd8",1);var ph=document.getElementById(rid+"-photo");if(ph)ph.innerHTML=photoId?icThumb(photoId):"";'
     + 'var s=document.getElementById(rid+"-status");if(s){s.textContent="Submitted, awaiting approval";s.className="due";}'
     + 'var nt=document.getElementById(rid+"-note");if(nt)nt.innerHTML="";'
     + 'var act=document.getElementById(rid+"-act");if(act)act.innerHTML=icAdminFootJs(rid,token);var c=document.getElementById(rid);if(c){if(c.dataset.over==="1"){icBump("sum-over",-1);c.dataset.over="0";}c.dataset.state="pending";}'
@@ -674,7 +699,7 @@ function icClientJs_() {
     + '}).withFailureHandler(function(){w.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).deleteIssue(token);}'
     + 'function icApprove(rid,token){var act=document.getElementById(rid+"-act");act.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed")+"</span>";return;}'
-    + 'icSetPill(rid,"tp-pill--done","Completed");act.innerHTML="";var s=document.getElementById(rid+"-status");if(s){s.innerHTML="\\u2713 Completed";s.className="due due--done";}tpApproveFx(rid);var c=document.getElementById(rid);if(c)c.style.opacity="0.72";icBump("sum-pending",-1);'
+    + 'icSetPill(rid,"tp-pill--done","Completed");act.innerHTML="";var s=document.getElementById(rid+"-status");if(s){s.innerHTML="\\u2713 Completed";s.className="due due--done";}tpApproveFx(rid);tpAdvance(rid,"#157a47","#e7f3ec",2);var c=document.getElementById(rid);if(c)c.style.opacity="0.72";icBump("sum-pending",-1);'
     + '}).withFailureHandler(function(){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).approveIssueCompletion(token,ADMIN_PASS);}'
     + 'function icRejectOpen(rid,token){var act=document.getElementById(rid+"-act");act.innerHTML="<input id=\\""+rid+"-reason\\" class=\\"ic-reason\\" placeholder=\\"Reason (optional)\\" onkeydown=\\"if(event.key===\'Enter\')icRejectDo(\'"+rid+"\',\'"+token+"\')\\"><button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"icRejectDo(\'"+rid+"\',\'"+token+"\')\\">Send back</button><button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"icRejectCancel(\'"+rid+"\',\'"+token+"\')\\">Cancel</button>";var i=document.getElementById(rid+"-reason");if(i)i.focus();}'
     + 'function icRejectCancel(rid,token){document.getElementById(rid+"-act").innerHTML=icAdminFootJs(rid,token);}'
@@ -732,6 +757,58 @@ function tpEditBtn_(rid) {
   return '<span class="tp-admin" hidden><button type="button" class="btn btn-ghost" onclick="tpEditOpen(\'' + rid + '\')">Edit</button></span>';
 }
 
+// ---- Card visual helpers (monogram, avatars, lifecycle track), shared by tasks + projects ----
+
+// 1-2 letter initials from a name or title.
+function tpInitials_(s) {
+  var parts = String(s || '').trim().split(/\s+/).filter(function (w) { return w; });
+  if (!parts.length) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+}
+
+// Deterministic avatar colour from a name, so the same person keeps the same tone.
+function tpAvColor_(s) {
+  var pal = ['#2563c9', '#157a47', '#b06a00', '#7c3aed', '#b31b1b', '#0d9488', '#c2410c'];
+  var h = 0, str = String(s || '');
+  for (var i = 0; i < str.length; i++) { h = (h * 31 + str.charCodeAt(i)) & 0x7fffffff; }
+  return pal[h % pal.length];
+}
+
+// Overlapping avatar stack plus a short summary; a dashed placeholder when nobody is on it.
+function tpAvatarsHtml_(names) {
+  if (!names || !names.length) {
+    return '<span class="tp-avatar-empty" aria-hidden="true">+</span><span class="tp-unassigned">No one yet</span>';
+  }
+  var av = names.map(function (n) {
+    return '<span class="tp-avatar" style="background:' + tpAvColor_(n) + '" title="' + escapeHtml_(n) + '">' + escapeHtml_(tpInitials_(n)) + '</span>';
+  }).join('');
+  var summary = names.length <= 2 ? names.join(', ') : names.slice(0, 2).join(', ') + ' +' + (names.length - 2);
+  return '<span class="tp-avatars">' + av + '</span><span class="tp-who">' + escapeHtml_(summary) + '</span>';
+}
+
+// A monogram tile tinted for the card's status colour.
+function tpMono_(rid, text, hex, tint) {
+  return '<div class="tp-mono" id="' + rid + '-mono" style="background:' + tint + ';color:' + hex + '">' + escapeHtml_(tpInitials_(text)) + '</div>';
+}
+
+// A lifecycle track: labels, the current step index, and the current step's colour.
+function tpTrackHtml_(rid, steps, cur, hex) {
+  var out = '<div class="tp-track" id="' + rid + '-track">';
+  for (var i = 0; i < steps.length; i++) {
+    var cls = i < cur ? 'tp-step tp-step--done' : (i === cur ? 'tp-step tp-step--cur' : 'tp-step');
+    var dot = (i === cur)
+      ? '<span class="tp-dot" style="background:' + hex + ';box-shadow:0 0 0 3px ' + hex + '2e"></span>'
+      : '<span class="tp-dot"></span>';
+    var lab = (i === cur)
+      ? '<span class="tp-slabel" style="color:' + hex + '">' + steps[i] + '</span>'
+      : '<span class="tp-slabel">' + steps[i] + '</span>';
+    out += '<div class="' + cls + '">' + dot + lab + '</div>';
+    if (i < steps.length - 1) out += '<span class="tp-seg' + (i < cur ? ' tp-seg--filled' : '') + '"></span>';
+  }
+  return out + '</div>';
+}
+
 // One project card. Extracted so the initial page and the post-create refresh
 // (tpProjectsListHtml) render identically. Handles Assigned / In Progress (incl.
 // sent-back) / Pending approval / Completed.
@@ -747,9 +824,14 @@ function tpRenderProjectCard_(p, rid) {
     : isActive ? '<span class="tp-pill tp-pill--active">In progress</span>'
     : '<span class="tp-pill tp-pill--assigned">Assigned</span>';
 
-  var chips = p.assignees.length
-    ? p.assignees.map(function (a) { return '<span class="tp-chip">' + escapeHtml_(a) + '</span>'; }).join('')
-    : '<span class="tp-chip tp-chip--empty">No one yet</span>';
+  var chips = tpAvatarsHtml_(p.assignees);
+
+  var accentHex, tintCol, trackIdx;
+  if (isDone) { accentHex = '#157a47'; tintCol = '#e7f3ec'; trackIdx = 3; }
+  else if (isPending) { accentHex = '#b06a00'; tintCol = '#f7edd8'; trackIdx = 2; }
+  else if (isActive) { accentHex = '#d97a12'; tintCol = '#fdf1e0'; trackIdx = 1; }
+  else { accentHex = '#2563c9'; tintCol = '#eaf1fd'; trackIdx = 0; }
+  var track = tpTrackHtml_(rid, ['Assigned', 'In progress', 'Review', 'Done'], trackIdx, accentHex);
 
   var photoInner = '';
   if (p.before) photoInner += '<div class="tp-photo"><figure><figcaption>Before</figcaption>' + tpThumb_(p.before) + '</figure></div>';
@@ -761,12 +843,14 @@ function tpRenderProjectCard_(p, rid) {
 
   var body = '<div class="card-body">'
     + '<div id="' + rid + '-view">'
-    + '<div class="card-head"><div><div class="card-team">Project</div>'
-    + '<div class="card-title" id="' + rid + '-vtitle">' + escapeHtml_(p.title) + '</div></div>'
+    + '<div class="card-head"><div class="card-hgroup">' + tpMono_(rid, p.title, accentHex, tintCol)
+    +   '<div style="min-width:0"><div class="card-team">Project</div>'
+    +   '<div class="card-title" id="' + rid + '-vtitle">' + escapeHtml_(p.title) + '</div></div></div>'
     + '<span id="' + rid + '-pill">' + pill + '</span></div>'
     + '<div class="card-field" id="' + rid + '-vscope-wrap"' + (p.description ? '' : ' hidden') + '><span class="card-flabel">Scope</span><div class="card-details" id="' + rid + '-vscope">' + escapeHtml_(p.description) + '</div></div>'
-    + '<div class="card-field"><span class="card-flabel">Assignees</span><div class="tp-assignees" id="' + rid + '-chips">' + chips + '</div></div>'
+    + '<div class="card-mrow"><span class="tp-rlabel">Assigned to</span><span id="' + rid + '-chips" style="display:inline-flex;align-items:center;gap:9px;flex-wrap:wrap">' + chips + '</span></div>'
     + hoursField
+    + track
     + '<div id="' + rid + '-note">' + (sentBack ? icSentBackInner_(p.sentBackReason) : '') + '</div>'
     + photos
     + '</div>'
@@ -792,7 +876,7 @@ function tpRenderProjectCard_(p, rid) {
       + tpProjUploader_(rid, p.id);
   }
 
-  return '<div class="card" id="' + rid + '" data-status="' + escapeHtml_(p.status) + '">' + body + foot + '</div>';
+  return '<div class="card" id="' + rid + '" data-status="' + escapeHtml_(p.status) + '"><div class="card-accent" id="' + rid + '-accent" style="background:' + accentHex + '"></div>' + body + foot + '</div>';
 }
 
 // The grouped Assigned / In progress / Completed sections for #tp-proj-list.
@@ -1054,13 +1138,16 @@ function projectsPage_(embedded, admin) {
     + 'if(st==="completed")tpBump("tp-n-done",-1);else if(st==="in progress")tpBump("tp-n-active",-1);else tpBump("tp-n-assigned",-1);'
     + 'card.parentNode.removeChild(card);'
     + '}).withFailureHandler(function(){w.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).tpDeleteProject(pid,ADMIN_PASS);}'
+    + 'function tpIni(s){var p=String(s||"").trim().split(/\\s+/).filter(function(w){return w;});if(!p.length)return "?";if(p.length===1)return p[0].slice(0,2).toUpperCase();return (p[0].charAt(0)+p[p.length-1].charAt(0)).toUpperCase();}'
+    + 'function tpAvC(s){var pal=["#2563c9","#157a47","#b06a00","#7c3aed","#b31b1b","#0d9488","#c2410c"];var h=0,t=String(s||"");for(var i=0;i<t.length;i++){h=(h*31+t.charCodeAt(i))&0x7fffffff;}return pal[h%pal.length];}'
+    + 'function tpAvatars(names){var esc=function(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/\\"/g,"&quot;");};if(!names||!names.length){return "<span class=\\"tp-avatar-empty\\" aria-hidden=\\"true\\">+</span><span class=\\"tp-unassigned\\">No one yet</span>";}var av=names.map(function(n){return "<span class=\\"tp-avatar\\" style=\\"background:"+tpAvC(n)+"\\" title=\\""+esc(n)+"\\">"+esc(tpIni(n))+"</span>";}).join("");var sum=names.length<=2?names.join(", "):names.slice(0,2).join(", ")+" +"+(names.length-2);return "<span class=\\"tp-avatars\\">"+av+"</span><span class=\\"tp-who\\">"+esc(sum)+"</span>";}'
     + 'function tpJoinOpen(rid){document.getElementById(rid+"-join").style.display="none";document.getElementById(rid+"-joinbox").style.display="inline-flex";document.getElementById(rid+"-name").focus();}'
     + 'function tpJoin(rid,pid){var nm=document.getElementById(rid+"-name").value.trim();if(!nm){document.getElementById(rid+"-name").focus();return;}'
     + 'var box=document.getElementById(rid+"-joinbox");box.innerHTML="<span class=\\"tp-hint\\">Joining\\u2026</span>";'
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){box.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed")+"</span>";return;}'
-    + 'var chips=document.getElementById(rid+"-chips");chips.innerHTML=r.assignees.map(function(a){return "<span class=\\"tp-chip\\">"+a.replace(/&/g,"&amp;").replace(/</g,"&lt;")+"</span>";}).join("");'
+    + 'var chips=document.getElementById(rid+"-chips");if(chips)chips.innerHTML=tpAvatars(r.assignees);'
     + 'var card=document.getElementById(rid);var was=card.dataset.status;card.dataset.status=r.status;'
-    + 'if((was||"").toLowerCase()!=="in progress"&&r.status==="In Progress"){tpSetPill(rid,"tp-pill--active","In progress");document.getElementById(rid+"-status").textContent="Work in progress";tpBump("tp-n-assigned",-1);tpBump("tp-n-active",1);}'
+    + 'if((was||"").toLowerCase()!=="in progress"&&r.status==="In Progress"){tpSetPill(rid,"tp-pill--active","In progress");document.getElementById(rid+"-status").textContent="Work in progress";tpAdvance(rid,"#d97a12","#fdf1e0",1);tpBump("tp-n-assigned",-1);tpBump("tp-n-active",1);}'
     + 'document.getElementById(rid+"-joinbox").style.display="none";document.getElementById(rid+"-join").style.display="inline";'
     + 'document.getElementById(rid+"-join").innerHTML="<span class=\\"tp-hint\\">\\u2713 You\'re on this project</span>";'
     + '}).withFailureHandler(function(){box.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).tpJoinProject(pid,nm);}'
@@ -1071,7 +1158,7 @@ function projectsPage_(embedded, admin) {
     + 'var esc=function(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;");};'
     + 'var vt=document.getElementById(rid+"-vtitle");if(vt)vt.textContent=r.title;'
     + 'var sw=document.getElementById(rid+"-vscope-wrap");if(sw){if(r.description){sw.hidden=false;var sv=document.getElementById(rid+"-vscope");if(sv)sv.textContent=r.description;}else sw.hidden=true;}'
-    + 'var chips=document.getElementById(rid+"-chips");if(chips){chips.innerHTML=r.assignees.length?r.assignees.map(function(a){return "<span class=\\"tp-chip\\">"+esc(a)+"</span>";}).join(""):"<span class=\\"tp-chip tp-chip--empty\\">No one yet</span>";}'
+    + 'var chips=document.getElementById(rid+"-chips");if(chips)chips.innerHTML=tpAvatars(r.assignees);'
     + 'tpEditCancel(rid);'
     + '}).withFailureHandler(function(){if(m){m.style.color="#b31b1b";m.textContent="Could not save. Retry.";}}).tpUpdateProject(pid,title,desc,asg);}'
     + 'function tpCompleteOpen(rid){document.getElementById(rid+"-uploader").style.display="block";}'
@@ -1084,7 +1171,7 @@ function projectsPage_(embedded, admin) {
     + 'var hrs=parseFloat((document.getElementById(rid+"-hours")||{}).value);if(!(hrs>0)){msg.style.color="#b31b1b";msg.textContent="Enter how many hours it took.";return;}'
     + 'msg.style.color="";msg.textContent="Uploading photo\\u2026";document.getElementById(rid+"-finish").disabled=true;'
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){msg.style.color="#b31b1b";msg.textContent=(r&&r.error)||"Failed";document.getElementById(rid+"-finish").disabled=false;return;}'
-    + 'tpConfetti();tpSetPill(rid,"tp-pill--pending","Pending approval");'
+    + 'tpConfetti();tpSetPill(rid,"tp-pill--pending","Pending approval");tpAdvance(rid,"#b06a00","#f7edd8",2);'
     + 'var bh=r.beforeId?"<div class=\\"tp-photo\\"><figure><figcaption>Before</figcaption><a href=\\"https://drive.google.com/file/d/"+r.beforeId+"/view\\" target=\\"_blank\\" rel=\\"noopener\\" style=\\"display:inline-block;line-height:0\\"><img src=\\"https://drive.google.com/thumbnail?id="+r.beforeId+"&sz=w600\\" style=\\"max-width:100%;max-height:200px;border-radius:10px;border:1px solid #ececec\\"></a></figure></div>":"";'
     + 'document.getElementById(rid+"-photos").innerHTML="<div class=\\"tp-photos\\">"+bh+"<div class=\\"tp-photo\\"><figure><figcaption>After</figcaption><a href=\\"https://drive.google.com/file/d/"+r.afterId+"/view\\" target=\\"_blank\\" rel=\\"noopener\\" style=\\"display:inline-block;line-height:0\\"><img src=\\"https://drive.google.com/thumbnail?id="+r.afterId+"&sz=w600\\" style=\\"max-width:100%;max-height:200px;border-radius:10px;border:1px solid #ececec\\"></a></figure></div></div>";'
     + 'var card=document.getElementById(rid);var was=(card.dataset.status||"").toLowerCase();'
@@ -1096,7 +1183,7 @@ function projectsPage_(embedded, admin) {
     + 'function tpDelWrapJs(rid,pid){return "<span id=\\""+rid+"-delwrap\\" class=\\"tp-admin\\""+(ADMIN_PASS?"":" hidden")+"><button type=\\"button\\" class=\\"btn btn-ghost tp-del\\" onclick=\\"tpDelOpen(\'"+rid+"\',\'"+pid+"\')\\">Delete</button></span>";}'
     + 'function tpProjApprove(rid,pid){var act=document.getElementById(rid+"-act");act.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed")+"</span>";return;}'
-    + 'tpApproveFx(rid);tpSetPill(rid,"tp-pill--done","Completed");act.innerHTML="";var s=document.getElementById(rid+"-status");if(s){s.innerHTML="\\u2713 Completed";s.className="due due--done";}var c=document.getElementById(rid);if(c){c.style.opacity="0.72";c.dataset.status="Completed";}tpBump("tp-n-pending",-1);tpBump("tp-n-done",1);'
+    + 'tpApproveFx(rid);tpAdvance(rid,"#157a47","#e7f3ec",3);tpSetPill(rid,"tp-pill--done","Completed");act.innerHTML="";var s=document.getElementById(rid+"-status");if(s){s.innerHTML="\\u2713 Completed";s.className="due due--done";}var c=document.getElementById(rid);if(c){c.style.opacity="0.72";c.dataset.status="Completed";}tpBump("tp-n-pending",-1);tpBump("tp-n-done",1);'
     + '}).withFailureHandler(function(){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).tpApproveProject(pid,ADMIN_PASS);}'
     + 'function tpProjRejectOpen(rid,pid){var act=document.getElementById(rid+"-act");act.innerHTML="<input id=\\""+rid+"-reason\\" class=\\"ic-reason\\" placeholder=\\"Reason (optional)\\" onkeydown=\\"if(event.key===\'Enter\')tpProjRejectDo(\'"+rid+"\',\'"+pid+"\')\\"><button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"tpProjRejectDo(\'"+rid+"\',\'"+pid+"\')\\">Send back</button><button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"tpProjRejectCancel(\'"+rid+"\',\'"+pid+"\')\\">Cancel</button>";var i=document.getElementById(rid+"-reason");if(i)i.focus();}'
     + 'function tpProjRejectCancel(rid,pid){document.getElementById(rid+"-act").innerHTML=tpProjAdminFootJs(rid,pid);}'
