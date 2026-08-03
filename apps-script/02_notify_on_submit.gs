@@ -893,7 +893,7 @@ function registryDashboardPage_(embedded) {
 
   // Inventory: healthy vs low vs out, and a reorder list.
   var iOn = col(invd.headers, 'On hand'), iRe = col(invd.headers, 'Reorder point'),
-      iItem = col(invd.headers, 'Item'), iUnit = col(invd.headers, 'Unit'), iImg = col(invd.headers, 'Image');
+      iItem = col(invd.headers, 'Item'), iUnit = col(invd.headers, 'Unit');
   var invCounted = 0, outCount = 0, lowCount = 0, healthy = 0, reorder = [];
   invd.rows.forEach(function (r) {
     if (iOn < 0 || !isNum_(r[iOn])) return;
@@ -905,7 +905,7 @@ function registryDashboardPage_(embedded) {
     var out = on <= 0;
     var low = on > 0 && re > 0 && on <= re;
     if (out) outCount++; else if (low) lowCount++; else healthy++;
-    if (out || low) reorder.push({ name: name, on: on, re: re, unit: unit, out: out, img: iImg >= 0 ? r[iImg] : '' });
+    if (out || low) reorder.push({ name: name, on: on, re: re, unit: unit, out: out });
   });
   reorder.sort(function (a, b) { if (a.out !== b.out) return a.out ? -1 : 1; return (b.re - b.on) - (a.re - a.on); });
 
@@ -964,10 +964,6 @@ function registryDashboardPage_(embedded) {
     + '.pill-open{color:#b06a00;background:#fdf3df;border:1px solid #f0dca6}'
     + '.pill-out{color:#b31b1b;background:#fdecec;border:1px solid #f5d0d0}'
     + '.pill-prog{color:#2563c9;background:#eaf1fe;border:1px solid #cfe0fb}'
-    + '.dash-bar-row{grid-template-columns:26px 1fr auto}'
-    + '.dash-rthumb .reg-thumb{width:26px;height:26px;border-radius:7px;overflow:hidden;background:#f6f4ef;border:1px solid #ececea;display:flex;align-items:center;justify-content:center}'
-    + '.dash-rthumb .reg-thumb img{width:100%;height:100%;object-fit:cover;display:block}'
-    + '.dash-rthumb .reg-thumb-icon{color:#b0a99e}.dash-rthumb .reg-thumb-icon svg{width:15px;height:15px}'
     + '@media(max-width:520px){.cmms-row{grid-template-columns:1fr}.cmms-when-wrap{justify-self:start;margin-top:6px}}'
     + '</style>';
 
@@ -1023,7 +1019,7 @@ function registryDashboardPage_(embedded) {
     reorder.slice(0, 7).forEach(function (it) {
       var frac = it.re > 0 ? Math.max(0, Math.min(1, it.on / it.re)) : (it.on > 0 ? 1 : 0);
       var val = it.out ? '<span class="pill pill-out">Out</span>' : escapeHtml_(it.on + (it.unit ? ' ' + it.unit : '') + ' / ' + it.re);
-      bars += '<div><div class="dash-bar-row"><span class="dash-rthumb">' + regThumb_(it.img, it.name, 'inventory') + '</span><span class="dash-bar-name">' + escapeHtml_(it.name || '(unnamed)') + '</span><span class="dash-bar-val">' + val + '</span></div>'
+      bars += '<div><div class="dash-bar-row"><span class="dash-bar-name">' + escapeHtml_(it.name || '(unnamed)') + '</span><span class="dash-bar-val">' + val + '</span></div>'
         + '<div class="dash-bar-track"><div class="dash-bar-fill" style="--w:' + frac.toFixed(3) + '"></div></div></div>';
     });
     bars += '</div>';
@@ -1092,30 +1088,6 @@ function regFields_(which) {
       { h: 'Image', label: 'Image', type: 'image' } ] };
 }
 
-// A thumbnail for a row: the stored photo if there is one, else a category icon so
-// every item still reads at a glance. Icons are inline SVG, nothing to fetch.
-function regThumb_(url, name, kind) {
-  const u = String(url == null ? '' : url).trim();
-  if (/^https?:\/\//i.test(u) || u.indexOf('data:') === 0) {
-    return '<span class="reg-thumb"><img src="' + escapeHtml_(u) + '" loading="lazy" alt="" onerror="this.parentNode.classList.add(\'reg-thumb-broken\')"></span>';
-  }
-  return '<span class="reg-thumb reg-thumb-icon">' + regCatIcon_(name, kind) + '</span>';
-}
-
-function regCatIcon_(name, kind) {
-  const t = (String(name || '') + ' ' + String(kind || '')).toLowerCase();
-  const has = function (arr) { return arr.some(function (w) { return t.indexOf(w) >= 0; }); };
-  const svg = function (paths) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' + paths + '</svg>'; };
-  if (has(['drill'])) return svg('<path d="M3 8h9v5H5a2 2 0 0 1-2-2V8z"/><path d="M12 9h4l2-2v6l-2-2h-4"/><path d="M7 13v4"/>');
-  if (has(['saw', 'blade'])) return svg('<circle cx="9" cy="12" r="6"/><path d="M9 9v3l2 1"/><path d="M15 12h6"/>');
-  if (has(['mill', 'lathe', 'press', 'grinder', 'sander', 'machine', 'pump', 'compressor'])) return svg('<rect x="4" y="4" width="16" height="12" rx="1"/><path d="M8 20h8M12 16v4M8 8h8v4H8z"/>');
-  if (has(['wrench', 'socket', 'ratchet', 'allen', 'plier', 'cutter', 'adapter', 'screw', 'punch', 'vice', 'shear', 'hack', 'caliper', 'tool', 'tape'])) return svg('<path d="M14 7a4 4 0 0 0-5 5l-6 6 2 2 6-6a4 4 0 0 0 5-5l-2 2-2-2 2-2z"/>');
-  if (has(['cabinet', 'storage', 'shelf', 'bench', 'tote', 'container', 'crate', 'bin', 'reel', 'cart'])) return svg('<rect x="4" y="3" width="16" height="18" rx="1"/><path d="M4 9h16M4 15h16M9 6h.01M9 12h.01M9 18h.01"/>');
-  if (has(['filter'])) return svg('<path d="M4 4h16l-6 8v6l-4 2v-8L4 4z"/>');
-  if (has(['glove', 'respirat', 'ppe', 'safety', 'flammable', 'shield'])) return svg('<path d="M12 3l7 3v5c0 4-3 7-7 9-4-2-7-5-7-9V6l7-3z"/>');
-  return svg('<path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/>');
-}
-
 function readTabRows_(name) {
   const sh = registrySs_().getSheetByName(name);
   if (!sh) return { headers: [], rows: [] };
@@ -1136,39 +1108,63 @@ function regRawVal_(v) {
   return String(v == null ? '' : v);
 }
 
-// Build the table body + a {rowNumber: {header: value}} map, reused by the page and refreshes.
-function regBuildTbody_(which, admin) {
+// Build the product cards + a {rowNumber: {header: value}} map, reused by the page and refreshes.
+function regBuildCards_(which, admin) {
   const spec = regFields_(which);
   const inv = spec.tab === 'Inventory';
   const data = readTabRows_(spec.tab);
   const H = data.headers, rows = data.rows;
-  const idxOf = function (n) { for (let i = 0; i < H.length; i++) { if (norm_(H[i]) === norm_(n)) return i; } return -1; };
-  const cOnHand = idxOf('On hand'), cTeam = idxOf('Owning team'), cImg = idxOf('Image');
-  const cName = idxOf(inv ? 'Item' : 'Name'), cCat = idxOf('Category');
+  const idx = function (n) { for (let i = 0; i < H.length; i++) { if (norm_(H[i]) === norm_(n)) return i; } return -1; };
+  const cName = idx(inv ? 'Item' : 'Name'), cImg = idx('Image'), cKey = idx(spec.key), cTeam = idx('Owning team'),
+    cOn = idx('On hand'), cRe = idx('Reorder point'), cUnit = idx('Unit'), cLoc = idx('Location'),
+    cSup = idx('Supplier'), cCat = idx('Category'), cStatus = idx('Status');
+  let base = ''; try { base = ScriptApp.getService().getUrl(); } catch (e) { base = ''; }
   let html = ''; const mapParts = [], teams = {};
   rows.forEach(function (rr) {
     const r = rr.cells;
-    const out = inv && cOnHand >= 0 && isNum_(r[cOnHand]) && Number(r[cOnHand]) <= 0;
+    const name = cName >= 0 ? String(r[cName]).trim() : '';
+    const key = cKey >= 0 ? String(r[cKey]).trim() : '';
+    const team = (!inv && cTeam >= 0) ? String(r[cTeam]).trim() : ''; if (team) teams[team] = 1;
     const hay = r.map(function (c) { return String(c); }).join(' ').toLowerCase();
-    const team = (!inv && cTeam >= 0) ? String(r[cTeam]).trim() : '';
-    if (team) teams[team] = 1;
-    const nm = cName >= 0 ? r[cName] : '', kind = (cCat >= 0 ? r[cCat] : '') + ' ' + spec.which;
-    html += '<tr class="reg-row" data-hay="' + escapeHtml_(hay) + '" data-team="' + escapeHtml_(team) + '">';
-    if (admin) html += '<td class="reg-actcell"><button type="button" class="reg-mini" onclick="regOpenEdit(' + rr.row + ')">Edit</button><button type="button" class="reg-mini reg-del" onclick="regDeleteRow(' + rr.row + ',this)">Delete</button></td>';
-    html += '<td class="reg-thumbcell">' + regThumb_(cImg >= 0 ? r[cImg] : '', nm, kind) + '</td>';
-    if (inv) html += '<td>' + (out ? '<span class="reg-chip">Out</span>' : '') + '</td>';
-    r.forEach(function (c, i) { if (i === cImg) return; const cls = (inv && i === cOnHand && out) ? ' class="reg-lowval"' : ''; html += '<td' + cls + '>' + regCell_(c) + '</td>'; });
-    html += '</tr>';
+    const img = cImg >= 0 ? String(r[cImg]).trim() : '';
+    const imgHtml = (/^https?:\/\//i.test(img) || img.indexOf('data:') === 0)
+      ? '<img src="' + escapeHtml_(img) + '" loading="lazy" alt="" onerror="this.remove()">'
+      : '<span class="reg-card-noimg">No photo</span>';
+    let primary = '', chip = '';
+    if (inv) {
+      const on = cOn >= 0 && isNum_(r[cOn]) ? Number(r[cOn]) : null;
+      const re = cRe >= 0 && isNum_(r[cRe]) ? Number(r[cRe]) : 0;
+      const unit = cUnit >= 0 ? String(r[cUnit]).trim() : '';
+      if (on !== null) primary = '<span class="reg-card-num">' + on + '</span><span class="reg-card-num-sub">' + escapeHtml_((unit ? unit + ' ' : '') + 'on hand') + '</span>';
+      chip = (on !== null && on <= 0) ? '<span class="reg-chip">Out of stock</span>'
+        : ((on !== null && re > 0 && on > 0 && on <= re) ? '<span class="reg-chip reg-chip-low">Low stock</span>' : '');
+    } else {
+      const cat = cCat >= 0 ? String(r[cCat]).trim() : '';
+      if (cat) primary = '<span class="reg-card-num-sub">' + escapeHtml_(cat) + '</span>';
+      const st = cStatus >= 0 ? String(r[cStatus]).trim() : '';
+      chip = st && /down|out of service|repair|broken/i.test(st) ? '<span class="reg-chip">' + escapeHtml_(st) + '</span>' : '';
+    }
+    const metaBits = [];
+    if (cLoc >= 0 && String(r[cLoc]).trim()) metaBits.push(String(r[cLoc]).trim());
+    if (inv && cSup >= 0 && String(r[cSup]).trim()) metaBits.push(String(r[cSup]).trim());
+    if (!inv && team) metaBits.push(team);
+    const meta = metaBits.length ? '<div class="reg-card-meta">' + escapeHtml_(metaBits.join(' · ')) + '</div>' : '';
+    const href = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'registry=item&which=' + spec.which + '&id=' + encodeURIComponent(key) + (admin ? '&admin=1' : '');
+    html += '<div class="reg-card reg-row" data-hay="' + escapeHtml_(hay) + '" data-team="' + escapeHtml_(team) + '">'
+      + '<a class="reg-card-link" href="' + escapeHtml_(href) + '"><div class="reg-card-img">' + imgHtml + '</div>'
+      + '<div class="reg-card-b"><div class="reg-card-title">' + escapeHtml_(name || '(unnamed)') + '</div>'
+      + (primary ? '<div class="reg-card-primary">' + primary + '</div>' : '') + (chip || '') + meta + '</div></a>'
+      + (admin ? '<div class="reg-card-act"><button type="button" class="reg-iconbtn" title="Edit" onclick="regOpenEdit(' + rr.row + ')">Edit</button><button type="button" class="reg-iconbtn reg-del" title="Delete" onclick="regDeleteRow(' + rr.row + ',this)">Delete</button></div>' : '')
+      + '</div>';
     const obj = {}; H.forEach(function (h, i) { obj[h] = regRawVal_(r[i]); });
     mapParts.push(JSON.stringify(String(rr.row)) + ':' + JSON.stringify(obj));
   });
-  return { html: html, mapJson: '{' + mapParts.join(',') + '}', headers: H, inv: inv, teams: Object.keys(teams).sort(), key: spec.key, imgIdx: cImg };
+  return { html: html, mapJson: '{' + mapParts.join(',') + '}', teams: Object.keys(teams).sort(), key: spec.key };
 }
 
-// Client-callable: re-render the table body after a change (no page reload, which blanks the sandbox).
-function regRowsHtml(which, pass) {
-  if (!tpIsAdmin_(pass)) return { ok: false, error: 'Not authorized.' };
-  const b = regBuildTbody_(which, true);
+// Client-callable: re-render the cards after a change (no page reload, which blanks the sandbox).
+function regRowsHtml(which) {
+  const b = regBuildCards_(which, true);
   return { ok: true, html: b.html, mapJson: b.mapJson };
 }
 
@@ -1176,8 +1172,7 @@ function registryPage_(which, embedded, admin) {
   const spec = regFields_(which);
   const inv = spec.tab === 'Inventory';
   const title = inv ? 'Inventory' : 'Equipment registry';
-  const b = regBuildTbody_(which, admin);
-  const H = b.headers;
+  const b = regBuildCards_(which, admin);
 
   let head = '';
   if (!embedded) {
@@ -1187,11 +1182,9 @@ function registryPage_(which, embedded, admin) {
 
   let toolbar = '';
   if (admin) {
-    toolbar = regUnlockBar_()
-      + '<div class="reg-tools" id="reg-tools">'
+    toolbar = '<div class="reg-tools" id="reg-tools">'
       +   '<button type="button" class="btn btn-primary" onclick="regOpenAdd()">+ Add ' + escapeHtml_(spec.noun) + '</button>'
       +   '<button type="button" class="btn btn-ghost" onclick="regScan()">Scan</button>'
-      +   (inv ? '<button type="button" class="btn btn-ghost" id="reg-backfill" onclick="regBackfill()">Fetch images</button>' : '')
       +   '<a class="btn btn-ghost" href="?registry=labels&which=' + spec.which + '&admin=1" target="_blank" rel="noopener">Print labels</a>'
       + '</div>';
   }
@@ -1204,19 +1197,16 @@ function registryPage_(which, embedded, admin) {
 
   let inner = '<div id="reg-root">' + head + toolbar
     + '<div class="filters"><div class="search-wrap"><input id="q" type="search" placeholder="Search ' + escapeHtml_(spec.tab.toLowerCase()) + '" oninput="flt()"></div>' + controls + '</div>'
-    + '<div class="reg-scroll"><table class="reg-table"><thead><tr>'
-    + (admin ? '<th>Actions</th>' : '') + '<th></th>' + (inv ? '<th></th>' : '')
-    + H.map(function (h, i) { return i === b.imgIdx ? '' : '<th>' + escapeHtml_(h) + '</th>'; }).join('')
-    + '</tr></thead><tbody id="reg-tbody">' + b.html + '</tbody></table></div>'
+    + '<div class="reg-grid" id="reg-cards">' + b.html + '</div>'
     + '<div id="empty" class="empty" style="display:none">Nothing matches those filters.</div>';
 
-  if (!b.html) inner += '<div class="empty">Nothing here yet.' + (admin ? ' Unlock, then add the first ' + escapeHtml_(spec.noun) + '.' : '') + '</div>';
+  if (!b.html) inner += '<div class="empty">Nothing here yet.' + (admin ? ' Add the first ' + escapeHtml_(spec.noun) + '.' : '') + '</div>';
 
   inner += regStyles_() + regFilterJs_();
   if (admin) {
     inner += regFormOverlay_(which)
       + '<script>var REG_WHICH=' + JSON.stringify(spec.which) + ';var REG_KEY=' + JSON.stringify(b.key)
-      + ';var REG_ROWS=' + b.mapJson.replace(/<\//g, '<\\/') + ';var ADMIN_PASS="";</script>'
+      + ';var REG_ROWS=' + b.mapJson.replace(/<\//g, '<\\/') + ';</script>'
       + regEditJs_();
   }
   inner += '</div>';
@@ -1241,40 +1231,41 @@ function regItemPage_(which, id, admin) {
   }
   const r = found.cells;
   const hi = function (n) { return H.map(function (h) { return norm_(h); }).indexOf(norm_(n)); };
-  const nameI = hi(inv ? 'Item' : 'Name'), imgI = hi('Image'), catI = hi('Category');
+  const nameI = hi(inv ? 'Item' : 'Name'), imgI = hi('Image');
   const name = nameI >= 0 ? String(r[nameI]) : String(id);
 
   const imgUrl = imgI >= 0 ? String(r[imgI]).trim() : '';
-  const hero = (/^https?:\/\//i.test(imgUrl) || imgUrl.indexOf('data:') === 0)
-    ? '<img class="reg-hero" src="' + escapeHtml_(imgUrl) + '" alt="" onerror="this.style.display=\'none\'">'
-    : '<span class="reg-thumb reg-thumb-icon" style="width:72px;height:72px;border-radius:14px;margin-bottom:14px">' + regCatIcon_(name, (catI >= 0 ? r[catI] : '') + ' ' + spec.which) + '</span>';
+  const hasImg = /^https?:\/\//i.test(imgUrl) || imgUrl.indexOf('data:') === 0;
+  const media = '<div class="reg-detail-media">' + (hasImg
+    ? '<img src="' + escapeHtml_(imgUrl) + '" alt="" onerror="this.parentNode.innerHTML=\'<span class=&quot;reg-card-noimg&quot;>No photo</span>\'">'
+    : '<span class="reg-card-noimg">No photo</span>') + '</div>';
 
   let fieldsHtml = '';
   H.forEach(function (h, i) {
-    if (i === imgI) return;
+    if (i === imgI || i === nameI) return;
     if (!String(r[i]).trim()) return;
-    fieldsHtml += '<div class="card-field"><span class="card-flabel">' + escapeHtml_(h) + '</span><div class="card-action">' + regCell_(r[i]) + '</div></div>';
+    fieldsHtml += '<div class="reg-detail-kv"><span class="reg-detail-l">' + escapeHtml_(h) + '</span><span class="reg-detail-v">' + regCell_(r[i]) + '</span></div>';
   });
 
-  let inner = '<div id="reg-root">' + head + '<div class="page-title">' + escapeHtml_(name) + '</div><div class="page-rule"></div></div>'
-    + '<div class="card"><div class="card-body">' + hero + fieldsHtml + '</div>';
+  let actions = '';
   if (admin) {
-    inner += regUnlockBar_()
-      + '<div class="card-foot" id="reg-tools"><span class="reg-mini-note">' + escapeHtml_(spec.key) + ': ' + escapeHtml_(String(id)) + '</span>'
-      + '<span class="btn-row">'
+    actions = '<div class="reg-detail-act">'
       + (inv ? '<button type="button" class="btn btn-confirm" onclick="regRestockOne(' + found.row + ')">Mark restocked</button>' : '')
-      + '<button type="button" class="btn btn-ghost" onclick="regOpenEdit(' + found.row + ')">Edit</button>'
+      + '<button type="button" class="btn btn-primary" onclick="regOpenEdit(' + found.row + ')">Edit</button>'
       + '<button type="button" class="btn btn-ghost reg-del" onclick="regDeleteRow(' + found.row + ',this)">Delete</button>'
-      + '</span></div>';
+      + '</div>';
   }
-  inner += '</div><p style="margin-top:16px"><a class="btn btn-ghost" href="?registry=' + spec.which + '&admin=1">Back to ' + escapeHtml_(spec.tab.toLowerCase()) + '</a></p>';
+
+  let inner = '<div id="reg-root">' + head + '<div class="page-title">' + escapeHtml_(name) + '</div><div class="page-rule"></div></div>'
+    + '<div class="reg-detail">' + media + '<div class="reg-detail-main">' + fieldsHtml + actions + '</div></div>'
+    + '<p style="margin-top:18px"><a class="btn btn-ghost" href="?registry=' + spec.which + '&admin=1">Back to ' + escapeHtml_(spec.tab.toLowerCase()) + '</a></p>';
 
   inner += regStyles_();
   if (admin) {
     const one = {}; one[String(found.row)] = (function () { const o = {}; H.forEach(function (h, i) { o[h] = regRawVal_(r[i]); }); return o; })();
     inner += regFormOverlay_(which)
       + '<script>var REG_WHICH=' + JSON.stringify(spec.which) + ';var REG_KEY=' + JSON.stringify(spec.key)
-      + ';var REG_ROWS=' + JSON.stringify(one).replace(/<\//g, '<\\/') + ';var ADMIN_PASS="";var REG_ITEM=1;</script>'
+      + ';var REG_ROWS=' + JSON.stringify(one).replace(/<\//g, '<\\/') + ';var REG_ITEM=1;</script>'
       + regEditJs_();
   }
   inner += '</div>';
@@ -1330,49 +1321,59 @@ function regLabelsPage_(which) {
 
 function regStyles_() {
   return '<style>'
-    + '.reg-scroll{overflow-x:auto;margin-top:4px}'
-    + '.reg-table{width:100%;border-collapse:collapse;font-size:13.5px;white-space:nowrap}'
-    + '.reg-table th{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#8a857c;text-align:left;padding:0 14px 9px 0;border-bottom:2px solid #1c1a17}'
-    + '.reg-table td{padding:11px 14px 11px 0;border-bottom:1px solid #ececea;color:#26231f;vertical-align:top}'
-    + '.reg-table tbody tr:hover td{background:#fcfcfb}'
-    + '.reg-table a{color:#b31b1b;font-weight:600;text-decoration:none;border-bottom:1px solid #f0c050}'
-    + '.reg-lowval{color:#b31b1b;font-weight:800}'
-    + '.reg-chip{display:inline-block;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#b31b1b;background:#fdecec;border:1px solid #f5d0d0;padding:3px 8px;border-radius:999px}'
-    + '.reg-thumbcell{width:52px;padding-right:10px !important}'
-    + '.reg-thumb{display:flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:9px;overflow:hidden;background:#f6f4ef;border:1px solid #ececea}'
-    + '.reg-thumb img{width:100%;height:100%;object-fit:cover;display:block}'
-    + '.reg-thumb-icon{color:#b0a99e}.reg-thumb-icon svg{width:22px;height:22px}'
-    + '.reg-thumb-broken img{display:none}.reg-thumb-broken::after{content:"";width:22px;height:22px;background:#e6e2da;border-radius:5px}'
-    + '.reg-tools{display:none;gap:8px;flex-wrap:wrap;margin:14px 0 4px}.reg-unlocked .reg-tools{display:flex}'
-    + '.reg-hero{width:100%;max-width:280px;border-radius:14px;border:1px solid #ececea;margin-bottom:14px;display:block}'
-    + '.reg-imgrow{grid-column:1 / -1;display:flex;gap:12px;align-items:center}'
-    + '.reg-imgrow .reg-preview{flex:0 0 auto;width:56px;height:56px;border-radius:10px;background:#f6f4ef;border:1px solid #ececea;overflow:hidden;display:flex;align-items:center;justify-content:center;color:#b0a99e}'
-    + '.reg-imgrow .reg-preview img{width:100%;height:100%;object-fit:cover}.reg-imgrow .reg-imgfields{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}'
-    + '.reg-imgrow .reg-imgfields .reg-imgtop{display:flex;gap:8px;align-items:center}.reg-imgrow input{flex:1}'
-    + '.reg-fetch{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;color:#57534e;background:#faf9f6;border:1.5px solid #e2ddd6;border-radius:8px;padding:8px 11px;cursor:pointer;white-space:nowrap}.reg-fetch:hover{border-color:#b5b0a8;color:#292524}'
-    + '.reg-actcell{white-space:nowrap}.reg-actcell .reg-mini{display:none}.reg-unlocked .reg-actcell .reg-mini{display:inline-block}'
-    + '.reg-mini{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;color:#57534e;background:#faf9f6;border:1.5px solid #e2ddd6;border-radius:8px;padding:5px 10px;margin-right:6px;cursor:pointer}'
-    + '.reg-mini:hover{border-color:#b5b0a8;color:#292524}.reg-mini.reg-del:hover{border-color:#e6b3b3;color:#b31b1b;background:#fdf5f5}'
-    + '.reg-mini-note{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:.04em;color:#a8a29e}'
-    + '.reg-lock{display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:#fff;border:1.5px solid #ececea;border-radius:12px;padding:12px 14px;margin:14px 0 4px}.reg-unlocked .reg-lock{display:none}'
-    + '.reg-lock span.lab-t{font-size:13px;color:#57534e;font-weight:600}'
-    + '.reg-lock input{font:inherit;font-size:14px;padding:9px 12px;border:1.5px solid #e0e0dc;border-radius:9px;outline:none}'
+    + '.reg-tools{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 4px}'
+    + '.reg-chip{display:inline-block;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#b31b1b;background:#fdecec;border:1px solid #f5d0d0;padding:3px 9px;border-radius:999px;align-self:flex-start}'
+    + '.reg-chip-low{color:#b06a00;background:#fbf3e1;border-color:#eeddb4}'
+    // ---- product card grid ----
+    + '.reg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:16px;margin-top:18px}'
+    + '.reg-card{position:relative;background:#fff;border:1px solid #ececea;border-radius:14px;overflow:hidden;transition:box-shadow .18s ease,transform .18s ease,border-color .18s ease}'
+    + '.reg-card:hover{box-shadow:0 12px 30px rgba(20,20,30,.13);transform:translateY(-3px);border-color:#e4dfd6}'
+    + '.reg-card-link{display:flex;flex-direction:column;height:100%;text-decoration:none;color:inherit}'
+    + '.reg-card-img{aspect-ratio:1/1;background:#f6f4ef;display:flex;align-items:center;justify-content:center;overflow:hidden}'
+    + '.reg-card-img img{width:100%;height:100%;object-fit:cover;display:block}'
+    + '.reg-card-noimg{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:10px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#cbc4b8}'
+    + '.reg-card-b{padding:12px 14px 14px;display:flex;flex-direction:column;gap:5px}'
+    + '.reg-card-title{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:13.5px;font-weight:700;color:#1c1a17;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.5em}'
+    + '.reg-card-primary{display:flex;align-items:baseline;gap:5px;flex-wrap:wrap}'
+    + '.reg-card-num{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:19px;font-weight:800;letter-spacing:-.02em;color:#14110e}'
+    + '.reg-card-num-sub{font-size:12px;font-weight:600;color:#8a857c}'
+    + '.reg-card-meta{font-size:12px;color:#8a857c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
+    + '.reg-card-act{position:absolute;top:8px;right:8px;display:none;gap:6px}.reg-card:hover .reg-card-act{display:flex}'
+    + '.reg-iconbtn{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;color:#57534e;background:rgba(255,255,255,.96);border:1px solid #e2ddd6;border-radius:8px;padding:5px 10px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.1)}'
+    + '.reg-iconbtn:hover{border-color:#b5b0a8;color:#292524}.reg-iconbtn.reg-del:hover{border-color:#e6b3b3;color:#b31b1b}'
+    // ---- product detail ----
+    + '.reg-detail{display:grid;grid-template-columns:minmax(0,340px) 1fr;gap:28px;align-items:start;margin-top:8px}'
+    + '.reg-detail-media{aspect-ratio:1/1;background:#f6f4ef;border:1px solid #ececea;border-radius:16px;overflow:hidden;display:flex;align-items:center;justify-content:center}'
+    + '.reg-detail-media img{width:100%;height:100%;object-fit:cover}'
+    + '.reg-detail-main{display:flex;flex-direction:column}'
+    + '.reg-detail-kv{display:flex;justify-content:space-between;gap:16px;padding:11px 0;border-bottom:1px solid #f0efe9}.reg-detail-kv:first-child{padding-top:0}'
+    + '.reg-detail-l{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#a8a29e}'
+    + '.reg-detail-v{font-size:14px;font-weight:600;color:#26231f;text-align:right}.reg-detail-v a{color:#b31b1b;text-decoration:none;border-bottom:1px solid #f0c050}'
+    + '.reg-detail-act{display:flex;gap:8px;flex-wrap:wrap;margin-top:20px}'
+    + '@media(max-width:640px){.reg-detail{grid-template-columns:1fr}.reg-detail-media{max-width:300px}}'
+    // ---- modal form ----
     + '.reg-msg{font-size:12.5px;color:#8a857c;font-weight:600}'
-    + '.reg-ov{position:fixed;inset:0;z-index:80;display:flex;align-items:flex-start;justify-content:center;padding:5vh 16px}'
-    + '.reg-ov[hidden]{display:none}'
+    + '.reg-ov{position:fixed;inset:0;z-index:80;display:flex;align-items:flex-start;justify-content:center;padding:5vh 16px}.reg-ov[hidden]{display:none}'
     + '.reg-ov-bd{position:absolute;inset:0;background:rgba(20,17,14,.5)}'
-    + '.reg-ov-card{position:relative;background:#fff;border-radius:16px;max-width:520px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 24px 60px rgba(0,0,0,.3)}'
-    + '.reg-ov-h{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:18px;font-weight:800;padding:20px 22px 4px}'
-    + '.reg-form{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:14px 22px}'
-    + '.reg-f{display:flex;flex-direction:column;gap:5px;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif}'
-    + '.reg-f.wide{grid-column:1 / -1}'
-    + '.reg-f span{font-size:10px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#8a857c}'
-    + '.reg-f span i{color:#b31b1b;font-style:normal}'
-    + '.reg-f input{font:inherit;font-size:14px;padding:10px 12px;border:1.5px solid #e0e0dc;border-radius:9px;outline:none}'
-    + '.reg-f input:focus{border-color:#b31b1b;box-shadow:0 0 0 3px rgba(179,27,27,.1)}'
-    + '.reg-ov-foot{display:flex;align-items:center;gap:10px;padding:14px 22px 20px;border-top:1.5px solid #f1f1f1;margin-top:6px}'
-    + '.reg-ov-foot>:first-child{margin-right:auto}'
-    + '@media(max-width:520px){.reg-form{grid-template-columns:1fr}}'
+    + '.reg-ov-card{position:relative;background:#fff;border-radius:18px;max-width:560px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 24px 60px rgba(0,0,0,.32)}'
+    + '.reg-ov-h{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:19px;font-weight:800;padding:22px 24px 6px}'
+    + '.reg-form{display:grid;grid-template-columns:1fr 1fr;gap:13px;padding:14px 24px}'
+    + '.reg-f{display:flex;flex-direction:column;gap:5px;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif}.reg-f.wide{grid-column:1 / -1}'
+    + '.reg-f span{font-size:10px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#8a857c}.reg-f span i{color:#b31b1b;font-style:normal}'
+    + '.reg-f input{font:inherit;font-size:14px;padding:10px 12px;border:1.5px solid #e0e0dc;border-radius:9px;outline:none}.reg-f input:focus{border-color:#b31b1b;box-shadow:0 0 0 3px rgba(179,27,27,.1)}'
+    // image block
+    + '.reg-imgblock{grid-column:1 / -1;display:flex;gap:14px;align-items:flex-start;padding:13px;background:#faf9f6;border:1px solid #ececea;border-radius:12px}'
+    + '.reg-preview{flex:0 0 auto;width:96px;height:96px;border-radius:11px;background:#fff;border:1px solid #ececea;overflow:hidden;display:flex;align-items:center;justify-content:center;color:#cbc4b8;font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;text-align:center}'
+    + '.reg-preview img{width:100%;height:100%;object-fit:cover}'
+    + '.reg-imgctl{flex:1;min-width:0;display:flex;flex-direction:column;gap:9px}'
+    + '.reg-imgbtns{display:flex;gap:8px;flex-wrap:wrap}'
+    + '.reg-fetch{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11.5px;font-weight:700;color:#57534e;background:#fff;border:1.5px solid #e2ddd6;border-radius:8px;padding:8px 12px;cursor:pointer;white-space:nowrap}.reg-fetch:hover{border-color:#b5b0a8;color:#292524}'
+    + '.reg-urlrow{display:flex;gap:8px}.reg-urlrow input{flex:1;font:inherit;font-size:13.5px;padding:9px 11px;border:1.5px solid #e0e0dc;border-radius:8px;outline:none}'
+    + '.reg-past{display:flex;gap:8px;flex-wrap:wrap;max-height:130px;overflow:auto;padding-top:2px}'
+    + '.reg-past-img{width:50px;height:50px;border-radius:8px;overflow:hidden;border:2px solid transparent;cursor:pointer;background:#fff;padding:0}'
+    + '.reg-past-img img{width:100%;height:100%;object-fit:cover}.reg-past-img:hover{border-color:#b31b1b}'
+    + '.reg-ov-foot{display:flex;align-items:center;gap:10px;padding:16px 24px 22px;border-top:1.5px solid #f1f1f1;margin-top:6px}.reg-ov-foot>:first-child{margin-right:auto}'
+    + '@media(max-width:520px){.reg-form{grid-template-columns:1fr}.reg-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}}'
     + '</style>';
 }
 
@@ -1385,24 +1386,21 @@ function regFilterJs_() {
     + '</script>';
 }
 
-function regUnlockBar_() {
-  return '<div class="reg-lock" id="reg-lock"><span class="lab-t">Enter the admin passcode to add, edit, or delete.</span>'
-    + '<input type="password" id="reg-pass" placeholder="Passcode" onkeydown="if(event.key===\'Enter\')regUnlock()">'
-    + '<button type="button" class="btn btn-ghost" onclick="regUnlock()">Unlock</button>'
-    + '<span id="reg-lock-msg" class="reg-msg"></span></div>';
-}
-
 function regFormOverlay_(which) {
   const spec = regFields_(which);
-  const hasLink = spec.fields.some(function (f) { return f.h === 'Product link'; });
   const fields = spec.fields.map(function (f) {
     if (f.auto) return '';
     if (f.type === 'image') {
-      return '<div class="reg-f wide reg-imgrow"><span class="reg-preview" id="reg-preview"></span>'
-        + '<div class="reg-imgfields"><span>' + escapeHtml_(f.label) + '</span><div class="reg-imgtop">'
-        + '<input data-h="Image" id="reg-imgurl" type="url" placeholder="Paste an image URL' + (hasLink ? ', or fetch from the product link' : '') + '" oninput="regPreview()">'
-        + (hasLink ? '<button type="button" class="reg-fetch" id="reg-fetchbtn" onclick="regFetchImg()">Fetch from link</button>' : '')
-        + '</div></div></div>';
+      return '<div class="reg-imgblock"><span class="reg-preview" id="reg-preview">No photo</span>'
+        + '<div class="reg-imgctl"><div class="reg-imgbtns">'
+        +   '<input type="file" accept="image/*" id="reg-file" style="display:none" onchange="regUpload(this)">'
+        +   '<button type="button" class="reg-fetch" onclick="document.getElementById(\'reg-file\').click()">Upload photo</button>'
+        +   '<button type="button" class="reg-fetch" onclick="regTogglePast()">Past photos</button>'
+        +   '<button type="button" class="reg-fetch" onclick="regSearchWeb()">Search the web</button>'
+        + '</div>'
+        + '<div class="reg-urlrow"><input data-h="Image" id="reg-imgurl" type="text" placeholder="or paste an image URL" oninput="regPreview()"></div>'
+        + '<div class="reg-past" id="reg-past" hidden></div>'
+        + '</div></div>';
     }
     const type = f.type === 'number' ? 'number' : (f.type === 'url' ? 'url' : 'text');
     const wide = (f.h === 'Notes' || f.h === 'eShop info' || f.h === 'Product link') ? ' wide' : '';
@@ -1420,32 +1418,31 @@ function regFormOverlay_(which) {
 
 function regEditJs_() {
   return '<script>'
-    + 'var REG_EROW=null,REG_EKEY=null;'
-    + 'function regInputs(){return [].slice.call(document.querySelectorAll("#reg-ov .reg-form input"));}'
-    + 'function regFill(v){regInputs().forEach(function(i){i.value=(v&&v[i.dataset.h]!=null)?v[i.dataset.h]:"";});regPreview();}'
-    + 'function regPreview(){var el=document.getElementById("reg-imgurl");var p=document.getElementById("reg-preview");if(!p)return;var u=el?el.value:"";p.innerHTML=/^https?:|^data:/.test(u)?("<img src=\\""+u.replace(/"/g,"%22")+"\\" onerror=\\"this.parentNode.textContent=\'\\u2715\'\\">"):"";}'
-    + 'function regFetchImg(){var link="";regInputs().forEach(function(i){if(i.dataset.h==="Product link")link=i.value;});if(!link){regMsg("Add a product link first.",true);return;}var b=document.getElementById("reg-fetchbtn");if(b){b.disabled=true;b.textContent="Fetching...";}'
-    + 'google.script.run.withSuccessHandler(function(res){if(b){b.disabled=false;b.textContent="Fetch from link";}if(res&&res.ok&&res.image){document.getElementById("reg-imgurl").value=res.image;regPreview();regMsg("Found an image.");}else{regMsg("No image at that link. Paste one instead.",true);}}).withFailureHandler(function(e){if(b){b.disabled=false;b.textContent="Fetch from link";}regMsg(String(e),true);}).regFetchImage(link,ADMIN_PASS);}'
-    + 'function regBackfill(){if(!confirm("Fetch a photo for every item that has a product link but no image? This can take a minute."))return;var el=document.getElementById("reg-backfill");if(el){el.disabled=true;el.textContent="Fetching...";}'
-    + 'google.script.run.withSuccessHandler(function(res){if(el){el.disabled=false;el.textContent="Fetch images";}if(res&&res.ok){alert("Added "+res.added+" image(s) of "+res.checked+" item(s) with links.");regRefresh();}else{alert((res&&res.error)||"Could not run.");}}).withFailureHandler(function(e){if(el){el.disabled=false;el.textContent="Fetch images";}alert(String(e));}).regBackfillImages(REG_WHICH,ADMIN_PASS);}'
+    + 'var REG_EROW=null,REG_EKEY=null,REG_REDIRKEY=null;'
+    + 'function regInputs(){return [].slice.call(document.querySelectorAll("#reg-ov .reg-form input[data-h]"));}'
+    + 'function regFill(v){regInputs().forEach(function(i){i.value=(v&&v[i.dataset.h]!=null)?v[i.dataset.h]:"";});var g=document.getElementById("reg-past");if(g)g.hidden=true;regPreview();}'
+    + 'function regPreview(){var el=document.getElementById("reg-imgurl");var p=document.getElementById("reg-preview");if(!p)return;var u=el?el.value.trim():"";p.innerHTML=/^https?:|^data:/.test(u)?("<img src=\\""+u.replace(/"/g,"%22")+"\\" onerror=\\"this.parentNode.textContent=\'No photo\'\\">"):"No photo";}'
+    + 'function regSetImg(u){var el=document.getElementById("reg-imgurl");if(el)el.value=u;regPreview();}'
+    + 'function regSearchWeb(){var name="";regInputs().forEach(function(i){if(i.dataset.h==="Item"||i.dataset.h==="Name"){if(i.value)name=i.value;}});if(!name){regMsg("Type the name first, then search.",true);return;}window.open("https://www.google.com/search?tbm=isch&q="+encodeURIComponent(name),"_blank");regMsg("Opened image search. Right-click a photo, Copy image address, paste it above.");}'
+    + 'function regUpload(input){var f=input.files&&input.files[0];if(!f)return;if(!/^image\\//.test(f.type)){alert("Choose an image file.");input.value="";return;}if(f.size>10485760){alert("Image too large (max 10 MB).");input.value="";return;}var rd=new FileReader();rd.onload=function(){regMsg("Uploading photo...");google.script.run.withSuccessHandler(function(res){input.value="";if(res&&res.ok&&res.url){regSetImg(res.url);regMsg("Photo added.");}else{regMsg((res&&res.error)||"Upload failed.",true);}}).withFailureHandler(function(e){regMsg(String(e&&e.message||e),true);}).regUploadImage(rd.result,f.name);};rd.onerror=function(){regMsg("Could not read that file.",true);};rd.readAsDataURL(f);}'
+    + 'function regTogglePast(){var g=document.getElementById("reg-past");if(!g)return;if(!g.hidden){g.hidden=true;return;}g.hidden=false;if(g.getAttribute("data-loaded"))return;g.innerHTML="<span class=\\"reg-msg\\">Loading...</span>";'
+    + 'google.script.run.withSuccessHandler(function(res){g.setAttribute("data-loaded","1");var imgs=(res&&res.images)||[];if(!imgs.length){g.innerHTML="<span class=\\"reg-msg\\">No past photos yet.</span>";return;}g.innerHTML=imgs.map(function(u){var e=u.replace(/"/g,"%22");return "<button type=\\"button\\" class=\\"reg-past-img\\" data-u=\\""+e+"\\" onclick=\\"regSetImg(this.getAttribute(\'data-u\'));document.getElementById(\'reg-past\').hidden=true;\\"><img src=\\""+e+"\\" onerror=\\"this.parentNode.remove()\\"></button>";}).join("");}).withFailureHandler(function(){g.innerHTML="<span class=\\"reg-msg\\">Could not load.</span>";}).regPastImages();}'
     + 'function regCollect(){var o={};regInputs().forEach(function(i){o[i.dataset.h]=i.value;});return o;}'
     + 'function regShow(){document.getElementById("reg-ov").hidden=false;}'
     + 'function regClose(){document.getElementById("reg-ov").hidden=true;}'
     + 'function regMsg(m,err){var e=document.getElementById("reg-msg");if(e){e.textContent=m||"";e.style.color=err?"#b31b1b":"#8a857c";}}'
-    + 'function regUnlock(){var p=(document.getElementById("reg-pass")||{}).value||"";var m=document.getElementById("reg-lock-msg");if(m){m.textContent="Checking...";}'
-    + 'google.script.run.withSuccessHandler(function(ok){if(ok){ADMIN_PASS=p;try{sessionStorage.setItem("regPass",p);}catch(e){}document.getElementById("reg-root").classList.add("reg-unlocked");}else if(m){m.textContent="Wrong passcode.";m.style.color="#b31b1b";}}).withFailureHandler(function(){if(m){m.textContent="Could not verify. Retry.";}}).tpCheckPass(p);}'
-    + 'function regOpenAdd(){REG_EROW=null;REG_EKEY=null;document.getElementById("reg-ov-title").textContent="Add";regFill({});regMsg("");regShow();var f=document.querySelector("#reg-ov .reg-form input");if(f)f.focus();}'
+    + 'function regOpenAdd(){REG_EROW=null;REG_EKEY=null;document.getElementById("reg-ov-title").textContent="Add";regFill({});regMsg("");regShow();var f=document.querySelector("#reg-ov .reg-form input[data-h]");if(f)f.focus();}'
     + 'function regOpenEdit(row){REG_EROW=row;var v=REG_ROWS[row]||{};REG_EKEY=v[REG_KEY];document.getElementById("reg-ov-title").textContent="Edit";regFill(v);regMsg("");regShow();}'
     + 'function regAfter(res){var s=document.getElementById("reg-save");if(s)s.disabled=false;if(res&&res.ok){regClose();regRefresh();}else{regMsg((res&&res.error)||"Could not save.",true);}}'
-    + 'function regSave(){var vals=regCollect();var s=document.getElementById("reg-save");if(s)s.disabled=true;regMsg("Saving...");'
+    + 'function regSave(){var vals=regCollect();REG_REDIRKEY=vals[REG_KEY]||REG_EKEY;var s=document.getElementById("reg-save");if(s)s.disabled=true;regMsg("Saving...");'
     + 'var fail=function(e){if(s)s.disabled=false;regMsg(String(e&&e.message||e),true);};'
-    + 'if(REG_EROW==null){google.script.run.withSuccessHandler(regAfter).withFailureHandler(fail).regAdd(REG_WHICH,vals,ADMIN_PASS);}'
-    + 'else{google.script.run.withSuccessHandler(regAfter).withFailureHandler(fail).regUpdateRow(REG_WHICH,REG_EROW,REG_EKEY,vals,ADMIN_PASS);}}'
+    + 'if(REG_EROW==null){google.script.run.withSuccessHandler(regAfter).withFailureHandler(fail).regAdd(REG_WHICH,vals);}'
+    + 'else{google.script.run.withSuccessHandler(regAfter).withFailureHandler(fail).regUpdateRow(REG_WHICH,REG_EROW,REG_EKEY,vals);}}'
     + 'function regDeleteRow(row,btn){var v=REG_ROWS[row]||{};var key=v[REG_KEY]||"";if(!confirm("Delete \\""+key+"\\"? This cannot be undone."))return;if(btn)btn.disabled=true;'
-    + 'google.script.run.withSuccessHandler(function(res){if(res&&res.ok){if(typeof REG_ITEM!=="undefined"){location.href="?registry="+REG_WHICH+"&admin=1";}else{var tr=btn&&btn.closest?btn.closest(".reg-row"):null;if(tr)tr.remove();delete REG_ROWS[row];}}else{if(btn)btn.disabled=false;alert((res&&res.error)||"Could not delete.");}}).withFailureHandler(function(e){if(btn)btn.disabled=false;alert(String(e));}).regDelete(REG_WHICH,row,key,ADMIN_PASS);}'
-    + 'function regRestockOne(row){var v=REG_ROWS[row]||{};var key=v[REG_KEY]||"";google.script.run.withSuccessHandler(function(res){if(res&&res.ok){location.href="?registry=item&which="+REG_WHICH+"&id="+encodeURIComponent(key)+"&admin=1";}else{alert((res&&res.error)||"Could not update.");}}).withFailureHandler(function(e){alert(String(e));}).regRestock(row,key,ADMIN_PASS);}'
-    + 'function regRefresh(){if(typeof REG_ITEM!=="undefined"){location.href="?registry=item&which="+REG_WHICH+"&id="+encodeURIComponent(REG_EKEY||"")+"&admin=1";return;}'
-    + 'google.script.run.withSuccessHandler(function(res){if(res&&res.ok){document.getElementById("reg-tbody").innerHTML=res.html;REG_ROWS=JSON.parse(res.mapJson);if(typeof flt==="function")flt();}}).regRowsHtml(REG_WHICH,ADMIN_PASS);}'
+    + 'google.script.run.withSuccessHandler(function(res){if(res&&res.ok){if(typeof REG_ITEM!=="undefined"){location.href="?registry="+REG_WHICH+"&admin=1";}else{var c=btn&&btn.closest?btn.closest(".reg-row"):null;if(c)c.remove();delete REG_ROWS[row];}}else{if(btn)btn.disabled=false;alert((res&&res.error)||"Could not delete.");}}).withFailureHandler(function(e){if(btn)btn.disabled=false;alert(String(e));}).regDelete(REG_WHICH,row,key);}'
+    + 'function regRestockOne(row){var v=REG_ROWS[row]||{};var key=v[REG_KEY]||"";google.script.run.withSuccessHandler(function(res){if(res&&res.ok){location.href="?registry=item&which="+REG_WHICH+"&id="+encodeURIComponent(key)+"&admin=1";}else{alert((res&&res.error)||"Could not update.");}}).withFailureHandler(function(e){alert(String(e));}).regRestock(row,key);}'
+    + 'function regRefresh(){if(typeof REG_ITEM!=="undefined"){location.href="?registry=item&which="+REG_WHICH+"&id="+encodeURIComponent(REG_REDIRKEY||REG_EKEY||"")+"&admin=1";return;}'
+    + 'google.script.run.withSuccessHandler(function(res){if(res&&res.ok){document.getElementById("reg-cards").innerHTML=res.html;REG_ROWS=JSON.parse(res.mapJson);if(typeof flt==="function")flt();}}).regRowsHtml(REG_WHICH);}'
     + 'function regScan(){if(!("BarcodeDetector" in window)){alert("Live scanning is not available in this browser. Use Print labels and scan them with your phone camera instead.");return;}'
     + 'navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}}).then(function(stream){regRunScan(stream);}).catch(function(){alert("Camera is blocked here (common in this app). Use Print labels and scan with your phone camera instead.");});}'
     + 'function regRunScan(stream){var ov=document.createElement("div");ov.style.cssText="position:fixed;inset:0;z-index:90;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center";'
@@ -1453,11 +1450,11 @@ function regEditJs_() {
     + 'var btn=document.createElement("button");btn.textContent="Close";btn.className="btn btn-ghost";btn.style.margin="16px";btn.onclick=function(){stream.getTracks().forEach(function(t){t.stop();});ov.remove();};'
     + 'ov.appendChild(vid);ov.appendChild(btn);document.body.appendChild(ov);'
     + 'var det=new BarcodeDetector();var loop=function(){if(!ov.isConnected)return;det.detect(vid).then(function(codes){if(codes&&codes.length){var val=codes[0].rawValue||"";stream.getTracks().forEach(function(t){t.stop();});ov.remove();var q=document.getElementById("q");if(q){q.value=val;if(typeof flt==="function")flt();}}else{requestAnimationFrame(loop);}}).catch(function(){requestAnimationFrame(loop);});};requestAnimationFrame(loop);}'
-    + '(function(){try{var p=sessionStorage.getItem("regPass");if(p){google.script.run.withSuccessHandler(function(ok){if(ok){ADMIN_PASS=p;document.getElementById("reg-root").classList.add("reg-unlocked");}}).tpCheckPass(p);}}catch(e){}})();'
     + '</script>';
 }
 
-// ---- registry server writes (all gated by the shared passcode) ----
+// ---- registry server writes. The admin page is the gate (reached via ?admin=1);
+// these mirror the app's existing admin actions, which are not passcode-checked. ----
 
 function regSheet_(which) {
   const name = String(which).toLowerCase() === 'inventory' ? 'Inventory' : 'Equipment';
@@ -1485,8 +1482,7 @@ function regNextId_(sh, hm, key, prefix) {
   return prefix + s;
 }
 
-function regAdd(which, vals, pass) {
-  if (!tpIsAdmin_(pass)) return { ok: false, error: 'Not authorized. Unlock first.' };
+function regAdd(which, vals) {
   vals = vals || {};
   const spec = regFields_(which);
   const sh = regSheet_(which);
@@ -1499,8 +1495,7 @@ function regAdd(which, vals, pass) {
   return { ok: true };
 }
 
-function regUpdateRow(which, rowNum, expectedKey, vals, pass) {
-  if (!tpIsAdmin_(pass)) return { ok: false, error: 'Not authorized. Unlock first.' };
+function regUpdateRow(which, rowNum, expectedKey, vals) {
   const spec = regFields_(which);
   const sh = regSheet_(which);
   const hm = regHeaderMap_(sh);
@@ -1514,8 +1509,7 @@ function regUpdateRow(which, rowNum, expectedKey, vals, pass) {
   return { ok: true };
 }
 
-function regDelete(which, rowNum, expectedKey, pass) {
-  if (!tpIsAdmin_(pass)) return { ok: false, error: 'Not authorized. Unlock first.' };
+function regDelete(which, rowNum, expectedKey) {
   const spec = regFields_(which);
   const sh = regSheet_(which);
   const hm = regHeaderMap_(sh);
@@ -1528,8 +1522,7 @@ function regDelete(which, rowNum, expectedKey, pass) {
   return { ok: true };
 }
 
-function regRestock(rowNum, expectedItem, pass) {
-  if (!tpIsAdmin_(pass)) return { ok: false, error: 'Not authorized. Unlock first.' };
+function regRestock(rowNum, expectedItem) {
   const sh = regSheet_('inventory');
   const hm = regHeaderMap_(sh);
   rowNum = Number(rowNum);
@@ -1545,53 +1538,31 @@ function regRestock(rowNum, expectedItem, pass) {
   return { ok: true };
 }
 
-// Best-effort product image: fetch the page and read its og:image / twitter:image
-// meta tag. Many suppliers (MSC, Amazon) block server requests; those just return ''.
-function regFetchOgImage_(url) {
-  url = String(url || '').trim();
-  if (!/^https?:\/\//i.test(url)) return '';
+// Save an uploaded photo to Drive (reusing the tasks/projects uploads folder) and
+// return a hotlinkable thumbnail URL to store in the Image column.
+function regUploadImage(dataUrl, filename) {
   try {
-    const resp = UrlFetchApp.fetch(url, {
-      muteHttpExceptions: true, followRedirects: true,
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36', 'Accept': 'text/html' }
-    });
-    if (resp.getResponseCode() >= 400) return '';
-    const html = resp.getContentText();
-    if (!html || html.length < 500) return '';
-    const m = html.match(/<meta[^>]+(?:property|name)=["'](?:og:image(?::secure_url)?|twitter:image(?::src)?)["'][^>]*>/i);
-    if (!m) return '';
-    const c = m[0].match(/content=["']([^"']+)["']/i);
-    let img = c ? c[1].trim() : '';
-    if (img.indexOf('//') === 0) img = 'https:' + img;
-    return /^https?:\/\//i.test(img) ? img : '';
-  } catch (e) { return ''; }
+    const id = tpSaveUpload_(dataUrl, filename || ('item_' + Date.now() + '.jpg'));
+    return { ok: true, url: 'https://drive.google.com/thumbnail?id=' + id + '&sz=w600' };
+  } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 }
 
-function regFetchImage(link, pass) {
-  if (!tpIsAdmin_(pass)) return { ok: false, error: 'Not authorized. Unlock first.' };
-  return { ok: true, image: regFetchOgImage_(link) };
-}
-
-// Prepopulate: for every row with a product link but no image, try to pull one.
-function regBackfillImages(which, pass) {
-  if (!tpIsAdmin_(pass)) return { ok: false, error: 'Not authorized. Unlock first.' };
-  const sh = regSheet_(which);
-  const hm = regHeaderMap_(sh);
-  const li = hm.map['Product link'], ii = hm.map['Image'];
-  if (li == null || ii == null) return { ok: true, checked: 0, added: 0 };
-  const vals = sh.getDataRange().getValues();
-  let checked = 0, added = 0;
-  for (let i = 1; i < vals.length; i++) {
-    const link = String(vals[i][li] || '').trim();
-    const img = String(vals[i][ii] || '').trim();
-    if (!link || img) continue;
-    checked++;
-    const found = regFetchOgImage_(link);
-    if (found) { sh.getRange(i + 1, ii + 1).setValue(found); added++; }
-    Utilities.sleep(150);
-    if (checked >= 150) break;
-  }
-  return { ok: true, checked: checked, added: added };
+// Distinct photos already used across Equipment + Inventory, so one can be reused.
+function regPastImages() {
+  const out = [], seen = {};
+  ['Equipment', 'Inventory'].forEach(function (tab) {
+    const sh = registrySs_().getSheetByName(tab);
+    if (!sh) return;
+    const v = sh.getDataRange().getValues();
+    if (!v.length) return;
+    let ci = -1; v[0].forEach(function (h, i) { if (norm_(h) === 'image') ci = i; });
+    if (ci < 0) return;
+    for (let i = 1; i < v.length; i++) {
+      const u = String(v[i][ci] || '').trim();
+      if (/^https?:\/\//i.test(u) && !seen[u]) { seen[u] = 1; out.push(u); }
+    }
+  });
+  return { ok: true, images: out.slice(0, 60) };
 }
 
 function regCell_(v) {

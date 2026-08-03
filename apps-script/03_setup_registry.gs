@@ -25,6 +25,7 @@ function onOpen() {
     .addSeparator()
     .addItem('Set up / update tabs', 'setupRegistry')
     .addItem('Import existing tools & inventory', 'importExistingData')
+    .addItem('Add photos from the web', 'seedPhotos')
     .addItem('Run maintenance check now', 'generateMaintenanceTasks')
     .addItem('Run stock check now', 'checkInventoryLevels')
     .addSeparator()
@@ -437,6 +438,86 @@ function importExistingData() {
   ss.toast(msg, 'Import complete', 8);
   ui.alert(msg + '\n\nReview the Equipment and Inventory tabs, then delete any leftover example rows. '
     + 'Locks was left as-is.');
+}
+
+//------------------------------------------------------------
+//
+// Fill the Image column with a representative product photo (Wikimedia Commons,
+// hotlinkable) for items that match a known tool/consumable type. Only rows with
+// a blank Image are touched, so anything you set by hand or upload is left alone.
+// Most specific keywords are matched first. Swap any photo from the item's Edit form.
+//
+//------------------------------------------------------------
+
+function seedPhotos() {
+  var ss = SpreadsheetApp.openById(REGISTRY_SS_ID);
+  var ui = SpreadsheetApp.getUi();
+  var added = 0, checked = 0;
+  [EQUIPMENT_TAB, INVENTORY_TAB].forEach(function (tab) {
+    var sh = ss.getSheetByName(tab);
+    if (!sh) return;
+    var v = sh.getDataRange().getValues();
+    if (v.length < 2) return;
+    var h = hmap_(v[0]);
+    var ni = h[tab === INVENTORY_TAB ? 'Item' : 'Name'], ii = h['Image'];
+    if (ni == null || ii == null) return;
+    for (var r = 1; r < v.length; r++) {
+      if (String(v[r][ii]).trim()) continue;
+      checked++;
+      var url = matchPhoto_(String(v[r][ni] || ''));
+      if (url) { sh.getRange(r + 1, ii + 1).setValue(url); added++; }
+    }
+  });
+  var msg = 'Added photos to ' + added + ' item(s). ' + (checked - added) + ' had no match (leave a photo by uploading one).';
+  Logger.log(msg);
+  ss.toast(msg, 'Photos', 8);
+  ui.alert(msg + '\n\nOpen the Equipment & inventory page to see them. Swap any photo from an item\'s Edit form.');
+}
+
+// Ordered most-specific-first; the first keyword found in the name wins.
+function matchPhoto_(name) {
+  var n = String(name || '').toLowerCase();
+  var W = 'https://upload.wikimedia.org/wikipedia/commons/';
+  var MAP = [
+    [['drill press'], W + 'thumb/c/c9/Drillpress.jpg/500px-Drillpress.jpg'],
+    [['cold saw'], W + 'thumb/2/28/Cold_Metal_Cutting_Saw.JPG/500px-Cold_Metal_Cutting_Saw.JPG'],
+    [['table saw'], W + 'thumb/e/ed/Table_saw_blade_guard.jpg/500px-Table_saw_blade_guard.jpg'],
+    [['circular saw', 'circ saw'], W + 'thumb/5/55/DeWalt_circular_saw_in_use.jpg/500px-DeWalt_circular_saw_in_use.jpg'],
+    [['impact driver'], W + 'thumb/f/ff/HiKOKI_cordless_impact_driver_WH36DC.jpg/500px-HiKOKI_cordless_impact_driver_WH36DC.jpg'],
+    [['drill bit', 'bit set', 'driver bit'], W + 'thumb/d/d9/Drill_bits_2017_G1.jpg/500px-Drill_bits_2017_G1.jpg'],
+    [['end mill', 'endmill'], W + 'thumb/e/e6/MillingCutterSlotEndMillBallnose.jpg/500px-MillingCutterSlotEndMillBallnose.jpg'],
+    [['drill'], W + 'thumb/4/46/Drill-driver.JPG/500px-Drill-driver.JPG'],
+    [['router'], W + 'thumb/1/13/Modern_plunge_router.jpg/500px-Modern_plunge_router.jpg'],
+    [['belt sander', 'sander'], W + 'thumb/6/68/Belt_sander_bosch.jpg/500px-Belt_sander_bosch.jpg'],
+    [['grinder'], W + 'thumb/4/4e/Faschina-concrete_angle_grinder-Betontrennschleifen-13ASD.jpg/500px-Faschina-concrete_angle_grinder-Betontrennschleifen-13ASD.jpg'],
+    [['lathe'], W + 'thumb/9/95/Metal_lathe_used_to_produce_flywheels.JPG/500px-Metal_lathe_used_to_produce_flywheels.JPG'],
+    [['welder', 'welding'], W + 'thumb/7/79/Welding_power_supply-Miller-Syncrowave350LX-front-triddle.jpg/500px-Welding_power_supply-Miller-Syncrowave350LX-front-triddle.jpg'],
+    [['socket'], W + 'thumb/0/00/Socket_wrench_and_sockets.JPG/500px-Socket_wrench_and_sockets.JPG'],
+    [['ratchet'], W + 'thumb/0/00/Socket_wrench_and_sockets.JPG/500px-Socket_wrench_and_sockets.JPG'],
+    [['allen', 'hex key'], W + 'thumb/9/9f/2023_Bity_Imbus.jpg/500px-2023_Bity_Imbus.jpg'],
+    [['adjustable wrench'], W + 'thumb/5/50/2023_Klucz_nastawny.jpg/500px-2023_Klucz_nastawny.jpg'],
+    [['wrench'], W + 'thumb/1/1c/Gedore_No._7_combination_wrenches_6%E2%80%9319_mm.jpg/500px-Gedore_No._7_combination_wrenches_6%E2%80%9319_mm.jpg'],
+    [['caliper', 'calliper'], W + 'thumb/9/94/Messschieber.jpg/500px-Messschieber.jpg'],
+    [['vise grip', 'vice grip', 'locking plier'], W + 'thumb/c/cf/Locking_pliers.jpg/500px-Locking_pliers.jpg'],
+    [['plier', 'cutter', 'flush'], W + 'thumb/2/23/05-02_combination_pliers_big.jpg/500px-05-02_combination_pliers_big.jpg'],
+    [['screwdriver', 'screw driver'], W + 'thumb/5/5b/Black_screwdriver.png/500px-Black_screwdriver.png'],
+    [['punch'], W + 'thumb/e/ec/1970s_center_punch_by_Swedish_company_Luna_Tools.jpg/500px-1970s_center_punch_by_Swedish_company_Luna_Tools.jpg'],
+    [['shear', 'snip'], W + 'thumb/6/65/Early_20th_century_tin_snips_by_Johann_Heinrich_Braun_Ronsdorf_Germany_view_1.jpg/500px-Early_20th_century_tin_snips_by_Johann_Heinrich_Braun_Ronsdorf_Germany_view_1.jpg'],
+    [['hacksaw', 'hack saw'], W + 'thumb/d/d8/Hacksaw_with_grey_handle.jpg/500px-Hacksaw_with_grey_handle.jpg'],
+    [['tape measure', 'measuring tape', 'measure tape'], W + 'thumb/f/f1/B%26Q_Tape_Measure.jpg/500px-B%26Q_Tape_Measure.jpg'],
+    [['calculator'], W + 'thumb/8/8f/Sharp_Scientific_Calculator.jpg/500px-Sharp_Scientific_Calculator.jpg'],
+    [['nitrile', 'glove'], W + '8/8d/Disposable_nitrile_glove.jpg'],
+    [['sandpaper', 'sand paper', 'sanding'], W + 'thumb/9/90/Schleifpapier_verschiedene_Sorten.jpg/500px-Schleifpapier_verschiedene_Sorten.jpg'],
+    [['flammable', 'flammables'], W + 'thumb/2/2c/Flammable_cabinet_black_open.jpg/500px-Flammable_cabinet_black_open.jpg'],
+    [['cord reel', 'air reel', 'reel'], W + 'thumb/a/a8/Cable_reel_extension_cord.jpg/500px-Cable_reel_extension_cord.jpg'],
+    [['shop vac', 'vacuum'], W + 'thumb/3/3d/Advance_VL500_wetdry_vacuum_Yonge.jpg/500px-Advance_VL500_wetdry_vacuum_Yonge.jpg']
+  ];
+  for (var i = 0; i < MAP.length; i++) {
+    for (var j = 0; j < MAP[i][0].length; j++) {
+      if (n.indexOf(MAP[i][0][j]) >= 0) return MAP[i][1];
+    }
+  }
+  return '';
 }
 
 // Team tool inventory: a single "Tool" column of owned tools -> Equipment.

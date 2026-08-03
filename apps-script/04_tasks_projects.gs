@@ -844,7 +844,7 @@ function tpProjectsSectionsHtml_(projects) {
   var active = projects.filter(function (p) { return norm_(p.status) === norm_(TP.projectStatus.active); });
   var pending = projects.filter(function (p) { return norm_(p.status) === norm_(TP.projectStatus.pending); });
   var done = projects.filter(function (p) { return norm_(p.status) === norm_(TP.projectStatus.done); });
-  if (!projects.length) return '<div class="empty">No projects yet. Unlock admin above to assign one, or add rows in the "Projects" tab.</div>';
+  if (!projects.length) return '<div class="empty">No projects yet.</div>';
   var sectionHead = function (label, count, cls) {
     return '<div class="section-head"><span class="section-label ' + cls + '">' + label + '</span>'
       + '<span class="section-count">' + count + '</span><span class="section-rule"></span></div>';
