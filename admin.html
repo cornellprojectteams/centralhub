@@ -60,11 +60,11 @@
           <nav class="admin-nav" id="admin-nav" aria-label="Admin sections">
             <a href="#space-admin" style="--chip:#c0392b"><span class="dot"></span>Space</a>
             <a href="#projects-admin" style="--chip:#b8791a"><span class="dot"></span>Projects</a>
+            <a href="#inventory" style="--chip:#0d9488"><span class="dot"></span>Equipment</a>
             <a href="#ell-admin" style="--chip:#e08a1e"><span class="dot"></span>Experiential Learning Lab</a>
             <a href="#access" style="--chip:#2563c9"><span class="dot"></span>Fabman</a>
             <a href="#compliance" style="--chip:#1f9d5b"><span class="dot"></span>Compliance</a>
             <a href="#fleet" style="--chip:#7c3aed"><span class="dot"></span>Fleet</a>
-            <a href="#inventory" style="--chip:#0d9488"><span class="dot"></span>Equipment</a>
             <a href="#website" style="--chip:#444d56"><span class="dot"></span>Site &amp; code</a>
           </nav>
         </aside>
@@ -116,6 +116,28 @@
           </div>
         </section>
 
+        <section class="category admin-block" id="inventory" data-keywords="tool inventory purchasing locks mill room equipment facility registry assets location ownership reorder stock consumables cmms maintenance dashboard action items">
+          <h3 class="admin-label">Equipment &amp; inventory</h3>
+          <div class="action-group">
+            <a class="action" data-module="registry-dash" href="#" target="_blank" rel="noopener" data-keywords="equipment inventory dashboard cmms stock low out of stock maintenance due action items metrics overview">
+              <span class="action-title">Equipment &amp; inventory dashboard</span>
+              <span class="action-sub">Stock health, maintenance due, and open action items at a glance.</span>
+            </a>
+            <a class="action" data-registry="equipment" href="#" target="_blank" rel="noopener" data-keywords="equipment registry assets location ownership browse by team">
+              <span class="action-title">Equipment registry</span>
+              <span class="action-sub">All equipment by team and location (read-only)</span>
+            </a>
+            <a class="action" data-registry="inventory" href="#" target="_blank" rel="noopener" data-keywords="inventory stock reorder point low consumables parts first aid filters">
+              <span class="action-title">Inventory &amp; stock</span>
+              <span class="action-sub">Consumables and stock counts, out of stock flagged</span>
+            </a>
+            <a class="action" href="https://docs.google.com/spreadsheets/d/1QZf3LbKOsuwsxeno3f5aDTACObMRXaRY1yX6_5Aj_lU/edit" target="_blank" rel="noopener" data-keywords="edit inventory equipment sheet tabs tools purchasing locks">
+              <span class="action-title">Manage inventory &amp; maintenance</span>
+              <span class="action-sub">Equipment, inventory, maintenance, and the action items feed</span>
+            </a>
+          </div>
+        </section>
+
         <section class="category admin-block" id="ell-admin" data-keywords="experiential learning lab ell shift responses data summary staffing">
           <h3 class="admin-label">Experiential Learning Lab</h3>
           <div class="action-group">
@@ -129,9 +151,17 @@
         <section class="category admin-block" id="access" data-keywords="fabman admin dashboard sign-up api members training qualtrics">
           <h3 class="admin-label">Fabman</h3>
           <div class="action-group">
+            <a class="action" href="https://fabman.io/manage/2366" target="_blank" rel="noopener" data-keywords="fabman site open manage members activity bookings analytics access equipment">
+              <span class="action-title">Open Fabman</span>
+              <span class="action-sub">The Fabman admin site: members, activity, bookings, access</span>
+            </a>
             <a class="action" href="https://docs.google.com/spreadsheets/d/1lDAA4z1YexkjaABSPuXJyEXfSxN2QAsKWVk88TQCRLI/edit" target="_blank" rel="noopener" data-keywords="fabman admin dashboard members">
               <span class="action-title">Manage Fabman members</span>
               <span class="action-sub">Dashboard, sign-ups, and Qualtrics imports</span>
+            </a>
+            <a class="action" href="https://docs.google.com/spreadsheets/d/1lDAA4z1YexkjaABSPuXJyEXfSxN2QAsKWVk88TQCRLI/edit" target="_blank" rel="noopener" data-keywords="fabman actions sheet graduates lock activate delete invitations buttons">
+              <span class="action-title">Fabman actions sheet</span>
+              <span class="action-sub">Graduates, lock and activate, invitations (the buttons live here)</span>
             </a>
             <a class="action" href="https://docs.google.com/document/d/1O-O-mpEGGtcD6QiLqjxw1y1rFtI7WzayoOroxpoxwfQ/edit" target="_blank" rel="noopener" data-keywords="fabman canvas training integration qualtrics apron">
               <span class="action-title">Fabman-Canvas training integration</span>
@@ -176,24 +206,6 @@
             <a class="action" href="https://docs.google.com/spreadsheets/d/1KwJLTkdhrQ0jD7-75p6IuhYvh3Fq0B13KAXf2Pcvk_M/edit" target="_blank" rel="noopener" data-keywords="remove graduated drivers bulk cleanup access rows netid year script menu">
               <span class="action-title">Remove graduated drivers</span>
               <span class="action-sub">Open the sheet, then run the Driver cleanup menu</span>
-            </a>
-          </div>
-        </section>
-
-        <section class="category admin-block" id="inventory" data-keywords="tool inventory purchasing locks mill room equipment facility registry assets location ownership reorder stock consumables cmms">
-          <h3 class="admin-label">Equipment &amp; inventory</h3>
-          <div class="action-group">
-            <a class="action" data-registry="equipment" href="#" target="_blank" rel="noopener" data-keywords="equipment registry assets location ownership browse by team">
-              <span class="action-title">Equipment registry</span>
-              <span class="action-sub">All equipment by team and location (read-only)</span>
-            </a>
-            <a class="action" data-registry="inventory" href="#" target="_blank" rel="noopener" data-keywords="inventory stock reorder point low consumables parts first aid filters">
-              <span class="action-title">Inventory &amp; stock</span>
-              <span class="action-sub">Consumables and stock counts, out of stock flagged</span>
-            </a>
-            <a class="action" href="https://docs.google.com/spreadsheets/d/1QZf3LbKOsuwsxeno3f5aDTACObMRXaRY1yX6_5Aj_lU/edit" target="_blank" rel="noopener" data-keywords="edit inventory equipment sheet tabs tools purchasing locks">
-              <span class="action-title">Edit the inventory sheet</span>
-              <span class="action-sub">The Equipment and Inventory tabs and existing tools data</span>
             </a>
           </div>
         </section>

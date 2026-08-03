@@ -33,7 +33,7 @@
 
 var TP = {
   projectsSheet: 'Projects',
-  projectHeaders: ['Project ID', 'Title', 'Description', 'Status', 'Assignees', 'Before photo', 'After photo', 'Hours', 'Started at', 'Completed at', 'Created at', 'Sent back reason'],
+  projectHeaders: ['Project ID', 'Title', 'Description', 'Status', 'Assignees', 'Before photo', 'After photo', 'Hours', 'Started at', 'Completed at', 'Created at', 'Sent back reason', 'Attachment', 'Link'],
   projectStatus: { assigned: 'Assigned', active: 'In Progress', pending: 'Pending', done: 'Completed' },
   uploadsFolderName: 'Ops Hub completion and project uploads',
 };
@@ -297,6 +297,8 @@ function tpListProjects_() {
       hours: Number(row[col['Hours'] - 1]) || 0,
       completedAt: row[col['Completed at'] - 1] || '',
       sentBackReason: String(row[col['Sent back reason'] - 1] || '').trim(),
+      attachment: String(row[col['Attachment'] - 1] || '').trim(),
+      link: String(row[col['Link'] - 1] || '').trim(),
     });
   }
   pending.forEach(function (w) { sh.getRange(w.r, w.c).setValue(w.val); });
@@ -386,7 +388,7 @@ function tpRejectProject(projectId, reason, pass) {
 }
 
 // Admin creates/assigns a project, optionally with a "before" photo of the starting state.
-function tpCreateProject(title, description, assignees, beforeUrl, beforeName, pass) {
+function tpCreateProject(title, description, assignees, beforeUrl, beforeName, fileUrl, fileName, link, pass) {
   title = String(title || '').trim();
   if (!title) return { ok: false, error: 'A project title is required.' };
   var o = tpOpen_(TP.projectsSheet, TP.projectHeaders);
@@ -402,6 +404,15 @@ function tpCreateProject(title, description, assignees, beforeUrl, beforeName, p
   if (beforeUrl) {
     try { o.sh.getRange(r, o.col['Before photo']).setValue(tpViewUrl_(tpSaveUpload_(beforeUrl, beforeName || 'before'))); }
     catch (err) { Logger.log('Before photo save failed: ' + err); }
+  }
+  if (fileUrl) {
+    try { o.sh.getRange(r, o.col['Attachment']).setValue(tpViewUrl_(tpSaveUpload_(fileUrl, fileName || 'attachment'))); }
+    catch (err) { Logger.log('Attachment save failed: ' + err); }
+  }
+  var lk = String(link || '').trim();
+  if (lk) {
+    if (!/^https?:\/\//i.test(lk)) lk = 'https://' + lk.replace(/^\/+/, '');
+    o.sh.getRange(r, o.col['Link']).setValue(lk);
   }
   return { ok: true, project: { id: id, title: title } };
 }
@@ -434,6 +445,9 @@ function tpStyles_() {
     + '.tp-lock-msg.ok{color:#157a47}.tp-lock-msg.bad{color:#b31b1b}'
     + '.tp-assignees{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}'
     + '.tp-chip{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;color:#3f3a34;background:#f0efe9;border:1px solid #e5e4de;border-radius:999px;padding:4px 11px}'
+    + '.tp-attach{display:inline-flex;align-items:center;gap:6px;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:13px;font-weight:700;color:#8f1515;text-decoration:none;border:1px solid #ece9e2;border-radius:9px;padding:6px 11px;background:#faf9f6}'
+    + '.tp-attach:hover{border-color:#d6b26a;background:#fff}'
+    + '.tp-refs{display:flex;gap:8px;flex-wrap:wrap}'
     + '.card-accent{height:3px}'
     + '@keyframes cardIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}'
     + '.card{animation:cardIn .3s ease}'
@@ -461,6 +475,16 @@ function tpStyles_() {
     + '.tp-create-wrap{margin:6px 0 20px}'
     + '.tp-create-toggle{display:inline-flex;align-items:center;gap:8px;cursor:pointer;list-style:none;user-select:none;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12.5px;font-weight:700;letter-spacing:.02em;color:#8f1515;background:#fff;border:1.5px dashed #e0ddd6;border-radius:10px;padding:9px 14px;transition:border-color .15s ease}'
     + '.tp-create-toggle:hover{border-color:#d6b26a}'
+    + '.tp-req{font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#b31b1b;margin-left:5px;vertical-align:1px}'
+    + '.tp-opt{font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#a8a29e;margin-left:5px;vertical-align:1px}'
+    + '.tp-attach-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}'
+    + '.tp-attach-btn{display:inline-flex;align-items:center;gap:7px;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12.5px;font-weight:700;color:#57534e;background:#faf9f6;border:1.5px dashed #d6d3ce;border-radius:9px;padding:8px 13px;cursor:pointer;transition:border-color .15s,color .15s,background .15s}'
+    + '.tp-attach-btn:hover{border-color:#b5b0a8;color:#292524}'
+    + '.tp-attach-btn.is-set{border-style:solid;border-color:#157a47;color:#157a47;background:#eef6f0}'
+    + '.tp-attach-link{display:flex;align-items:center;gap:8px;border:1.5px solid #e2ddd6;border-radius:9px;padding:0 11px;background:#fff;transition:border-color .15s}'
+    + '.tp-attach-link:focus-within{border-color:#b31b1b}'
+    + '.tp-link-icon{color:#a8a29e;font-size:14px;flex-shrink:0}'
+    + '.tp-attach-link input{flex:1;min-width:0;border:none;background:none;padding:9px 0;font:inherit;font-size:13px;outline:none;color:#111}'
     + '.tp-create-toggle::-webkit-details-marker{display:none}'
     + '.tp-create-toggle::marker{content:""}'
     + '.tp-create-caret{display:inline-block;font-weight:800;font-size:15px;line-height:1;transition:transform .15s ease}'
@@ -567,6 +591,7 @@ function tpSharedJs_() {
     + 'cb({dataUrl:c.toDataURL("image/jpeg",0.82),name:(f.name||"photo").replace(/\\.[^.]+$/,"")+".jpg"});}catch(e){cb({dataUrl:r.result,name:f.name});}};'
     + 'img.onerror=function(){cb({dataUrl:r.result,name:f.name});};img.src=r.result;};'
     + 'r.readAsDataURL(f);}'
+    + 'function tpReadAnyFile(input,cb){var f=input.files&&input.files[0];if(!f){cb(null);return;}if(f.size>10485760){alert("That file is too large (max 10 MB).");input.value="";cb(null);return;}var r=new FileReader();r.onerror=function(){alert("Could not read that file.");cb(null);};r.onload=function(){cb({dataUrl:r.result,name:f.name});};r.readAsDataURL(f);}'
     + '</script>';
 }
 
@@ -736,6 +761,16 @@ function tpEditBtn_(rid) {
   return '<span class="tp-admin" hidden><button type="button" class="btn btn-ghost" onclick="tpEditOpen(\'' + rid + '\')">Edit</button></span>';
 }
 
+// Reference material for a project card: an uploaded file and/or an external link,
+// as chips. Empty when the project has neither.
+function tpRefsHtml_(p) {
+  var refs = '';
+  if (p.attachment) refs += '<a class="tp-attach" href="' + escapeHtml_(p.attachment) + '" target="_blank" rel="noopener">&#128206; File</a>';
+  if (p.link) refs += '<a class="tp-attach" href="' + escapeHtml_(p.link) + '" target="_blank" rel="noopener">&#128279; Link</a>';
+  if (!refs) return '';
+  return '<div class="card-field"><span class="card-flabel">Attachments</span><div class="tp-refs">' + refs + '</div></div>';
+}
+
 // One project card. Extracted so the initial page and the post-create refresh
 // (tpProjectsListHtml) render identically. Handles Assigned / In Progress (incl.
 // sent-back) / Pending approval / Completed.
@@ -773,6 +808,7 @@ function tpRenderProjectCard_(p, rid) {
     + '<div class="card-field" id="' + rid + '-vscope-wrap"' + (p.description ? '' : ' hidden') + '><span class="card-flabel">Scope</span><div class="card-details" id="' + rid + '-vscope">' + escapeHtml_(p.description) + '</div></div>'
     + '<div class="card-field"><span class="card-flabel">Assignees</span><div class="tp-assignees" id="' + rid + '-chips">' + chips + '</div></div>'
     + hoursField
+    + tpRefsHtml_(p)
     + '<div id="' + rid + '-note">' + (sentBack ? icSentBackInner_(p.sentBackReason) : '') + '</div>'
     + photos
     + '</div>'
@@ -881,14 +917,12 @@ function tpDashStyles_() {
     + '.dash-bar-track{grid-column:1 / -1;height:12px;border-radius:99px;background:#f2f1ec;overflow:hidden}'
     + '.dash-bar-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#8f1515,#d62b2b 60%,#f0c050);transform-origin:left;transform:scaleX(var(--w));animation:dashGrow 1.1s cubic-bezier(.2,.8,.2,1) both}'
     + '@keyframes dashGrow{from{transform:scaleX(0)}}'
-    + '.dash-lead{display:flex;flex-direction:column;gap:12px}'
-    + '.dash-lead-row{display:flex;align-items:center;gap:12px}'
     + '.dash-ava{flex:0 0 auto;width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:14px;font-weight:800;color:#fff}'
-    + '.dash-lead-body{flex:1;min-width:0}'
-    + '.dash-lead-name{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:14px;font-weight:700;color:#26231f}'
-    + '.dash-lead-track{height:8px;border-radius:99px;background:#f2f1ec;overflow:hidden;margin-top:5px}'
-    + '.dash-lead-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#2563c9,#7c3aed);transform-origin:left;transform:scaleX(var(--w));animation:dashGrow 1.1s cubic-bezier(.2,.8,.2,1) both}'
-    + '.dash-lead-count{flex:0 0 auto;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:13px;font-weight:800;color:#14110e}'
+    + '.dash-chips{display:flex;flex-wrap:wrap;gap:8px}'
+    + '.dash-chip{display:inline-flex;align-items:center;gap:8px;background:#faf9f6;border:1.5px solid #ececea;border-radius:99px;padding:4px 6px 4px 4px}'
+    + '.dash-chip .dash-ava{width:26px;height:26px;font-size:11px}'
+    + '.dash-chip-name{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12.5px;font-weight:700;color:#26231f}'
+    + '.dash-chip-count{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:10.5px;font-weight:800;color:#8f1515;background:#fdecec;border:1px solid #f5d0d0;border-radius:99px;padding:1px 8px}'
     + '.dash-gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}'
     + '.dash-gal-item{border:1.5px solid #eee;border-radius:14px;overflow:hidden;background:#fcfcfb}'
     + '.dash-ba{display:grid;grid-template-columns:1fr 1fr;gap:2px;background:#eee}'
@@ -907,8 +941,8 @@ function tpDashStyles_() {
     + '</style>';
 }
 
-// Extremely-dope projects dashboard: hero hours counter, status tiles, completion
-// ring, hours-by-project bars, contributor leaderboard, and a before/after gallery.
+// Projects dashboard: hero hours counter, status tiles, completion ring,
+// hours-by-project bars, a compact contributor row, and a before/after gallery.
 function projectsDashboardPage_(embedded) {
   var s = tpProjectStats_();
   var pct = s.total > 0 ? Math.round(s.done / s.total * 100) : 0;
@@ -967,19 +1001,17 @@ function projectsDashboardPage_(embedded) {
 
   inner += '<div class="dash-grid">' + ring + bars + '</div>';
 
-  // Contributor leaderboard
+  // Contributors: a compact chip row (name + project count), kept small on purpose.
   if (s.people.length) {
-    var maxC = s.people[0].count || 1;
-    inner += '<div class="dash-sec">Top contributors</div><div class="dash-card"><div class="dash-lead">';
-    s.people.slice(0, 8).forEach(function (pp, i) {
-      inner += '<div class="dash-lead-row">'
-        + '<div class="dash-ava" style="background:' + AVA[i % AVA.length] + '">' + escapeHtml_(initials(pp.name)) + '</div>'
-        + '<div class="dash-lead-body"><div class="dash-lead-name">' + escapeHtml_(pp.name) + '</div>'
-        + '<div class="dash-lead-track"><div class="dash-lead-fill" style="--w:' + (pp.count / maxC).toFixed(3) + '"></div></div></div>'
-        + '<div class="dash-lead-count">' + pp.count + '</div>'
-        + '</div>';
+    inner += '<div class="dash-sec">Contributors</div><div class="dash-chips">';
+    s.people.forEach(function (pp, i) {
+      inner += '<span class="dash-chip">'
+        + '<span class="dash-ava" style="background:' + AVA[i % AVA.length] + '">' + escapeHtml_(initials(pp.name)) + '</span>'
+        + '<span class="dash-chip-name">' + escapeHtml_(pp.name) + '</span>'
+        + '<span class="dash-chip-count">' + pp.count + '</span>'
+        + '</span>';
     });
-    inner += '</div></div>';
+    inner += '</div>';
   }
 
   // Recent completions gallery (before/after)
@@ -1024,11 +1056,17 @@ function projectsPage_(embedded, admin) {
   inner += '<details class="tp-create-wrap tp-admin" hidden>'
     + '<summary class="tp-create-toggle"><span class="tp-create-caret">&#43;</span> New project</summary>'
     + '<form class="tp-create" onsubmit="return tpCreate(event)">'
-    + '<div class="tp-field"><label>Title</label><input id="tp-c-title" placeholder="e.g. Rebuild the tool crib shelving" required></div>'
+    + '<div class="tp-field"><label>Title <span class="tp-req">Required</span></label><input id="tp-c-title" placeholder="e.g. Rebuild the tool crib shelving" required></div>'
     + '<div class="tp-field"><label>Description</label><textarea id="tp-c-desc" rows="2" placeholder="Scope, location, and what done looks like"></textarea></div>'
-    + '<div class="tp-field"><label>Assignees (optional, comma-separated)</label><input id="tp-c-assignees" placeholder="Alex Rivera, Sam Chen"></div>'
-    + '<div class="tp-field"><label>Before photo: the starting state (optional)</label>'
-    +   '<div class="tp-slot tp-c-photo" id="tp-c-slot-b"><input type="file" accept="image/*" id="tp-c-before" style="display:none" onchange="tpCreateSlot(this)"><div class="tp-slot-btn" onclick="document.getElementById(\'tp-c-before\').click()"><span class="tp-c-cam" aria-hidden="true">&#128247;</span> <span id="tp-c-blabel">Add a &ldquo;before&rdquo; photo</span></div></div>'
+    + '<div class="tp-field"><label>Assignees</label><input id="tp-c-assignees" placeholder="Alex Rivera, Sam Chen (comma-separated)"></div>'
+    + '<div class="tp-field"><label>Reference material <span class="tp-opt">Optional</span></label>'
+    +   '<div class="tp-attach-row">'
+    +     '<input type="file" accept="image/*" id="tp-c-before" style="display:none" onchange="tpCreateSlot(this)">'
+    +     '<button type="button" class="tp-attach-btn" id="tp-c-slot-b" onclick="document.getElementById(\'tp-c-before\').click()"><span aria-hidden="true">&#128247;</span> <span id="tp-c-blabel">Before photo</span></button>'
+    +     '<input type="file" id="tp-c-file" style="display:none" onchange="tpCreateFile(this)">'
+    +     '<button type="button" class="tp-attach-btn" id="tp-c-slot-f" onclick="document.getElementById(\'tp-c-file\').click()"><span aria-hidden="true">&#128206;</span> <span id="tp-c-flabel">File</span></button>'
+    +   '</div>'
+    +   '<div class="tp-attach-link"><span class="tp-link-icon" aria-hidden="true">&#128279;</span><input id="tp-c-link" type="url" placeholder="Paste a link: spreadsheet, doc, or Drive folder"></div>'
     + '</div>'
     + '<button type="submit" class="btn btn-primary">Create project</button>'
     + '<span id="tp-c-msg" class="tp-lock-msg" style="margin-left:10px"></span>'
@@ -1048,8 +1086,9 @@ function projectsPage_(embedded, admin) {
   inner += '<div id="tp-proj-list">' + tpProjectsSectionsHtml_(projects) + '</div>';
 
   inner += '<script>'
-    + 'var TPUP={};var TPCB=null;'
+    + 'var TPUP={};var TPCB=null;var TPCF=null;'
     + 'function tpCreateSlot(input){tpReadFile(input,function(res){if(!res)return;TPCB=res;var s=document.getElementById("tp-c-slot-b");if(s)s.classList.add("is-set");var l=document.getElementById("tp-c-blabel");if(l)l.textContent="\\u2713 Before: "+res.name;});}'
+    + 'function tpCreateFile(input){tpReadAnyFile(input,function(res){if(!res)return;TPCF=res;var s=document.getElementById("tp-c-slot-f");if(s)s.classList.add("is-set");var l=document.getElementById("tp-c-flabel");if(l)l.textContent="\\u2713 "+res.name;});}'
     + 'function tpBump(id,d){var e=document.getElementById(id);if(e)e.textContent=Math.max(0,(parseInt(e.textContent,10)||0)+d);}'
     + 'function tpSetPill(rid,cls,txt){document.getElementById(rid+"-pill").innerHTML="<span class=\\"tp-pill "+cls+"\\">"+txt+"</span>";}'
     + 'function tpDelOpen(rid,pid){document.getElementById(rid+"-delwrap").innerHTML="<span class=\\"tp-hint\\" style=\\"margin-right:6px\\">Delete this project?</span><button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"tpDelDo(\'"+rid+"\',\'"+pid+"\')\\">Yes, delete</button><button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"tpDelCancel(\'"+rid+"\',\'"+pid+"\')\\">Cancel</button>";}'
@@ -1110,16 +1149,17 @@ function projectsPage_(embedded, admin) {
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed")+"</span>";return;}'
     + 'google.script.run.withSuccessHandler(function(html){document.getElementById("tp-proj-list").innerHTML=html;document.querySelectorAll(".tp-admin").forEach(function(e){e.hidden=false;});tpBump("tp-n-pending",-1);tpBump("tp-n-active",1);}).withFailureHandler(function(){}).tpProjectsListHtml();'
     + '}).withFailureHandler(function(){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).tpRejectProject(pid,reason,ADMIN_PASS);}'
-    + 'function tpCreate(ev){ev.preventDefault();var t=document.getElementById("tp-c-title").value.trim();var d=document.getElementById("tp-c-desc").value.trim();var a=document.getElementById("tp-c-assignees").value.trim();var msg=document.getElementById("tp-c-msg");'
+    + 'function tpCreate(ev){ev.preventDefault();var t=document.getElementById("tp-c-title").value.trim();var d=document.getElementById("tp-c-desc").value.trim();var a=document.getElementById("tp-c-assignees").value.trim();var lk=(document.getElementById("tp-c-link")||{}).value||"";var msg=document.getElementById("tp-c-msg");'
     + 'if(!t){msg.className="tp-lock-msg bad";msg.textContent="A title is required.";return false;}'
     + 'msg.className="tp-lock-msg";msg.textContent="Creating\\u2026";'
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){msg.className="tp-lock-msg bad";msg.textContent=(r&&r.error)||"Failed";return;}'
     // Refresh the list in place (no location.reload: that reloads the sandboxed iframe to a blank page).
     + 'google.script.run.withSuccessHandler(function(html){document.getElementById("tp-proj-list").innerHTML=html;document.querySelectorAll(".tp-admin").forEach(function(e){e.hidden=false;});tpBump("tp-n-assigned",1);'
-    + 'document.getElementById("tp-c-title").value="";document.getElementById("tp-c-desc").value="";document.getElementById("tp-c-assignees").value="";TPCB=null;var sb=document.getElementById("tp-c-slot-b");if(sb)sb.classList.remove("is-set");var bl=document.getElementById("tp-c-blabel");if(bl)bl.innerHTML="Add a &ldquo;before&rdquo; photo";var bf=document.getElementById("tp-c-before");if(bf)bf.value="";'
+    + 'document.getElementById("tp-c-title").value="";document.getElementById("tp-c-desc").value="";document.getElementById("tp-c-assignees").value="";TPCB=null;var sb=document.getElementById("tp-c-slot-b");if(sb)sb.classList.remove("is-set");var bl=document.getElementById("tp-c-blabel");if(bl)bl.textContent="Before photo";var bf=document.getElementById("tp-c-before");if(bf)bf.value="";'
+    + 'TPCF=null;var sf=document.getElementById("tp-c-slot-f");if(sf)sf.classList.remove("is-set");var fl=document.getElementById("tp-c-flabel");if(fl)fl.textContent="File";var ff=document.getElementById("tp-c-file");if(ff)ff.value="";var lkf=document.getElementById("tp-c-link");if(lkf)lkf.value="";'
     + 'msg.className="tp-lock-msg ok";msg.textContent="\\u2713 Project created";'
     + '}).withFailureHandler(function(){msg.className="tp-lock-msg ok";msg.textContent="\\u2713 Created (refresh to see it)";}).tpProjectsListHtml();'
-    + '}).withFailureHandler(function(){msg.className="tp-lock-msg bad";msg.textContent="Failed. Retry.";}).tpCreateProject(t,d,a,TPCB?TPCB.dataUrl:"",TPCB?TPCB.name:"",ADMIN_PASS);return false;}'
+    + '}).withFailureHandler(function(){msg.className="tp-lock-msg bad";msg.textContent="Failed. Retry.";}).tpCreateProject(t,d,a,TPCB?TPCB.dataUrl:"",TPCB?TPCB.name:"",TPCF?TPCF.dataUrl:"",TPCF?TPCF.name:"",lk,ADMIN_PASS);return false;}'
     + '</script>';
 
   return swissShell_(tpStyles_() + inner + tpSharedJs_() + tpAdminRevealJs_(admin), 'Projects', true, embedded);

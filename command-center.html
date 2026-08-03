@@ -125,6 +125,11 @@ a{color:inherit}
 .detail-link{display:inline-flex;align-items:center;gap:6px;font-family:var(--eyebrow);font-weight:700;font-size:11.5px;color:var(--ink-2);
   background:var(--surface);border:1px solid var(--line-2);padding:7px 12px;border-radius:8px;text-decoration:none;transition:border-color .15s,color .15s}
 .detail-link:hover{border-color:var(--ink-4);color:var(--ink-1)}
+/* persistent one-click action on every attention row (act without expanding) */
+.attn-open{font-family:var(--eyebrow);font-weight:700;font-size:11px;letter-spacing:.02em;color:var(--ink-2);
+  background:var(--surface);border:1px solid var(--line-2);padding:6px 12px;border-radius:8px;text-decoration:none;white-space:nowrap;
+  transition:border-color .15s,color .15s,background .15s}
+.attn-open:hover{border-color:var(--red);color:var(--red);background:var(--surface-2)}
 .dom{display:inline-flex;align-items:center;gap:5px;font-family:var(--eyebrow);font-weight:800;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
 .dom .idot{width:6px;height:6px;border-radius:50%;display:inline-block}
 .pill{font-family:var(--eyebrow);font-weight:800;font-size:10px;letter-spacing:.04em;text-transform:uppercase;padding:4px 9px;border-radius:999px;white-space:nowrap}
@@ -132,6 +137,13 @@ a{color:inherit}
 .pill.warn{color:var(--warn);background:var(--warn-bg);border:1px solid var(--warn-line)}
 .arrow{display:inline-block;color:var(--ink-4);transition:transform .18s var(--spring),color .16s}
 .attn:hover .arrow{color:var(--ink-1);transform:translateX(3px)}
+/* narrow screens: let the row breathe. Title keeps the full width, the domain /
+   pill / Open cluster drops to its own line so nothing wraps mid-word. */
+@media(max-width:560px){
+  .attn-head{flex-wrap:wrap;row-gap:11px}
+  .attn-cta{width:100%;padding-left:21px;box-sizing:border-box;justify-content:flex-start}
+  .attn-open{margin-left:auto}
+}
 
 /* all-clear */
 .clear{background:var(--surface);border:1px solid var(--good-line);border-radius:var(--r-lg);padding:40px 20px;text-align:center;box-shadow:var(--sh)}
@@ -337,7 +349,9 @@ a{color:inherit}
   var WORD = { action:'Action', watch:'Watch', good:'Good' };
 
   var $ = function(id){ return document.getElementById(id); };
-  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  // Normalize any em dash from the payload to a middle dot, so breakdown lines
+  // ("SPT Operations · 1") read clean even before the stats API is redeployed.
+  function esc(s){ return String(s==null?'':s).replace(/\s*—\s*/g,' · ').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function key(s){ return String(s||'').toLowerCase().split(' ')[0].replace(/[^a-z]/g,''); }
   function linkFor(k){ return LINKS[key(k)] || 'admin.html'; }
   function tintFor(k){ return 'var(' + (TINT[key(k)] || '--ink-3') + ')'; }
@@ -378,14 +392,15 @@ a{color:inherit}
     el.setAttribute('role','button');
     el.setAttribute('tabindex','0');
     el.setAttribute('aria-expanded','false');
-    el.innerHTML = head + '<span class="chev">›</span></div></div>'+
-      '<div class="attn-detail" hidden>'+ itemList(it.items) +
-      '<a class="detail-link" href="'+esc(linkFor(it.domain))+'" target="_blank" rel="noopener">Open '+esc(it.domain)+' ↗</a></div>';
+    el.innerHTML = head +
+      '<a class="attn-open" href="'+esc(linkFor(it.domain))+'" target="_blank" rel="noopener" aria-label="Open '+esc(it.domain)+'">Open</a>'+
+      '<span class="chev">›</span></div></div>'+
+      '<div class="attn-detail" hidden>'+ itemList(it.items) +'</div>';
 
     var detail = el.querySelector('.attn-detail');
     var toggle = function(e){
-      // don't swallow clicks on the real link inside the detail panel
-      if(e && e.target && e.target.closest && e.target.closest('.detail-link')) return;
+      // clicking the direct Open link acts; it must not also expand the row
+      if(e && e.target && e.target.closest && e.target.closest('.attn-open')) return;
       var open = el.getAttribute('aria-expanded')==='true';
       el.setAttribute('aria-expanded', open?'false':'true');
       detail.hidden = open;

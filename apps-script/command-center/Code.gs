@@ -1,9 +1,9 @@
 /**
- * Ops Command Center — stats API  (SEPARATE Apps Script project)
+ * Ops Command Center - stats API  (SEPARATE Apps Script project)
  * =============================================================================
  * Read-only aggregator. Reads the domain spreadsheets and returns ONE JSON
  * payload the Command Center page renders. This is its OWN project with its OWN
- * web-app deployment — it does NOT share code or a deployment with the Space
+ * web-app deployment - it does NOT share code or a deployment with the Space
  * Status notifier (02_notify_on_submit.gs). Nothing here can affect that URL.
  *
  * DEPLOY (first time):
@@ -33,17 +33,17 @@ const SOURCES = {
   inventory:   '1QZf3LbKOsuwsxeno3f5aDTACObMRXaRY1yX6_5Aj_lU', // Tool inventory, purchasing, locks
 };
 
-// Space Status SLA windows (days) by severity — mirrors the notifier.
+// Space Status SLA windows (days) by severity - mirrors the notifier.
 const SLA_DAYS = { red: 0, orange: 3, yellow: 10, ivory: 21, purple: null };
 
 const CACHE_SECONDS = 180; // SpreadsheetApp reads are slow; serve cached JSON between refreshes.
 
 // Bump this whenever the payload shape or any domain's logic changes.
-// CacheService is keyed per SCRIPT, not per deployment version — so without a
+// CacheService is keyed per SCRIPT, not per deployment version - so without a
 // version in the key, a redeploy keeps serving the OLD code's output until the
 // TTL expires. That once showed "supplies need restocking" over "all supplies
 // stocked". Bumping the key makes a redeploy take effect immediately.
-const CACHE_VERSION = 'v6';   // v6: de-duplicated subs; graduated applicants excluded
+const CACHE_VERSION = 'v7';   // v7: breakdown lines use a middle dot, not an em dash
 const CACHE_KEY = 'stats_' + CACHE_VERSION;
 
 // --- Web entry point -------------------------------------------------------
@@ -94,12 +94,12 @@ function buildStats_() {
     safe_(inventory_,  'inventory',  'Inventory',      '#0d9488'),
     // Compliance is intentionally NOT shown. The Master Sheet has no expiry or
     // renewal date in any tab, so the tile could only ever state a passive record
-    // count — nothing you can act on. compliance_() is kept below, ready to
+    // count - nothing you can act on. compliance_() is kept below, ready to
     // re-enable the moment that sheet gains a renewal-date column.
   ];
 
   // Flatten attention items, urgent (crit) before soon (warn), stable within.
-  // NB: don't use `rank[sev] || 9` — crit's rank is 0 (falsy) and would fall through to 9.
+  // NB: don't use `rank[sev] || 9` - crit's rank is 0 (falsy) and would fall through to 9.
   const sevRank = function (sev) { return sev === 'crit' ? 0 : (sev === 'warn' ? 1 : 9); };
   const attention = [];
   domains.forEach(function (d) { (d.attention || []).forEach(function (a) { attention.push(a); }); });
@@ -181,8 +181,8 @@ function space_() {
   const stat = {
     key: 'space', name: 'Space issues', dot: '#c0392b', live: true,
     value: open.length, unit: 'open', state: state,
-    // Only facts that change what you'd do — never "0 red".
-    // Context, not alarms — "1 overdue" already has its own row in the feed.
+    // Only facts that change what you'd do - never "0 red".
+    // Context, not alarms - "1 overdue" already has its own row in the feed.
     sub: resolved ? resolved + ' resolved this term' : 'None resolved yet',
   };
   if (open.length + resolved > 0) {
@@ -239,7 +239,7 @@ function ell_() {
   const cSafety = findColContains_(H, ['safety and maintenance']);
   const cSupply = findColContains_(H, ['supply status']);
 
-  // Rows aren't guaranteed sorted — take the newest timestamp, not the last row.
+  // Rows aren't guaranteed sorted - take the newest timestamp, not the last row.
   let latest = null, latestTs = -1, logged = 0;
   const shiftCounts = {};
   for (let i = 1; i < v.length; i++) {
@@ -255,9 +255,9 @@ function ell_() {
   }
   if (!latest) throw new Error('no timestamped rows');
 
-  const activity = cAct >= 0 ? firstWord_(latest[cAct]) : '—';
+  const activity = cAct >= 0 ? firstWord_(latest[cAct]) : 'n/a';
   // "No issues" / "All supplies stocked" are the nothing-to-report options. Match on
-  // the distinctive word, not the whole phrase — the sheet's wording drifts.
+  // the distinctive word, not the whole phrase - the sheet's wording drifts.
   const flags    = cSafety >= 0 ? splitExcluding_(latest[cSafety], ['no issue']) : [];
   const supply   = cSupply >= 0 ? splitExcluding_(latest[cSupply], ['stocked']) : [];
   const peak     = topKey_(shiftCounts);
@@ -294,7 +294,7 @@ function ell_() {
 }
 
 // --- FABMAN (live) ---------------------------------------------------------
-// Reads the sheet that fetchFabmanMembers() already syncs — deliberately NOT the
+// Reads the sheet that fetchFabmanMembers() already syncs - deliberately NOT the
 // Fabman REST API. Reasons: (1) the API needs a secret key, and we refuse to copy
 // a credential into a second project; (2) "does this member have training?" is a
 // per-member call (~325 HTTP round-trips) that would blow the 6-minute execution
@@ -372,7 +372,7 @@ function fabman_() {
     attention.push({
       sev: 'warn', domain: 'Fabman', dot: '#2563c9',
       title: gradActive + ' graduated ' + (gradActive === 1 ? 'member' : 'members') + ' still have active access',
-      sub: 'Class of ' + cutoff + ' and earlier — lock them to revoke machine access',
+      sub: 'Class of ' + cutoff + ' and earlier. Lock them to revoke machine access',
       pill: 'Access', pillType: 'warn',
       items: groupTop_(gradByTeam, 8),
     });
@@ -420,7 +420,7 @@ function signupsSince_(ss, since) {
 // --- COMPLIANCE (live, but informational) ----------------------------------
 // NOTE: every Master Sheet tab is a historical sign-up log (DATE | NAME | netID |
 // TEAM). There is NO expiry or renewal date anywhere, so "expiring in 30 days" /
-// "lapsed" CANNOT be computed — we do not fake it. To make this tile actionable,
+// "lapsed" CANNOT be computed - we do not fake it. To make this tile actionable,
 // the sheet needs either a renewal-date column or a stated validity window (e.g.
 // "usage agreements are valid 12 months from DATE"); then this becomes real.
 
@@ -453,7 +453,7 @@ function compliance_() {
 
 // --- FLEET (live, best-effort) ---------------------------------------------
 // The Log tab's row 1 is a banner ("Project Teams Vehicle Reservations Toyota
-// Tacoma…"), not headers — so we scan the first few rows for the real header row.
+// Tacoma…"), not headers - so we scan the first few rows for the real header row.
 // If we can't find it we throw, and safe_() renders an honest "unavailable" tile
 // rather than inventing a booking. Run peekRows('drivers','Log',5) to confirm.
 
@@ -465,7 +465,7 @@ function fleet_() {
   // Real header lives on row 3: Team | Name | NetID | Phone Number |
   // Date (doubleclick) | Checkout Time | Return Time | Destination | Parking Location
   const hr = findHeaderRow_(v, ['team', 'name', 'date'], 6);
-  if (hr < 0) throw new Error('header row not found in Log — run peekFleetLog()');
+  if (hr < 0) throw new Error('header row not found in Log - run peekFleetLog()');
   const H = v[hr].map(normh_);
 
   const cDate  = findColContains_(H, ['date']);
@@ -474,7 +474,7 @@ function fleet_() {
   const cEnd   = findColContains_(H, ['return time', 'return', 'end']);
   const cDest  = findColContains_(H, ['destination']);
   if (cDate < 0) throw new Error('no date column in Log');
-  if (cStart < 0 || cEnd < 0) throw new Error('no checkout/return time columns — cannot detect conflicts');
+  if (cStart < 0 || cEnd < 0) throw new Error('no checkout/return time columns - cannot detect conflicts');
 
   const today = startOfDay_(new Date());
   const weekEnd = addDays_(today, 7);
@@ -500,7 +500,7 @@ function fleet_() {
   incomplete.sort(function (a, b) { return a.date - b.date; });   // soonest first
 
   // Overlap detection on today's bookings: [checkout, return) intervals that intersect.
-  // This endpoint is PUBLIC — label bookings by team only. Never fall back to the
+  // This endpoint is PUBLIC - label bookings by team only. Never fall back to the
   // driver's name; that would publish student PII to anyone holding the URL.
   const label = function (row) {
     const t = cTeam >= 0 ? String(row[cTeam]).trim() : '';
@@ -531,7 +531,7 @@ function fleet_() {
     attention.push({
       sev: 'crit', domain: 'Fleet', dot: '#7c3aed',
       title: 'Tacoma is double-booked today',
-      sub: 'Two teams hold overlapping checkout times — one must move',
+      sub: 'Two teams hold overlapping checkout times. One must move',
       pill: 'Conflict', pillType: 'crit',
       items: clashes.slice(0, 8),
     });
@@ -542,7 +542,7 @@ function fleet_() {
       title: incomplete.length + ' reservation' + (incomplete.length === 1 ? '' : 's') + ' this week ' + (incomplete.length === 1 ? 'is' : 'are') + ' missing details',
       sub: 'Fleet will not release the truck without times and a destination',
       pill: 'Incomplete', pillType: 'warn',
-      // Team + date + what's missing. Never the driver's name — public endpoint.
+      // Team + date + what's missing. Never the driver's name - public endpoint.
       items: incomplete.slice(0, 8).map(function (x) {
         return joinBits_([
           (cTeam >= 0 ? String(x.row[cTeam]).trim() : '') || 'Unlabelled booking',
@@ -589,7 +589,7 @@ function fleet_() {
 // Header is on row 2; row 1 is instructions. The sheet states its own rules:
 //   ">> Complete all fields (application not processed with missing info)"
 //   ">> Initial each upon completion (… without safety, fleet, and release)"
-// and the Process tab says "update column P when filed" — column P is `requested`.
+// and the Process tab says "update column P when filed" - column P is `requested`.
 // Columns 17+ are a summary/pivot block, not driver rows; NetID gates them out.
 //
 // PUBLIC ENDPOINT: never emit Email, Name or NetID. Group by team / requirement.
@@ -630,7 +630,7 @@ function fleetApproval_() {
     const team = (cTeam >= 0 ? String(row[cTeam]).trim() : '') || 'Unassigned';
 
     // This tab is a years-long log, not a queue. An application for someone who
-    // has already graduated can never be actioned — counting it drowns the feed.
+    // has already graduated can never be actioned - counting it drowns the feed.
     const gy = parseInt(String(row[cGrad] || '').trim(), 10);
     if (!isNaN(gy) && gy <= cutoff) continue;
 
@@ -690,7 +690,7 @@ function inventory_() {
       const ret = cRet >= 0 ? String(v[i][cRet]).trim() : '';
       if (!out || ret) continue;
       locksOut++;
-      // NOTE: this endpoint is public — never emit "Key assigned to" or NetID.
+      // NOTE: this endpoint is public - never emit "Key assigned to" or NetID.
       lockItems.push(joinBits_([
         cTeam >= 0 ? String(v[i][cTeam]).trim() : '',
         cEquip >= 0 ? String(v[i][cEquip]).trim() : '',
@@ -732,7 +732,7 @@ function safe_(fn, key, name, dot) {
   } catch (err) {
     Logger.log('domain "' + key + '" failed: ' + err);
     return {
-      stat: { key: key, name: name, dot: dot, live: false, value: '—',
+      stat: { key: key, name: name, dot: dot, live: false, value: 'n/a',
               unit: 'unavailable', state: 'good', sub: 'Could not read source sheet' },
       attention: [],
     };
@@ -814,7 +814,7 @@ function toMinutes_(cell) {
 
 function firstWord_(s) {
   const t = String(s == null ? '' : s).trim();
-  return t ? t.split(/[\s(]/)[0] : '—';
+  return t ? t.split(/[\s(]/)[0] : 'n/a';
 }
 
 // Split a multi-select cell, dropping any "nothing to report" options.
@@ -837,22 +837,22 @@ function topKey_(obj) {
 
 function fmtNum_(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
 
-// Join only the parts that carry information — a "0 red" is noise, not a fact.
+// Join only the parts that carry information - a "0 red" is noise, not a fact.
 function joinBits_(parts) {
   return parts.filter(function (p) { return p; }).join(' · ');
 }
 
-// {Baja:7, Formula:5, …} -> ["Baja — 7", "Formula — 5", "+3 more teams"]
+// {Baja:7, Formula:5, …} -> ["Baja · 7", "Formula · 5", "+3 more teams"]
 function groupTop_(counts, limit) {
   const keys = Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a]; });
-  const out = keys.slice(0, limit).map(function (k) { return k + ' — ' + counts[k]; });
+  const out = keys.slice(0, limit).map(function (k) { return k + ' · ' + counts[k]; });
   const rest = keys.length - limit;
   if (rest > 0) out.push('+' + rest + ' more team' + (rest === 1 ? '' : 's'));
   return out;
 }
 
 /**
- * Print the first `n` rows of one tab — for tabs whose row 1 is a banner rather
+ * Print the first `n` rows of one tab - for tabs whose row 1 is a banner rather
  * than headers (e.g. drivers/Log).
  *
  * The editor's Run button calls functions with NO arguments, so these default to
@@ -864,7 +864,7 @@ function peekRows(sourceKey, tabName, n) {
   tabName = tabName || 'Log';
   n = n || 5;
   const id = SOURCES[sourceKey];
-  if (!id) { Logger.log('unknown source "' + sourceKey + '" — one of: ' + Object.keys(SOURCES).join(', ')); return; }
+  if (!id) { Logger.log('unknown source "' + sourceKey + '" - one of: ' + Object.keys(SOURCES).join(', ')); return; }
   const sh = SpreadsheetApp.openById(id).getSheetByName(tabName);
   if (!sh) { Logger.log('no tab "' + tabName + '"'); return; }
   const rows = Math.min(n, sh.getLastRow());
@@ -877,25 +877,25 @@ function peekFleetLog()      { peekRows('drivers', 'Log', 5); }
 function peekFleetApproval() { peekRows('drivers', 'Approval', 4); }
 
 /**
- * SCHEMA DISCOVERY — run manually from the editor (Run ▸ describeSources), then
+ * SCHEMA DISCOVERY - run manually from the editor (Run ▸ describeSources), then
  * copy the Execution log. Prints every tab name, row count, and header row for
  * each source spreadsheet: exactly what's needed to wire the remaining domains.
  *
- * Deliberately NOT exposed over the web app — that endpoint is public ("Anyone"),
+ * Deliberately NOT exposed over the web app - that endpoint is public ("Anyone"),
  * and this would leak your sheet structure to the internet.
  */
 function describeSources() {
   Object.keys(SOURCES).forEach(function (key) {
     try {
       const ss = SpreadsheetApp.openById(SOURCES[key]);
-      Logger.log('=== ' + key + ' — ' + ss.getName() + ' ===');
+      Logger.log('=== ' + key + ' - ' + ss.getName() + ' ===');
       ss.getSheets().forEach(function (sh) {
         const lastCol = sh.getLastColumn();
         const hdr = lastCol ? sh.getRange(1, 1, 1, lastCol).getValues()[0] : [];
         Logger.log('  [' + sh.getName() + '] rows=' + sh.getLastRow() + ' :: ' + hdr.join(' | '));
       });
     } catch (err) {
-      Logger.log('=== ' + key + ' — UNREADABLE: ' + err);
+      Logger.log('=== ' + key + ' - UNREADABLE: ' + err);
     }
   });
 }

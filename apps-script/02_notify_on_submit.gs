@@ -358,11 +358,15 @@ function buildReminder_(data, color, token, deadline) {
 
   let out = '<div style="max-width:600px;margin:0;padding:8px 6px;font-family:Georgia,serif;color:#1a1a1a">';
   out += '<p style="margin:0;color:#1a1a1a;font:15px/1.7 Georgia,serif">' + (team ? 'Dear ' + escapeHtml_(team) + ' team,' : 'Hello,') + '</p>';
-  out += L('This is a follow-up on a space issue in your team\'s space that has not yet been marked as addressed. It was due on <b>' + escapeHtml_(fmtDate_(deadline)) + '</b>.');
+  const reportedOn = data.timestamp ? fmtDate_(new Date(data.timestamp)) : '';
+  out += L('This is a follow-up on a space issue in your team\'s space'
+    + (reportedOn ? ', reported on <b>' + escapeHtml_(reportedOn) + '</b>,' : '')
+    + ' that has not yet been marked as addressed. It was due on <b>' + escapeHtml_(fmtDate_(deadline)) + '</b>.');
   let pb = '';
   if (issue) pb += 'The concern relates to ' + escapeHtml_(lcFirst_(issue));
   if (action) pb += (pb ? ', and we ask that you ' : 'We ask that you ') + escapeHtml_(lcFirst_(action));
   if (pb) out += L(pb + '.');
+  if (data.details) out += L('The reporter noted: &ldquo;' + escapeHtml_(data.details) + '&rdquo;');
   out += L('Please resolve it as soon as possible.');
   out += addressedButton_(token);
   out += L('With thanks,<br>Engineering Student Project Teams');
@@ -380,6 +384,7 @@ function doGet(e) {
   const admin = p.admin === '1' || p.admin === 'true';
   if (p.module === 'projects') return projectsPage_(embed, admin);   // Multi-user projects (04_tasks_projects.gs)
   if (p.module === 'projects-dash') return projectsDashboardPage_(embed);   // Projects dashboard (04_tasks_projects.gs)
+  if (p.module === 'registry-dash') return registryDashboardPage_(embed);   // CMMS dashboard: equipment, inventory, maintenance, action items
   if (p.team) { const t = lookupTeamByToken_(p.team); return t ? teamPortal_(t, false) : htmlPage_('Invalid link', 'This team link is not recognized.'); }
   if (p.view === 'all') return allIssuesPage_(embed, admin);
   if (p.registry) return registryPage_(String(p.registry), p.embed === '1' || p.embed === 'true');   // read-only Equipment / Inventory tables
@@ -397,10 +402,12 @@ function portalStyles_() {
     + '.btn-primary{color:#fff;background:linear-gradient(180deg,#d62b2b 0%,#b31b1b 55%,#8f1515 100%);box-shadow:0 4px 14px rgba(179,27,27,.28)}'
     + '.btn-primary:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(179,27,27,.36)}'
     + '.btn-primary:active{transform:translateY(0)}'
-    + '.btn-confirm{color:#fff;background:linear-gradient(180deg,#1d9d5b 0%,#157a47 100%);box-shadow:0 4px 12px rgba(21,122,71,.25)}'
-    + '.btn-confirm:hover{transform:translateY(-1px);box-shadow:0 8px 18px rgba(21,122,71,.32)}'
-    + '.btn-ghost{color:#666;background:#fff;border:1.5px solid #e0e0dc;padding:10px 16px;border-radius:10px}'
-    + '.btn-ghost:hover{color:#333;border-color:#ccc;background:#fafaf8}'
+    + '.btn-confirm{color:#fff;background:#157a47;box-shadow:0 1px 2px rgba(21,122,71,.2)}'
+    + '.btn-confirm:hover{background:#12693c}'
+    + '.btn-confirm:active{transform:translateY(1px)}'
+    + '.btn-ghost{color:#57534e;background:#faf9f6;border:1.5px solid #e2ddd6;padding:9px 15px;border-radius:9px;font-weight:700}'
+    + '.btn-ghost:hover{color:#292524;border-color:#b5b0a8;background:#fff}'
+    + '.btn-ghost:active{background:#f0efe9}'
     + '.btn-row{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}'
     + '.stats{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}'
     + '.stat{flex:1;min-width:120px;padding:16px 18px;background:#fff;border:1.5px solid #e7e7e3;border-radius:14px;box-shadow:0 2px 8px rgba(20,20,30,.06);position:relative;overflow:hidden}'
@@ -433,6 +440,7 @@ function portalStyles_() {
     + '.card-foot{display:flex;align-items:center;gap:8px;flex-wrap:wrap;border-top:1.5px solid #f1f1f1;padding:13px 20px;background:linear-gradient(180deg,#fcfcfb 0%,#f8f8f6 100%)}'
     + '.card-foot>:first-child{margin-right:auto}'
     + '.card-foot .btn-row{gap:8px}'
+    + '.card-foot .btn{padding:8px 14px;font-size:12.5px;border-radius:9px}'
     + '.card-team{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#b31b1b}'
     + '.card-title{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:18px;font-weight:800;letter-spacing:-.02em;line-height:1.25;margin-top:3px;color:#111}'
     + '.card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}'
@@ -853,6 +861,210 @@ function allIssuesPage_(embedded, admin) {
 }
 
 // Read-only registry table (Equipment or Inventory) for the hub. Phase 1 CMMS.
+// CMMS dashboard: one read-only glance at the shop - open work, stock to reorder,
+// maintenance coming due, and the live action-item feed. Reads the registry spreadsheet.
+function registryDashboardPage_(embedded) {
+  var eq = readTab_('Equipment');
+  var invd = readTab_('Inventory');
+  var pm = readTab_('Maintenance');
+  var act = readTab_('Action items');
+
+  var col = function (H, name) { for (var i = 0; i < H.length; i++) { if (norm_(H[i]) === norm_(name)) return i; } return -1; };
+  var today = new Date(); today.setHours(0, 0, 0, 0);
+  var DAY = 86400000;
+  var toDate = function (v) { if (v instanceof Date) return v; if (v === '' || v == null) return null; var d = new Date(v); return isNaN(d.getTime()) ? null : d; };
+  var startOf = function (d) { var x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+  var truthy = function (v) { if (v === true) return true; var s = String(v == null ? '' : v).trim().toLowerCase(); return s === 'true' || s === 'yes' || s === 'y' || s === '1' || s === 'active' || s === 'x'; };
+  var dueLabel = function (d, diff) {
+    if (!d || diff === null) return { txt: 'No date set', cls: 'is-ok' };
+    if (diff < 0) return { txt: 'Overdue ' + (-diff) + 'd', cls: 'is-over' };
+    if (diff === 0) return { txt: 'Due today', cls: 'is-over' };
+    if (diff <= 7) return { txt: 'Due in ' + diff + 'd', cls: 'is-soon' };
+    return { txt: fmtShort_(d), cls: 'is-ok' };
+  };
+  var statusPill = function (s) {
+    var t = String(s || '').toLowerCase();
+    if (t.indexOf('block') >= 0 || t.indexOf('urgent') >= 0) return 'pill-out';
+    if (t.indexOf('progress') >= 0 || t.indexOf('order') >= 0 || t.indexOf('wait') >= 0) return 'pill-prog';
+    return 'pill-open';
+  };
+
+  // Inventory: healthy vs low vs out, and a reorder list.
+  var iOn = col(invd.headers, 'On hand'), iRe = col(invd.headers, 'Reorder point'),
+      iItem = col(invd.headers, 'Item'), iUnit = col(invd.headers, 'Unit');
+  var invCounted = 0, outCount = 0, lowCount = 0, healthy = 0, reorder = [];
+  invd.rows.forEach(function (r) {
+    if (iOn < 0 || !isNum_(r[iOn])) return;
+    var on = Number(r[iOn]);
+    var re = (iRe >= 0 && isNum_(r[iRe])) ? Number(r[iRe]) : 0;
+    var name = iItem >= 0 ? String(r[iItem]).trim() : '';
+    var unit = iUnit >= 0 ? String(r[iUnit]).trim() : '';
+    invCounted++;
+    var out = on <= 0;
+    var low = on > 0 && re > 0 && on <= re;
+    if (out) outCount++; else if (low) lowCount++; else healthy++;
+    if (out || low) reorder.push({ name: name, on: on, re: re, unit: unit, out: out });
+  });
+  reorder.sort(function (a, b) { if (a.out !== b.out) return a.out ? -1 : 1; return (b.re - b.on) - (a.re - a.on); });
+
+  // Maintenance: active tasks, soonest due first.
+  var mAct = col(pm.headers, 'Active'), mNext = col(pm.headers, 'Next due'),
+      mTask = col(pm.headers, 'Task'), mArea = col(pm.headers, 'Equipment / area');
+  var pmDue = 0, pmList = [];
+  pm.rows.forEach(function (r) {
+    var active = mAct < 0 ? true : truthy(r[mAct]);
+    if (!active) return;
+    var next = mNext >= 0 ? toDate(r[mNext]) : null;
+    var diff = next ? Math.round((startOf(next) - today) / DAY) : null;
+    if (diff !== null && diff <= 0) pmDue++;
+    pmList.push({ task: mTask >= 0 ? String(r[mTask]).trim() : '', area: mArea >= 0 ? String(r[mArea]).trim() : '', next: next, diff: diff });
+  });
+  pmList.sort(function (a, b) { var av = a.diff === null ? 1e9 : a.diff, bv = b.diff === null ? 1e9 : b.diff; return av - bv; });
+
+  // Action items: everything not yet done, soonest due first.
+  var aStatus = col(act.headers, 'Status'), aDone = col(act.headers, 'Completed'), aTitle = col(act.headers, 'Title'),
+      aLoc = col(act.headers, 'Location'), aEquip = col(act.headers, 'Equipment / part'), aWho = col(act.headers, 'Assigned to'),
+      aDue = col(act.headers, 'Due'), aCreated = col(act.headers, 'Created');
+  var openActions = [];
+  act.rows.forEach(function (r) {
+    var st = aStatus >= 0 ? String(r[aStatus] || '').trim() : '';
+    var stl = st.toLowerCase();
+    var done = (aDone >= 0 && String(r[aDone]).trim() !== '') || stl === 'done' || stl === 'completed' || stl === 'closed';
+    if (done) return;
+    openActions.push({
+      title: aTitle >= 0 ? String(r[aTitle]).trim() : '',
+      loc: aLoc >= 0 ? String(r[aLoc]).trim() : '',
+      equip: aEquip >= 0 ? String(r[aEquip]).trim() : '',
+      who: aWho >= 0 ? String(r[aWho]).trim() : '',
+      status: st || 'Open',
+      due: aDue >= 0 ? toDate(r[aDue]) : null,
+      created: aCreated >= 0 ? toDate(r[aCreated]) : null
+    });
+  });
+  openActions.sort(function (a, b) {
+    var ad = a.due ? startOf(a.due).getTime() : 8.64e15, bd = b.due ? startOf(b.due).getTime() : 8.64e15;
+    if (ad !== bd) return ad - bd;
+    return (b.created ? b.created.getTime() : 0) - (a.created ? a.created.getTime() : 0);
+  });
+
+  var assets = eq.rows.length, invItems = invd.rows.length, reorderCount = outCount + lowCount, openCount = openActions.length;
+
+  var cmms = '<style>'
+    + '.cmms-list{display:flex;flex-direction:column}'
+    + '.cmms-row{display:grid;grid-template-columns:1fr auto;gap:2px 14px;align-items:center;padding:13px 0;border-bottom:1px solid #f0efe9}'
+    + '.cmms-row:first-child{padding-top:2px}.cmms-row:last-child{border-bottom:0;padding-bottom:2px}'
+    + '.cmms-title{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:14px;font-weight:700;color:#26231f;line-height:1.3}'
+    + '.cmms-sub{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12px;color:#8a857c;margin-top:2px}'
+    + '.cmms-when{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12px;font-weight:800;white-space:nowrap}'
+    + '.cmms-when-wrap{display:flex;align-items:center;gap:10px;justify-self:end;white-space:nowrap}'
+    + '.cmms-when.is-over{color:#b31b1b}.cmms-when.is-soon{color:#b06a00}.cmms-when.is-ok{color:#8a857c}'
+    + '.pill{display:inline-block;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;border-radius:99px;padding:3px 9px;white-space:nowrap}'
+    + '.pill-open{color:#b06a00;background:#fdf3df;border:1px solid #f0dca6}'
+    + '.pill-out{color:#b31b1b;background:#fdecec;border:1px solid #f5d0d0}'
+    + '.pill-prog{color:#2563c9;background:#eaf1fe;border:1px solid #cfe0fb}'
+    + '@media(max-width:520px){.cmms-row{grid-template-columns:1fr}.cmms-when-wrap{justify-self:start;margin-top:6px}}'
+    + '</style>';
+
+  var inner = tpDashStyles_() + cmms + '<div class="dash">';
+
+  inner += '<div class="dash-hero"><div class="dash-hero-glow"></div>'
+    + '<div class="dash-kicker">Ops registry</div>'
+    + '<h1 class="dash-h1">Equipment &amp; Inventory</h1>'
+    + '<div class="dash-hero-row">'
+    +   '<div><div class="dash-hero-num">' + openCount + '</div><div class="dash-hero-lbl">open action item' + (openCount === 1 ? '' : 's') + ' to fix, restock, or maintain</div></div>'
+    +   '<div class="dash-hero-mini">'
+    +     '<div><b>' + reorderCount + '</b>to reorder</div>'
+    +     '<div><b>' + pmDue + '</b>maintenance due</div>'
+    +   '</div>'
+    + '</div></div>';
+
+  var tile = function (n, lbl, c) { return '<div class="dash-tile" style="--c:' + c + '"><div class="dash-tile-num">' + n + '</div><div class="dash-tile-lbl">' + lbl + '</div></div>'; };
+  inner += '<div class="dash-tiles">'
+    + tile(assets, 'Assets tracked', '#2563c9')
+    + tile(invItems, 'Inventory items', '#0d9488')
+    + tile(reorderCount, 'Low / out of stock', '#b31b1b')
+    + tile(pmDue, 'Maintenance due', '#e08a1e')
+    + '</div>';
+
+  if (!assets && !invItems && !pm.rows.length && !act.rows.length) {
+    inner += '<div class="dash-empty">The registry is empty. Run <b>Set up / update tabs</b> in the registry sheet, then add equipment and inventory.</div></div>';
+    return swissShell_(inner, 'Equipment & inventory', true, embedded);
+  }
+
+  var ring;
+  if (!invCounted) {
+    ring = '<div class="dash-card"><div class="dash-card-h">Inventory in stock</div><div class="dash-ringwrap"><div class="dash-ring-cap">No inventory counts yet.</div></div></div>';
+  } else {
+    var inStock = Math.round(healthy / invCounted * 100);
+    var offset = 100 - inStock;
+    ring = '<div class="dash-card"><div class="dash-card-h">Inventory in stock</div><div class="dash-ringwrap">'
+      + '<svg class="dash-ring" viewBox="0 0 42 42" aria-hidden="true">'
+      +   '<defs><linearGradient id="dashgrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8f1515"/><stop offset="0.6" stop-color="#d62b2b"/><stop offset="1" stop-color="#f0c050"/></linearGradient></defs>'
+      +   '<circle class="dash-ring-bg" cx="21" cy="21" r="15.915"/>'
+      +   '<circle class="dash-ring-fg" cx="21" cy="21" r="15.915" stroke-dasharray="100" stroke-dashoffset="100" data-off="' + offset + '" transform="rotate(-90 21 21)"/>'
+      +   '<text class="dash-ring-num" x="21" y="20.4" text-anchor="middle">' + inStock + '%</text>'
+      +   '<text class="dash-ring-sub" x="21" y="26" text-anchor="middle">IN STOCK</text>'
+      + '</svg>'
+      + '<div class="dash-ring-cap">' + healthy + ' of ' + invCounted + ' items healthy</div>'
+      + '</div></div>';
+  }
+
+  var bars = '<div class="dash-card"><div class="dash-card-h">Stock to reorder</div>';
+  if (!reorder.length) {
+    bars += '<div class="dash-gal-who">Everything is above its reorder point.</div>';
+  } else {
+    bars += '<div class="dash-bars">';
+    reorder.slice(0, 7).forEach(function (it) {
+      var frac = it.re > 0 ? Math.max(0, Math.min(1, it.on / it.re)) : (it.on > 0 ? 1 : 0);
+      var val = it.out ? '<span class="pill pill-out">Out</span>' : escapeHtml_(it.on + (it.unit ? ' ' + it.unit : '') + ' / ' + it.re);
+      bars += '<div><div class="dash-bar-row"><span class="dash-bar-name">' + escapeHtml_(it.name || '(unnamed)') + '</span><span class="dash-bar-val">' + val + '</span></div>'
+        + '<div class="dash-bar-track"><div class="dash-bar-fill" style="--w:' + frac.toFixed(3) + '"></div></div></div>';
+    });
+    bars += '</div>';
+  }
+  bars += '</div>';
+  inner += '<div class="dash-grid">' + ring + bars + '</div>';
+
+  if (pmList.length) {
+    inner += '<div class="dash-sec">Maintenance</div><div class="dash-card"><div class="cmms-list">';
+    pmList.slice(0, 8).forEach(function (m) {
+      var w = dueLabel(m.next, m.diff);
+      inner += '<div class="cmms-row">'
+        + '<div><div class="cmms-title">' + escapeHtml_(m.task || '(untitled)') + '</div>'
+        + (m.area ? '<div class="cmms-sub">' + escapeHtml_(m.area) + '</div>' : '') + '</div>'
+        + '<div class="cmms-when ' + w.cls + '">' + escapeHtml_(w.txt) + '</div>'
+        + '</div>';
+    });
+    inner += '</div></div>';
+  }
+
+  inner += '<div class="dash-sec">Open action items</div>';
+  if (!openActions.length) {
+    inner += '<div class="dash-empty">No open action items. The shop is caught up.</div>';
+  } else {
+    inner += '<div class="dash-card"><div class="cmms-list">';
+    openActions.slice(0, 12).forEach(function (a) {
+      var subBits = [];
+      if (a.loc) subBits.push(a.loc);
+      if (a.equip) subBits.push(a.equip);
+      if (a.who) subBits.push(a.who);
+      var due = a.due ? dueLabel(a.due, Math.round((startOf(a.due) - today) / DAY)) : null;
+      inner += '<div class="cmms-row">'
+        + '<div><div class="cmms-title">' + escapeHtml_(a.title || '(untitled)') + '</div>'
+        + (subBits.length ? '<div class="cmms-sub">' + escapeHtml_(subBits.join(' · ')) + '</div>' : '') + '</div>'
+        + '<div class="cmms-when-wrap"><span class="pill ' + statusPill(a.status) + '">' + escapeHtml_(a.status) + '</span>'
+        + (due ? '<span class="cmms-when ' + due.cls + '">' + escapeHtml_(due.txt) + '</span>' : '') + '</div>'
+        + '</div>';
+    });
+    inner += '</div></div>';
+    if (openActions.length > 12) inner += '<div class="dash-gal-who" style="margin-top:10px">Showing 12 of ' + openActions.length + ' open items. Open the action items sheet for the rest.</div>';
+  }
+
+  inner += '</div>';
+  inner += '<script>requestAnimationFrame(function(){var c=document.querySelector(".dash-ring-fg");if(c)c.style.strokeDashoffset=c.getAttribute("data-off");});</script>';
+  return swissShell_(inner, 'Equipment & inventory', true, embedded);
+}
+
 function registryPage_(which, embedded) {
   const inv = String(which).toLowerCase() === 'inventory';
   const tab = inv ? 'Inventory' : 'Equipment';
