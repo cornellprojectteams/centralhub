@@ -387,7 +387,9 @@ function doGet(e) {
   if (p.module === 'registry-dash') return registryDashboardPage_(embed);   // CMMS dashboard: equipment, inventory, maintenance, action items
   if (p.team) { const t = lookupTeamByToken_(p.team); return t ? teamPortal_(t, false) : htmlPage_('Invalid link', 'This team link is not recognized.'); }
   if (p.view === 'all') return allIssuesPage_(embed, admin);
-  if (p.registry) return registryPage_(String(p.registry), p.embed === '1' || p.embed === 'true');   // read-only Equipment / Inventory tables
+  if (p.registry === 'labels') return regLabelsPage_(String(p.which || 'equipment'));   // printable QR labels
+  if (p.registry === 'item') return regItemPage_(String(p.which || 'equipment'), String(p.id || ''), admin);   // single item (scan target)
+  if (p.registry) return registryPage_(String(p.registry), embed, admin);   // Equipment / Inventory tables (editable in admin mode)
   if (p.view) return teamPortal_(String(p.view), !(p.act === '1' || p.act === 'true'), p.embed === '1' || p.embed === 'true');   // ?view=<team> read-only; &act=1 markable; &embed=1 no top bar
   if (p.id) return confirmPage_(p.id);
   return pickerPage_();
@@ -891,7 +893,7 @@ function registryDashboardPage_(embedded) {
 
   // Inventory: healthy vs low vs out, and a reorder list.
   var iOn = col(invd.headers, 'On hand'), iRe = col(invd.headers, 'Reorder point'),
-      iItem = col(invd.headers, 'Item'), iUnit = col(invd.headers, 'Unit');
+      iItem = col(invd.headers, 'Item'), iUnit = col(invd.headers, 'Unit'), iImg = col(invd.headers, 'Image');
   var invCounted = 0, outCount = 0, lowCount = 0, healthy = 0, reorder = [];
   invd.rows.forEach(function (r) {
     if (iOn < 0 || !isNum_(r[iOn])) return;
@@ -903,7 +905,7 @@ function registryDashboardPage_(embedded) {
     var out = on <= 0;
     var low = on > 0 && re > 0 && on <= re;
     if (out) outCount++; else if (low) lowCount++; else healthy++;
-    if (out || low) reorder.push({ name: name, on: on, re: re, unit: unit, out: out });
+    if (out || low) reorder.push({ name: name, on: on, re: re, unit: unit, out: out, img: iImg >= 0 ? r[iImg] : '' });
   });
   reorder.sort(function (a, b) { if (a.out !== b.out) return a.out ? -1 : 1; return (b.re - b.on) - (a.re - a.on); });
 
@@ -962,6 +964,10 @@ function registryDashboardPage_(embedded) {
     + '.pill-open{color:#b06a00;background:#fdf3df;border:1px solid #f0dca6}'
     + '.pill-out{color:#b31b1b;background:#fdecec;border:1px solid #f5d0d0}'
     + '.pill-prog{color:#2563c9;background:#eaf1fe;border:1px solid #cfe0fb}'
+    + '.dash-bar-row{grid-template-columns:26px 1fr auto}'
+    + '.dash-rthumb .reg-thumb{width:26px;height:26px;border-radius:7px;overflow:hidden;background:#f6f4ef;border:1px solid #ececea;display:flex;align-items:center;justify-content:center}'
+    + '.dash-rthumb .reg-thumb img{width:100%;height:100%;object-fit:cover;display:block}'
+    + '.dash-rthumb .reg-thumb-icon{color:#b0a99e}.dash-rthumb .reg-thumb-icon svg{width:15px;height:15px}'
     + '@media(max-width:520px){.cmms-row{grid-template-columns:1fr}.cmms-when-wrap{justify-self:start;margin-top:6px}}'
     + '</style>';
 
@@ -1017,7 +1023,7 @@ function registryDashboardPage_(embedded) {
     reorder.slice(0, 7).forEach(function (it) {
       var frac = it.re > 0 ? Math.max(0, Math.min(1, it.on / it.re)) : (it.on > 0 ? 1 : 0);
       var val = it.out ? '<span class="pill pill-out">Out</span>' : escapeHtml_(it.on + (it.unit ? ' ' + it.unit : '') + ' / ' + it.re);
-      bars += '<div><div class="dash-bar-row"><span class="dash-bar-name">' + escapeHtml_(it.name || '(unnamed)') + '</span><span class="dash-bar-val">' + val + '</span></div>'
+      bars += '<div><div class="dash-bar-row"><span class="dash-rthumb">' + regThumb_(it.img, it.name, 'inventory') + '</span><span class="dash-bar-name">' + escapeHtml_(it.name || '(unnamed)') + '</span><span class="dash-bar-val">' + val + '</span></div>'
         + '<div class="dash-bar-track"><div class="dash-bar-fill" style="--w:' + frac.toFixed(3) + '"></div></div></div>';
     });
     bars += '</div>';
@@ -1065,12 +1071,113 @@ function registryDashboardPage_(embedded) {
   return swissShell_(inner, 'Equipment & inventory', true, embedded);
 }
 
-function registryPage_(which, embedded) {
-  const inv = String(which).toLowerCase() === 'inventory';
-  const tab = inv ? 'Inventory' : 'Equipment';
-  const title = inv ? 'Inventory' : 'Equipment registry';
-  const data = readTab_(tab);
+// Field spec drives the add/edit forms and identifies each tab's natural key.
+function regFields_(which) {
+  if (String(which).toLowerCase() === 'inventory') {
+    return { tab: 'Inventory', key: 'Item', idPrefix: '', which: 'inventory', noun: 'item',
+      fields: [
+        { h: 'Item', label: 'Item', req: true }, { h: 'Location', label: 'Location' },
+        { h: 'On hand', label: 'On hand', type: 'number' }, { h: 'Unit', label: 'Unit' },
+        { h: 'Reorder point', label: 'Reorder point', type: 'number' }, { h: 'Reorder qty', label: 'Reorder qty', type: 'number' },
+        { h: 'Supplier', label: 'Supplier' }, { h: 'Product link', label: 'Product link', type: 'url' },
+        { h: 'eShop info', label: 'eShop info' }, { h: 'Assign to', label: 'Assign to' },
+        { h: 'Last restocked', label: 'Last restocked' }, { h: 'Image', label: 'Image', type: 'image' } ] };
+  }
+  return { tab: 'Equipment', key: 'Asset ID', idPrefix: 'EQ-', which: 'equipment', noun: 'equipment',
+    fields: [
+      { h: 'Asset ID', label: 'Asset ID', auto: true }, { h: 'Name', label: 'Name', req: true },
+      { h: 'Category', label: 'Category' }, { h: 'Location', label: 'Location' },
+      { h: 'Owning team', label: 'Owning team' }, { h: 'Owner', label: 'Owner' },
+      { h: 'Status', label: 'Status' }, { h: 'Installed', label: 'Installed' }, { h: 'Notes', label: 'Notes' },
+      { h: 'Image', label: 'Image', type: 'image' } ] };
+}
+
+// A thumbnail for a row: the stored photo if there is one, else a category icon so
+// every item still reads at a glance. Icons are inline SVG, nothing to fetch.
+function regThumb_(url, name, kind) {
+  const u = String(url == null ? '' : url).trim();
+  if (/^https?:\/\//i.test(u) || u.indexOf('data:') === 0) {
+    return '<span class="reg-thumb"><img src="' + escapeHtml_(u) + '" loading="lazy" alt="" onerror="this.parentNode.classList.add(\'reg-thumb-broken\')"></span>';
+  }
+  return '<span class="reg-thumb reg-thumb-icon">' + regCatIcon_(name, kind) + '</span>';
+}
+
+function regCatIcon_(name, kind) {
+  const t = (String(name || '') + ' ' + String(kind || '')).toLowerCase();
+  const has = function (arr) { return arr.some(function (w) { return t.indexOf(w) >= 0; }); };
+  const svg = function (paths) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' + paths + '</svg>'; };
+  if (has(['drill'])) return svg('<path d="M3 8h9v5H5a2 2 0 0 1-2-2V8z"/><path d="M12 9h4l2-2v6l-2-2h-4"/><path d="M7 13v4"/>');
+  if (has(['saw', 'blade'])) return svg('<circle cx="9" cy="12" r="6"/><path d="M9 9v3l2 1"/><path d="M15 12h6"/>');
+  if (has(['mill', 'lathe', 'press', 'grinder', 'sander', 'machine', 'pump', 'compressor'])) return svg('<rect x="4" y="4" width="16" height="12" rx="1"/><path d="M8 20h8M12 16v4M8 8h8v4H8z"/>');
+  if (has(['wrench', 'socket', 'ratchet', 'allen', 'plier', 'cutter', 'adapter', 'screw', 'punch', 'vice', 'shear', 'hack', 'caliper', 'tool', 'tape'])) return svg('<path d="M14 7a4 4 0 0 0-5 5l-6 6 2 2 6-6a4 4 0 0 0 5-5l-2 2-2-2 2-2z"/>');
+  if (has(['cabinet', 'storage', 'shelf', 'bench', 'tote', 'container', 'crate', 'bin', 'reel', 'cart'])) return svg('<rect x="4" y="3" width="16" height="18" rx="1"/><path d="M4 9h16M4 15h16M9 6h.01M9 12h.01M9 18h.01"/>');
+  if (has(['filter'])) return svg('<path d="M4 4h16l-6 8v6l-4 2v-8L4 4z"/>');
+  if (has(['glove', 'respirat', 'ppe', 'safety', 'flammable', 'shield'])) return svg('<path d="M12 3l7 3v5c0 4-3 7-7 9-4-2-7-5-7-9V6l7-3z"/>');
+  return svg('<path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/>');
+}
+
+function readTabRows_(name) {
+  const sh = registrySs_().getSheetByName(name);
+  if (!sh) return { headers: [], rows: [] };
+  const v = sh.getDataRange().getValues();
+  if (!v.length) return { headers: [], rows: [] };
+  const headers = v[0].map(function (h) { return String(h).trim(); });
+  const rows = [];
+  for (let i = 1; i < v.length; i++) {
+    if (v[i].every(function (c) { return String(c).trim() === ''; })) continue;
+    rows.push({ row: i + 1, cells: v[i] });
+  }
+  return { headers: headers, rows: rows };
+}
+
+function regRawVal_(v) {
+  if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  if (v === 0) return '0';
+  return String(v == null ? '' : v);
+}
+
+// Build the table body + a {rowNumber: {header: value}} map, reused by the page and refreshes.
+function regBuildTbody_(which, admin) {
+  const spec = regFields_(which);
+  const inv = spec.tab === 'Inventory';
+  const data = readTabRows_(spec.tab);
   const H = data.headers, rows = data.rows;
+  const idxOf = function (n) { for (let i = 0; i < H.length; i++) { if (norm_(H[i]) === norm_(n)) return i; } return -1; };
+  const cOnHand = idxOf('On hand'), cTeam = idxOf('Owning team'), cImg = idxOf('Image');
+  const cName = idxOf(inv ? 'Item' : 'Name'), cCat = idxOf('Category');
+  let html = ''; const mapParts = [], teams = {};
+  rows.forEach(function (rr) {
+    const r = rr.cells;
+    const out = inv && cOnHand >= 0 && isNum_(r[cOnHand]) && Number(r[cOnHand]) <= 0;
+    const hay = r.map(function (c) { return String(c); }).join(' ').toLowerCase();
+    const team = (!inv && cTeam >= 0) ? String(r[cTeam]).trim() : '';
+    if (team) teams[team] = 1;
+    const nm = cName >= 0 ? r[cName] : '', kind = (cCat >= 0 ? r[cCat] : '') + ' ' + spec.which;
+    html += '<tr class="reg-row" data-hay="' + escapeHtml_(hay) + '" data-team="' + escapeHtml_(team) + '">';
+    if (admin) html += '<td class="reg-actcell"><button type="button" class="reg-mini" onclick="regOpenEdit(' + rr.row + ')">Edit</button><button type="button" class="reg-mini reg-del" onclick="regDeleteRow(' + rr.row + ',this)">Delete</button></td>';
+    html += '<td class="reg-thumbcell">' + regThumb_(cImg >= 0 ? r[cImg] : '', nm, kind) + '</td>';
+    if (inv) html += '<td>' + (out ? '<span class="reg-chip">Out</span>' : '') + '</td>';
+    r.forEach(function (c, i) { if (i === cImg) return; const cls = (inv && i === cOnHand && out) ? ' class="reg-lowval"' : ''; html += '<td' + cls + '>' + regCell_(c) + '</td>'; });
+    html += '</tr>';
+    const obj = {}; H.forEach(function (h, i) { obj[h] = regRawVal_(r[i]); });
+    mapParts.push(JSON.stringify(String(rr.row)) + ':' + JSON.stringify(obj));
+  });
+  return { html: html, mapJson: '{' + mapParts.join(',') + '}', headers: H, inv: inv, teams: Object.keys(teams).sort(), key: spec.key, imgIdx: cImg };
+}
+
+// Client-callable: re-render the table body after a change (no page reload, which blanks the sandbox).
+function regRowsHtml(which, pass) {
+  if (!tpIsAdmin_(pass)) return { ok: false, error: 'Not authorized.' };
+  const b = regBuildTbody_(which, true);
+  return { ok: true, html: b.html, mapJson: b.mapJson };
+}
+
+function registryPage_(which, embedded, admin) {
+  const spec = regFields_(which);
+  const inv = spec.tab === 'Inventory';
+  const title = inv ? 'Inventory' : 'Equipment registry';
+  const b = regBuildTbody_(which, admin);
+  const H = b.headers;
 
   let head = '';
   if (!embedded) {
@@ -1078,51 +1185,151 @@ function registryPage_(which, embedded) {
       + '<div class="page-title">' + escapeHtml_(title) + '</div><div class="page-rule"></div></div>';
   }
 
-  if (!rows.length) {
-    return swissShell_(head + '<div class="empty">Nothing here yet. Add rows in the "' + escapeHtml_(tab) + '" tab.</div>', title, true, embedded);
+  let toolbar = '';
+  if (admin) {
+    toolbar = regUnlockBar_()
+      + '<div class="reg-tools" id="reg-tools">'
+      +   '<button type="button" class="btn btn-primary" onclick="regOpenAdd()">+ Add ' + escapeHtml_(spec.noun) + '</button>'
+      +   '<button type="button" class="btn btn-ghost" onclick="regScan()">Scan</button>'
+      +   (inv ? '<button type="button" class="btn btn-ghost" id="reg-backfill" onclick="regBackfill()">Fetch images</button>' : '')
+      +   '<a class="btn btn-ghost" href="?registry=labels&which=' + spec.which + '&admin=1" target="_blank" rel="noopener">Print labels</a>'
+      + '</div>';
   }
-
-  const idx = function (name) {
-    for (let i = 0; i < H.length; i++) { if (norm_(H[i]) === norm_(name)) return i; }
-    return -1;
-  };
-  const cOnHand = idx('On hand'), cTeam = idx('Owning team');
 
   let controls = '';
-  if (!inv && cTeam >= 0) {
-    const seen = {}, opts = [];
-    rows.forEach(function (r) { const t = String(r[cTeam]).trim(); if (t && !seen[t.toLowerCase()]) { seen[t.toLowerCase()] = 1; opts.push(t); } });
-    opts.sort();
-    controls += '<select id="team" onchange="flt()"><option value="">All teams</option>'
-      + opts.map(function (t) { return '<option value="' + escapeHtml_(t) + '">' + escapeHtml_(t) + '</option>'; }).join('') + '</select>';
+  if (!inv && b.teams.length) {
+    controls = '<select id="team" onchange="flt()"><option value="">All teams</option>'
+      + b.teams.map(function (t) { return '<option value="' + escapeHtml_(t) + '">' + escapeHtml_(t) + '</option>'; }).join('') + '</select>';
   }
 
-  let inner = head
-    + '<div class="filters">'
-    +   '<div class="search-wrap"><input id="q" type="search" placeholder="Search ' + escapeHtml_(tab.toLowerCase()) + '" oninput="flt()"></div>'
-    +   controls
-    + '</div>'
-    + '<div class="reg-scroll"><table class="reg-table"><thead><tr>';
-  if (inv) inner += '<th></th>';
-  H.forEach(function (h) { inner += '<th>' + escapeHtml_(h) + '</th>'; });
-  inner += '</tr></thead><tbody>';
-
-  rows.forEach(function (r) {
-    const out = inv && cOnHand >= 0 && isNum_(r[cOnHand]) && Number(r[cOnHand]) === 0;
-    const hay = r.map(function (c) { return String(c); }).join(' ').toLowerCase();
-    const team = (!inv && cTeam >= 0) ? String(r[cTeam]).trim() : '';
-    inner += '<tr class="reg-row" data-hay="' + escapeHtml_(hay) + '" data-team="' + escapeHtml_(team) + '">';
-    if (inv) inner += '<td>' + (out ? '<span class="reg-chip">Out</span>' : '') + '</td>';
-    r.forEach(function (c, i) {
-      const cls = (inv && i === cOnHand && out) ? ' class="reg-lowval"' : '';
-      inner += '<td' + cls + '>' + regCell_(c) + '</td>';
-    });
-    inner += '</tr>';
-  });
-  inner += '</tbody></table></div>'
+  let inner = '<div id="reg-root">' + head + toolbar
+    + '<div class="filters"><div class="search-wrap"><input id="q" type="search" placeholder="Search ' + escapeHtml_(spec.tab.toLowerCase()) + '" oninput="flt()"></div>' + controls + '</div>'
+    + '<div class="reg-scroll"><table class="reg-table"><thead><tr>'
+    + (admin ? '<th>Actions</th>' : '') + '<th></th>' + (inv ? '<th></th>' : '')
+    + H.map(function (h, i) { return i === b.imgIdx ? '' : '<th>' + escapeHtml_(h) + '</th>'; }).join('')
+    + '</tr></thead><tbody id="reg-tbody">' + b.html + '</tbody></table></div>'
     + '<div id="empty" class="empty" style="display:none">Nothing matches those filters.</div>';
 
-  inner += '<style>'
+  if (!b.html) inner += '<div class="empty">Nothing here yet.' + (admin ? ' Unlock, then add the first ' + escapeHtml_(spec.noun) + '.' : '') + '</div>';
+
+  inner += regStyles_() + regFilterJs_();
+  if (admin) {
+    inner += regFormOverlay_(which)
+      + '<script>var REG_WHICH=' + JSON.stringify(spec.which) + ';var REG_KEY=' + JSON.stringify(b.key)
+      + ';var REG_ROWS=' + b.mapJson.replace(/<\//g, '<\\/') + ';var ADMIN_PASS="";</script>'
+      + regEditJs_();
+  }
+  inner += '</div>';
+  return swissShell_(inner, title, true, embedded);
+}
+
+// Single-item view: the QR-label scan target. Focused card with quick actions.
+function regItemPage_(which, id, admin) {
+  const spec = regFields_(which);
+  const inv = spec.tab === 'Inventory';
+  const data = readTabRows_(spec.tab);
+  const H = data.headers;
+  const ki = H.map(function (h) { return norm_(h); }).indexOf(norm_(spec.key));
+  let found = null;
+  data.rows.forEach(function (rr) { if (ki >= 0 && String(rr.cells[ki]).trim() === String(id).trim()) found = rr; });
+
+  const head = '<div class="page-head"><div class="page-kicker">' + (inv ? 'Inventory item' : 'Equipment') + '</div>';
+  if (!found) {
+    return swissShell_('<div id="reg-root">' + head + '<div class="page-title">Not found</div><div class="page-rule"></div></div>'
+      + '<div class="empty">No ' + escapeHtml_(spec.noun) + ' matches "' + escapeHtml_(id) + '".</div>'
+      + '<p style="margin-top:16px"><a class="btn btn-ghost" href="?registry=' + spec.which + '&admin=1">Back to ' + escapeHtml_(spec.tab.toLowerCase()) + '</a></p></div>', 'Not found', false, false);
+  }
+  const r = found.cells;
+  const hi = function (n) { return H.map(function (h) { return norm_(h); }).indexOf(norm_(n)); };
+  const nameI = hi(inv ? 'Item' : 'Name'), imgI = hi('Image'), catI = hi('Category');
+  const name = nameI >= 0 ? String(r[nameI]) : String(id);
+
+  const imgUrl = imgI >= 0 ? String(r[imgI]).trim() : '';
+  const hero = (/^https?:\/\//i.test(imgUrl) || imgUrl.indexOf('data:') === 0)
+    ? '<img class="reg-hero" src="' + escapeHtml_(imgUrl) + '" alt="" onerror="this.style.display=\'none\'">'
+    : '<span class="reg-thumb reg-thumb-icon" style="width:72px;height:72px;border-radius:14px;margin-bottom:14px">' + regCatIcon_(name, (catI >= 0 ? r[catI] : '') + ' ' + spec.which) + '</span>';
+
+  let fieldsHtml = '';
+  H.forEach(function (h, i) {
+    if (i === imgI) return;
+    if (!String(r[i]).trim()) return;
+    fieldsHtml += '<div class="card-field"><span class="card-flabel">' + escapeHtml_(h) + '</span><div class="card-action">' + regCell_(r[i]) + '</div></div>';
+  });
+
+  let inner = '<div id="reg-root">' + head + '<div class="page-title">' + escapeHtml_(name) + '</div><div class="page-rule"></div></div>'
+    + '<div class="card"><div class="card-body">' + hero + fieldsHtml + '</div>';
+  if (admin) {
+    inner += regUnlockBar_()
+      + '<div class="card-foot" id="reg-tools"><span class="reg-mini-note">' + escapeHtml_(spec.key) + ': ' + escapeHtml_(String(id)) + '</span>'
+      + '<span class="btn-row">'
+      + (inv ? '<button type="button" class="btn btn-confirm" onclick="regRestockOne(' + found.row + ')">Mark restocked</button>' : '')
+      + '<button type="button" class="btn btn-ghost" onclick="regOpenEdit(' + found.row + ')">Edit</button>'
+      + '<button type="button" class="btn btn-ghost reg-del" onclick="regDeleteRow(' + found.row + ',this)">Delete</button>'
+      + '</span></div>';
+  }
+  inner += '</div><p style="margin-top:16px"><a class="btn btn-ghost" href="?registry=' + spec.which + '&admin=1">Back to ' + escapeHtml_(spec.tab.toLowerCase()) + '</a></p>';
+
+  inner += regStyles_();
+  if (admin) {
+    const one = {}; one[String(found.row)] = (function () { const o = {}; H.forEach(function (h, i) { o[h] = regRawVal_(r[i]); }); return o; })();
+    inner += regFormOverlay_(which)
+      + '<script>var REG_WHICH=' + JSON.stringify(spec.which) + ';var REG_KEY=' + JSON.stringify(spec.key)
+      + ';var REG_ROWS=' + JSON.stringify(one).replace(/<\//g, '<\\/') + ';var ADMIN_PASS="";var REG_ITEM=1;</script>'
+      + regEditJs_();
+  }
+  inner += '</div>';
+  return swissShell_(inner, name, false, false);
+}
+
+// Printable QR labels. Each label deep-links to its item page; scan with any phone camera.
+function regLabelsPage_(which) {
+  const spec = regFields_(which);
+  const data = readTabRows_(spec.tab);
+  const H = data.headers;
+  const ki = H.map(function (h) { return norm_(h); }).indexOf(norm_(spec.key));
+  const ni = H.map(function (h) { return norm_(h); }).indexOf(norm_(spec.tab === 'Inventory' ? 'Item' : 'Name'));
+  let base = '';
+  try { base = ScriptApp.getService().getUrl(); } catch (e) { base = ''; }
+
+  let cards = '';
+  data.rows.forEach(function (rr) {
+    const key = ki >= 0 ? String(rr.cells[ki]).trim() : '';
+    if (!key) return;
+    const name = ni >= 0 ? String(rr.cells[ni]).trim() : key;
+    const url = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'registry=item&which=' + spec.which + '&id=' + encodeURIComponent(key) + '&admin=1';
+    cards += '<div class="lab"><div class="lab-qr" data-url="' + escapeHtml_(url) + '"></div>'
+      + '<div class="lab-name">' + escapeHtml_(name) + '</div><div class="lab-id">' + escapeHtml_(key) + '</div></div>';
+  });
+
+  const inner = '<div class="lab-head"><div><div class="page-kicker">Ops registry</div><div class="page-title">' + escapeHtml_(spec.tab) + ' labels</div></div>'
+    + '<button class="btn btn-primary lab-print" onclick="window.print()">Print</button></div>'
+    + '<p class="lab-hint">Print, cut, and stick one on each ' + escapeHtml_(spec.noun) + '. Scanning a label with any phone camera opens its record.</p>'
+    + '<div class="lab-grid">' + (cards || '<div class="empty">Nothing to label yet.</div>') + '</div>'
+    + '<style>'
+    + '.lab-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}'
+    + '.lab-hint{color:#8a857c;font-size:13.5px;margin:6px 0 16px}'
+    + '.lab-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}'
+    + '.lab{border:1.5px solid #ddd;border-radius:12px;padding:14px;text-align:center;background:#fff;break-inside:avoid}'
+    + '.lab-qr{width:150px;height:150px;margin:0 auto 10px;display:flex;align-items:center;justify-content:center}'
+    + '.lab-qr img,.lab-qr canvas{width:150px !important;height:150px !important}'
+    + '.lab-qr .lab-fallback{font-size:9px;word-break:break-all;color:#666;line-height:1.3}'
+    + '.lab-name{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-weight:800;font-size:14px;color:#111;line-height:1.2}'
+    + '.lab-id{font-size:11px;color:#8a857c;margin-top:3px;font-weight:700;letter-spacing:.04em}'
+    + '@media print{.lab-print{display:none}.lab-head{margin-bottom:8px}}'
+    + '</style>'
+    + '<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>'
+    + '<script>(function(){function draw(){document.querySelectorAll(".lab-qr").forEach(function(el){var u=el.getAttribute("data-url");'
+    + 'if(window.QRCode){try{new QRCode(el,{text:u,width:150,height:150,correctLevel:QRCode.CorrectLevel.M});return;}catch(e){}}'
+    + 'el.innerHTML="<span class=\\"lab-fallback\\">"+u+"</span>";});}'
+    + 'if(window.QRCode){draw();}else{var t=0,iv=setInterval(function(){t+=200;if(window.QRCode||t>4000){clearInterval(iv);draw();}},200);}})();</script>';
+
+  return swissShell_(inner, spec.tab + ' labels', true, false);
+}
+
+// ---- registry admin: shared styles, filter, unlock, form overlay, edit JS ----
+
+function regStyles_() {
+  return '<style>'
     + '.reg-scroll{overflow-x:auto;margin-top:4px}'
     + '.reg-table{width:100%;border-collapse:collapse;font-size:13.5px;white-space:nowrap}'
     + '.reg-table th{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#8a857c;text-align:left;padding:0 14px 9px 0;border-bottom:2px solid #1c1a17}'
@@ -1131,16 +1338,260 @@ function registryPage_(which, embedded) {
     + '.reg-table a{color:#b31b1b;font-weight:600;text-decoration:none;border-bottom:1px solid #f0c050}'
     + '.reg-lowval{color:#b31b1b;font-weight:800}'
     + '.reg-chip{display:inline-block;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#b31b1b;background:#fdecec;border:1px solid #f5d0d0;padding:3px 8px;border-radius:999px}'
+    + '.reg-thumbcell{width:52px;padding-right:10px !important}'
+    + '.reg-thumb{display:flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:9px;overflow:hidden;background:#f6f4ef;border:1px solid #ececea}'
+    + '.reg-thumb img{width:100%;height:100%;object-fit:cover;display:block}'
+    + '.reg-thumb-icon{color:#b0a99e}.reg-thumb-icon svg{width:22px;height:22px}'
+    + '.reg-thumb-broken img{display:none}.reg-thumb-broken::after{content:"";width:22px;height:22px;background:#e6e2da;border-radius:5px}'
+    + '.reg-tools{display:none;gap:8px;flex-wrap:wrap;margin:14px 0 4px}.reg-unlocked .reg-tools{display:flex}'
+    + '.reg-hero{width:100%;max-width:280px;border-radius:14px;border:1px solid #ececea;margin-bottom:14px;display:block}'
+    + '.reg-imgrow{grid-column:1 / -1;display:flex;gap:12px;align-items:center}'
+    + '.reg-imgrow .reg-preview{flex:0 0 auto;width:56px;height:56px;border-radius:10px;background:#f6f4ef;border:1px solid #ececea;overflow:hidden;display:flex;align-items:center;justify-content:center;color:#b0a99e}'
+    + '.reg-imgrow .reg-preview img{width:100%;height:100%;object-fit:cover}.reg-imgrow .reg-imgfields{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}'
+    + '.reg-imgrow .reg-imgfields .reg-imgtop{display:flex;gap:8px;align-items:center}.reg-imgrow input{flex:1}'
+    + '.reg-fetch{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;color:#57534e;background:#faf9f6;border:1.5px solid #e2ddd6;border-radius:8px;padding:8px 11px;cursor:pointer;white-space:nowrap}.reg-fetch:hover{border-color:#b5b0a8;color:#292524}'
+    + '.reg-actcell{white-space:nowrap}.reg-actcell .reg-mini{display:none}.reg-unlocked .reg-actcell .reg-mini{display:inline-block}'
+    + '.reg-mini{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;color:#57534e;background:#faf9f6;border:1.5px solid #e2ddd6;border-radius:8px;padding:5px 10px;margin-right:6px;cursor:pointer}'
+    + '.reg-mini:hover{border-color:#b5b0a8;color:#292524}.reg-mini.reg-del:hover{border-color:#e6b3b3;color:#b31b1b;background:#fdf5f5}'
+    + '.reg-mini-note{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:.04em;color:#a8a29e}'
+    + '.reg-lock{display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:#fff;border:1.5px solid #ececea;border-radius:12px;padding:12px 14px;margin:14px 0 4px}.reg-unlocked .reg-lock{display:none}'
+    + '.reg-lock span.lab-t{font-size:13px;color:#57534e;font-weight:600}'
+    + '.reg-lock input{font:inherit;font-size:14px;padding:9px 12px;border:1.5px solid #e0e0dc;border-radius:9px;outline:none}'
+    + '.reg-msg{font-size:12.5px;color:#8a857c;font-weight:600}'
+    + '.reg-ov{position:fixed;inset:0;z-index:80;display:flex;align-items:flex-start;justify-content:center;padding:5vh 16px}'
+    + '.reg-ov[hidden]{display:none}'
+    + '.reg-ov-bd{position:absolute;inset:0;background:rgba(20,17,14,.5)}'
+    + '.reg-ov-card{position:relative;background:#fff;border-radius:16px;max-width:520px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 24px 60px rgba(0,0,0,.3)}'
+    + '.reg-ov-h{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:18px;font-weight:800;padding:20px 22px 4px}'
+    + '.reg-form{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:14px 22px}'
+    + '.reg-f{display:flex;flex-direction:column;gap:5px;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif}'
+    + '.reg-f.wide{grid-column:1 / -1}'
+    + '.reg-f span{font-size:10px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#8a857c}'
+    + '.reg-f span i{color:#b31b1b;font-style:normal}'
+    + '.reg-f input{font:inherit;font-size:14px;padding:10px 12px;border:1.5px solid #e0e0dc;border-radius:9px;outline:none}'
+    + '.reg-f input:focus{border-color:#b31b1b;box-shadow:0 0 0 3px rgba(179,27,27,.1)}'
+    + '.reg-ov-foot{display:flex;align-items:center;gap:10px;padding:14px 22px 20px;border-top:1.5px solid #f1f1f1;margin-top:6px}'
+    + '.reg-ov-foot>:first-child{margin-right:auto}'
+    + '@media(max-width:520px){.reg-form{grid-template-columns:1fr}}'
     + '</style>';
+}
 
-  inner += '<script>'
-    + 'function flt(){var q=document.getElementById("q").value.toLowerCase().trim();'
-    +   'var tmEl=document.getElementById("team");var tm=tmEl?tmEl.value:"";var n=0;'
-    +   'document.querySelectorAll(".reg-row").forEach(function(r){var ok=(!q||r.dataset.hay.indexOf(q)>=0)&&(!tm||r.dataset.team===tm);r.style.display=ok?"":"none";if(ok)n++;});'
-    +   'document.getElementById("empty").style.display=n?"none":"block";}'
+function regFilterJs_() {
+  return '<script>'
+    + 'function flt(){var qEl=document.getElementById("q");if(!qEl)return;var q=qEl.value.toLowerCase().trim();'
+    + 'var tmEl=document.getElementById("team");var tm=tmEl?tmEl.value:"";var n=0;'
+    + 'document.querySelectorAll(".reg-row").forEach(function(r){var ok=(!q||r.dataset.hay.indexOf(q)>=0)&&(!tm||r.dataset.team===tm);r.style.display=ok?"":"none";if(ok)n++;});'
+    + 'var e=document.getElementById("empty");if(e)e.style.display=n?"none":"block";}'
     + '</script>';
+}
 
-  return swissShell_(inner, title, true, embedded);
+function regUnlockBar_() {
+  return '<div class="reg-lock" id="reg-lock"><span class="lab-t">Enter the admin passcode to add, edit, or delete.</span>'
+    + '<input type="password" id="reg-pass" placeholder="Passcode" onkeydown="if(event.key===\'Enter\')regUnlock()">'
+    + '<button type="button" class="btn btn-ghost" onclick="regUnlock()">Unlock</button>'
+    + '<span id="reg-lock-msg" class="reg-msg"></span></div>';
+}
+
+function regFormOverlay_(which) {
+  const spec = regFields_(which);
+  const hasLink = spec.fields.some(function (f) { return f.h === 'Product link'; });
+  const fields = spec.fields.map(function (f) {
+    if (f.auto) return '';
+    if (f.type === 'image') {
+      return '<div class="reg-f wide reg-imgrow"><span class="reg-preview" id="reg-preview"></span>'
+        + '<div class="reg-imgfields"><span>' + escapeHtml_(f.label) + '</span><div class="reg-imgtop">'
+        + '<input data-h="Image" id="reg-imgurl" type="url" placeholder="Paste an image URL' + (hasLink ? ', or fetch from the product link' : '') + '" oninput="regPreview()">'
+        + (hasLink ? '<button type="button" class="reg-fetch" id="reg-fetchbtn" onclick="regFetchImg()">Fetch from link</button>' : '')
+        + '</div></div></div>';
+    }
+    const type = f.type === 'number' ? 'number' : (f.type === 'url' ? 'url' : 'text');
+    const wide = (f.h === 'Notes' || f.h === 'eShop info' || f.h === 'Product link') ? ' wide' : '';
+    return '<label class="reg-f' + wide + '"><span>' + escapeHtml_(f.label) + (f.req ? ' <i>required</i>' : '') + '</span>'
+      + '<input data-h="' + escapeHtml_(f.h) + '" type="' + type + '"' + (type === 'number' ? ' step="any"' : '') + '></label>';
+  }).join('');
+  return '<div class="reg-ov" id="reg-ov" hidden><div class="reg-ov-bd" onclick="regClose()"></div>'
+    + '<div class="reg-ov-card"><div class="reg-ov-h" id="reg-ov-title">Add</div>'
+    + '<div class="reg-form">' + fields + '</div>'
+    + '<div class="reg-ov-foot"><span id="reg-msg" class="reg-msg"></span>'
+    + '<button type="button" class="btn btn-ghost" onclick="regClose()">Cancel</button>'
+    + '<button type="button" class="btn btn-confirm" id="reg-save" onclick="regSave()">Save</button></div>'
+    + '</div></div>';
+}
+
+function regEditJs_() {
+  return '<script>'
+    + 'var REG_EROW=null,REG_EKEY=null;'
+    + 'function regInputs(){return [].slice.call(document.querySelectorAll("#reg-ov .reg-form input"));}'
+    + 'function regFill(v){regInputs().forEach(function(i){i.value=(v&&v[i.dataset.h]!=null)?v[i.dataset.h]:"";});regPreview();}'
+    + 'function regPreview(){var el=document.getElementById("reg-imgurl");var p=document.getElementById("reg-preview");if(!p)return;var u=el?el.value:"";p.innerHTML=/^https?:|^data:/.test(u)?("<img src=\\""+u.replace(/"/g,"%22")+"\\" onerror=\\"this.parentNode.textContent=\'\\u2715\'\\">"):"";}'
+    + 'function regFetchImg(){var link="";regInputs().forEach(function(i){if(i.dataset.h==="Product link")link=i.value;});if(!link){regMsg("Add a product link first.",true);return;}var b=document.getElementById("reg-fetchbtn");if(b){b.disabled=true;b.textContent="Fetching...";}'
+    + 'google.script.run.withSuccessHandler(function(res){if(b){b.disabled=false;b.textContent="Fetch from link";}if(res&&res.ok&&res.image){document.getElementById("reg-imgurl").value=res.image;regPreview();regMsg("Found an image.");}else{regMsg("No image at that link. Paste one instead.",true);}}).withFailureHandler(function(e){if(b){b.disabled=false;b.textContent="Fetch from link";}regMsg(String(e),true);}).regFetchImage(link,ADMIN_PASS);}'
+    + 'function regBackfill(){if(!confirm("Fetch a photo for every item that has a product link but no image? This can take a minute."))return;var el=document.getElementById("reg-backfill");if(el){el.disabled=true;el.textContent="Fetching...";}'
+    + 'google.script.run.withSuccessHandler(function(res){if(el){el.disabled=false;el.textContent="Fetch images";}if(res&&res.ok){alert("Added "+res.added+" image(s) of "+res.checked+" item(s) with links.");regRefresh();}else{alert((res&&res.error)||"Could not run.");}}).withFailureHandler(function(e){if(el){el.disabled=false;el.textContent="Fetch images";}alert(String(e));}).regBackfillImages(REG_WHICH,ADMIN_PASS);}'
+    + 'function regCollect(){var o={};regInputs().forEach(function(i){o[i.dataset.h]=i.value;});return o;}'
+    + 'function regShow(){document.getElementById("reg-ov").hidden=false;}'
+    + 'function regClose(){document.getElementById("reg-ov").hidden=true;}'
+    + 'function regMsg(m,err){var e=document.getElementById("reg-msg");if(e){e.textContent=m||"";e.style.color=err?"#b31b1b":"#8a857c";}}'
+    + 'function regUnlock(){var p=(document.getElementById("reg-pass")||{}).value||"";var m=document.getElementById("reg-lock-msg");if(m){m.textContent="Checking...";}'
+    + 'google.script.run.withSuccessHandler(function(ok){if(ok){ADMIN_PASS=p;try{sessionStorage.setItem("regPass",p);}catch(e){}document.getElementById("reg-root").classList.add("reg-unlocked");}else if(m){m.textContent="Wrong passcode.";m.style.color="#b31b1b";}}).withFailureHandler(function(){if(m){m.textContent="Could not verify. Retry.";}}).tpCheckPass(p);}'
+    + 'function regOpenAdd(){REG_EROW=null;REG_EKEY=null;document.getElementById("reg-ov-title").textContent="Add";regFill({});regMsg("");regShow();var f=document.querySelector("#reg-ov .reg-form input");if(f)f.focus();}'
+    + 'function regOpenEdit(row){REG_EROW=row;var v=REG_ROWS[row]||{};REG_EKEY=v[REG_KEY];document.getElementById("reg-ov-title").textContent="Edit";regFill(v);regMsg("");regShow();}'
+    + 'function regAfter(res){var s=document.getElementById("reg-save");if(s)s.disabled=false;if(res&&res.ok){regClose();regRefresh();}else{regMsg((res&&res.error)||"Could not save.",true);}}'
+    + 'function regSave(){var vals=regCollect();var s=document.getElementById("reg-save");if(s)s.disabled=true;regMsg("Saving...");'
+    + 'var fail=function(e){if(s)s.disabled=false;regMsg(String(e&&e.message||e),true);};'
+    + 'if(REG_EROW==null){google.script.run.withSuccessHandler(regAfter).withFailureHandler(fail).regAdd(REG_WHICH,vals,ADMIN_PASS);}'
+    + 'else{google.script.run.withSuccessHandler(regAfter).withFailureHandler(fail).regUpdateRow(REG_WHICH,REG_EROW,REG_EKEY,vals,ADMIN_PASS);}}'
+    + 'function regDeleteRow(row,btn){var v=REG_ROWS[row]||{};var key=v[REG_KEY]||"";if(!confirm("Delete \\""+key+"\\"? This cannot be undone."))return;if(btn)btn.disabled=true;'
+    + 'google.script.run.withSuccessHandler(function(res){if(res&&res.ok){if(typeof REG_ITEM!=="undefined"){location.href="?registry="+REG_WHICH+"&admin=1";}else{var tr=btn&&btn.closest?btn.closest(".reg-row"):null;if(tr)tr.remove();delete REG_ROWS[row];}}else{if(btn)btn.disabled=false;alert((res&&res.error)||"Could not delete.");}}).withFailureHandler(function(e){if(btn)btn.disabled=false;alert(String(e));}).regDelete(REG_WHICH,row,key,ADMIN_PASS);}'
+    + 'function regRestockOne(row){var v=REG_ROWS[row]||{};var key=v[REG_KEY]||"";google.script.run.withSuccessHandler(function(res){if(res&&res.ok){location.href="?registry=item&which="+REG_WHICH+"&id="+encodeURIComponent(key)+"&admin=1";}else{alert((res&&res.error)||"Could not update.");}}).withFailureHandler(function(e){alert(String(e));}).regRestock(row,key,ADMIN_PASS);}'
+    + 'function regRefresh(){if(typeof REG_ITEM!=="undefined"){location.href="?registry=item&which="+REG_WHICH+"&id="+encodeURIComponent(REG_EKEY||"")+"&admin=1";return;}'
+    + 'google.script.run.withSuccessHandler(function(res){if(res&&res.ok){document.getElementById("reg-tbody").innerHTML=res.html;REG_ROWS=JSON.parse(res.mapJson);if(typeof flt==="function")flt();}}).regRowsHtml(REG_WHICH,ADMIN_PASS);}'
+    + 'function regScan(){if(!("BarcodeDetector" in window)){alert("Live scanning is not available in this browser. Use Print labels and scan them with your phone camera instead.");return;}'
+    + 'navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}}).then(function(stream){regRunScan(stream);}).catch(function(){alert("Camera is blocked here (common in this app). Use Print labels and scan with your phone camera instead.");});}'
+    + 'function regRunScan(stream){var ov=document.createElement("div");ov.style.cssText="position:fixed;inset:0;z-index:90;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center";'
+    + 'var vid=document.createElement("video");vid.setAttribute("playsinline","");vid.style.cssText="max-width:100%;max-height:80vh";vid.srcObject=stream;vid.play();'
+    + 'var btn=document.createElement("button");btn.textContent="Close";btn.className="btn btn-ghost";btn.style.margin="16px";btn.onclick=function(){stream.getTracks().forEach(function(t){t.stop();});ov.remove();};'
+    + 'ov.appendChild(vid);ov.appendChild(btn);document.body.appendChild(ov);'
+    + 'var det=new BarcodeDetector();var loop=function(){if(!ov.isConnected)return;det.detect(vid).then(function(codes){if(codes&&codes.length){var val=codes[0].rawValue||"";stream.getTracks().forEach(function(t){t.stop();});ov.remove();var q=document.getElementById("q");if(q){q.value=val;if(typeof flt==="function")flt();}}else{requestAnimationFrame(loop);}}).catch(function(){requestAnimationFrame(loop);});};requestAnimationFrame(loop);}'
+    + '(function(){try{var p=sessionStorage.getItem("regPass");if(p){google.script.run.withSuccessHandler(function(ok){if(ok){ADMIN_PASS=p;document.getElementById("reg-root").classList.add("reg-unlocked");}}).tpCheckPass(p);}}catch(e){}})();'
+    + '</script>';
+}
+
+// ---- registry server writes (all gated by the shared passcode) ----
+
+function regSheet_(which) {
+  const name = String(which).toLowerCase() === 'inventory' ? 'Inventory' : 'Equipment';
+  const sh = registrySs_().getSheetByName(name);
+  if (!sh) throw new Error('No "' + name + '" tab. Run the registry setup first.');
+  return sh;
+}
+
+function regHeaderMap_(sh) {
+  const hs = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(function (h) { return String(h).trim(); });
+  const map = {}; hs.forEach(function (h, i) { map[h] = i; });
+  return { headers: hs, map: map };
+}
+
+function regNextId_(sh, hm, key, prefix) {
+  const ci = hm.map[key];
+  let max = 0;
+  if (ci == null) return prefix + '001';
+  const v = sh.getDataRange().getValues();
+  for (let i = 1; i < v.length; i++) {
+    const id = String(v[i][ci]).trim();
+    if (id.indexOf(prefix) === 0) { const n = parseInt(id.slice(prefix.length), 10); if (!isNaN(n) && n > max) max = n; }
+  }
+  let s = String(max + 1); while (s.length < 3) s = '0' + s;
+  return prefix + s;
+}
+
+function regAdd(which, vals, pass) {
+  if (!tpIsAdmin_(pass)) return { ok: false, error: 'Not authorized. Unlock first.' };
+  vals = vals || {};
+  const spec = regFields_(which);
+  const sh = regSheet_(which);
+  const hm = regHeaderMap_(sh);
+  const reqF = spec.fields.filter(function (f) { return f.req; })[0];
+  if (reqF && !String(vals[reqF.h] || '').trim()) return { ok: false, error: reqF.label + ' is required.' };
+  const row = hm.headers.map(function (h) { return vals[h] != null ? vals[h] : ''; });
+  if (spec.idPrefix) { const ki = hm.map[spec.key]; if (ki != null && !String(row[ki]).trim()) row[ki] = regNextId_(sh, hm, spec.key, spec.idPrefix); }
+  sh.appendRow(row);
+  return { ok: true };
+}
+
+function regUpdateRow(which, rowNum, expectedKey, vals, pass) {
+  if (!tpIsAdmin_(pass)) return { ok: false, error: 'Not authorized. Unlock first.' };
+  const spec = regFields_(which);
+  const sh = regSheet_(which);
+  const hm = regHeaderMap_(sh);
+  rowNum = Number(rowNum);
+  if (!(rowNum >= 2 && rowNum <= sh.getLastRow())) return { ok: false, error: 'Bad row.' };
+  const ki = hm.map[spec.key];
+  const cur = sh.getRange(rowNum, 1, 1, hm.headers.length).getValues()[0];
+  if (ki != null && String(cur[ki]).trim() !== String(expectedKey).trim()) return { ok: false, error: 'This item moved. Refresh and try again.' };
+  hm.headers.forEach(function (h, i) { if (vals[h] != null && !(spec.idPrefix && i === ki)) cur[i] = vals[h]; });
+  sh.getRange(rowNum, 1, 1, hm.headers.length).setValues([cur]);
+  return { ok: true };
+}
+
+function regDelete(which, rowNum, expectedKey, pass) {
+  if (!tpIsAdmin_(pass)) return { ok: false, error: 'Not authorized. Unlock first.' };
+  const spec = regFields_(which);
+  const sh = regSheet_(which);
+  const hm = regHeaderMap_(sh);
+  rowNum = Number(rowNum);
+  if (!(rowNum >= 2 && rowNum <= sh.getLastRow())) return { ok: false, error: 'Bad row.' };
+  const ki = hm.map[spec.key];
+  const cur = sh.getRange(rowNum, 1, 1, hm.headers.length).getValues()[0];
+  if (ki != null && String(cur[ki]).trim() !== String(expectedKey).trim()) return { ok: false, error: 'This item moved. Refresh and try again.' };
+  sh.deleteRow(rowNum);
+  return { ok: true };
+}
+
+function regRestock(rowNum, expectedItem, pass) {
+  if (!tpIsAdmin_(pass)) return { ok: false, error: 'Not authorized. Unlock first.' };
+  const sh = regSheet_('inventory');
+  const hm = regHeaderMap_(sh);
+  rowNum = Number(rowNum);
+  if (!(rowNum >= 2 && rowNum <= sh.getLastRow())) return { ok: false, error: 'Bad row.' };
+  const ki = hm.map['Item'];
+  const cur = sh.getRange(rowNum, 1, 1, hm.headers.length).getValues()[0];
+  if (ki != null && String(cur[ki]).trim() !== String(expectedItem).trim()) return { ok: false, error: 'This item moved. Refresh and try again.' };
+  const oni = hm.map['On hand'], rqi = hm.map['Reorder qty'], lri = hm.map['Last restocked'];
+  const qty = (rqi != null && Number(cur[rqi]) > 0) ? Number(cur[rqi]) : 0;
+  if (oni != null) cur[oni] = (Number(cur[oni]) || 0) + qty;
+  if (lri != null) cur[lri] = new Date();
+  sh.getRange(rowNum, 1, 1, hm.headers.length).setValues([cur]);
+  return { ok: true };
+}
+
+// Best-effort product image: fetch the page and read its og:image / twitter:image
+// meta tag. Many suppliers (MSC, Amazon) block server requests; those just return ''.
+function regFetchOgImage_(url) {
+  url = String(url || '').trim();
+  if (!/^https?:\/\//i.test(url)) return '';
+  try {
+    const resp = UrlFetchApp.fetch(url, {
+      muteHttpExceptions: true, followRedirects: true,
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36', 'Accept': 'text/html' }
+    });
+    if (resp.getResponseCode() >= 400) return '';
+    const html = resp.getContentText();
+    if (!html || html.length < 500) return '';
+    const m = html.match(/<meta[^>]+(?:property|name)=["'](?:og:image(?::secure_url)?|twitter:image(?::src)?)["'][^>]*>/i);
+    if (!m) return '';
+    const c = m[0].match(/content=["']([^"']+)["']/i);
+    let img = c ? c[1].trim() : '';
+    if (img.indexOf('//') === 0) img = 'https:' + img;
+    return /^https?:\/\//i.test(img) ? img : '';
+  } catch (e) { return ''; }
+}
+
+function regFetchImage(link, pass) {
+  if (!tpIsAdmin_(pass)) return { ok: false, error: 'Not authorized. Unlock first.' };
+  return { ok: true, image: regFetchOgImage_(link) };
+}
+
+// Prepopulate: for every row with a product link but no image, try to pull one.
+function regBackfillImages(which, pass) {
+  if (!tpIsAdmin_(pass)) return { ok: false, error: 'Not authorized. Unlock first.' };
+  const sh = regSheet_(which);
+  const hm = regHeaderMap_(sh);
+  const li = hm.map['Product link'], ii = hm.map['Image'];
+  if (li == null || ii == null) return { ok: true, checked: 0, added: 0 };
+  const vals = sh.getDataRange().getValues();
+  let checked = 0, added = 0;
+  for (let i = 1; i < vals.length; i++) {
+    const link = String(vals[i][li] || '').trim();
+    const img = String(vals[i][ii] || '').trim();
+    if (!link || img) continue;
+    checked++;
+    const found = regFetchOgImage_(link);
+    if (found) { sh.getRange(i + 1, ii + 1).setValue(found); added++; }
+    Utilities.sleep(150);
+    if (checked >= 150) break;
+  }
+  return { ok: true, checked: checked, added: added };
 }
 
 function regCell_(v) {
@@ -1279,7 +1730,7 @@ function newToken_() { return Utilities.getUuid().replace(/-/g, ''); }
 function norm_(s) { return String(s == null ? '' : s).trim().toLowerCase().replace(/\s+/g, ' '); }
 function lcFirst_(s) { return s ? s.charAt(0).toLowerCase() + s.slice(1) : s; }
 function phrase_(s) { return String(s == null ? '' : s).replace(/\s*\/\s*/g, ' or ').trim(); }
-function escapeHtml_(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function escapeHtml_(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 function uniqEmails_(arr) {
   const seen = {}, out = [];
   (arr || []).forEach(function (e) {

@@ -24,6 +24,7 @@ function onOpen() {
     .addItem('Mark selected item restocked', 'markRestockedSelected')
     .addSeparator()
     .addItem('Set up / update tabs', 'setupRegistry')
+    .addItem('Import existing tools & inventory', 'importExistingData')
     .addItem('Run maintenance check now', 'generateMaintenanceTasks')
     .addItem('Run stock check now', 'checkInventoryLevels')
     .addSeparator()
@@ -46,12 +47,12 @@ function setupRegistry() {
   var ss = SpreadsheetApp.openById(REGISTRY_SS_ID);
 
   ensureTab_(ss, EQUIPMENT_TAB,
-    ['Asset ID', 'Name', 'Category', 'Location', 'Owning team', 'Owner', 'Status', 'Installed', 'Notes'],
-    ['EX-001', 'Example: spray booth (delete this row)', 'Finishing', 'Composites lab', 'Operations Team', 'Noah Hamm', 'In service', '2024', 'Filters checked monthly']);
+    ['Asset ID', 'Name', 'Category', 'Location', 'Owning team', 'Owner', 'Status', 'Installed', 'Notes', 'Image'],
+    ['EX-001', 'Example: spray booth (delete this row)', 'Finishing', 'Composites lab', 'Operations Team', 'Noah Hamm', 'In service', '2024', 'Filters checked monthly', '']);
 
   ensureTab_(ss, INVENTORY_TAB,
-    ['Item', 'Location', 'On hand', 'Unit', 'Reorder point', 'Reorder qty', 'Supplier', 'Product link', 'eShop info', 'Assign to', 'Last restocked'],
-    ['Example: spray booth filter (delete this row)', 'Composites lab', 0, 'each', 2, 6, 'Uline', '', 'eShop item #', 'Noah Hamm', '2026-05']);
+    ['Item', 'Location', 'On hand', 'Unit', 'Reorder point', 'Reorder qty', 'Supplier', 'Product link', 'eShop info', 'Assign to', 'Last restocked', 'Image'],
+    ['Example: spray booth filter (delete this row)', 'Composites lab', 0, 'each', 2, 6, 'Uline', '', 'eShop item #', 'Noah Hamm', '2026-05', '']);
 
   ensureTab_(ss, MAINTENANCE_TAB,
     ['Task ID', 'Task', 'Equipment / area', 'Frequency', 'Last done', 'Next due', 'Assign to', 'Instructions', 'Parts needed', 'Active'],
@@ -402,3 +403,195 @@ function hmap_(row) {
   row.forEach(function (c, i) { map[String(c).trim()] = i; });
   return map;
 }
+
+//------------------------------------------------------------
+//
+// ONE-TIME IMPORT of the existing tabs into the CMMS structure.
+//
+//   Team tool inventory    -> Equipment  (tools you own, In service)
+//   Facility non recurring -> Equipment  (one-time purchases, Planned)
+//   Mill room Tooling      -> Inventory  (procurement list: supplier, P/N, price)
+//
+// The Locks tab is left as-is. Safe to run more than once: items already in the
+// target tab (matched by name) are skipped, so a re-run never duplicates.
+//
+//------------------------------------------------------------
+
+function importExistingData() {
+  var ss = SpreadsheetApp.openById(REGISTRY_SS_ID);
+  var ui = SpreadsheetApp.getUi();
+  if (!ss.getSheetByName(EQUIPMENT_TAB) || !ss.getSheetByName(INVENTORY_TAB)) {
+    ui.alert('Run "Set up / update tabs" first, then import.');
+    return;
+  }
+  ss.toast('Reading existing tabs...', 'Import', 5);
+
+  var tools = importTools_(ss);
+  var facility = importFacility_(ss);
+  var mill = importMillRoom_(ss);
+  var eq = tools + facility;
+
+  var msg = 'Imported ' + eq + ' equipment (' + tools + ' tools, ' + facility + ' facility) '
+    + 'and ' + mill + ' inventory item(s).';
+  Logger.log(msg);
+  ss.toast(msg, 'Import complete', 8);
+  ui.alert(msg + '\n\nReview the Equipment and Inventory tabs, then delete any leftover example rows. '
+    + 'Locks was left as-is.');
+}
+
+// Team tool inventory: a single "Tool" column of owned tools -> Equipment.
+function importTools_(ss) {
+  var src = ss.getSheetByName('Team tool inventory');
+  if (!src) return 0;
+  var v = src.getDataRange().getValues();
+  if (v.length < 2) return 0;
+  var cTool = findCol_(v[0], ['tool']);
+  if (cTool < 0) cTool = 0;
+  var tgt = ss.getSheetByName(EQUIPMENT_TAB);
+  var have = existingNames_(tgt, 'Name');
+  var seq = nextSeq_(tgt, 'Asset ID', 'TL-');
+  var rows = [];
+  for (var i = 1; i < v.length; i++) {
+    var name = String(v[i][cTool]).trim();
+    if (!importable_(name) || have[name.toLowerCase()]) continue;
+    have[name.toLowerCase()] = true;
+    rows.push({ 'Asset ID': 'TL-' + pad_(seq++, 3), 'Name': name, 'Category': 'Tool', 'Status': 'In service' });
+  }
+  return appendRows_(tgt, rows);
+}
+
+// Facility non recurring: one-time facility purchases (col "Equipent/ service") ->
+// Equipment, marked Planned since these are not necessarily installed yet.
+function importFacility_(ss) {
+  var src = ss.getSheetByName('Facility non recurring');
+  if (!src) return 0;
+  var v = src.getDataRange().getValues();
+  if (v.length < 2) return 0;
+  var H = v[0];
+  var cName = findCol_(H, ['equipent', 'equipment', 'service']);
+  var cUnits = findCol_(H, ['units']);
+  var cCost = findCol_(H, ['cost']);
+  if (cName < 0) return 0;
+  var tgt = ss.getSheetByName(EQUIPMENT_TAB);
+  var have = existingNames_(tgt, 'Name');
+  var seq = nextSeq_(tgt, 'Asset ID', 'FA-');
+  var rows = [];
+  for (var i = 1; i < v.length; i++) {
+    var name = String(v[i][cName]).trim();
+    if (!importable_(name) || name.length < 2 || have[name.toLowerCase()]) continue;
+    have[name.toLowerCase()] = true;
+    var notes = [];
+    if (cUnits >= 0 && String(v[i][cUnits]).trim()) notes.push('qty ' + String(v[i][cUnits]).trim());
+    if (cCost >= 0 && numish_(v[i][cCost])) notes.push('est ~$' + trimNum_(v[i][cCost]));
+    rows.push({ 'Asset ID': 'FA-' + pad_(seq++, 3), 'Name': name, 'Category': 'Facility', 'Status': 'Planned', 'Notes': notes.join(' · ') });
+  }
+  return appendRows_(tgt, rows);
+}
+
+// Mill room Tooling: a procurement list -> Inventory. On hand is left blank (stock
+// unknown), so nothing is falsely flagged as out; supplier/link/P-N/price are kept.
+function importMillRoom_(ss) {
+  var src = ss.getSheetByName('Mill room Tooling');
+  if (!src) return 0;
+  var v = src.getDataRange().getValues();
+  if (v.length < 2) return 0;
+  var H = v[0];
+  var cItem = findCol_(H, ['equipment']);
+  var cMsc = findCol_(H, ['supplier link']);
+  var cAlt = findCol_(H, ['non msc']);
+  var cPn = findCol_(H, ['p/n', 'p/ n']);
+  var cNote = findCol_(H, ['note']);
+  var cPrice = findCol_(H, ['price']);
+  var cPrio = findCol_(H, ['priority']);
+  if (cItem < 0) return 0;
+  var tgt = ss.getSheetByName(INVENTORY_TAB);
+  var have = existingNames_(tgt, 'Item');
+  var rows = [];
+  for (var i = 1; i < v.length; i++) {
+    var item = String(v[i][cItem]).trim();
+    if (!importable_(item) || have[item.toLowerCase()]) continue;
+    have[item.toLowerCase()] = true;
+    var link = (cMsc >= 0 && String(v[i][cMsc]).trim()) ? String(v[i][cMsc]).trim()
+             : (cAlt >= 0 ? String(v[i][cAlt]).trim() : '');
+    var bits = [];
+    if (cPn >= 0 && String(v[i][cPn]).trim()) bits.push(String(v[i][cPn]).trim());
+    if (cPrice >= 0 && numish_(v[i][cPrice])) bits.push('~$' + trimNum_(v[i][cPrice]));
+    if (cPrio >= 0 && String(v[i][cPrio]).trim()) bits.push(String(v[i][cPrio]).trim());
+    if (cNote >= 0 && String(v[i][cNote]).trim()) bits.push(String(v[i][cNote]).trim());
+    rows.push({
+      'Item': item, 'On hand': '', 'Reorder point': '',
+      'Supplier': supplierFromLink_(link), 'Product link': link,
+      'eShop info': bits.join(' · '), 'Assign to': DEFAULT_ASSIGNEE
+    });
+  }
+  return appendRows_(tgt, rows);
+}
+
+// ---- import helpers ----
+
+function importable_(name) {
+  if (!name) return false;
+  var n = name.toLowerCase();
+  return n.indexOf('delete this row') < 0 && n.indexOf('example:') < 0;
+}
+
+function findCol_(headers, needles) {
+  for (var i = 0; i < headers.length; i++) {
+    var h = String(headers[i]).trim().toLowerCase();
+    if (!h) continue;
+    for (var j = 0; j < needles.length; j++) { if (h.indexOf(needles[j]) >= 0) return i; }
+  }
+  return -1;
+}
+
+function existingNames_(sh, nameHeader) {
+  var set = {};
+  var data = sh.getDataRange().getValues();
+  if (data.length < 2) return set;
+  var ci = hmap_(data[0])[nameHeader];
+  if (ci == null) return set;
+  for (var i = 1; i < data.length; i++) {
+    var v = String(data[i][ci]).trim().toLowerCase();
+    if (v) set[v] = true;
+  }
+  return set;
+}
+
+function nextSeq_(sh, idHeader, prefix) {
+  var data = sh.getDataRange().getValues();
+  if (data.length < 2) return 1;
+  var ci = hmap_(data[0])[idHeader];
+  if (ci == null) return 1;
+  var max = 0;
+  for (var i = 1; i < data.length; i++) {
+    var id = String(data[i][ci]).trim();
+    if (id.indexOf(prefix) === 0) { var n = parseInt(id.slice(prefix.length), 10); if (!isNaN(n) && n > max) max = n; }
+  }
+  return max + 1;
+}
+
+// Map an array of {header: value} objects onto the tab's real column order, in one write.
+function appendRows_(sh, rowObjs) {
+  if (!rowObjs.length) return 0;
+  var headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  var out = rowObjs.map(function (obj) {
+    return headers.map(function (hd) { var v = obj[String(hd).trim()]; return v == null ? '' : v; });
+  });
+  sh.getRange(sh.getLastRow() + 1, 1, out.length, headers.length).setValues(out);
+  return out.length;
+}
+
+function supplierFromLink_(url) {
+  var u = String(url).toLowerCase();
+  if (u.indexOf('mscdirect') >= 0) return 'MSC';
+  if (u.indexOf('mcmaster') >= 0) return 'McMaster-Carr';
+  if (u.indexOf('grainger') >= 0) return 'Grainger';
+  if (u.indexOf('uline') >= 0) return 'Uline';
+  if (u.indexOf('amazon') >= 0) return 'Amazon';
+  if (u.indexOf('homedepot') >= 0) return 'Home Depot';
+  return '';
+}
+
+function numish_(v) { return v !== '' && v != null && !isNaN(Number(v)) && Number(v) > 0; }
+function trimNum_(v) { var n = Number(v); return n % 1 === 0 ? String(n) : String(n); }
+function pad_(n, w) { var s = String(n); while (s.length < w) s = '0' + s; return s; }

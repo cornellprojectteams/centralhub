@@ -59,11 +59,16 @@
 
   loadCommandBadge();
 
-  // Registry viewer links (Equipment / Inventory) point at the web app.
+  // Registry links (Equipment / Inventory tables, item detail, labels) point at the
+  // web app. On the unlisted admin page, data-admin adds &admin=1 so the page opens
+  // in edit mode (add / edit / delete, still passcode-gated server-side).
   document.querySelectorAll('a[data-registry]').forEach(a => {
     if (!SPACE_STATUS_URL) return;
     const sep = SPACE_STATUS_URL.indexOf('?') >= 0 ? '&' : '?';
-    a.href = SPACE_STATUS_URL + sep + 'registry=' + encodeURIComponent(a.dataset.registry);
+    let href = SPACE_STATUS_URL + sep + 'registry=' + encodeURIComponent(a.dataset.registry);
+    if (a.dataset.which) href += '&which=' + encodeURIComponent(a.dataset.which);
+    if (a.hasAttribute('data-admin')) href += '&admin=1';
+    a.href = href;
   });
 
   // Module links (Projects) point at the same web app via ?module=.
