@@ -522,28 +522,32 @@ function confirmPage_(id) {
   const lead = photoOptional
     ? 'Tap <b>Mark done</b> and an admin gives it a quick review. Photos are optional here, so add one or more only if they help.'
     : 'Add one or more photos of the completed work and an admin gives it a quick review.';
-  const controls = photoOptional
-    ? '<button type="button" class="btn btn-ghost" onclick="document.getElementById(\'cf-file\').click()">Add photos</button>'
-      + '<button type="button" class="btn btn-primary" onclick="cfDone()">Mark done</button>'
-    : '<button type="button" class="btn btn-primary" onclick="document.getElementById(\'cf-file\').click()">Complete with a photo</button>';
+  const controls = '<button type="button" class="btn btn-ghost" onclick="document.getElementById(\'cf-file\').click()">Add photos</button>'
+    + '<button type="button" class="btn btn-primary" id="cf-done" onclick="cfComplete()">' + (photoOptional ? 'Mark done' : 'Complete') + '</button>'
+    + '<span id="cf-stage" class="tp-hint"></span>';
   const inner = '<div style="font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#999">Space Status</div>'
     + '<div class="swh" style="font-size:30px;font-weight:800;letter-spacing:-.025em;line-height:1.1;margin-top:16px">Mark complete</div>'
     + '<div style="font-size:16px;line-height:1.7;color:#555;margin-top:12px">' + lead + '</div>'
     + sentBackBanner
     + '<div id="act" style="margin-top:24px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
-    +   '<input type="file" accept="image/*" multiple id="cf-file" style="display:none" onchange="cfFile(this)">'
+    +   '<input type="file" accept="image/*" multiple id="cf-file" style="display:none" onchange="cfPick(this)">'
     +   controls
     + '</div>'
     + '<div id="cf-photo"></div>'
     + '<div id="done" style="display:none;font-size:22px;font-weight:800;letter-spacing:-.02em;color:#1d7a46;margin-top:14px"></div>'
     + '<script>'
+    + 'var CFBUF=[];'
+    + 'function cfPick(input){tpStageRead(input,CFBUF,cfRenderStage);}'
+    + 'function cfRenderStage(){document.getElementById("cf-photo").innerHTML=tpStagePreview(CFBUF,"cfUnstage(","document.getElementById(\'cf-file\').click()");var h=document.getElementById("cf-stage");if(h){h.style.color="";h.textContent="";}var db=document.getElementById("cf-done");if(db)db.textContent=CFBUF.length?("' + (photoOptional ? 'Submit' : 'Complete') + ' \\u00b7 "+CFBUF.length+" photo"+(CFBUF.length===1?"":"s")):"' + (photoOptional ? 'Mark done' : 'Complete') + '";}'
+    + 'function cfUnstage(idx){CFBUF.splice(idx,1);cfRenderStage();}'
     + 'function cfDoneUi(ids){tpConfetti();var a=document.getElementById("act");a.style.display="none";ids=Array.isArray(ids)?ids:(ids?[ids]:[]);document.getElementById("cf-photo").innerHTML=tpThumbs(ids);var d=document.getElementById("done");d.style.display="block";d.innerHTML="\\u2713 Submitted, pending approval";}'
-    + 'function cfFile(input){var a=document.getElementById("act");tpUploadPhotos(input,' + JSON.stringify(id) + ',function(done,total){a.innerHTML="<span class=\\"tp-hint\\">Uploading photo "+(done+1)+" of "+total+"\\u2026</span>";},'
-    + 'function(ids){if(!ids.length)return;cfDoneUi(ids);},'
+    + 'function cfComplete(){var a=document.getElementById("act");var h=document.getElementById("cf-stage");'
+    + 'if(' + (photoOptional ? 'false' : '!CFBUF.length') + '){if(h){h.style.color="#b31b1b";h.textContent="Add at least one photo first.";}return;}'
+    + 'a.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
+    + 'if(!CFBUF.length){google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Could not save")+"</span>";return;}cfDoneUi([]);}).withFailureHandler(function(){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Could not save. Please retry.</span>";}).submitIssueCompletion(' + JSON.stringify(id) + ',"","");return;}'
+    + 'tpUploadStaged(CFBUF,' + JSON.stringify(id) + ',function(done,total){a.innerHTML="<span class=\\"tp-hint\\">Uploading photo "+(done+1)+" of "+total+"\\u2026</span>";},'
+    + 'function(ids){cfDoneUi(ids);},'
     + 'function(msg){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+msg+"</span>";});}'
-    + 'function cfDone(){var a=document.getElementById("act");a.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
-    + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Could not save")+"</span>";return;}cfDoneUi("");'
-    + '}).withFailureHandler(function(){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Could not save. Please retry.</span>";}).submitIssueCompletion(' + JSON.stringify(id) + ',"","");}'
     + '</script>';
   return swissShell_(tpStyles_() + inner + tpSharedJs_(), 'Space Status');
 }

@@ -513,6 +513,28 @@ function tpStyles_() {
     + '.tp-photos{display:flex;flex-wrap:wrap;gap:14px;margin-top:14px}'
     + '.tp-photo figure{margin:0}'
     + '.tp-photo figcaption{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#a8a29e;margin-bottom:5px}'
+    // ---- staged-photo tray (add photos before submitting) ----
+    + '.stage{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:11px;margin-top:16px}'
+    + '.stage-item{position:relative;aspect-ratio:1;border-radius:14px;overflow:hidden;background:#efeee9;border:1px solid #e6e3db;box-shadow:0 3px 12px rgba(20,20,30,.08);animation:stageIn .3s cubic-bezier(.2,.9,.3,1.35) both}'
+    + '@keyframes stageIn{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}'
+    + '.stage-item img{width:100%;height:100%;object-fit:cover;display:block}'
+    + '.stage-item::before{content:"";position:absolute;left:0;right:0;top:0;height:52%;background:linear-gradient(180deg,rgba(20,17,14,.34),transparent);pointer-events:none}'
+    + '.stage-rm{position:absolute;top:6px;right:6px;width:26px;height:26px;padding:0;border:none;border-radius:50%;background:rgba(20,17,14,.62);color:#fff;font-size:16px;line-height:1;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .16s,transform .16s}'
+    + '.stage-rm:hover{background:#b31b1b;transform:scale(1.09)}'
+    + '.stage-rm:active{transform:scale(.96)}'
+    + '.stage-idx{position:absolute;left:9px;top:7px;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:10px;font-weight:800;letter-spacing:.04em;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.45)}'
+    + '.stage-add{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;aspect-ratio:1;border-radius:14px;border:1.6px dashed #d3cdc2;background:#faf9f6;color:#9a948a;cursor:pointer;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;transition:border-color .18s,color .18s,background .18s,transform .12s}'
+    + '.stage-add:hover{border-color:#b31b1b;color:#8f1515;background:#fff}'
+    + '.stage-add:active{transform:scale(.97)}'
+    + '.stage-add-i{font-size:26px;font-weight:300;line-height:1}'
+    // ---- refresh control on the open-issues pages ----
+    + '.ic-refresh{display:inline-flex;align-items:center;gap:7px;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12.5px;font-weight:700;color:#57534e;background:#fff;border:1.5px solid #e2ddd6;border-radius:10px;padding:8px 13px;cursor:pointer;transition:border-color .15s,color .15s,box-shadow .15s}'
+    + '.ic-refresh:hover{border-color:#b5b0a8;color:#292524;box-shadow:0 2px 6px rgba(20,20,30,.06)}'
+    + '.ic-refresh:disabled{opacity:.65;cursor:default}'
+    + '.ic-refresh svg{display:block}'
+    + '.ic-refresh.is-spin svg{animation:icspin .8s linear infinite}'
+    + '@keyframes icspin{to{transform:rotate(360deg)}}'
+    + '.ic-refreshed{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12px;font-weight:600;color:#157a47;white-space:nowrap}'
     + '.tp-uploader{margin-top:14px;padding:14px 16px;background:#fbfbf9;border:1.5px dashed #ddd;border-radius:12px}'
     + '.tp-drop{display:flex;flex-wrap:wrap;gap:10px}'
     + '.tp-slot{flex:1;min-width:150px}'
@@ -643,14 +665,19 @@ function tpSharedJs_() {
     + 'img.onerror=function(){cb({dataUrl:r.result,name:f.name});};img.src=r.result;};'
     + 'r.readAsDataURL(f);}'
     + 'function tpReadFile(input,cb){tpReadOne((input.files&&input.files[0])||null,function(res){if(!res)input.value="";cb(res);});}'
-    // Upload every image the doer picked, one after another, so a task can carry more
-    // than one completion photo. onProgress(done,total); onDone(photoIds); onError(msg).
-    + 'function tpUploadPhotos(input,token,onProgress,onDone,onError){var files=[];for(var k=0;input.files&&k<input.files.length;k++){if(/^image\\//.test(input.files[k].type))files.push(input.files[k]);}'
-    + 'input.value="";if(!files.length){onDone([]);return;}var ids=[],i=0;'
-    + 'function step(){if(i>=files.length){onDone(ids);return;}if(onProgress)onProgress(i,files.length);'
-    + 'tpReadOne(files[i],function(res){if(!res){i++;step();return;}'
-    + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){onError((r&&r.error)||"Upload failed");return;}if(r.photoId)ids.push(r.photoId);i++;step();})'
-    + '.withFailureHandler(function(){onError("Upload failed. Please retry.");}).submitIssueCompletion(token,res.dataUrl,res.name,ids.length>0);},true);}step();}'
+    // Staging model: read the picked images into a client-side buffer (arr) WITHOUT
+    // uploading, so photos can be added one pick at a time and reviewed before the
+    // doer commits. cb() fires once every file in this pick has been read.
+    + 'function tpStageRead(input,arr,cb){var files=[];for(var k=0;input.files&&k<input.files.length;k++){if(/^image\\//.test(input.files[k].type))files.push(input.files[k]);}input.value="";if(!files.length){cb();return;}var i=0;(function next(){if(i>=files.length){cb();return;}tpReadOne(files[i],function(res){if(res)arr.push(res);i++;next();},true);})();}'
+    // Upload an already-read buffer (from tpStageRead) in order. The first upload
+    // replaces the cell (dropping any stale sent-back photo); the rest append.
+    + 'function tpUploadStaged(arr,token,onProgress,onDone,onError){if(!arr||!arr.length){onDone([]);return;}var ids=[],i=0;function step(){if(i>=arr.length){onDone(ids);return;}if(onProgress)onProgress(i,arr.length);'
+    + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){onError((r&&r.error)||"Upload failed");return;}if(r.photoId)ids.push(r.photoId);i++;step();}).withFailureHandler(function(){onError("Upload failed. Please retry.");}).submitIssueCompletion(token,arr[i].dataUrl,arr[i].name,ids.length>0);}step();}'
+    // The staged-photo tray (local data URLs, not yet uploaded): a grid of cover-fit
+    // thumbnails each with a remove (x), and a trailing "Add more" tile. removeFn is the
+    // call prefix, e.g. "icUnstage(\'iss0\'," -> icUnstage(\'iss0\',2); addExpr is the
+    // onclick that reopens the picker. Empty tray renders nothing (the foot button adds).
+    + 'function tpStagePreview(arr,removeFn,addExpr){if(!arr||!arr.length)return "";var h="<div class=\\"stage\\">";for(var i=0;i<arr.length;i++){h+="<div class=\\"stage-item\\"><img src=\\""+arr[i].dataUrl+"\\"><span class=\\"stage-idx\\">"+(i+1)+"</span><button type=\\"button\\" class=\\"stage-rm\\" title=\\"Remove\\" onclick=\\""+removeFn+i+")\\">&times;</button></div>";}if(addExpr){h+="<button type=\\"button\\" class=\\"stage-add\\" onclick=\\""+addExpr+"\\"><span class=\\"stage-add-i\\">+</span>Add more</button>";}return h+"</div>";}'
     // Render a strip of completion-photo thumbnails from an array of Drive file ids.
     + 'function tpThumbs(ids){if(!ids||!ids.length)return "";var h="<div class=\\"tp-photos\\">";for(var i=0;i<ids.length;i++){var e=encodeURIComponent(ids[i]);var cap=ids.length>1?"Completion photo "+(i+1):"Completion photo";'
     + 'h+="<div class=\\"tp-photo\\"><figure><figcaption>"+cap+"</figcaption><a href=\\"https://drive.google.com/file/d/"+e+"/view\\" target=\\"_blank\\" rel=\\"noopener\\" style=\\"display:inline-block;line-height:0\\"><img src=\\"https://drive.google.com/thumbnail?id="+e+"&sz=w600\\" style=\\"max-width:100%;max-height:200px;border-radius:10px;border:1px solid #ececec\\"></a></figure></div>";}return h+"</div>";}'
@@ -704,20 +731,19 @@ function icNoteContainer_(rid, isPending, sentBackReason, show, photoOptional) {
   return '<div id="' + rid + '-note">' + inner + '</div>';
 }
 
-// Foot action for an OPEN item. Student staff always submit a photo: photo-required
-// tasks get "Complete with a photo"; photo-optional action types get "Mark done" plus
-// a quieter "Add a photo". Admins get an extra "Complete without a photo" bypass,
-// revealed only after unlock.
+// Foot action for an OPEN item. Photos are STAGED (added one pick at a time and
+// previewed) and only uploaded when the doer taps Complete, so several photos can be
+// attached without each one closing the task. Photo-optional tasks can Complete with
+// none. Admins get an extra "Complete without a photo" bypass, revealed on unlock.
 function icOpenFoot_(rid, token, photoOptional) {
-  var input = '<input type="file" accept="image/*" multiple id="' + rid + '-file" style="display:none" onchange="icFile(this,\'' + rid + '\',\'' + token + '\')">';
-  var doer = photoOptional
-    ? input
-      + '<button type="button" class="btn btn-ghost" onclick="document.getElementById(\'' + rid + '-file\').click()">Add photos</button>'
-      + '<button type="button" class="btn btn-primary" onclick="icDone(\'' + rid + '\',\'' + token + '\')">Mark done</button>'
-    : input
-      + '<button type="button" class="btn btn-primary" onclick="document.getElementById(\'' + rid + '-file\').click()">Complete with a photo</button>';
-  var admin = '<span class="tp-admin btn-row" hidden><button type="button" class="btn btn-ghost" onclick="icResolve(\'' + rid + '\',\'' + token + '\')">Complete without a photo</button></span>';
-  return doer + admin;
+  var input = '<input type="file" accept="image/*" multiple id="' + rid + '-file" style="display:none" onchange="icPick(this,\'' + rid + '\')">';
+  var addBtn = '<button type="button" class="btn btn-ghost" onclick="document.getElementById(\'' + rid + '-file\').click()">Add photos</button>';
+  var doneBtn = '<button type="button" class="btn btn-primary" id="' + rid + '-done" onclick="icComplete(\'' + rid + '\',\'' + token + '\',' + (photoOptional ? 'true' : 'false') + ')">' + (photoOptional ? 'Mark done' : 'Complete') + '</button>';
+  var hint = '<span id="' + rid + '-stagehint" class="tp-hint"></span>';
+  // Admin no-photo bypass only where it waives a real requirement: photo-required
+  // tasks. Photo-optional tasks already have "Mark done", so it would be redundant.
+  var admin = photoOptional ? '' : '<span class="tp-admin btn-row" hidden><button type="button" class="btn btn-ghost" onclick="icResolve(\'' + rid + '\',\'' + token + '\')">Complete without a photo</button></span>';
+  return input + addBtn + doneBtn + hint + admin;
 }
 
 // Foot action for a PENDING item: admin-only Approve / Send back (revealed on unlock).
@@ -735,7 +761,7 @@ function icClientJs_() {
   return '<script>'
     + 'function icSetPill(rid,cls,txt){var p=document.getElementById(rid+"-pill");if(p)p.innerHTML="<span class=\\"tp-pill "+cls+"\\">"+txt+"</span>";}'
     + 'function icBump(id,d){var e=document.getElementById(id);if(e)e.textContent=Math.max(0,(parseInt(e.textContent,10)||0)+d);}'
-    + 'function icOpenFootJs(rid,token){var c=document.getElementById(rid);var po=c&&c.dataset.po==="1";var input="<input type=\\"file\\" accept=\\"image/*\\" multiple id=\\""+rid+"-file\\" style=\\"display:none\\" onchange=\\"icFile(this,\'"+rid+"\',\'"+token+"\')\\">";var doer=po?(input+"<button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"document.getElementById(\'"+rid+"-file\').click()\\">Add photos</button><button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"icDone(\'"+rid+"\',\'"+token+"\')\\">Mark done</button>"):(input+"<button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"document.getElementById(\'"+rid+"-file\').click()\\">Complete with a photo</button>");var admin=ADMIN_PASS?"<button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"icResolve(\'"+rid+"\',\'"+token+"\')\\">Complete without a photo</button>":"";return doer+admin;}'
+    + 'function icOpenFootJs(rid,token){var c=document.getElementById(rid);var po=c&&c.dataset.po==="1";var input="<input type=\\"file\\" accept=\\"image/*\\" multiple id=\\""+rid+"-file\\" style=\\"display:none\\" onchange=\\"icPick(this,\'"+rid+"\')\\">";var addBtn="<button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"document.getElementById(\'"+rid+"-file\').click()\\">Add photos</button>";var doneBtn="<button type=\\"button\\" class=\\"btn btn-primary\\" id=\\""+rid+"-done\\" onclick=\\"icComplete(\'"+rid+"\',\'"+token+"\',"+(po?"true":"false")+")\\">"+(po?"Mark done":"Complete")+"</button>";var hint="<span id=\\""+rid+"-stagehint\\" class=\\"tp-hint\\"></span>";var admin=(ADMIN_PASS&&!po)?"<button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"icResolve(\'"+rid+"\',\'"+token+"\')\\">Complete without a photo</button>":"";return input+addBtn+doneBtn+hint+admin;}'
     + 'function icResolve(rid,token){var act=document.getElementById(rid+"-act");act.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed. Retry.")+"</span>";return;}'
     + 'icSetPill(rid,"tp-pill--done","Completed");act.innerHTML="";var s=document.getElementById(rid+"-status");if(s){s.innerHTML="\\u2713 Completed";s.className="due due--done";}tpApproveFx(rid);tpAdvance(rid,"#157a47","#e7f3ec",2);var c=document.getElementById(rid);if(c){c.style.opacity="0.72";icBump("sum-open",-1);if(c.dataset.over==="1")icBump("sum-over",-1);}'
@@ -748,13 +774,17 @@ function icClientJs_() {
     + 'var nt=document.getElementById(rid+"-note");if(nt)nt.innerHTML="";'
     + 'var act=document.getElementById(rid+"-act");if(act)act.innerHTML=icAdminFootJs(rid,token);var c=document.getElementById(rid);if(c){if(c.dataset.over==="1"){icBump("sum-over",-1);c.dataset.over="0";}c.dataset.state="pending";}'
     + 'icBump("sum-open",-1);icBump("sum-pending",1);}'
-    + 'function icFile(input,rid,token){var act=document.getElementById(rid+"-act");'
-    + 'tpUploadPhotos(input,token,function(done,total){act.innerHTML="<span class=\\"tp-hint\\">Uploading photo "+(done+1)+" of "+total+"\\u2026</span>";},'
-    + 'function(ids){if(!ids.length)return;icAfterSubmit(rid,token,ids);},'
+    + 'var ICBUF={};'
+    + 'function icPick(input,rid){ICBUF[rid]=ICBUF[rid]||[];tpStageRead(input,ICBUF[rid],function(){icRenderStage(rid);});}'
+    + 'function icRenderStage(rid){var buf=ICBUF[rid]||[];var ph=document.getElementById(rid+"-photo");if(ph)ph.innerHTML=tpStagePreview(buf,"icUnstage(\'"+rid+"\',","document.getElementById(\'"+rid+"-file\').click()");var h=document.getElementById(rid+"-stagehint");if(h){h.style.color="";h.textContent="";}var c=document.getElementById(rid);var po=c&&c.dataset.po==="1";var db=document.getElementById(rid+"-done");if(db)db.textContent=buf.length?((po?"Submit":"Complete")+" \\u00b7 "+buf.length+" photo"+(buf.length===1?"":"s")):(po?"Mark done":"Complete");}'
+    + 'function icUnstage(rid,idx){if(ICBUF[rid]){ICBUF[rid].splice(idx,1);icRenderStage(rid);}}'
+    + 'function icComplete(rid,token,po){var buf=ICBUF[rid]||[];var act=document.getElementById(rid+"-act");var h=document.getElementById(rid+"-stagehint");'
+    + 'if(!po&&!buf.length){if(h){h.style.color="#b31b1b";h.textContent="Add at least one photo first.";}return;}'
+    + 'act.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
+    + 'if(!buf.length){google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed")+"</span>";return;}icAfterSubmit(rid,token,[]);}).withFailureHandler(function(){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).submitIssueCompletion(token,"","");return;}'
+    + 'tpUploadStaged(buf,token,function(done,total){act.innerHTML="<span class=\\"tp-hint\\">Uploading photo "+(done+1)+" of "+total+"\\u2026</span>";},'
+    + 'function(ids){delete ICBUF[rid];icAfterSubmit(rid,token,ids);},'
     + 'function(msg){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+msg+"</span>";});}'
-    + 'function icDone(rid,token){var act=document.getElementById(rid+"-act");act.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
-    + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed")+"</span>";return;}icAfterSubmit(rid,token,"");'
-    + '}).withFailureHandler(function(){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).submitIssueCompletion(token,"","");}'
     + 'function icEditOpen(rid){var v=document.getElementById(rid+"-view"),e=document.getElementById(rid+"-edit"),c=document.getElementById(rid);if(v)v.hidden=true;if(e)e.hidden=false;var f=c&&c.querySelector(".card-foot");if(f)f.style.display="none";}'
     + 'function icEditCancel(rid){var v=document.getElementById(rid+"-view"),e=document.getElementById(rid+"-edit"),m=document.getElementById(rid+"-emsg"),c=document.getElementById(rid);if(e)e.hidden=true;if(v)v.hidden=false;if(m)m.textContent="";var f=c&&c.querySelector(".card-foot");if(f)f.style.display="";}'
     + 'function icEditSave(rid,token){var g=function(s){var el=document.getElementById(rid+s);return el?el.value:"";};var team=g("-eteam"),type=g("-etype"),det=g("-edetails");var m=document.getElementById(rid+"-emsg");if(m){m.style.color="";m.textContent="Saving\\u2026";}'
