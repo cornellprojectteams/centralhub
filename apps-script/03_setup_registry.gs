@@ -17,6 +17,7 @@ var EQUIPMENT_TAB = 'Equipment';
 var INVENTORY_TAB = 'Inventory';
 var MAINTENANCE_TAB = 'Maintenance';
 var ACTIONS_TAB = 'Action items';
+var CHECKOUTS_TAB = 'Checkouts';
 
 function onOpen() {
   SpreadsheetApp.getUi().createMenu('Registry')
@@ -25,7 +26,7 @@ function onOpen() {
     .addSeparator()
     .addItem('Set up / update tabs', 'setupRegistry')
     .addItem('Import existing tools & inventory', 'importExistingData')
-    .addItem('Add photos from the web', 'seedPhotos')
+    .addItem('Add photos & categorize', 'seedPhotos')
     .addItem('Run maintenance check now', 'generateMaintenanceTasks')
     .addItem('Run stock check now', 'checkInventoryLevels')
     .addSeparator()
@@ -48,12 +49,16 @@ function setupRegistry() {
   var ss = SpreadsheetApp.openById(REGISTRY_SS_ID);
 
   ensureTab_(ss, EQUIPMENT_TAB,
-    ['Asset ID', 'Name', 'Category', 'Location', 'Owning team', 'Owner', 'Status', 'Installed', 'Notes', 'Image'],
-    ['EX-001', 'Example: spray booth (delete this row)', 'Finishing', 'Composites lab', 'Operations Team', 'Noah Hamm', 'In service', '2024', 'Filters checked monthly', '']);
+    ['Asset ID', 'Name', 'Category', 'Location', 'Owning team', 'Owner', 'Status', 'Checked out to', 'Out since', 'Due back', 'Installed', 'Notes', 'Image'],
+    ['EX-001', 'Example: spray booth (delete this row)', 'Machine tools', 'Composites lab', 'Program', 'Noah Hamm', 'In service', '', '', '', '2024', 'Filters checked monthly', '']);
 
   ensureTab_(ss, INVENTORY_TAB,
-    ['Item', 'Location', 'On hand', 'Unit', 'Reorder point', 'Reorder qty', 'Supplier', 'Product link', 'eShop info', 'Assign to', 'Last restocked', 'Image'],
-    ['Example: spray booth filter (delete this row)', 'Composites lab', 0, 'each', 2, 6, 'Uline', '', 'eShop item #', 'Noah Hamm', '2026-05', '']);
+    ['Item', 'Category', 'Owning team', 'Location', 'On hand', 'Unit', 'Reorder point', 'Reorder qty', 'Supplier', 'Product link', 'eShop info', 'Assign to', 'Last restocked', 'Last counted', 'Battery state', 'Battery spec', 'Image'],
+    ['Example: spray booth filter (delete this row)', 'Filters', 'Program', 'Composites lab', 0, 'each', 2, 6, 'Uline', '', 'eShop item #', 'Noah Hamm', '2026-05', '', '', '', '']);
+
+  ensureTab_(ss, CHECKOUTS_TAB,
+    ['Timestamp', 'Item', 'Asset ID', 'Checked out to', 'Out since', 'Due back', 'Returned'],
+    null);
 
   ensureTab_(ss, MAINTENANCE_TAB,
     ['Task ID', 'Task', 'Equipment / area', 'Frequency', 'Last done', 'Next due', 'Assign to', 'Instructions', 'Parts needed', 'Active'],
@@ -442,36 +447,67 @@ function importExistingData() {
 
 //------------------------------------------------------------
 //
-// Fill the Image column with a representative product photo (Wikimedia Commons,
-// hotlinkable) for items that match a known tool/consumable type. Only rows with
-// a blank Image are touched, so anything you set by hand or upload is left alone.
-// Most specific keywords are matched first. Swap any photo from the item's Edit form.
+// Fill blanks with a representative product photo (Wikimedia Commons, hotlinkable)
+// and a Category, matched from each item's name. Only blank Image / Category cells
+// (or the generic import categories) are touched, so anything set by hand is kept.
 //
 //------------------------------------------------------------
+
+var LEGACY_CATS = { 'tool': 1, 'facility': 1, 'finishing': 1, 'machines': 1, 'cnc': 1 };
 
 function seedPhotos() {
   var ss = SpreadsheetApp.openById(REGISTRY_SS_ID);
   var ui = SpreadsheetApp.getUi();
-  var added = 0, checked = 0;
+  var addedImg = 0, addedCat = 0;
   [EQUIPMENT_TAB, INVENTORY_TAB].forEach(function (tab) {
     var sh = ss.getSheetByName(tab);
     if (!sh) return;
     var v = sh.getDataRange().getValues();
     if (v.length < 2) return;
     var h = hmap_(v[0]);
-    var ni = h[tab === INVENTORY_TAB ? 'Item' : 'Name'], ii = h['Image'];
-    if (ni == null || ii == null) return;
+    var ni = h[tab === INVENTORY_TAB ? 'Item' : 'Name'], ii = h['Image'], ci = h['Category'];
+    if (ni == null) return;
     for (var r = 1; r < v.length; r++) {
-      if (String(v[r][ii]).trim()) continue;
-      checked++;
-      var url = matchPhoto_(String(v[r][ni] || ''));
-      if (url) { sh.getRange(r + 1, ii + 1).setValue(url); added++; }
+      var name = String(v[r][ni] || '');
+      if (ii != null && !String(v[r][ii]).trim()) {
+        var url = matchPhoto_(name);
+        if (url) { sh.getRange(r + 1, ii + 1).setValue(url); addedImg++; }
+      }
+      if (ci != null) {
+        var cur = String(v[r][ci] || '').trim();
+        if (!cur || LEGACY_CATS[cur.toLowerCase()]) {
+          var cat = classifyCategory_(name);
+          if (cat) { sh.getRange(r + 1, ci + 1).setValue(cat); addedCat++; }
+        }
+      }
     }
   });
-  var msg = 'Added photos to ' + added + ' item(s). ' + (checked - added) + ' had no match (leave a photo by uploading one).';
+  var msg = 'Added ' + addedImg + ' photo(s) and set ' + addedCat + ' categor' + (addedCat === 1 ? 'y' : 'ies') + '.';
   Logger.log(msg);
-  ss.toast(msg, 'Photos', 8);
-  ui.alert(msg + '\n\nOpen the Equipment & inventory page to see them. Swap any photo from an item\'s Edit form.');
+  ss.toast(msg, 'Registry', 8);
+  ui.alert(msg + '\n\nOpen the Equipment & inventory page to see them. Set Owner and fix any category from an item\'s Edit form.');
+}
+
+// Bucket an item name into one of the canonical registry categories.
+function classifyCategory_(name) {
+  var n = String(name || '').toLowerCase();
+  var has = function (arr) { for (var i = 0; i < arr.length; i++) { if (n.indexOf(arr[i]) >= 0) return true; } return false; };
+  if (has(['lipo', 'battery', 'batteries'])) return 'Batteries';
+  if (has(['respirator', 'glove', 'goggle', 'face shield', 'ear plug', 'safety glass', 'ppe', 'apron'])) return 'PPE';
+  if (has(['first aid', 'bandage', 'burn kit', 'eye wash', 'eyewash'])) return 'First aid';
+  if (has(['filter'])) return 'Filters';
+  if (has(['end mill', 'endmill', 'drill bit', 'bit set', 'saw blade', 'blade', 'tap ', 'reamer', 'insert', 'countersink', 'collet', 'chamfer'])) return 'Cutting tooling';
+  if (has(['3d print', '3d-print', 'laser cutter', 'laser engraver', 'vacuum former', 'resin printer', 'prusa', 'bambu', 'ender', 'formlabs', 'markforged'])) return '3D printing & prototyping';
+  if (has(['drill press', 'milling machine', 'bridgeport', ' mill', 'lathe', 'band saw', 'bandsaw', 'table saw', 'cold saw', 'press brake', 'cnc', 'waterjet', 'welder', 'welding', 'plasma cutter'])) return 'Machine tools';
+  if (has(['caliper', 'calliper', 'micrometer', 'indicator', 'height gauge', 'edge finder', 'edgefinder', 'torque', 'parallels', 'feeler', 'gauge block', 'cmm', 'protractor', 'inspection'])) return 'Measurement & inspection';
+  if (has(['oscilloscope', 'scope', 'soldering', 'solder', 'multimeter', 'power supply', 'function generator', 'dmm', 'logic analyzer', 'probe'])) return 'Electronics & test';
+  if (has(['sandpaper', 'sand paper', 'sanding', 'abrasive', 'grinding wheel', 'flap disc', 'flap wheel', 'sanding disc', 'sanding belt', 'emery'])) return 'Abrasives';
+  if (has(['carbon fiber', 'fiberglass', 'kevlar', 'prepreg', 'aluminum', 'steel', 'titanium', 'sheet metal', 'stock', 'filament', 'plywood', 'lumber', 'foam', 'acrylic'])) return 'Materials';
+  if (has(['epoxy', 'resin', 'adhesive', 'glue', 'solvent', 'acetone', 'cutting fluid', 'cutting oil', 'coolant', 'lubricant', 'loctite', 'paint', 'primer', 'dye'])) return 'Adhesives & chemicals';
+  if (has(['bolt', 'nut ', 'washer', 'rivet', 'bearing', 'bushing', 'standoff', 'fastener', 'hardware', 'threaded rod', 'heat set', 'cap screw', 'machine screw', 'set screw'])) return 'Fasteners & hardware';
+  if (has(['grinder', 'drill', 'driver', 'saw', 'router', 'sander', 'wrench', 'socket', 'ratchet', 'allen', 'plier', 'screwdriver', 'hammer', 'clamp', 'vise', 'vice', 'tape measure', 'measuring tape', 'punch', 'shear', 'snip', 'cutter', 'hacksaw', 'impact', 'deadblow', 'file'])) return 'Power & hand tools';
+  if (has(['spray booth', 'booth', 'workbench', 'work bench', 'bench', 'cabinet', 'reel', 'vacuum', 'shop vac', 'cart', 'shelf', 'storage', 'cleaning', 'broom', 'table', 'jack', 'hoist', 'dolly'])) return 'Facility & finishing';
+  return '';
 }
 
 // Ordered most-specific-first; the first keyword found in the name wins.

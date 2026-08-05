@@ -172,6 +172,24 @@ function tpThumb_(url, maxH) {
     + '</a>';
 }
 
+// One .tp-photo figure per file id in the cell, so a task with several completion
+// photos shows them all. label captions each ("Completion photo", or numbered when
+// there is more than one).
+function tpPhotoCells_(url, maxH, label) {
+  var ids = extractFileIds_(url);
+  var out = '';
+  for (var i = 0; i < ids.length; i++) {
+    var e = encodeURIComponent(ids[i]);
+    var cap = label ? (ids.length > 1 ? label + ' ' + (i + 1) : label) : '';
+    out += '<div class="tp-photo"><figure>'
+      + (cap ? '<figcaption>' + escapeHtml_(cap) + '</figcaption>' : '')
+      + '<a href="https://drive.google.com/file/d/' + e + '/view" target="_blank" rel="noopener" style="display:inline-block;line-height:0">'
+      + '<img src="https://drive.google.com/thumbnail?id=' + e + '&sz=w600" loading="lazy" alt="Uploaded photo" style="max-width:100%;max-height:' + (maxH || 200) + 'px;border-radius:10px;border:1px solid #ececec">'
+      + '</a></figure></div>';
+  }
+  return out;
+}
+
 // ---- Completion evidence: server mutations (operate on Form Responses) ----
 
 // Locate an issue row by token; returns {sh, row, addressed, completedAt, col(name)} or null.
@@ -208,13 +226,41 @@ function icPhotoOptional_(action) {
     || a.indexOf('facilities work order') >= 0 || a.indexOf('unsafe work practice') >= 0;
 }
 
+// True for the Operations team. Their notification email goes to Noah (an admin), so
+// the "Mark complete" button on that email may close the issue with no photo. Every
+// other team's email is student staff, who always submit a photo.
+function icIsOpsTeam_(team) {
+  return norm_(team).indexOf('operations') >= 0;
+}
+
+// Admin bypass: mark an issue complete with no photo and no approval step, stamping
+// Completed at + Addressed at (fully resolved). This is an admin-side action - the
+// button is only shown on the admin dashboard (revealed by ?admin=1, like approve /
+// send back). Student pages never surface it, so staff always submit a photo.
+function resolveIssueComplete(token) {
+  var loc = icLocate_(token);
+  if (!loc) return { ok: false, error: 'That item could not be found.' };
+  if (loc.addressed) return { ok: false, error: 'This was already completed.' };
+  var now = new Date();
+  loc.sh.getRange(loc.row, loc.col(CONFIG.completedAtHeader)).setValue(now);
+  loc.sh.getRange(loc.row, loc.col(CONFIG.addressedHeader)).setValue(now);
+  loc.sh.getRange(loc.row, loc.col(CONFIG.sentBackHeader)).setValue('');
+  return { ok: true, status: 'Completed' };
+}
+
 // Doer submits completion evidence -> Pending approval. A photo is required unless
 // the action type is photo-optional.
-function submitIssueCompletion(token, dataUrl, filename) {
+// Doers can attach more than one completion photo. The client uploads each selected
+// image in turn: the first call (append falsy) replaces the cell so a re-submission
+// drops any stale photo from a prior sent-back attempt; later calls (append true)
+// tack onto the comma-separated list.
+function submitIssueCompletion(token, dataUrl, filename, append) {
   var loc = icLocate_(token);
   if (!loc) return { ok: false, error: 'That item could not be found.' };
   if (loc.addressed) return { ok: false, error: 'This was already approved as complete.' };
-  if (!dataUrl && !icPhotoOptional_(loc.sh.getRange(loc.row, loc.col(CONFIG.headers.action)).getValue())) {
+  var photoCell = loc.sh.getRange(loc.row, loc.col(CONFIG.completionPhotoHeader));
+  var prior = append ? String(photoCell.getValue() || '').trim() : '';
+  if (!dataUrl && !prior && !icPhotoOptional_(loc.sh.getRange(loc.row, loc.col(CONFIG.headers.action)).getValue())) {
     return { ok: false, error: 'A photo is required to complete this task.' };
   }
   var id = '';
@@ -222,7 +268,12 @@ function submitIssueCompletion(token, dataUrl, filename) {
     try { id = tpSaveUpload_(dataUrl, filename); }
     catch (err) { return { ok: false, error: String(err.message || err) }; }
   }
-  loc.sh.getRange(loc.row, loc.col(CONFIG.completionPhotoHeader)).setValue(id ? tpViewUrl_(id) : '');
+  if (id) {
+    var url = tpViewUrl_(id);
+    photoCell.setValue(prior ? prior + ', ' + url : url);
+  } else if (!append) {
+    photoCell.setValue('');
+  }
   loc.sh.getRange(loc.row, loc.col(CONFIG.completedAtHeader)).setValue(new Date());
   loc.sh.getRange(loc.row, loc.col(CONFIG.sentBackHeader)).setValue('');   // clear any prior send-back reason
   return { ok: true, photoId: id, status: 'Pending' };
@@ -583,14 +634,26 @@ function tpSharedJs_() {
     // (~8MB) becomes a ~1600px JPEG (~0.3MB), so google.script.run and the Drive
     // write handle a fraction of the bytes. Falls back to the original if the image
     // cannot be decoded (e.g. an unusual format).
-    + 'function tpReadFile(input,cb){var f=input.files&&input.files[0];if(!f){cb(null);return;}if(!/^image\\//.test(f.type)){alert("Please choose an image file.");input.value="";cb(null);return;}'
-    + 'var r=new FileReader();r.onerror=function(){alert("Could not read that file.");cb(null);};'
+    + 'function tpReadOne(f,cb,silent){if(!f){cb(null);return;}if(!/^image\\//.test(f.type)){if(!silent)alert("Please choose an image file.");cb(null);return;}'
+    + 'var r=new FileReader();r.onerror=function(){if(!silent)alert("Could not read that file.");cb(null);};'
     + 'r.onload=function(){var img=new Image();'
     + 'img.onload=function(){var max=1600,w=img.width,h=img.height;if(w>max||h>max){var s=Math.min(max/w,max/h);w=Math.round(w*s);h=Math.round(h*s);}'
     + 'try{var c=document.createElement("canvas");c.width=w;c.height=h;var x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,w,h);x.drawImage(img,0,0,w,h);'
     + 'cb({dataUrl:c.toDataURL("image/jpeg",0.82),name:(f.name||"photo").replace(/\\.[^.]+$/,"")+".jpg"});}catch(e){cb({dataUrl:r.result,name:f.name});}};'
     + 'img.onerror=function(){cb({dataUrl:r.result,name:f.name});};img.src=r.result;};'
     + 'r.readAsDataURL(f);}'
+    + 'function tpReadFile(input,cb){tpReadOne((input.files&&input.files[0])||null,function(res){if(!res)input.value="";cb(res);});}'
+    // Upload every image the doer picked, one after another, so a task can carry more
+    // than one completion photo. onProgress(done,total); onDone(photoIds); onError(msg).
+    + 'function tpUploadPhotos(input,token,onProgress,onDone,onError){var files=[];for(var k=0;input.files&&k<input.files.length;k++){if(/^image\\//.test(input.files[k].type))files.push(input.files[k]);}'
+    + 'input.value="";if(!files.length){onDone([]);return;}var ids=[],i=0;'
+    + 'function step(){if(i>=files.length){onDone(ids);return;}if(onProgress)onProgress(i,files.length);'
+    + 'tpReadOne(files[i],function(res){if(!res){i++;step();return;}'
+    + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){onError((r&&r.error)||"Upload failed");return;}if(r.photoId)ids.push(r.photoId);i++;step();})'
+    + '.withFailureHandler(function(){onError("Upload failed. Please retry.");}).submitIssueCompletion(token,res.dataUrl,res.name,ids.length>0);},true);}step();}'
+    // Render a strip of completion-photo thumbnails from an array of Drive file ids.
+    + 'function tpThumbs(ids){if(!ids||!ids.length)return "";var h="<div class=\\"tp-photos\\">";for(var i=0;i<ids.length;i++){var e=encodeURIComponent(ids[i]);var cap=ids.length>1?"Completion photo "+(i+1):"Completion photo";'
+    + 'h+="<div class=\\"tp-photo\\"><figure><figcaption>"+cap+"</figcaption><a href=\\"https://drive.google.com/file/d/"+e+"/view\\" target=\\"_blank\\" rel=\\"noopener\\" style=\\"display:inline-block;line-height:0\\"><img src=\\"https://drive.google.com/thumbnail?id="+e+"&sz=w600\\" style=\\"max-width:100%;max-height:200px;border-radius:10px;border:1px solid #ececec\\"></a></figure></div>";}return h+"</div>";}'
     + 'function tpReadAnyFile(input,cb){var f=input.files&&input.files[0];if(!f){cb(null);return;}if(f.size>10485760){alert("That file is too large (max 10 MB).");input.value="";cb(null);return;}var r=new FileReader();r.onerror=function(){alert("Could not read that file.");cb(null);};r.onload=function(){cb({dataUrl:r.result,name:f.name});};r.readAsDataURL(f);}'
     + '</script>';
 }
@@ -609,9 +672,8 @@ function tpAdminRevealJs_(admin) {
 
 // Empty (or pre-filled) container for the completion photo on a card.
 function icPhotoBlock_(rid, url) {
-  var inner = url
-    ? '<div class="tp-photos"><div class="tp-photo"><figure><figcaption>Completion photo</figcaption>' + tpThumb_(url) + '</figure></div></div>'
-    : '';
+  var cells = tpPhotoCells_(url, 200, 'Completion photo');
+  var inner = cells ? '<div class="tp-photos">' + cells + '</div>' : '';
   return '<div id="' + rid + '-photo">' + inner + '</div>';
 }
 
@@ -642,17 +704,20 @@ function icNoteContainer_(rid, isPending, sentBackReason, show, photoOptional) {
   return '<div id="' + rid + '-note">' + inner + '</div>';
 }
 
-// Foot action for an OPEN item. Photo-required tasks get a single "Complete with a
-// photo"; photo-optional tasks get a one-tap "Mark done" plus a quieter "Add a photo".
+// Foot action for an OPEN item. Student staff always submit a photo: photo-required
+// tasks get "Complete with a photo"; photo-optional action types get "Mark done" plus
+// a quieter "Add a photo". Admins get an extra "Complete without a photo" bypass,
+// revealed only after unlock.
 function icOpenFoot_(rid, token, photoOptional) {
-  var input = '<input type="file" accept="image/*" id="' + rid + '-file" style="display:none" onchange="icFile(this,\'' + rid + '\',\'' + token + '\')">';
-  if (photoOptional) {
-    return input
-      + '<button type="button" class="btn btn-ghost" onclick="document.getElementById(\'' + rid + '-file\').click()">Add a photo</button>'
-      + '<button type="button" class="btn btn-primary" onclick="icDone(\'' + rid + '\',\'' + token + '\')">Mark done</button>';
-  }
-  return input
-    + '<button type="button" class="btn btn-primary" onclick="document.getElementById(\'' + rid + '-file\').click()">Complete with a photo</button>';
+  var input = '<input type="file" accept="image/*" multiple id="' + rid + '-file" style="display:none" onchange="icFile(this,\'' + rid + '\',\'' + token + '\')">';
+  var doer = photoOptional
+    ? input
+      + '<button type="button" class="btn btn-ghost" onclick="document.getElementById(\'' + rid + '-file\').click()">Add photos</button>'
+      + '<button type="button" class="btn btn-primary" onclick="icDone(\'' + rid + '\',\'' + token + '\')">Mark done</button>'
+    : input
+      + '<button type="button" class="btn btn-primary" onclick="document.getElementById(\'' + rid + '-file\').click()">Complete with a photo</button>';
+  var admin = '<span class="tp-admin btn-row" hidden><button type="button" class="btn btn-ghost" onclick="icResolve(\'' + rid + '\',\'' + token + '\')">Complete without a photo</button></span>';
+  return doer + admin;
 }
 
 // Foot action for a PENDING item: admin-only Approve / Send back (revealed on unlock).
@@ -670,19 +735,23 @@ function icClientJs_() {
   return '<script>'
     + 'function icSetPill(rid,cls,txt){var p=document.getElementById(rid+"-pill");if(p)p.innerHTML="<span class=\\"tp-pill "+cls+"\\">"+txt+"</span>";}'
     + 'function icBump(id,d){var e=document.getElementById(id);if(e)e.textContent=Math.max(0,(parseInt(e.textContent,10)||0)+d);}'
-    + 'function icThumb(pid){return "<div class=\\"tp-photos\\"><div class=\\"tp-photo\\"><figure><figcaption>Completion photo</figcaption><a href=\\"https://drive.google.com/file/d/"+pid+"/view\\" target=\\"_blank\\" rel=\\"noopener\\" style=\\"display:inline-block;line-height:0\\"><img src=\\"https://drive.google.com/thumbnail?id="+pid+"&sz=w600\\" style=\\"max-width:100%;max-height:200px;border-radius:10px;border:1px solid #ececec\\"></a></figure></div></div>";}'
-    + 'function icOpenFootJs(rid,token){var c=document.getElementById(rid);var po=c&&c.dataset.po==="1";var input="<input type=\\"file\\" accept=\\"image/*\\" id=\\""+rid+"-file\\" style=\\"display:none\\" onchange=\\"icFile(this,\'"+rid+"\',\'"+token+"\')\\">";if(po){return input+"<button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"document.getElementById(\'"+rid+"-file\').click()\\">Add a photo</button><button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"icDone(\'"+rid+"\',\'"+token+"\')\\">Mark done</button>";}return input+"<button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"document.getElementById(\'"+rid+"-file\').click()\\">Complete with a photo</button>";}'
+    + 'function icOpenFootJs(rid,token){var c=document.getElementById(rid);var po=c&&c.dataset.po==="1";var input="<input type=\\"file\\" accept=\\"image/*\\" multiple id=\\""+rid+"-file\\" style=\\"display:none\\" onchange=\\"icFile(this,\'"+rid+"\',\'"+token+"\')\\">";var doer=po?(input+"<button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"document.getElementById(\'"+rid+"-file\').click()\\">Add photos</button><button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"icDone(\'"+rid+"\',\'"+token+"\')\\">Mark done</button>"):(input+"<button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"document.getElementById(\'"+rid+"-file\').click()\\">Complete with a photo</button>");var admin=ADMIN_PASS?"<button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"icResolve(\'"+rid+"\',\'"+token+"\')\\">Complete without a photo</button>":"";return doer+admin;}'
+    + 'function icResolve(rid,token){var act=document.getElementById(rid+"-act");act.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
+    + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed. Retry.")+"</span>";return;}'
+    + 'icSetPill(rid,"tp-pill--done","Completed");act.innerHTML="";var s=document.getElementById(rid+"-status");if(s){s.innerHTML="\\u2713 Completed";s.className="due due--done";}tpApproveFx(rid);tpAdvance(rid,"#157a47","#e7f3ec",2);var c=document.getElementById(rid);if(c){c.style.opacity="0.72";icBump("sum-open",-1);if(c.dataset.over==="1")icBump("sum-over",-1);}'
+    + '}).withFailureHandler(function(){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).resolveIssueComplete(token);}'
     + 'function icNoteInner(){return "<div class=\\"ic-note\\">Finished? Add a photo of the completed work and an admin gives it a quick review.</div>";}'
     + 'function icAdminFootJs(rid,token){return ADMIN_PASS?"<span class=\\"tp-admin btn-row\\"><button type=\\"button\\" class=\\"btn btn-confirm\\" onclick=\\"icApprove(\'"+rid+"\',\'"+token+"\')\\">Approve</button><button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"icRejectOpen(\'"+rid+"\',\'"+token+"\')\\">Send back</button></span>":"";}'
     + 'function icSentBackInner(reason){var r=(reason||"").trim();var esc=function(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");};var lead=r?"<b>Sent back:</b> "+esc(r):"<b>Sent back.</b>";return "<div class=\\"ic-note ic-note--warn\\">"+lead+"<span class=\\"ic-note-cta\\">Make the fix, then send it in again.</span></div>";}'
-    + 'function icAfterSubmit(rid,token,photoId){tpConfetti();icSetPill(rid,"tp-pill--pending","Pending approval");tpAdvance(rid,"#b06a00","#f7edd8",1);var ph=document.getElementById(rid+"-photo");if(ph)ph.innerHTML=photoId?icThumb(photoId):"";'
+    + 'function icAfterSubmit(rid,token,photoIds){tpConfetti();icSetPill(rid,"tp-pill--pending","Pending approval");tpAdvance(rid,"#b06a00","#f7edd8",1);var ids=Array.isArray(photoIds)?photoIds:(photoIds?[photoIds]:[]);var ph=document.getElementById(rid+"-photo");if(ph)ph.innerHTML=tpThumbs(ids);'
     + 'var s=document.getElementById(rid+"-status");if(s){s.textContent="Submitted, awaiting approval";s.className="due";}'
     + 'var nt=document.getElementById(rid+"-note");if(nt)nt.innerHTML="";'
     + 'var act=document.getElementById(rid+"-act");if(act)act.innerHTML=icAdminFootJs(rid,token);var c=document.getElementById(rid);if(c){if(c.dataset.over==="1"){icBump("sum-over",-1);c.dataset.over="0";}c.dataset.state="pending";}'
     + 'icBump("sum-open",-1);icBump("sum-pending",1);}'
-    + 'function icFile(input,rid,token){tpReadFile(input,function(res){if(!res)return;var act=document.getElementById(rid+"-act");act.innerHTML="<span class=\\"tp-hint\\">Uploading photo\\u2026</span>";'
-    + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Upload failed")+"</span>";return;}icAfterSubmit(rid,token,r.photoId);'
-    + '}).withFailureHandler(function(){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Upload failed. Please retry.</span>";}).submitIssueCompletion(token,res.dataUrl,res.name);});}'
+    + 'function icFile(input,rid,token){var act=document.getElementById(rid+"-act");'
+    + 'tpUploadPhotos(input,token,function(done,total){act.innerHTML="<span class=\\"tp-hint\\">Uploading photo "+(done+1)+" of "+total+"\\u2026</span>";},'
+    + 'function(ids){if(!ids.length)return;icAfterSubmit(rid,token,ids);},'
+    + 'function(msg){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+msg+"</span>";});}'
     + 'function icDone(rid,token){var act=document.getElementById(rid+"-act");act.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed")+"</span>";return;}icAfterSubmit(rid,token,"");'
     + '}).withFailureHandler(function(){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).submitIssueCompletion(token,"","");}'

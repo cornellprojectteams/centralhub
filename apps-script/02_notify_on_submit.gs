@@ -496,15 +496,34 @@ function confirmPage_(id) {
   if (!info) return htmlPage_('Not found', 'We could not find that item. It may have been removed.');
   if (info.addressed) return htmlPage_('Already completed', 'This was approved as complete on ' + escapeHtml_(fmtShort_(info.addressed)) + '.');
   if (info.completedAt) return htmlPage_('Pending approval', 'This was already submitted on ' + escapeHtml_(fmtShort_(info.completedAt)) + '. It is waiting for an admin to review.');
+
+  // The Operations email goes to Noah (an admin), so it closes in one tap, no photo
+  // or approval. Every other team's email requires a photo (handled below).
+  if (icIsOpsTeam_(info.team)) {
+    const opsBanner = info.sentBackReason
+      ? '<div style="margin-top:14px;font:600 14px/1.6 Arial,sans-serif;color:#8a4b00;background:#fdf2df;border:1px solid #f4dfb0;border-radius:10px;padding:11px 14px"><b>Sent back:</b> ' + escapeHtml_(info.sentBackReason) + '</div>'
+      : '';
+    const opsInner = '<div style="font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#999">Space Status</div>'
+      + '<div class="swh" style="font-size:30px;font-weight:800;letter-spacing:-.025em;line-height:1.1;margin-top:16px">Mark complete</div>'
+      + '<div style="font-size:16px;line-height:1.7;color:#555;margin-top:12px">Operations item. Tap <b>Mark complete</b> to close it out. No photo or approval needed.</div>'
+      + opsBanner
+      + '<div id="act" style="margin-top:24px"><button type="button" class="btn btn-primary" onclick="cfResolve()">Mark complete</button></div>'
+      + '<div id="done" style="display:none;font-size:22px;font-weight:800;letter-spacing:-.02em;color:#1d7a46;margin-top:14px"></div>'
+      + '<script>function cfResolve(){var a=document.getElementById("act");a.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
+      + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Could not save")+"</span>";return;}tpConfetti();a.style.display="none";var d=document.getElementById("done");d.style.display="block";d.innerHTML="\\u2713 Completed";}'
+      + '}).withFailureHandler(function(){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Could not save. Please retry.</span>";}).resolveIssueComplete(' + JSON.stringify(id) + ');}</script>';
+    return swissShell_(tpStyles_() + opsInner + tpSharedJs_(), 'Space Status');
+  }
+
   const photoOptional = icPhotoOptional_(info.action);
   const sentBackBanner = info.sentBackReason
     ? '<div style="margin-top:14px;font:600 14px/1.6 Arial,sans-serif;color:#8a4b00;background:#fdf2df;border:1px solid #f4dfb0;border-radius:10px;padding:11px 14px"><b>Sent back:</b> ' + escapeHtml_(info.sentBackReason) + '</div>'
     : '';
   const lead = photoOptional
-    ? 'Tap <b>Mark done</b> and an admin gives it a quick review. A photo is optional here, so add one only if it helps.'
-    : 'Add a photo of the completed work and an admin gives it a quick review.';
+    ? 'Tap <b>Mark done</b> and an admin gives it a quick review. Photos are optional here, so add one or more only if they help.'
+    : 'Add one or more photos of the completed work and an admin gives it a quick review.';
   const controls = photoOptional
-    ? '<button type="button" class="btn btn-ghost" onclick="document.getElementById(\'cf-file\').click()">Add a photo</button>'
+    ? '<button type="button" class="btn btn-ghost" onclick="document.getElementById(\'cf-file\').click()">Add photos</button>'
       + '<button type="button" class="btn btn-primary" onclick="cfDone()">Mark done</button>'
     : '<button type="button" class="btn btn-primary" onclick="document.getElementById(\'cf-file\').click()">Complete with a photo</button>';
   const inner = '<div style="font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#999">Space Status</div>'
@@ -512,21 +531,44 @@ function confirmPage_(id) {
     + '<div style="font-size:16px;line-height:1.7;color:#555;margin-top:12px">' + lead + '</div>'
     + sentBackBanner
     + '<div id="act" style="margin-top:24px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
-    +   '<input type="file" accept="image/*" id="cf-file" style="display:none" onchange="cfFile(this)">'
+    +   '<input type="file" accept="image/*" multiple id="cf-file" style="display:none" onchange="cfFile(this)">'
     +   controls
     + '</div>'
     + '<div id="cf-photo"></div>'
     + '<div id="done" style="display:none;font-size:22px;font-weight:800;letter-spacing:-.02em;color:#1d7a46;margin-top:14px"></div>'
     + '<script>'
-    + 'function cfDoneUi(photoId){tpConfetti();var a=document.getElementById("act");a.style.display="none";if(photoId){document.getElementById("cf-photo").innerHTML="<div class=\\"tp-photos\\"><div class=\\"tp-photo\\"><figure><figcaption>Completion photo</figcaption><img src=\\"https://drive.google.com/thumbnail?id="+photoId+"&sz=w600\\" style=\\"max-width:100%;max-height:220px;border-radius:10px;border:1px solid #ececec\\"></figure></div></div>";}var d=document.getElementById("done");d.style.display="block";d.innerHTML="\\u2713 Submitted, pending approval";}'
-    + 'function cfFile(input){tpReadFile(input,function(res){if(!res)return;var a=document.getElementById("act");a.innerHTML="<span class=\\"tp-hint\\">Uploading photo\\u2026</span>";'
-    + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Upload failed")+"</span>";return;}cfDoneUi(r.photoId);'
-    + '}).withFailureHandler(function(){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Upload failed. Please retry.</span>";}).submitIssueCompletion(' + JSON.stringify(id) + ',res.dataUrl,res.name);});}'
+    + 'function cfDoneUi(ids){tpConfetti();var a=document.getElementById("act");a.style.display="none";ids=Array.isArray(ids)?ids:(ids?[ids]:[]);document.getElementById("cf-photo").innerHTML=tpThumbs(ids);var d=document.getElementById("done");d.style.display="block";d.innerHTML="\\u2713 Submitted, pending approval";}'
+    + 'function cfFile(input){var a=document.getElementById("act");tpUploadPhotos(input,' + JSON.stringify(id) + ',function(done,total){a.innerHTML="<span class=\\"tp-hint\\">Uploading photo "+(done+1)+" of "+total+"\\u2026</span>";},'
+    + 'function(ids){if(!ids.length)return;cfDoneUi(ids);},'
+    + 'function(msg){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+msg+"</span>";});}'
     + 'function cfDone(){var a=document.getElementById("act");a.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Could not save")+"</span>";return;}cfDoneUi("");'
     + '}).withFailureHandler(function(){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Could not save. Please retry.</span>";}).submitIssueCompletion(' + JSON.stringify(id) + ',"","");}'
     + '</script>';
   return swissShell_(tpStyles_() + inner + tpSharedJs_(), 'Space Status');
+}
+
+// A collapsed "Recently completed" list so finished items are still visible instead
+// of just vanishing. Plain styled divs (not .card) so page filters skip them.
+function icDoneSection_(doneList, showTeam) {
+  if (!doneList || !doneList.length) return '';
+  let s = '<details style="margin-top:28px"><summary style="cursor:pointer;font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#157a47">Recently completed (' + doneList.length + ')</summary><div style="margin-top:16px">';
+  doneList.forEach(function (d) {
+    const ids = extractFileIds_(d.completionPhoto);
+    const thumb = ids.length
+      ? '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">' + ids.map(function (fid) {
+          const e = encodeURIComponent(fid);
+          return '<a href="https://drive.google.com/file/d/' + e + '/view" target="_blank" rel="noopener" style="display:inline-block;line-height:0"><img src="https://drive.google.com/thumbnail?id=' + e + '&sz=w400" loading="lazy" style="max-height:120px;border-radius:10px;border:1px solid #ececec"></a>';
+        }).join('') + '</div>'
+      : '';
+    s += '<div style="background:#fff;border:1px solid #ececea;border-radius:14px;opacity:.94;margin-bottom:10px;padding:16px 18px;box-shadow:0 2px 8px rgba(20,20,30,.05)">'
+      + '<div style="font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#157a47">' + escapeHtml_((showTeam && d.team ? d.team + ' · ' : '') + (d.issueType ? phrase_(d.issueType) : 'Issue')) + '</div>'
+      + (d.details ? '<div style="font-size:14px;color:#444;line-height:1.6;margin-top:6px;white-space:pre-line">' + escapeHtml_(d.details) + '</div>' : '')
+      + thumb
+      + '<div style="font-size:13px;font-weight:700;color:#157a47;margin-top:12px">&#10003; Completed ' + escapeHtml_(fmtShort_(d.addressed)) + '</div>'
+      + '</div>';
+  });
+  return s + '</div></details>';
 }
 
 function teamPortal_(team, readOnly, embedded) {
@@ -617,6 +659,8 @@ function teamPortal_(team, readOnly, embedded) {
     pendingList.forEach(function (it) { inner += renderCard(it); });
   }
 
+  inner += icDoneSection_(data.done, false);
+
   const scripts = tpSharedJs_() + (readOnly ? '' : icClientJs_());
   return swissShell_(tpStyles_() + inner + scripts, 'Space Status - ' + team, false, embedded);
 }
@@ -662,13 +706,22 @@ function listTeamIssues_(teamName) {
         cAction = ci(CONFIG.headers.action), cDetails = ci(CONFIG.headers.details), cTs = ci(CONFIG.headers.timestamp),
         cTok = ci(CONFIG.issueTokenHeader), cAddr = ci(CONFIG.addressedHeader), cPhoto = ci(CONFIG.headers.photo),
         cCompletedAt = ci(CONFIG.completedAtHeader), cCompletionPhoto = ci(CONFIG.completionPhotoHeader), cSentBack = ci(CONFIG.sentBackHeader);
-  const open = [];
+  const open = [], done = [];
   let resolved = 0;
   const today = new Date(); today.setHours(0, 0, 0, 0);
   for (let i = 1; i < v.length; i++) {
     if (cTeam < 0 || norm_(v[i][cTeam]) !== norm_(teamName)) continue;
     if (cTok < 0 || !v[i][cTok]) continue;
-    if (cAddr >= 0 && v[i][cAddr]) { resolved++; continue; }
+    if (cAddr >= 0 && v[i][cAddr]) {
+      resolved++;
+      done.push({
+        issueType: cIssue >= 0 ? String(v[i][cIssue]).trim() : '',
+        details: cDetails >= 0 ? String(v[i][cDetails]).trim() : '',
+        completionPhoto: cCompletionPhoto >= 0 ? String(v[i][cCompletionPhoto] || '').trim() : '',
+        addressed: new Date(v[i][cAddr])
+      });
+      continue;
+    }
     const pending = cCompletedAt >= 0 && v[i][cCompletedAt] ? true : false;
     const color = parseColor_(v[i][cStatus]);
     let deadline = null, overdue = false;
@@ -694,7 +747,8 @@ function listTeamIssues_(teamName) {
     if (a.deadline && b.deadline) return a.deadline - b.deadline;
     if (a.deadline) return -1; if (b.deadline) return 1; return 0;
   });
-  return { open: open, resolved: resolved };
+  done.sort(function (a, b) { return (b.addressed || 0) - (a.addressed || 0); });
+  return { open: open, resolved: resolved, done: done.slice(0, 25) };
 }
 
 function listAllIssues_() {
@@ -706,12 +760,22 @@ function listAllIssues_() {
         cAction = ci(CONFIG.headers.action), cDetails = ci(CONFIG.headers.details), cTs = ci(CONFIG.headers.timestamp),
         cTok = ci(CONFIG.issueTokenHeader), cAddr = ci(CONFIG.addressedHeader), cPhoto = ci(CONFIG.headers.photo),
         cCompletedAt = ci(CONFIG.completedAtHeader), cCompletionPhoto = ci(CONFIG.completionPhotoHeader), cSentBack = ci(CONFIG.sentBackHeader);
-  const open = [];
+  const open = [], done = [];
   let resolved = 0;
   const today = new Date(); today.setHours(0, 0, 0, 0);
   for (let i = 1; i < v.length; i++) {
     if (cTok < 0 || !v[i][cTok]) continue;
-    if (cAddr >= 0 && v[i][cAddr]) { resolved++; continue; }
+    if (cAddr >= 0 && v[i][cAddr]) {
+      resolved++;
+      done.push({
+        team: cTeam >= 0 ? String(v[i][cTeam]).trim() : '',
+        issueType: cIssue >= 0 ? String(v[i][cIssue]).trim() : '',
+        details: cDetails >= 0 ? String(v[i][cDetails]).trim() : '',
+        completionPhoto: cCompletionPhoto >= 0 ? String(v[i][cCompletionPhoto] || '').trim() : '',
+        addressed: new Date(v[i][cAddr])
+      });
+      continue;
+    }
     const pending = cCompletedAt >= 0 && v[i][cCompletedAt] ? true : false;
     const color = parseColor_(v[i][cStatus]);
     let deadline = null, overdue = false;
@@ -738,7 +802,8 @@ function listAllIssues_() {
     if (a.deadline && b.deadline) return a.deadline - b.deadline;
     if (a.deadline) return -1; if (b.deadline) return 1; return 0;
   });
-  return { open: open, resolved: resolved };
+  done.sort(function (a, b) { return (b.addressed || 0) - (a.addressed || 0); });
+  return { open: open, resolved: resolved, done: done.slice(0, 25) };
 }
 
 // Every open issue across all teams. Completing one now requires an evidence
@@ -853,6 +918,7 @@ function allIssuesPage_(embedded, admin) {
   }
 
   inner += '<div id="empty" class="empty" style="display:none">No issues match those filters.</div>';
+  inner += icDoneSection_(data.done, true);
 
   inner += '<script>'
     + 'function flt(){var q=document.getElementById("q").value.toLowerCase().trim();var tm=document.getElementById("team").value;var od=document.getElementById("odue").checked;var n=0;'
@@ -949,6 +1015,20 @@ function registryDashboardPage_(embedded) {
     return (b.created ? b.created.getTime() : 0) - (a.created ? a.created.getTime() : 0);
   });
 
+  // Equipment out on loan, overdue first.
+  var eName = col(eq.headers, 'Name'), eCoTo = col(eq.headers, 'Checked out to'), eDue = col(eq.headers, 'Due back');
+  var checkedOut = 0, loans = [];
+  eq.rows.forEach(function (r) {
+    var who = eCoTo >= 0 ? String(r[eCoTo] || '').trim() : '';
+    if (!who) return;
+    checkedOut++;
+    var due = eDue >= 0 ? toDate(r[eDue]) : null;
+    var diff = due ? Math.round((startOf(due) - today) / DAY) : null;
+    loans.push({ name: eName >= 0 ? String(r[eName]).trim() : '', who: who, due: due, diff: diff });
+  });
+  loans.sort(function (a, b) { var av = a.diff === null ? 1e9 : a.diff, bv = b.diff === null ? 1e9 : b.diff; return av - bv; });
+  var overdueLoans = loans.filter(function (x) { return x.diff !== null && x.diff < 0; }).length;
+
   var assets = eq.rows.length, invItems = invd.rows.length, reorderCount = outCount + lowCount, openCount = openActions.length;
 
   var cmms = '<style>'
@@ -977,6 +1057,7 @@ function registryDashboardPage_(embedded) {
     +   '<div class="dash-hero-mini">'
     +     '<div><b>' + reorderCount + '</b>to reorder</div>'
     +     '<div><b>' + pmDue + '</b>maintenance due</div>'
+    +     '<div><b>' + checkedOut + '</b>out on loan</div>'
     +   '</div>'
     + '</div></div>';
 
@@ -1040,6 +1121,19 @@ function registryDashboardPage_(embedded) {
     inner += '</div></div>';
   }
 
+  if (loans.length) {
+    inner += '<div class="dash-sec">Out on loan' + (overdueLoans ? ' &middot; ' + overdueLoans + ' overdue' : '') + '</div><div class="dash-card"><div class="cmms-list">';
+    loans.slice(0, 8).forEach(function (l) {
+      var w = dueLabel(l.due, l.diff);
+      inner += '<div class="cmms-row">'
+        + '<div><div class="cmms-title">' + escapeHtml_(l.name || '(unnamed)') + '</div>'
+        + '<div class="cmms-sub">' + escapeHtml_(l.who) + '</div></div>'
+        + '<div class="cmms-when ' + w.cls + '">' + escapeHtml_(l.due ? w.txt : 'No due date') + '</div>'
+        + '</div>';
+    });
+    inner += '</div></div>';
+  }
+
   inner += '<div class="dash-sec">Open action items</div>';
   if (!openActions.length) {
     inner += '<div class="dash-empty">No open action items. The shop is caught up.</div>';
@@ -1067,23 +1161,33 @@ function registryDashboardPage_(embedded) {
   return swissShell_(inner, 'Equipment & inventory', true, embedded);
 }
 
+// Canonical, sortable categories and LiPo states, shared by the form and filters.
+var REG_CATEGORIES = ['Machine tools', 'Power & hand tools', 'Cutting tooling', 'Measurement & inspection', 'Electronics & test', '3D printing & prototyping', 'Materials', 'Fasteners & hardware', 'Abrasives', 'Adhesives & chemicals', 'Filters', 'PPE', 'First aid', 'Batteries', 'Facility & finishing', 'Other'];
+var REG_BATTERY_STATES = ['Charged', 'Storage', 'Needs charge', 'Retire'];
+
 // Field spec drives the add/edit forms and identifies each tab's natural key.
 function regFields_(which) {
   if (String(which).toLowerCase() === 'inventory') {
     return { tab: 'Inventory', key: 'Item', idPrefix: '', which: 'inventory', noun: 'item',
       fields: [
-        { h: 'Item', label: 'Item', req: true }, { h: 'Location', label: 'Location' },
+        { h: 'Item', label: 'Item', req: true },
+        { h: 'Category', label: 'Category', type: 'select', opts: 'category' },
+        { h: 'Owning team', label: 'Owner (team or Program)' }, { h: 'Location', label: 'Location' },
         { h: 'On hand', label: 'On hand', type: 'number' }, { h: 'Unit', label: 'Unit' },
         { h: 'Reorder point', label: 'Reorder point', type: 'number' }, { h: 'Reorder qty', label: 'Reorder qty', type: 'number' },
         { h: 'Supplier', label: 'Supplier' }, { h: 'Product link', label: 'Product link', type: 'url' },
         { h: 'eShop info', label: 'eShop info' }, { h: 'Assign to', label: 'Assign to' },
-        { h: 'Last restocked', label: 'Last restocked' }, { h: 'Image', label: 'Image', type: 'image' } ] };
+        { h: 'Last restocked', label: 'Last restocked' },
+        { h: 'Battery state', label: 'Battery state', type: 'select', opts: 'battery', group: 'battery' },
+        { h: 'Battery spec', label: 'Battery spec (e.g. 6S 5000mAh)', group: 'battery' },
+        { h: 'Image', label: 'Image', type: 'image' } ] };
   }
   return { tab: 'Equipment', key: 'Asset ID', idPrefix: 'EQ-', which: 'equipment', noun: 'equipment',
     fields: [
       { h: 'Asset ID', label: 'Asset ID', auto: true }, { h: 'Name', label: 'Name', req: true },
-      { h: 'Category', label: 'Category' }, { h: 'Location', label: 'Location' },
-      { h: 'Owning team', label: 'Owning team' }, { h: 'Owner', label: 'Owner' },
+      { h: 'Category', label: 'Category', type: 'select', opts: 'category' },
+      { h: 'Owning team', label: 'Owner (team or Program)' }, { h: 'Location', label: 'Location' },
+      { h: 'Owner', label: 'Owner (person)' },
       { h: 'Status', label: 'Status' }, { h: 'Installed', label: 'Installed' }, { h: 'Notes', label: 'Notes' },
       { h: 'Image', label: 'Image', type: 'image' } ] };
 }
@@ -1117,49 +1221,54 @@ function regBuildCards_(which, admin) {
   const idx = function (n) { for (let i = 0; i < H.length; i++) { if (norm_(H[i]) === norm_(n)) return i; } return -1; };
   const cName = idx(inv ? 'Item' : 'Name'), cImg = idx('Image'), cKey = idx(spec.key), cTeam = idx('Owning team'),
     cOn = idx('On hand'), cRe = idx('Reorder point'), cUnit = idx('Unit'), cLoc = idx('Location'),
-    cSup = idx('Supplier'), cCat = idx('Category'), cStatus = idx('Status');
+    cSup = idx('Supplier'), cCat = idx('Category'), cStatus = idx('Status'), cCoTo = idx('Checked out to'), cDue = idx('Due back');
+  const today = new Date(); today.setHours(0, 0, 0, 0);
   let base = ''; try { base = ScriptApp.getService().getUrl(); } catch (e) { base = ''; }
-  let html = ''; const mapParts = [], teams = {};
+  let html = ''; const mapParts = [], owners = {}, cats = {};
   rows.forEach(function (rr) {
     const r = rr.cells;
     const name = cName >= 0 ? String(r[cName]).trim() : '';
     const key = cKey >= 0 ? String(r[cKey]).trim() : '';
-    const team = (!inv && cTeam >= 0) ? String(r[cTeam]).trim() : ''; if (team) teams[team] = 1;
+    const owner = cTeam >= 0 ? String(r[cTeam]).trim() : ''; if (owner) owners[owner] = 1;
+    const cat = cCat >= 0 ? String(r[cCat]).trim() : ''; if (cat) cats[cat] = 1;
     const hay = r.map(function (c) { return String(c); }).join(' ').toLowerCase();
     const img = cImg >= 0 ? String(r[cImg]).trim() : '';
     const imgHtml = (/^https?:\/\//i.test(img) || img.indexOf('data:') === 0)
       ? '<img src="' + escapeHtml_(img) + '" loading="lazy" alt="" onerror="this.remove()">'
       : '<span class="reg-card-noimg">No photo</span>';
-    let primary = '', chip = '';
+    let primary = '', chip = '', coState = '', stockState = '';
     if (inv) {
       const on = cOn >= 0 && isNum_(r[cOn]) ? Number(r[cOn]) : null;
       const re = cRe >= 0 && isNum_(r[cRe]) ? Number(r[cRe]) : 0;
       const unit = cUnit >= 0 ? String(r[cUnit]).trim() : '';
       if (on !== null) primary = '<span class="reg-card-num">' + on + '</span><span class="reg-card-num-sub">' + escapeHtml_((unit ? unit + ' ' : '') + 'on hand') + '</span>';
-      chip = (on !== null && on <= 0) ? '<span class="reg-chip">Out of stock</span>'
-        : ((on !== null && re > 0 && on > 0 && on <= re) ? '<span class="reg-chip reg-chip-low">Low stock</span>' : '');
+      stockState = (on !== null && on <= 0) ? 'out' : ((on !== null && re > 0 && on > 0 && on <= re) ? 'low' : '');
+      chip = stockState === 'out' ? '<span class="reg-chip">Out of stock</span>' : (stockState === 'low' ? '<span class="reg-chip reg-chip-low">Low stock</span>' : '');
     } else {
-      const cat = cCat >= 0 ? String(r[cCat]).trim() : '';
-      if (cat) primary = '<span class="reg-card-num-sub">' + escapeHtml_(cat) + '</span>';
-      const st = cStatus >= 0 ? String(r[cStatus]).trim() : '';
-      chip = st && /down|out of service|repair|broken/i.test(st) ? '<span class="reg-chip">' + escapeHtml_(st) + '</span>' : '';
+      const outTo = cCoTo >= 0 ? String(r[cCoTo]).trim() : '';
+      let overdue = false;
+      if (outTo && cDue >= 0 && String(r[cDue]).trim()) { const d = r[cDue] instanceof Date ? new Date(r[cDue]) : new Date(r[cDue]); if (!isNaN(d.getTime())) { d.setHours(0, 0, 0, 0); overdue = d < today; } }
+      if (overdue) { chip = '<span class="reg-chip">Overdue</span>'; coState = 'overdue'; }
+      else if (outTo) { chip = '<span class="reg-chip reg-chip-low">Checked out</span>'; coState = 'out'; }
+      else { const st = cStatus >= 0 ? String(r[cStatus]).trim() : ''; chip = st && /down|out of service|repair|broken/i.test(st) ? '<span class="reg-chip">' + escapeHtml_(st) + '</span>' : ''; }
     }
+    const tag = cat ? '<div class="reg-card-tag">' + escapeHtml_(cat) + '</div>' : '';
     const metaBits = [];
     if (cLoc >= 0 && String(r[cLoc]).trim()) metaBits.push(String(r[cLoc]).trim());
+    if (owner) metaBits.push(owner);
     if (inv && cSup >= 0 && String(r[cSup]).trim()) metaBits.push(String(r[cSup]).trim());
-    if (!inv && team) metaBits.push(team);
     const meta = metaBits.length ? '<div class="reg-card-meta">' + escapeHtml_(metaBits.join(' · ')) + '</div>' : '';
     const href = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'registry=item&which=' + spec.which + '&id=' + encodeURIComponent(key) + (admin ? '&admin=1' : '');
-    html += '<div class="reg-card reg-row" data-hay="' + escapeHtml_(hay) + '" data-team="' + escapeHtml_(team) + '">'
+    html += '<div class="reg-card reg-row" data-hay="' + escapeHtml_(hay) + '" data-cat="' + escapeHtml_(cat) + '" data-owner="' + escapeHtml_(owner) + '" data-co="' + coState + '" data-stock="' + stockState + '">'
       + '<a class="reg-card-link" href="' + escapeHtml_(href) + '"><div class="reg-card-img">' + imgHtml + '</div>'
-      + '<div class="reg-card-b"><div class="reg-card-title">' + escapeHtml_(name || '(unnamed)') + '</div>'
+      + '<div class="reg-card-b"><div class="reg-card-title">' + escapeHtml_(name || '(unnamed)') + '</div>' + tag
       + (primary ? '<div class="reg-card-primary">' + primary + '</div>' : '') + (chip || '') + meta + '</div></a>'
       + (admin ? '<div class="reg-card-act"><button type="button" class="reg-iconbtn" title="Edit" onclick="regOpenEdit(' + rr.row + ')">Edit</button><button type="button" class="reg-iconbtn reg-del" title="Delete" onclick="regDeleteRow(' + rr.row + ',this)">Delete</button></div>' : '')
       + '</div>';
     const obj = {}; H.forEach(function (h, i) { obj[h] = regRawVal_(r[i]); });
     mapParts.push(JSON.stringify(String(rr.row)) + ':' + JSON.stringify(obj));
   });
-  return { html: html, mapJson: '{' + mapParts.join(',') + '}', teams: Object.keys(teams).sort(), key: spec.key };
+  return { html: html, mapJson: '{' + mapParts.join(',') + '}', owners: Object.keys(owners).sort(), cats: Object.keys(cats).sort(), key: spec.key };
 }
 
 // Client-callable: re-render the cards after a change (no page reload, which blanks the sandbox).
@@ -1180,23 +1289,51 @@ function registryPage_(which, embedded, admin) {
       + '<div class="page-title">' + escapeHtml_(title) + '</div><div class="page-rule"></div></div>';
   }
 
+  const q = admin ? '&admin=1' : '';
+  const toggle = '<div class="reg-toggle">'
+    + '<a class="reg-toggle-btn' + (inv ? ' on' : '') + '" href="?registry=inventory' + q + '">Inventory</a>'
+    + '<a class="reg-toggle-btn' + (!inv ? ' on' : '') + '" href="?registry=equipment' + q + '">Equipment</a>'
+    + '</div>';
+
+  // Print labels opens in a new tab, so it needs the absolute /exec URL: a relative
+  // "?registry=labels" would resolve against the sandbox iframe (userCodeAppPanel) and
+  // load a blank page. Same-tab links (the toggle, Back) can stay relative.
+  let base = '';
+  try { base = ScriptApp.getService().getUrl(); } catch (e) { base = CONFIG.webAppUrl || ''; }
+  const labelsHref = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'registry=labels&which=' + spec.which + '&admin=1';
+
   let toolbar = '';
   if (admin) {
     toolbar = '<div class="reg-tools" id="reg-tools">'
       +   '<button type="button" class="btn btn-primary" onclick="regOpenAdd()">+ Add ' + escapeHtml_(spec.noun) + '</button>'
       +   '<button type="button" class="btn btn-ghost" onclick="regScan()">Scan</button>'
-      +   '<a class="btn btn-ghost" href="?registry=labels&which=' + spec.which + '&admin=1" target="_blank" rel="noopener">Print labels</a>'
+      +   '<a class="btn btn-ghost" href="' + escapeHtml_(labelsHref) + '" target="_blank" rel="noopener">Print labels</a>'
       + '</div>';
   }
 
   let controls = '';
-  if (!inv && b.teams.length) {
-    controls = '<select id="team" onchange="flt()"><option value="">All teams</option>'
-      + b.teams.map(function (t) { return '<option value="' + escapeHtml_(t) + '">' + escapeHtml_(t) + '</option>'; }).join('') + '</select>';
+  // Category filter shows the full canonical list (same as the add/edit form), not just
+  // the categories that happen to exist in the data, plus any stray legacy values. Keep
+  // 'Other' last.
+  const catList = [], catSeen = {};
+  const pushCat = function (c) { if (c && !catSeen[c]) { catSeen[c] = 1; catList.push(c); } };
+  REG_CATEGORIES.forEach(function (c) { if (c !== 'Other') pushCat(c); });
+  b.cats.forEach(pushCat);
+  if (REG_CATEGORIES.indexOf('Other') >= 0) pushCat('Other');
+  controls += '<select id="cat" onchange="flt()"><option value="">All categories</option>'
+    + catList.map(function (t) { return '<option value="' + escapeHtml_(t) + '">' + escapeHtml_(t) + '</option>'; }).join('') + '</select>';
+  if (b.owners.length) {
+    controls += '<select id="owner" onchange="flt()"><option value="">All owners</option>'
+      + b.owners.map(function (t) { return '<option value="' + escapeHtml_(t) + '">' + escapeHtml_(t) + '</option>'; }).join('') + '</select>';
   }
 
-  let inner = '<div id="reg-root">' + head + toolbar
+  const chipsHtml = inv
+    ? '<div class="reg-chips"><button type="button" class="reg-fchip" data-f="stock" onclick="regChip(this)">Low or out</button></div>'
+    : '<div class="reg-chips"><button type="button" class="reg-fchip" data-f="out" onclick="regChip(this)">Checked out</button><button type="button" class="reg-fchip" data-f="overdue" onclick="regChip(this)">Overdue</button></div>';
+
+  let inner = '<div id="reg-root">' + head + toggle + toolbar
     + '<div class="filters"><div class="search-wrap"><input id="q" type="search" placeholder="Search ' + escapeHtml_(spec.tab.toLowerCase()) + '" oninput="flt()"></div>' + controls + '</div>'
+    + chipsHtml
     + '<div class="reg-grid" id="reg-cards">' + b.html + '</div>'
     + '<div id="empty" class="empty" style="display:none">Nothing matches those filters.</div>';
 
@@ -1240,24 +1377,56 @@ function regItemPage_(which, id, admin) {
     ? '<img src="' + escapeHtml_(imgUrl) + '" alt="" onerror="this.parentNode.innerHTML=\'<span class=&quot;reg-card-noimg&quot;>No photo</span>\'">'
     : '<span class="reg-card-noimg">No photo</span>') + '</div>';
 
+  const toi = hi('Checked out to'), osi = hi('Out since'), dbi = hi('Due back'), oni = hi('On hand');
+  const outTo = toi >= 0 ? String(r[toi]).trim() : '';
+  const dueTxt = dbi >= 0 && String(r[dbi]).trim() ? regCell_(r[dbi]) : '';
+  const overdue = (function () {
+    if (!outTo || dbi < 0 || !String(r[dbi]).trim()) return false;
+    const d = r[dbi] instanceof Date ? new Date(r[dbi]) : new Date(r[dbi]);
+    if (isNaN(d.getTime())) return false;
+    const t = new Date(); t.setHours(0, 0, 0, 0); d.setHours(0, 0, 0, 0); return d < t;
+  })();
+
+  const skip = {}; skip[imgI] = 1; skip[nameI] = 1;
+  if (!inv) { [toi, osi, dbi].forEach(function (x) { if (x >= 0) skip[x] = 1; }); }
   let fieldsHtml = '';
   H.forEach(function (h, i) {
-    if (i === imgI || i === nameI) return;
-    if (!String(r[i]).trim()) return;
+    if (skip[i] || !String(r[i]).trim()) return;
     fieldsHtml += '<div class="reg-detail-kv"><span class="reg-detail-l">' + escapeHtml_(h) + '</span><span class="reg-detail-v">' + regCell_(r[i]) + '</span></div>';
   });
+
+  let panel = '';
+  if (!inv) {
+    if (outTo) {
+      const sub = (osi >= 0 && String(r[osi]).trim() ? 'out since ' + regCell_(r[osi]) : '') + (dueTxt ? (osi >= 0 && String(r[osi]).trim() ? ' · ' : '') + 'due ' + dueTxt : '');
+      panel = '<div class="reg-co' + (overdue ? ' is-over' : '') + '"><div class="reg-co-h">' + (overdue ? 'Overdue' : 'Checked out') + '</div>'
+        + '<div class="reg-co-who">' + escapeHtml_(outTo) + '</div>'
+        + (sub ? '<div class="reg-co-sub">' + sub + '</div>' : '')
+        + (admin ? '<button type="button" class="btn btn-confirm" onclick="regReturnOne(' + found.row + ')">Mark returned</button>' : '') + '</div>';
+    } else if (admin) {
+      panel = '<div class="reg-co"><div class="reg-co-h">Check out</div>'
+        + '<div class="reg-co-form"><input id="co-person" placeholder="Who is taking it?"><input id="co-due" type="date" title="Due back"><button type="button" class="btn btn-primary" onclick="regCheckoutOne(' + found.row + ')">Check out</button></div></div>';
+    }
+  } else if (admin && oni >= 0) {
+    const onNow = isNum_(r[oni]) ? Number(r[oni]) : 0;
+    panel = '<div class="reg-co"><div class="reg-co-h">Count on hand</div>'
+      + '<div class="reg-step"><button type="button" class="reg-stepbtn" onclick="regStep(-1)">&minus;</button>'
+      + '<input id="co-count" type="number" inputmode="numeric" value="' + onNow + '">'
+      + '<button type="button" class="reg-stepbtn" onclick="regStep(1)">+</button>'
+      + '<button type="button" class="btn btn-confirm" onclick="regCountSave(' + found.row + ')">Save count</button></div></div>';
+  }
 
   let actions = '';
   if (admin) {
     actions = '<div class="reg-detail-act">'
-      + (inv ? '<button type="button" class="btn btn-confirm" onclick="regRestockOne(' + found.row + ')">Mark restocked</button>' : '')
+      + (inv ? '<button type="button" class="btn btn-ghost" onclick="regRestockOne(' + found.row + ')">Restock (+reorder qty)</button>' : '')
       + '<button type="button" class="btn btn-primary" onclick="regOpenEdit(' + found.row + ')">Edit</button>'
       + '<button type="button" class="btn btn-ghost reg-del" onclick="regDeleteRow(' + found.row + ',this)">Delete</button>'
       + '</div>';
   }
 
   let inner = '<div id="reg-root">' + head + '<div class="page-title">' + escapeHtml_(name) + '</div><div class="page-rule"></div></div>'
-    + '<div class="reg-detail">' + media + '<div class="reg-detail-main">' + fieldsHtml + actions + '</div></div>'
+    + '<div class="reg-detail">' + media + '<div class="reg-detail-main">' + panel + fieldsHtml + actions + '</div></div>'
     + '<p style="margin-top:18px"><a class="btn btn-ghost" href="?registry=' + spec.which + '&admin=1">Back to ' + escapeHtml_(spec.tab.toLowerCase()) + '</a></p>';
 
   inner += regStyles_();
@@ -1269,7 +1438,7 @@ function regItemPage_(which, id, admin) {
       + regEditJs_();
   }
   inner += '</div>';
-  return swissShell_(inner, name, false, false);
+  return swissShell_(inner, name, true, false);
 }
 
 // Printable QR labels. Each label deep-links to its item page; scan with any phone camera.
@@ -1321,6 +1490,9 @@ function regLabelsPage_(which) {
 
 function regStyles_() {
   return '<style>'
+    + '.reg-toggle{display:inline-flex;background:#efeee8;border-radius:999px;padding:4px;gap:2px;margin:16px 0 2px}'
+    + '.reg-toggle-btn{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:13px;font-weight:700;color:#8a857c;text-decoration:none;padding:7px 20px;border-radius:999px;transition:background .15s,color .15s}'
+    + '.reg-toggle-btn.on{background:#fff;color:#14110e;box-shadow:0 1px 3px rgba(0,0,0,.12)}'
     + '.reg-tools{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 4px}'
     + '.reg-chip{display:inline-block;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#b31b1b;background:#fdecec;border:1px solid #f5d0d0;padding:3px 9px;border-radius:999px;align-self:flex-start}'
     + '.reg-chip-low{color:#b06a00;background:#fbf3e1;border-color:#eeddb4}'
@@ -1334,6 +1506,7 @@ function regStyles_() {
     + '.reg-card-noimg{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:10px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#cbc4b8}'
     + '.reg-card-b{padding:12px 14px 14px;display:flex;flex-direction:column;gap:5px}'
     + '.reg-card-title{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:13.5px;font-weight:700;color:#1c1a17;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.5em}'
+    + '.reg-card-tag{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#8a857c}'
     + '.reg-card-primary{display:flex;align-items:baseline;gap:5px;flex-wrap:wrap}'
     + '.reg-card-num{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:19px;font-weight:800;letter-spacing:-.02em;color:#14110e}'
     + '.reg-card-num-sub{font-size:12px;font-weight:600;color:#8a857c}'
@@ -1351,6 +1524,25 @@ function regStyles_() {
     + '.reg-detail-v{font-size:14px;font-weight:600;color:#26231f;text-align:right}.reg-detail-v a{color:#b31b1b;text-decoration:none;border-bottom:1px solid #f0c050}'
     + '.reg-detail-act{display:flex;gap:8px;flex-wrap:wrap;margin-top:20px}'
     + '@media(max-width:640px){.reg-detail{grid-template-columns:1fr}.reg-detail-media{max-width:300px}}'
+    // quick-filter chips
+    + '.reg-chips{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 2px}'
+    + '.reg-fchip{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12px;font-weight:700;color:#57534e;background:#fff;border:1.5px solid #e2ddd6;border-radius:999px;padding:7px 14px;cursor:pointer}'
+    + '.reg-fchip:hover{border-color:#b5b0a8}.reg-fchip.on{background:#b31b1b;border-color:#b31b1b;color:#fff}'
+    // check-out / count panel
+    + '.reg-co{background:#faf9f6;border:1.5px solid #ececea;border-radius:14px;padding:16px 18px;margin-bottom:16px}'
+    + '.reg-co.is-over{background:#fdecec;border-color:#f5d0d0}'
+    + '.reg-co-h{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#8a857c;margin-bottom:9px}'
+    + '.reg-co.is-over .reg-co-h{color:#b31b1b}'
+    + '.reg-co-who{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:18px;font-weight:800;color:#14110e}'
+    + '.reg-co-sub{font-size:13px;color:#8a857c;margin-top:3px;margin-bottom:12px}'
+    + '.reg-co-form{display:flex;gap:8px;flex-wrap:wrap;align-items:center}'
+    + '.reg-co-form input{font:inherit;font-size:14px;padding:11px 13px;border:1.5px solid #e0e0dc;border-radius:10px;outline:none;flex:1;min-width:150px}'
+    + '.reg-co-form input:focus{border-color:#b31b1b;box-shadow:0 0 0 3px rgba(179,27,27,.1)}'
+    + '.reg-step{display:flex;align-items:center;gap:10px;flex-wrap:wrap}'
+    + '.reg-stepbtn{width:46px;height:46px;border-radius:12px;border:1.5px solid #e0e0dc;background:#fff;font-size:22px;font-weight:700;color:#26231f;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center;flex:0 0 auto}'
+    + '.reg-stepbtn:hover{border-color:#b5b0a8}.reg-stepbtn:active{background:#f0efe9}'
+    + '.reg-step input{width:86px;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:22px;font-weight:800;text-align:center;padding:9px;border:1.5px solid #e0e0dc;border-radius:12px;outline:none}'
+    + '.reg-step input:focus{border-color:#b31b1b}'
     // ---- modal form ----
     + '.reg-msg{font-size:12.5px;color:#8a857c;font-weight:600}'
     + '.reg-ov{position:fixed;inset:0;z-index:80;display:flex;align-items:flex-start;justify-content:center;padding:5vh 16px}.reg-ov[hidden]{display:none}'
@@ -1360,7 +1552,7 @@ function regStyles_() {
     + '.reg-form{display:grid;grid-template-columns:1fr 1fr;gap:13px;padding:14px 24px}'
     + '.reg-f{display:flex;flex-direction:column;gap:5px;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif}.reg-f.wide{grid-column:1 / -1}'
     + '.reg-f span{font-size:10px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#8a857c}.reg-f span i{color:#b31b1b;font-style:normal}'
-    + '.reg-f input{font:inherit;font-size:14px;padding:10px 12px;border:1.5px solid #e0e0dc;border-radius:9px;outline:none}.reg-f input:focus{border-color:#b31b1b;box-shadow:0 0 0 3px rgba(179,27,27,.1)}'
+    + '.reg-f input,.reg-f select{font:inherit;font-size:14px;padding:10px 12px;border:1.5px solid #e0e0dc;border-radius:9px;outline:none;background:#fff}.reg-f input:focus,.reg-f select:focus{border-color:#b31b1b;box-shadow:0 0 0 3px rgba(179,27,27,.1)}'
     // image block
     + '.reg-imgblock{grid-column:1 / -1;display:flex;gap:14px;align-items:flex-start;padding:13px;background:#faf9f6;border:1px solid #ececea;border-radius:12px}'
     + '.reg-preview{flex:0 0 auto;width:96px;height:96px;border-radius:11px;background:#fff;border:1px solid #ececea;overflow:hidden;display:flex;align-items:center;justify-content:center;color:#cbc4b8;font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;text-align:center}'
@@ -1379,9 +1571,13 @@ function regStyles_() {
 
 function regFilterJs_() {
   return '<script>'
+    + 'var REG_FILTER="";'
+    + 'function regChip(btn){var was=btn.classList.contains("on");document.querySelectorAll(".reg-fchip").forEach(function(b){b.classList.remove("on");});REG_FILTER=was?"":btn.dataset.f;if(!was)btn.classList.add("on");flt();}'
     + 'function flt(){var qEl=document.getElementById("q");if(!qEl)return;var q=qEl.value.toLowerCase().trim();'
-    + 'var tmEl=document.getElementById("team");var tm=tmEl?tmEl.value:"";var n=0;'
-    + 'document.querySelectorAll(".reg-row").forEach(function(r){var ok=(!q||r.dataset.hay.indexOf(q)>=0)&&(!tm||r.dataset.team===tm);r.style.display=ok?"":"none";if(ok)n++;});'
+    + 'var cEl=document.getElementById("cat");var cv=cEl?cEl.value:"";var oEl=document.getElementById("owner");var ov=oEl?oEl.value:"";var n=0;'
+    + 'document.querySelectorAll(".reg-row").forEach(function(r){var fp=true;'
+    + 'if(REG_FILTER==="stock")fp=r.dataset.stock!=="";else if(REG_FILTER==="out")fp=(r.dataset.co==="out"||r.dataset.co==="overdue");else if(REG_FILTER==="overdue")fp=r.dataset.co==="overdue";'
+    + 'var ok=fp&&(!q||r.dataset.hay.indexOf(q)>=0)&&(!cv||r.dataset.cat===cv)&&(!ov||r.dataset.owner===ov);r.style.display=ok?"":"none";if(ok)n++;});'
     + 'var e=document.getElementById("empty");if(e)e.style.display=n?"none":"block";}'
     + '</script>';
 }
@@ -1402,9 +1598,17 @@ function regFormOverlay_(which) {
         + '<div class="reg-past" id="reg-past" hidden></div>'
         + '</div></div>';
     }
+    const grp = f.group ? ' data-group="' + f.group + '"' : '';
+    if (f.type === 'select') {
+      const opts = f.opts === 'battery' ? REG_BATTERY_STATES : REG_CATEGORIES;
+      const chg = f.h === 'Category' ? ' onchange="regToggleBattery()"' : '';
+      return '<label class="reg-f"' + grp + '><span>' + escapeHtml_(f.label) + '</span>'
+        + '<select data-h="' + escapeHtml_(f.h) + '"' + chg + '><option value=""></option>'
+        + opts.map(function (o) { return '<option value="' + escapeHtml_(o) + '">' + escapeHtml_(o) + '</option>'; }).join('') + '</select></label>';
+    }
     const type = f.type === 'number' ? 'number' : (f.type === 'url' ? 'url' : 'text');
-    const wide = (f.h === 'Notes' || f.h === 'eShop info' || f.h === 'Product link') ? ' wide' : '';
-    return '<label class="reg-f' + wide + '"><span>' + escapeHtml_(f.label) + (f.req ? ' <i>required</i>' : '') + '</span>'
+    const wide = (f.h === 'Notes' || f.h === 'eShop info' || f.h === 'Product link' || f.h === 'Battery spec') ? ' wide' : '';
+    return '<label class="reg-f' + wide + '"' + grp + '><span>' + escapeHtml_(f.label) + (f.req ? ' <i>required</i>' : '') + '</span>'
       + '<input data-h="' + escapeHtml_(f.h) + '" type="' + type + '"' + (type === 'number' ? ' step="any"' : '') + '></label>';
   }).join('');
   return '<div class="reg-ov" id="reg-ov" hidden><div class="reg-ov-bd" onclick="regClose()"></div>'
@@ -1419,8 +1623,9 @@ function regFormOverlay_(which) {
 function regEditJs_() {
   return '<script>'
     + 'var REG_EROW=null,REG_EKEY=null,REG_REDIRKEY=null;'
-    + 'function regInputs(){return [].slice.call(document.querySelectorAll("#reg-ov .reg-form input[data-h]"));}'
-    + 'function regFill(v){regInputs().forEach(function(i){i.value=(v&&v[i.dataset.h]!=null)?v[i.dataset.h]:"";});var g=document.getElementById("reg-past");if(g)g.hidden=true;regPreview();}'
+    + 'function regInputs(){return [].slice.call(document.querySelectorAll("#reg-ov .reg-form input[data-h], #reg-ov .reg-form select[data-h]"));}'
+    + 'function regFill(v){regInputs().forEach(function(i){var val=(v&&v[i.dataset.h]!=null)?v[i.dataset.h]:"";if(i.tagName==="SELECT"&&val){var found=false;[].forEach.call(i.options,function(o){if(o.value===val)found=true;});if(!found){var o=document.createElement("option");o.value=val;o.textContent=val;i.appendChild(o);}}i.value=val;});var g=document.getElementById("reg-past");if(g)g.hidden=true;regPreview();regToggleBattery();}'
+    + 'function regToggleBattery(){var cat="";regInputs().forEach(function(i){if(i.dataset.h==="Category")cat=i.value;});var show=cat==="Batteries";[].slice.call(document.querySelectorAll("#reg-ov .reg-form [data-group=\\"battery\\"]")).forEach(function(el){el.style.display=show?"":"none";});}'
     + 'function regPreview(){var el=document.getElementById("reg-imgurl");var p=document.getElementById("reg-preview");if(!p)return;var u=el?el.value.trim():"";p.innerHTML=/^https?:|^data:/.test(u)?("<img src=\\""+u.replace(/"/g,"%22")+"\\" onerror=\\"this.parentNode.textContent=\'No photo\'\\">"):"No photo";}'
     + 'function regSetImg(u){var el=document.getElementById("reg-imgurl");if(el)el.value=u;regPreview();}'
     + 'function regSearchWeb(){var name="";regInputs().forEach(function(i){if(i.dataset.h==="Item"||i.dataset.h==="Name"){if(i.value)name=i.value;}});if(!name){regMsg("Type the name first, then search.",true);return;}window.open("https://www.google.com/search?tbm=isch&q="+encodeURIComponent(name),"_blank");regMsg("Opened image search. Right-click a photo, Copy image address, paste it above.");}'
@@ -1441,6 +1646,11 @@ function regEditJs_() {
     + 'function regDeleteRow(row,btn){var v=REG_ROWS[row]||{};var key=v[REG_KEY]||"";if(!confirm("Delete \\""+key+"\\"? This cannot be undone."))return;if(btn)btn.disabled=true;'
     + 'google.script.run.withSuccessHandler(function(res){if(res&&res.ok){if(typeof REG_ITEM!=="undefined"){location.href="?registry="+REG_WHICH+"&admin=1";}else{var c=btn&&btn.closest?btn.closest(".reg-row"):null;if(c)c.remove();delete REG_ROWS[row];}}else{if(btn)btn.disabled=false;alert((res&&res.error)||"Could not delete.");}}).withFailureHandler(function(e){if(btn)btn.disabled=false;alert(String(e));}).regDelete(REG_WHICH,row,key);}'
     + 'function regRestockOne(row){var v=REG_ROWS[row]||{};var key=v[REG_KEY]||"";google.script.run.withSuccessHandler(function(res){if(res&&res.ok){location.href="?registry=item&which="+REG_WHICH+"&id="+encodeURIComponent(key)+"&admin=1";}else{alert((res&&res.error)||"Could not update.");}}).withFailureHandler(function(e){alert(String(e));}).regRestock(row,key);}'
+    + 'function regReloadItem(key){location.href="?registry=item&which="+REG_WHICH+"&id="+encodeURIComponent(key)+"&admin=1";}'
+    + 'function regCheckoutOne(row){var v=REG_ROWS[row]||{};var key=v[REG_KEY]||"";var person=(document.getElementById("co-person")||{}).value||"";var due=(document.getElementById("co-due")||{}).value||"";if(!person.trim()){alert("Enter who is taking it.");return;}google.script.run.withSuccessHandler(function(res){if(res&&res.ok){regReloadItem(key);}else{alert((res&&res.error)||"Could not check out.");}}).withFailureHandler(function(e){alert(String(e));}).regCheckout(REG_WHICH,row,key,person,due);}'
+    + 'function regReturnOne(row){var v=REG_ROWS[row]||{};var key=v[REG_KEY]||"";google.script.run.withSuccessHandler(function(res){if(res&&res.ok){regReloadItem(key);}else{alert((res&&res.error)||"Could not update.");}}).withFailureHandler(function(e){alert(String(e));}).regReturn(REG_WHICH,row,key);}'
+    + 'function regStep(d){var el=document.getElementById("co-count");if(!el)return;el.value=Math.max(0,(parseInt(el.value,10)||0)+d);}'
+    + 'function regCountSave(row){var v=REG_ROWS[row]||{};var key=v[REG_KEY]||"";var el=document.getElementById("co-count");var n=el?el.value:"";google.script.run.withSuccessHandler(function(res){if(res&&res.ok){regReloadItem(key);}else{alert((res&&res.error)||"Could not save.");}}).withFailureHandler(function(e){alert(String(e));}).regCount(row,key,n);}'
     + 'function regRefresh(){if(typeof REG_ITEM!=="undefined"){location.href="?registry=item&which="+REG_WHICH+"&id="+encodeURIComponent(REG_REDIRKEY||REG_EKEY||"")+"&admin=1";return;}'
     + 'google.script.run.withSuccessHandler(function(res){if(res&&res.ok){document.getElementById("reg-cards").innerHTML=res.html;REG_ROWS=JSON.parse(res.mapJson);if(typeof flt==="function")flt();}}).regRowsHtml(REG_WHICH);}'
     + 'function regScan(){if(!("BarcodeDetector" in window)){alert("Live scanning is not available in this browser. Use Print labels and scan them with your phone camera instead.");return;}'
@@ -1536,6 +1746,82 @@ function regRestock(rowNum, expectedItem) {
   if (lri != null) cur[lri] = new Date();
   sh.getRange(rowNum, 1, 1, hm.headers.length).setValues([cur]);
   return { ok: true };
+}
+
+// ---- check out / return (equipment) + quick count (inventory) ----
+
+function regRowGuard_(which, rowNum, expectedKey) {
+  const spec = regFields_(which);
+  const sh = regSheet_(which);
+  const hm = regHeaderMap_(sh);
+  rowNum = Number(rowNum);
+  if (!(rowNum >= 2 && rowNum <= sh.getLastRow())) return { error: 'Bad row.' };
+  const ki = hm.map[spec.key];
+  const cur = sh.getRange(rowNum, 1, 1, hm.headers.length).getValues()[0];
+  if (ki != null && String(cur[ki]).trim() !== String(expectedKey).trim()) return { error: 'This item moved. Refresh and try again.' };
+  return { spec: spec, sh: sh, hm: hm, rowNum: rowNum, cur: cur };
+}
+
+function regCheckout(which, rowNum, expectedKey, person, due) {
+  const g = regRowGuard_(which, rowNum, expectedKey);
+  if (g.error) return { ok: false, error: g.error };
+  person = String(person || '').trim();
+  if (!person) return { ok: false, error: 'Enter who is taking it.' };
+  const now = new Date();
+  const dueDate = due ? new Date(due) : '';
+  const set = function (h, v) { if (g.hm.map[h] != null) g.cur[g.hm.map[h]] = v; };
+  set('Checked out to', person); set('Out since', now); set('Due back', dueDate);
+  g.sh.getRange(g.rowNum, 1, 1, g.hm.headers.length).setValues([g.cur]);
+  const nameI = g.hm.map[g.spec.tab === 'Inventory' ? 'Item' : 'Name'];
+  regLogCheckout_(nameI != null ? g.cur[nameI] : '', expectedKey, person, now, dueDate);
+  return { ok: true };
+}
+
+function regReturn(which, rowNum, expectedKey) {
+  const g = regRowGuard_(which, rowNum, expectedKey);
+  if (g.error) return { ok: false, error: g.error };
+  ['Checked out to', 'Out since', 'Due back'].forEach(function (h) { if (g.hm.map[h] != null) g.cur[g.hm.map[h]] = ''; });
+  g.sh.getRange(g.rowNum, 1, 1, g.hm.headers.length).setValues([g.cur]);
+  regCloseCheckoutLog_(expectedKey);
+  return { ok: true };
+}
+
+function regCount(rowNum, expectedItem, onHand) {
+  const g = regRowGuard_('inventory', rowNum, expectedItem);
+  if (g.error) return { ok: false, error: g.error };
+  const n = Number(onHand);
+  if (isNaN(n) || n < 0) return { ok: false, error: 'Enter a valid count.' };
+  if (g.hm.map['On hand'] != null) g.cur[g.hm.map['On hand']] = n;
+  if (g.hm.map['Last counted'] != null) g.cur[g.hm.map['Last counted']] = new Date();
+  g.sh.getRange(g.rowNum, 1, 1, g.hm.headers.length).setValues([g.cur]);
+  return { ok: true, onHand: n };
+}
+
+function regLogCheckout_(name, assetId, person, out, due) {
+  const sh = registrySs_().getSheetByName('Checkouts');
+  if (!sh) return;
+  const hm = regHeaderMap_(sh);
+  const row = hm.headers.map(function () { return ''; });
+  const set = function (h, v) { if (hm.map[h] != null) row[hm.map[h]] = v; };
+  set('Timestamp', new Date()); set('Item', name); set('Asset ID', assetId);
+  set('Checked out to', person); set('Out since', out); set('Due back', due);
+  sh.appendRow(row);
+}
+
+function regCloseCheckoutLog_(assetId) {
+  const sh = registrySs_().getSheetByName('Checkouts');
+  if (!sh) return;
+  const v = sh.getDataRange().getValues();
+  if (v.length < 2) return;
+  const hm = regHeaderMap_(sh);
+  const ai = hm.map['Asset ID'], ri = hm.map['Returned'];
+  if (ai == null || ri == null) return;
+  for (let i = v.length - 1; i >= 1; i--) {
+    if (String(v[i][ai]).trim() === String(assetId).trim() && !String(v[i][ri]).trim()) {
+      sh.getRange(i + 1, ri + 1).setValue(new Date());
+      return;
+    }
+  }
 }
 
 // Save an uploaded photo to Drive (reusing the tasks/projects uploads folder) and
