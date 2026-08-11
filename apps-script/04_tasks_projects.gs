@@ -734,15 +734,17 @@ function icNoteContainer_(rid, isPending, sentBackReason, show, photoOptional) {
 // Foot action for an OPEN item. Photos are STAGED (added one pick at a time and
 // previewed) and only uploaded when the doer taps Complete, so several photos can be
 // attached without each one closing the task. Photo-optional tasks can Complete with
-// none. Admins get an extra "Complete without a photo" bypass, revealed on unlock.
+// none. Admins get an extra "Close it out" quick-close (no photo, no review), revealed on unlock.
 function icOpenFoot_(rid, token, photoOptional) {
   var input = '<input type="file" accept="image/*" multiple id="' + rid + '-file" style="display:none" onchange="icPick(this,\'' + rid + '\')">';
   var addBtn = '<button type="button" class="btn btn-ghost" onclick="document.getElementById(\'' + rid + '-file\').click()">Add photos</button>';
   var doneBtn = '<button type="button" class="btn btn-primary" id="' + rid + '-done" onclick="icComplete(\'' + rid + '\',\'' + token + '\',' + (photoOptional ? 'true' : 'false') + ')">' + (photoOptional ? 'Mark done' : 'Complete') + '</button>';
   var hint = '<span id="' + rid + '-stagehint" class="tp-hint"></span>';
-  // Admin no-photo bypass only where it waives a real requirement: photo-required
-  // tasks. Photo-optional tasks already have "Mark done", so it would be redundant.
-  var admin = photoOptional ? '' : '<span class="tp-admin btn-row" hidden><button type="button" class="btn btn-ghost" onclick="icResolve(\'' + rid + '\',\'' + token + '\')">Complete without a photo</button></span>';
+  // Admin quick-close (skips the photo + review) only where it waives a real
+  // requirement: photo-required tasks. Photo-optional tasks already have "Mark done".
+  var bolt = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"></path></svg>';
+  var skipBtn = '<button type="button" class="btn btn-ghost btn-skip" title="Admin: close this now without a photo or review" onclick="icResolveAsk(\'' + rid + '\',\'' + token + '\')">' + bolt + 'Close it out</button>';
+  var admin = photoOptional ? '' : '<span id="' + rid + '-skipwrap" class="tp-admin btn-row" hidden>' + skipBtn + '</span>';
   return input + addBtn + doneBtn + hint + admin;
 }
 
@@ -761,7 +763,10 @@ function icClientJs_() {
   return '<script>'
     + 'function icSetPill(rid,cls,txt){var p=document.getElementById(rid+"-pill");if(p)p.innerHTML="<span class=\\"tp-pill "+cls+"\\">"+txt+"</span>";}'
     + 'function icBump(id,d){var e=document.getElementById(id);if(e)e.textContent=Math.max(0,(parseInt(e.textContent,10)||0)+d);}'
-    + 'function icOpenFootJs(rid,token){var c=document.getElementById(rid);var po=c&&c.dataset.po==="1";var input="<input type=\\"file\\" accept=\\"image/*\\" multiple id=\\""+rid+"-file\\" style=\\"display:none\\" onchange=\\"icPick(this,\'"+rid+"\')\\">";var addBtn="<button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"document.getElementById(\'"+rid+"-file\').click()\\">Add photos</button>";var doneBtn="<button type=\\"button\\" class=\\"btn btn-primary\\" id=\\""+rid+"-done\\" onclick=\\"icComplete(\'"+rid+"\',\'"+token+"\',"+(po?"true":"false")+")\\">"+(po?"Mark done":"Complete")+"</button>";var hint="<span id=\\""+rid+"-stagehint\\" class=\\"tp-hint\\"></span>";var admin=(ADMIN_PASS&&!po)?"<button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"icResolve(\'"+rid+"\',\'"+token+"\')\\">Complete without a photo</button>":"";return input+addBtn+doneBtn+hint+admin;}'
+    + 'function icOpenFootJs(rid,token){var c=document.getElementById(rid);var po=c&&c.dataset.po==="1";var input="<input type=\\"file\\" accept=\\"image/*\\" multiple id=\\""+rid+"-file\\" style=\\"display:none\\" onchange=\\"icPick(this,\'"+rid+"\')\\">";var addBtn="<button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"document.getElementById(\'"+rid+"-file\').click()\\">Add photos</button>";var doneBtn="<button type=\\"button\\" class=\\"btn btn-primary\\" id=\\""+rid+"-done\\" onclick=\\"icComplete(\'"+rid+"\',\'"+token+"\',"+(po?"true":"false")+")\\">"+(po?"Mark done":"Complete")+"</button>";var hint="<span id=\\""+rid+"-stagehint\\" class=\\"tp-hint\\"></span>";var admin=(ADMIN_PASS&&!po)?"<span id=\\""+rid+"-skipwrap\\" class=\\"btn-row\\">"+icSkipHtml(rid,token)+"</span>":"";return input+addBtn+doneBtn+hint+admin;}'
+    + 'function icSkipHtml(rid,token){return "<button type=\\"button\\" class=\\"btn btn-ghost btn-skip\\" title=\\"Admin: close this now without a photo or review\\" onclick=\\"icResolveAsk(\'"+rid+"\',\'"+token+"\')\\"><svg viewBox=\\"0 0 24 24\\" width=\\"14\\" height=\\"14\\" fill=\\"none\\" stroke=\\"currentColor\\" stroke-width=\\"2.3\\" stroke-linecap=\\"round\\" stroke-linejoin=\\"round\\"><path d=\\"M13 2 4 14h6l-1 8 9-12h-6l1-8z\\"></path></svg>Close it out</button>";}'
+    + 'function icResolveAsk(rid,token){var w=document.getElementById(rid+"-skipwrap");if(!w)return;w.innerHTML="<span class=\\"tp-hint\\" style=\\"margin-right:4px\\">Close out with no photo?</span><button type=\\"button\\" class=\\"btn btn-skip\\" onclick=\\"icResolve(\'"+rid+"\',\'"+token+"\')\\">Yes, close it</button><button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"icResolveCancel(\'"+rid+"\',\'"+token+"\')\\">Cancel</button>";}'
+    + 'function icResolveCancel(rid,token){var w=document.getElementById(rid+"-skipwrap");if(w)w.innerHTML=icSkipHtml(rid,token);}'
     + 'function icResolve(rid,token){var act=document.getElementById(rid+"-act");act.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed. Retry.")+"</span>";return;}'
     + 'icSetPill(rid,"tp-pill--done","Completed");act.innerHTML="";var s=document.getElementById(rid+"-status");if(s){s.innerHTML="\\u2713 Completed";s.className="due due--done";}tpApproveFx(rid);tpAdvance(rid,"#157a47","#e7f3ec",2);var c=document.getElementById(rid);if(c){c.style.opacity="0.72";icBump("sum-open",-1);if(c.dataset.over==="1")icBump("sum-over",-1);}'
