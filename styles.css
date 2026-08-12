@@ -554,8 +554,8 @@ body.is-searching .hub-zone:not(.hidden) ~ .hub-zone:not(.hidden) {
 #staff .task-featured .action {
   padding: 1.5rem 3.5rem 1.625rem 1.5rem;
   border-radius: var(--radius-lg);
-  background: linear-gradient(135deg, #e23232 0%, var(--red) 55%, var(--red-dark) 100%);
-  box-shadow: 0 10px 30px rgba(179, 27, 27, 0.35);
+  background: linear-gradient(135deg, #a51f1f 0%, #8f1515 55%, #6e1010 100%);
+  box-shadow: 0 12px 30px rgba(90, 16, 16, 0.32);
 }
 
 #staff .task-featured .action-title { font-size: 1.75rem; letter-spacing: -0.04em; line-height: 1.05; }

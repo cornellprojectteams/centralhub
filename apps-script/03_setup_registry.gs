@@ -31,7 +31,30 @@ function onOpen() {
     .addItem('Run stock check now', 'checkInventoryLevels')
     .addSeparator()
     .addItem('Turn on daily automatic checks', 'installDailyTrigger')
+    .addSeparator()
+    .addItem('Clear ALL data (start fresh)', 'clearRegistryData')
     .addToUi();
+}
+
+// DANGER: wipes every data row (headers stay) from Equipment, Inventory, Maintenance,
+// Action items, and Checkouts, so you can start from scratch. Irreversible - it asks
+// to confirm, and you should make a copy of the sheet first (File > Make a copy).
+function clearRegistryData() {
+  var ui = SpreadsheetApp.getUi();
+  var resp = ui.alert('Clear ALL registry data?',
+    'This permanently deletes every row (headers stay) from:\n  Equipment, Inventory, Maintenance, Action items, Checkouts.\n\nThis CANNOT be undone. If unsure, cancel and first do File > Make a copy.\n\nStart from scratch?',
+    ui.ButtonSet.YES_NO);
+  if (resp !== ui.Button.YES) { Logger.log('Clear cancelled.'); return; }
+  var ss = SpreadsheetApp.openById(REGISTRY_SS_ID);
+  var cleared = [];
+  [EQUIPMENT_TAB, INVENTORY_TAB, MAINTENANCE_TAB, ACTIONS_TAB, CHECKOUTS_TAB].forEach(function (name) {
+    var sh = ss.getSheetByName(name);
+    if (!sh) return;
+    var last = sh.getLastRow();
+    if (last > 1) { sh.getRange(2, 1, last - 1, Math.max(1, sh.getLastColumn())).clearContent(); cleared.push(name + ' (' + (last - 1) + ' rows)'); }
+  });
+  ui.alert('Done', cleared.length ? ('Cleared:\n' + cleared.join('\n') + '\n\nThe tabs and headers are ready for fresh data.') : 'Nothing to clear.', ui.ButtonSet.OK);
+  Logger.log('Cleared: ' + cleared.join(', '));
 }
 
 // Diagnostic: print every tab and its header row so the existing layout is visible.

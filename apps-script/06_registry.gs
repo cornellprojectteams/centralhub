@@ -256,7 +256,6 @@ function regFields_(which) {
         { h: 'Category', label: 'Category', type: 'select', opts: 'category' },
         { h: 'Owning team', label: 'Owner (team or Program)', type: 'select', opts: 'team' }, { h: 'Location', label: 'Location' },
         { h: 'On hand', label: 'On hand', type: 'number' }, { h: 'Unit', label: 'Unit' },
-        { h: 'Reorder point', label: 'Reorder point', type: 'number', adv: true }, { h: 'Reorder qty', label: 'Reorder qty', type: 'number', adv: true },
         { h: 'Supplier', label: 'Supplier', adv: true }, { h: 'Product link', label: 'Product link', type: 'url', adv: true },
         { h: 'Battery state', label: 'Battery state', type: 'select', opts: 'battery', group: 'battery', adv: true },
         { h: 'Battery spec', label: 'Battery spec (e.g. 6S 5000mAh)', group: 'battery', adv: true },
@@ -371,9 +370,33 @@ function regRowsHtml(which) {
 
 function registryPage_(which, embedded, admin) {
   const spec = regFields_(which);
+  const title = spec.tab === 'Inventory' ? 'Inventory' : 'Equipment registry';
+  const b = regBuildCards_(which, admin);
+
+  let regBase = ''; try { regBase = ScriptApp.getService().getUrl(); } catch (e) { regBase = CONFIG.webAppUrl || ''; }
+  let inner = '<div id="reg-root"><div id="reg-swap">' + regBodyMarkup_(which, b, admin, embedded) + '</div>'
+    + regStyles_() + regFilterJs_() + regSwitchJs_();
+  if (admin) {
+    inner += '<script>var REG_WHICH=' + JSON.stringify(spec.which) + ';var REG_ADMIN=true;var REG_BASE=' + JSON.stringify(regBase) + ';var REG_KEY=' + JSON.stringify(b.key)
+      + ';var REG_ROWS=' + b.mapJson.replace(/<\//g, '<\\/') + ';</script>'
+      + regEditJs_();
+  } else {
+    inner += '<script>var REG_WHICH=' + JSON.stringify(spec.which) + ';var REG_ADMIN=false;var REG_BASE=' + JSON.stringify(regBase) + ';</script>';
+  }
+  inner += '</div>';
+  return swissShell_(inner, title, true, embedded);
+}
+
+// The swappable body of the registry page - everything the Inventory/Equipment toggle
+// changes. Kept separate so regSwitchHtml() can re-render it IN PLACE via
+// google.script.run: no page navigation means no Apps Script cold-load white flash
+// (which is what the "back and forth" between tabs was hitting), and it lets the toggle
+// show a loading spinner.
+function regBodyMarkup_(which, b, admin, embedded) {
+  const spec = regFields_(which);
   const inv = spec.tab === 'Inventory';
   const title = inv ? 'Inventory' : 'Equipment registry';
-  const b = regBuildCards_(which, admin);
+  let base = ''; try { base = ScriptApp.getService().getUrl(); } catch (e) { base = CONFIG.webAppUrl || ''; }
 
   let head = '';
   if (!embedded) {
@@ -381,21 +404,14 @@ function registryPage_(which, embedded, admin) {
       + '<div class="page-title">' + escapeHtml_(title) + '</div><div class="page-rule"></div></div>';
   }
 
-  // All in-app navigation uses the ABSOLUTE /exec URL. Apps Script serves pages inside
-  // a sandbox iframe and rewrites <a> links to target the top frame; a relative
-  // "?registry=equipment" then resolves against the wrong base and lands on a blank
-  // page (this is why the Inventory/Equipment toggle "did not work").
-  let base = '';
-  try { base = ScriptApp.getService().getUrl(); } catch (e) { base = CONFIG.webAppUrl || ''; }
-  const regHref = function (w) { return base + (base.indexOf('?') >= 0 ? '&' : '?') + 'registry=' + w + (admin ? '&admin=1' : ''); };
   const toggle = '<div class="reg-toggle">'
-    + '<a class="reg-toggle-btn' + (inv ? ' on' : '') + '" href="' + escapeHtml_(regHref('inventory')) + '">Inventory</a>'
-    + '<a class="reg-toggle-btn' + (!inv ? ' on' : '') + '" href="' + escapeHtml_(regHref('equipment')) + '">Equipment</a>'
+    + '<button type="button" class="reg-toggle-btn' + (inv ? ' on' : '') + '" onclick="regSwitch(\'inventory\')">Inventory</button>'
+    + '<button type="button" class="reg-toggle-btn' + (!inv ? ' on' : '') + '" onclick="regSwitch(\'equipment\')">Equipment</button>'
     + '</div>';
-  const labelsHref = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'registry=labels&which=' + spec.which + '&admin=1';
 
   let toolbar = '';
   if (admin) {
+    const labelsHref = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'registry=labels&which=' + spec.which + '&admin=1';
     toolbar = '<div class="reg-tools" id="reg-tools">'
       +   '<button type="button" class="btn btn-primary" onclick="regOpenAdd()">+ Add ' + escapeHtml_(spec.noun) + '</button>'
       +   '<button type="button" class="btn btn-ghost" onclick="regScan()">Scan</button>'
@@ -404,9 +420,8 @@ function registryPage_(which, embedded, admin) {
   }
 
   let controls = '';
-  // Category filter shows the full canonical list (same as the add/edit form), not just
-  // the categories that happen to exist in the data, plus any stray legacy values. Keep
-  // 'Other' last.
+  // Category filter shows the full canonical list (same as the add/edit form), plus any
+  // stray legacy values; 'Other' last.
   const catList = [], catSeen = {};
   const pushCat = function (c) { if (c && !catSeen[c]) { catSeen[c] = 1; catList.push(c); } };
   REG_CATEGORIES.forEach(function (c) { if (c !== 'Other') pushCat(c); });
@@ -423,23 +438,33 @@ function registryPage_(which, embedded, admin) {
     ? '<div class="reg-chips"><button type="button" class="reg-fchip" data-f="stock" onclick="regChip(this)">Low or out</button></div>'
     : '<div class="reg-chips"><button type="button" class="reg-fchip" data-f="out" onclick="regChip(this)">Checked out</button><button type="button" class="reg-fchip" data-f="overdue" onclick="regChip(this)">Overdue</button></div>';
 
-  let inner = '<div id="reg-root">' + head + toggle + toolbar
+  let out = head + toggle + toolbar
     + '<div class="filters"><div class="search-wrap"><input id="q" type="search" placeholder="Search ' + escapeHtml_(spec.tab.toLowerCase()) + '" oninput="flt()"></div>' + controls + '</div>'
     + chipsHtml
     + '<div class="reg-grid" id="reg-cards">' + b.html + '</div>'
     + '<div id="empty" class="empty" style="display:none">Nothing matches those filters.</div>';
+  if (!b.html) out += '<div class="empty">Nothing here yet.' + (admin ? ' Add the first ' + escapeHtml_(spec.noun) + '.' : '') + '</div>';
+  if (admin) out += regFormOverlay_(which);
+  return out;
+}
 
-  if (!b.html) inner += '<div class="empty">Nothing here yet.' + (admin ? ' Add the first ' + escapeHtml_(spec.noun) + '.' : '') + '</div>';
+// Client-callable: fresh body markup + row data for the other tab (drives the in-place toggle).
+function regSwitchHtml(which, admin) {
+  const spec = regFields_(which);
+  const b = regBuildCards_(which, !!admin);
+  return { ok: true, html: regBodyMarkup_(which, b, !!admin, false), which: spec.which, key: b.key, rowsJson: admin ? b.mapJson : '{}' };
+}
 
-  inner += regStyles_() + regFilterJs_();
-  if (admin) {
-    inner += regFormOverlay_(which)
-      + '<script>var REG_WHICH=' + JSON.stringify(spec.which) + ';var REG_KEY=' + JSON.stringify(b.key)
-      + ';var REG_ROWS=' + b.mapJson.replace(/<\//g, '<\\/') + ';</script>'
-      + regEditJs_();
-  }
-  inner += '</div>';
-  return swissShell_(inner, title, true, embedded);
+// The in-place Inventory/Equipment toggle: swap the body via google.script.run instead
+// of navigating, and dim + spin while it loads.
+function regSwitchJs_() {
+  return '<script>'
+    + 'function regSwitch(which){if(typeof REG_WHICH!=="undefined"&&which===REG_WHICH)return;var sw=document.getElementById("reg-swap");if(sw)sw.classList.add("reg-loading");var ad=(typeof REG_ADMIN!=="undefined"&&REG_ADMIN);'
+    + 'google.script.run.withSuccessHandler(function(r){if(sw)sw.classList.remove("reg-loading");if(!r||!r.ok)return;'
+    + 'sw.innerHTML=r.html;REG_WHICH=r.which;if(ad){REG_KEY=r.key;try{REG_ROWS=JSON.parse(r.rowsJson);}catch(e){REG_ROWS={};}}'
+    + 'if(typeof REG_FILTER!=="undefined")REG_FILTER="";if(typeof flt==="function")flt();})'
+    + '.withFailureHandler(function(){if(sw)sw.classList.remove("reg-loading");}).regSwitchHtml(which, ad);}'
+    + '</script>';
 }
 
 // Single-item view: the QR-label scan target. Focused card with quick actions.
@@ -499,10 +524,10 @@ function regItemPage_(which, id, admin) {
       panel = '<div class="reg-co' + (overdue ? ' is-over' : '') + '"><div class="reg-co-h">' + (overdue ? 'Overdue' : 'Checked out') + '</div>'
         + '<div class="reg-co-who">' + escapeHtml_(outTo) + '</div>'
         + (sub ? '<div class="reg-co-sub">' + sub + '</div>' : '')
-        + (admin ? '<button type="button" class="btn btn-confirm" onclick="regReturnOne(' + found.row + ')">Mark returned</button>' : '') + '</div>';
+        + (admin ? '<button type="button" class="btn btn-confirm" onclick="regReturnOne(' + found.row + ',this)">Mark returned</button>' : '') + '</div>';
     } else if (admin) {
       panel = '<div class="reg-co"><div class="reg-co-h">Check out</div>'
-        + '<div class="reg-co-form"><input id="co-person" placeholder="Who is taking it?"><input id="co-due" type="date" title="Due back"><button type="button" class="btn btn-primary" onclick="regCheckoutOne(' + found.row + ')">Check out</button></div></div>';
+        + '<div class="reg-co-form"><input id="co-person" placeholder="Who is taking it?"><input id="co-due" type="date" title="Due back"><button type="button" class="btn btn-primary" onclick="regCheckoutOne(' + found.row + ',this)">Check out</button></div></div>';
     }
   } else if (admin && oni >= 0) {
     const onNow = isNum_(r[oni]) ? Number(r[oni]) : 0;
@@ -510,7 +535,7 @@ function regItemPage_(which, id, admin) {
       + '<div class="reg-step"><button type="button" class="reg-stepbtn" onclick="regStep(-1)">&minus;</button>'
       + '<input id="co-count" type="number" inputmode="numeric" value="' + onNow + '">'
       + '<button type="button" class="reg-stepbtn" onclick="regStep(1)">+</button>'
-      + '<button type="button" class="btn btn-confirm" onclick="regCountSave(' + found.row + ')">Save count</button></div></div>';
+      + '<button type="button" class="btn btn-confirm" onclick="regCountSave(' + found.row + ',this)">Save count</button></div></div>';
   }
 
   let actions = '';
@@ -529,7 +554,7 @@ function regItemPage_(which, id, admin) {
   if (admin) {
     const one = {}; one[String(found.row)] = (function () { const o = {}; H.forEach(function (h, i) { o[h] = regRawVal_(r[i]); }); return o; })();
     inner += regFormOverlay_(which)
-      + '<script>var REG_WHICH=' + JSON.stringify(spec.which) + ';var REG_KEY=' + JSON.stringify(spec.key)
+      + '<script>var REG_WHICH=' + JSON.stringify(spec.which) + ';var REG_ADMIN=true;var REG_BASE=' + JSON.stringify(regBase) + ';var REG_KEY=' + JSON.stringify(spec.key)
       + ';var REG_ROWS=' + JSON.stringify(one).replace(/<\//g, '<\\/') + ';var REG_ITEM=1;</script>'
       + regEditJs_();
   }
@@ -587,7 +612,14 @@ function regLabelsPage_(which) {
 function regStyles_() {
   return '<style>'
     + '.reg-toggle{display:inline-flex;background:#efeee8;border-radius:999px;padding:4px;gap:2px;margin:16px 0 2px}'
-    + '.reg-toggle-btn{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:13px;font-weight:700;color:#8a857c;text-decoration:none;padding:7px 20px;border-radius:999px;transition:background .15s,color .15s}'
+    + '.reg-toggle-btn{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:13px;font-weight:700;color:#8a857c;text-decoration:none;padding:7px 20px;border-radius:999px;border:none;background:transparent;cursor:pointer;transition:background .15s,color .15s}'
+    // in-place tab swap: dim the body + spinner while the other tab loads
+    + '#reg-swap{position:relative}'
+    + '#reg-swap.reg-loading{opacity:.45;pointer-events:none}'
+    + '#reg-swap.reg-loading::after{content:"";position:absolute;left:50%;top:130px;width:34px;height:34px;margin-left:-17px;border:3px solid #e6e1d8;border-top-color:#b31b1b;border-radius:50%;animation:regspin .7s linear infinite}'
+    + '@keyframes regspin{to{transform:rotate(360deg)}}'
+    // small inline spinner shown in a button while its action runs (check out, return, save count)
+    + '.reg-spin{display:inline-block;width:13px;height:13px;margin-right:7px;vertical-align:-2px;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;animation:regspin .6s linear infinite}'
     + '.reg-toggle-btn.on{background:#fff;color:#14110e;box-shadow:0 1px 3px rgba(0,0,0,.12)}'
     + '.reg-tools{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 4px}'
     + '.reg-chip{display:inline-block;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#b31b1b;background:#fdecec;border:1px solid #f5d0d0;padding:3px 9px;border-radius:999px;align-self:flex-start}'
@@ -747,6 +779,11 @@ function regFormOverlay_(which) {
 function regEditJs_() {
   return '<script>'
     + 'var REG_EROW=null,REG_EKEY=null,REG_REDIRKEY=null;'
+    // Navigate the TOP frame using the ABSOLUTE /exec URL - the same thing the card
+    // links do. A relative "location.href=?registry=..." resolves against the sandbox
+    // iframe and lands on a blank page (this was the check-out / return / count white
+    // screen). window.top is cross-origin but navigation (setting location) is allowed.
+    + 'function regNav(qs){var b=(typeof REG_BASE!=="undefined"&&REG_BASE)?REG_BASE:"";var u=b+(b.indexOf("?")>=0?"&":"?")+qs;try{window.top.location.href=u;}catch(e){location.href=u;}}'
     + 'function regInputs(){return [].slice.call(document.querySelectorAll("#reg-ov .reg-form input[data-h], #reg-ov .reg-form select[data-h]"));}'
     + 'function regFill(v){regInputs().forEach(function(i){var val=(v&&v[i.dataset.h]!=null)?v[i.dataset.h]:"";if(i.tagName==="SELECT"&&val){var found=false;[].forEach.call(i.options,function(o){if(o.value===val)found=true;});if(!found){var o=document.createElement("option");o.value=val;o.textContent=val;i.appendChild(o);}}i.value=val;});var g=document.getElementById("reg-past");if(g)g.hidden=true;regPreview();regToggleBattery();}'
     + 'function regToggleBattery(){var cat="";regInputs().forEach(function(i){if(i.dataset.h==="Category")cat=i.value;});var show=cat==="Batteries";[].slice.call(document.querySelectorAll("#reg-ov .reg-form [data-group=\\"battery\\"]")).forEach(function(el){el.style.display=show?"":"none";});if(show){var d=document.querySelector("#reg-ov .reg-more");if(d)d.open=true;}}'
@@ -768,10 +805,12 @@ function regEditJs_() {
     + 'if(REG_EROW==null){google.script.run.withSuccessHandler(regAfter).withFailureHandler(fail).regAdd(REG_WHICH,vals);}'
     + 'else{google.script.run.withSuccessHandler(regAfter).withFailureHandler(fail).regUpdateRow(REG_WHICH,REG_EROW,REG_EKEY,vals);}}'
     + 'function regDeleteRow(row,btn){var v=REG_ROWS[row]||{};var key=v[REG_KEY]||"";if(!confirm("Delete \\""+key+"\\"? This cannot be undone."))return;if(btn)btn.disabled=true;'
-    + 'google.script.run.withSuccessHandler(function(res){if(res&&res.ok){if(typeof REG_ITEM!=="undefined"){location.href="?registry="+REG_WHICH+"&admin=1";}else{var c=btn&&btn.closest?btn.closest(".reg-row"):null;if(c)c.remove();delete REG_ROWS[row];}}else{if(btn)btn.disabled=false;alert((res&&res.error)||"Could not delete.");}}).withFailureHandler(function(e){if(btn)btn.disabled=false;alert(String(e));}).regDelete(REG_WHICH,row,key);}'
-    + 'function regReloadItem(key){location.href="?registry=item&which="+REG_WHICH+"&id="+encodeURIComponent(key)+"&admin=1";}'
-    + 'function regCheckoutOne(row){var v=REG_ROWS[row]||{};var key=v[REG_KEY]||"";var person=(document.getElementById("co-person")||{}).value||"";var due=(document.getElementById("co-due")||{}).value||"";if(!person.trim()){alert("Enter who is taking it.");return;}google.script.run.withSuccessHandler(function(res){if(res&&res.ok){regReloadItem(key);}else{alert((res&&res.error)||"Could not check out.");}}).withFailureHandler(function(e){alert(String(e));}).regCheckout(REG_WHICH,row,key,person,due);}'
-    + 'function regReturnOne(row){var v=REG_ROWS[row]||{};var key=v[REG_KEY]||"";google.script.run.withSuccessHandler(function(res){if(res&&res.ok){regReloadItem(key);}else{alert((res&&res.error)||"Could not update.");}}).withFailureHandler(function(e){alert(String(e));}).regReturn(REG_WHICH,row,key);}'
+    + 'google.script.run.withSuccessHandler(function(res){if(res&&res.ok){if(typeof REG_ITEM!=="undefined"){regNav("registry="+REG_WHICH+"&admin=1");}else{var c=btn&&btn.closest?btn.closest(".reg-row"):null;if(c)c.remove();delete REG_ROWS[row];}}else{if(btn)btn.disabled=false;alert((res&&res.error)||"Could not delete.");}}).withFailureHandler(function(e){if(btn)btn.disabled=false;alert(String(e));}).regDelete(REG_WHICH,row,key);}'
+    + 'function regReloadItem(key){regNav("registry=item&which="+REG_WHICH+"&id="+encodeURIComponent(key)+"&admin=1");}'
+    + 'function regBtnBusy(btn,label){if(!btn)return;btn.disabled=true;if(btn.getAttribute("data-txt")==null)btn.setAttribute("data-txt",btn.innerHTML);btn.innerHTML="<span class=\\"reg-spin\\"></span>"+(label||"Working\\u2026");}'
+    + 'function regBtnReset(btn){if(!btn)return;btn.disabled=false;var t=btn.getAttribute("data-txt");if(t!=null){btn.innerHTML=t;btn.removeAttribute("data-txt");}}'
+    + 'function regCheckoutOne(row,btn){var v=REG_ROWS[row]||{};var key=v[REG_KEY]||"";var person=(document.getElementById("co-person")||{}).value||"";var due=(document.getElementById("co-due")||{}).value||"";if(!person.trim()){alert("Enter who is taking it.");return;}regBtnBusy(btn,"Checking out\\u2026");google.script.run.withSuccessHandler(function(res){if(res&&res.ok){regReloadItem(key);}else{regBtnReset(btn);alert((res&&res.error)||"Could not check out.");}}).withFailureHandler(function(e){regBtnReset(btn);alert(String(e));}).regCheckout(REG_WHICH,row,key,person,due);}'
+    + 'function regReturnOne(row,btn){var v=REG_ROWS[row]||{};var key=v[REG_KEY]||"";regBtnBusy(btn,"Returning\\u2026");google.script.run.withSuccessHandler(function(res){if(res&&res.ok){regReloadItem(key);}else{regBtnReset(btn);alert((res&&res.error)||"Could not update.");}}).withFailureHandler(function(e){regBtnReset(btn);alert(String(e));}).regReturn(REG_WHICH,row,key);}'
     + 'function regStep(d){var el=document.getElementById("co-count");if(!el)return;el.value=Math.max(0,(parseInt(el.value,10)||0)+d);}'
     // Inline +/- on an inventory card: bump the number, then auto-save after a short pause
     // (debounced per row) so counting a shelf never opens the item page.
@@ -785,8 +824,8 @@ function regEditJs_() {
     + 'clearTimeout(REG_QT[row]);REG_QT[row]=setTimeout(function(){'
     + 'google.script.run.withSuccessHandler(function(res){if(sv){if(res&&res.ok){sv.textContent="\\u2713";sv.className="reg-csaved ok";setTimeout(function(){if(sv&&sv.className.indexOf("ok")>=0)sv.textContent="";},1400);}else{sv.textContent="!";sv.className="reg-csaved bad";}}})'
     + '.withFailureHandler(function(){if(sv){sv.textContent="!";sv.className="reg-csaved bad";}}).regCount(row,key,n);},600);}'
-    + 'function regCountSave(row){var v=REG_ROWS[row]||{};var key=v[REG_KEY]||"";var el=document.getElementById("co-count");var n=el?el.value:"";google.script.run.withSuccessHandler(function(res){if(res&&res.ok){regReloadItem(key);}else{alert((res&&res.error)||"Could not save.");}}).withFailureHandler(function(e){alert(String(e));}).regCount(row,key,n);}'
-    + 'function regRefresh(){if(typeof REG_ITEM!=="undefined"){location.href="?registry=item&which="+REG_WHICH+"&id="+encodeURIComponent(REG_REDIRKEY||REG_EKEY||"")+"&admin=1";return;}'
+    + 'function regCountSave(row,btn){var v=REG_ROWS[row]||{};var key=v[REG_KEY]||"";var el=document.getElementById("co-count");var n=el?el.value:"";regBtnBusy(btn,"Saving\\u2026");google.script.run.withSuccessHandler(function(res){if(res&&res.ok){regReloadItem(key);}else{regBtnReset(btn);alert((res&&res.error)||"Could not save.");}}).withFailureHandler(function(e){regBtnReset(btn);alert(String(e));}).regCount(row,key,n);}'
+    + 'function regRefresh(){if(typeof REG_ITEM!=="undefined"){regNav("registry=item&which="+REG_WHICH+"&id="+encodeURIComponent(REG_REDIRKEY||REG_EKEY||"")+"&admin=1");return;}'
     + 'google.script.run.withSuccessHandler(function(res){if(res&&res.ok){document.getElementById("reg-cards").innerHTML=res.html;REG_ROWS=JSON.parse(res.mapJson);if(typeof flt==="function")flt();}}).regRowsHtml(REG_WHICH);}'
     + 'function regScan(){if(!("BarcodeDetector" in window)){alert("Live scanning is not available in this browser. Use Print labels and scan them with your phone camera instead.");return;}'
     + 'navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}}).then(function(stream){regRunScan(stream);}).catch(function(){alert("Camera is blocked here (common in this app). Use Print labels and scan with your phone camera instead.");});}'
