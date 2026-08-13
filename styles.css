@@ -1225,6 +1225,24 @@ body.issues-panel-open { overflow: hidden; }
   animation: live-pulse 2s ease-in-out infinite;
 }
 
+/* "New" flag on a recently shipped tool. Gold rather than the Live badge's green, so
+   the two never read as the same status. Shown until the tool's data-new-until date
+   passes (see app.js); solid fill with dark text keeps it legible on both the red
+   staff cards and the light admin cards. */
+.action-badge--new {
+  color: #2a2109;
+  background: #f0c050;
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.action-badge--new::before {
+  background: #2a2109;
+  box-shadow: none;
+  animation: none;
+}
+
+.action-badge--new[hidden] { display: none; }
+
 @keyframes live-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: .65; transform: scale(.85); }

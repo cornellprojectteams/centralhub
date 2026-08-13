@@ -81,6 +81,15 @@
       + (a.hasAttribute('data-admin') ? '&admin=1' : '');
   });
 
+  // "New" flags expire on their own: set data-new-until="YYYY-MM-DD" on a tool and its
+  // badge shows until that date passes, so nobody has to remember to take it down.
+  document.querySelectorAll('[data-new-until]').forEach(el => {
+    const until = new Date(el.dataset.newUntil + 'T23:59:59');
+    const badge = el.querySelector('.action-badge--new');
+    if (!badge || Number.isNaN(until.getTime()) || Date.now() > until.getTime()) return;
+    badge.hidden = false;
+  });
+
   const search = document.getElementById('search');
   const categories = document.querySelectorAll('.category');
   const zones = document.querySelectorAll('.hub-zone');

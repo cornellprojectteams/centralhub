@@ -19,9 +19,12 @@
  * Delete is for proposals the swarm has clearly rejected; it removes the row and its
  * votes. Decline keeps the row for the record.
  *
- * Proposals can carry photos of the spot to improve: the create form stages them
- * client-side (tpStageRead/tpStagePreview) and uploads to Drive one at a time via
- * prUploadPhoto -> tpSaveUpload_; cards render them as linked thumbnails.
+ * Proposals can carry photos of the spot to improve. The create form stages them
+ * client-side (tpStageRead) and sends them to Drive AS SOON AS THEY ARE PICKED, all in
+ * parallel, via prUploadPhoto -> tpSaveUpload_. By the time the scout finishes typing
+ * the files are usually already up, so posting costs one round trip rather than one per
+ * photo plus the post. A photo removed after it uploaded is trashed by prTrashUpload so
+ * abandoned picks do not pile up. Cards render the photos as linked thumbnails.
  *
  * SPEED. Sheet round-trips dominate the response time here, so:
  *  - prProposals_/prVotes_ memoize per execution (PR_MEMO); any write clears it.
@@ -253,13 +256,26 @@ function prSubmitProposal(title, description, area, name, netid, photoIds) {
   return { ok: true, id: id };
 }
 
-// One staged photo -> Drive (the create form uploads its tray one file at a time,
-// same as project completion photos). Returns the file id for the Photos cell.
+// One staged photo -> Drive. The create form fires these as soon as photos are picked,
+// in parallel, so the files are already up by the time the proposal is posted.
+// Returns the file id for the Photos cell.
 function prUploadPhoto(dataUrl, filename) {
   try {
     return { ok: true, photoId: tpSaveUpload_(dataUrl, filename) };
   } catch (err) {
     return { ok: false, error: String(err && err.message || err) };
+  }
+}
+
+// Because photos upload before the proposal is posted, one taken back out of the form
+// would otherwise sit in the uploads folder forever. Only ever reached for a file this
+// same form just created and then dropped.
+function prTrashUpload(fileId) {
+  try {
+    DriveApp.getFileById(String(fileId || '')).setTrashed(true);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false };   // already gone, or not ours to remove
   }
 }
 
@@ -354,29 +370,23 @@ function prSayText_(counted, need, avg, hasVotes) {
   return 'quorum reached';
 }
 
+// One line, three non-overlapping facts: how far along (segments), what would move it
+// (the say line), and how it is scoring (the two averages). Deliberately does NOT also
+// spell out "N of M reviews" in words, because the segments already say exactly that.
 function prMeterHtml_(p, rid) {
   var need = PR.quorumMinVotes, counted = p.countedVotes || 0;
   var segs = '';
   for (var i = 0; i < need; i++) {
     segs += '<i class="pr-seg' + (i < counted ? ' on' : '') + '" style="animation-delay:' + (i * 70) + 'ms"></i>';
   }
-  var impPct = Math.max(0, Math.min(100, (p.avgImpact / 5) * 100));
-  var effPct = Math.max(0, Math.min(100, (p.avgEffort / 5) * 100));
-  var barPct = (PR.quorumMinImpact / 5) * 100;
-  var good = p.countedVotes && p.avgImpact >= PR.quorumMinImpact;
-  return '<div class="pr-quorum" id="' + rid + '-q">'
-    + '<div class="pr-qtop"><span class="pr-qcount"><b id="' + rid + '-n">' + counted + '</b> of ' + need + ' reviews</span>'
-    +   '<span class="pr-qsay' + (need - counted === 1 ? ' pr-qsay--close' : '') + '" id="' + rid + '-say">' + prSayText_(counted, need, p.avgImpact, p.votes) + '</span></div>'
-    + '<div class="pr-segs" id="' + rid + '-segs">' + segs + '</div>'
-    + '<div class="pr-gauges">'
-    +   '<div class="pr-gauge"><span class="pr-glbl">Impact</span>'
-    +     '<span class="pr-gbar"><i class="pr-gfill' + (good ? ' good' : '') + '" id="' + rid + '-gi" style="width:' + impPct + '%"></i>'
-    +     '<i class="pr-gbar-mark" style="left:' + barPct + '%" title="the bar: ' + PR.quorumMinImpact + '"></i></span>'
-    +     '<b class="pr-gval" id="' + rid + '-vi">' + (p.countedVotes ? p.avgImpact.toFixed(1) : '&ndash;') + '</b></div>'
-    +   '<div class="pr-gauge"><span class="pr-glbl">Effort</span>'
-    +     '<span class="pr-gbar"><i class="pr-gfill pr-gfill--eff" id="' + rid + '-ge" style="width:' + effPct + '%"></i></span>'
-    +     '<b class="pr-gval" id="' + rid + '-ve">' + (p.countedVotes ? p.avgEffort.toFixed(1) : '&ndash;') + '</b></div>'
-    + '</div></div>';
+  var good = counted && p.avgImpact >= PR.quorumMinImpact;
+  return '<div class="pr-quorum">'
+    + '<span class="pr-segs" id="' + rid + '-segs" title="' + counted + ' of ' + need + ' counted reviews">' + segs + '</span>'
+    + '<span class="pr-qsay' + (need - counted === 1 ? ' pr-qsay--close' : (good && counted >= need ? ' pr-qsay--good' : '')) + '" id="' + rid + '-say">'
+    +   prSayText_(counted, need, p.avgImpact, p.votes) + '</span>'
+    + '<span class="pr-qvals">Impact <b class="pr-qv' + (good ? ' good' : '') + '" id="' + rid + '-vi">' + (counted ? p.avgImpact.toFixed(1) : '&ndash;') + '</b>'
+    +   '<span class="pr-qdot" aria-hidden="true"></span>Effort <b class="pr-qv" id="' + rid + '-ve">' + (counted ? p.avgEffort.toFixed(1) : '&ndash;') + '</b></span>'
+    + '</div>';
 }
 
 // One proposal card. votable => provisional (shows the rating control); else it's an
@@ -409,7 +419,7 @@ function prCardHtml_(p, rid, votable) {
   // Admin-only decisions (revealed by tpAdminRevealJs_ / re-revealed after prRefresh).
   var adminBar = '<div class="tp-admin pr-adminbar" hidden id="' + rid + '-admin">'
     + (votable ? '<button type="button" class="btn btn-confirm" onclick="prAdmin(\'' + rid + '\',\'' + p.id + '\',\'approve\')">Approve now</button>'
-      + '<button type="button" class="btn btn-ghost" onclick="prAdmin(\'' + rid + '\',\'' + p.id + '\',\'decline\')">Decline</button>' : '')
+      + '<button type="button" class="btn btn-ghost pr-btn-decline" onclick="prAdmin(\'' + rid + '\',\'' + p.id + '\',\'decline\')">Decline</button>' : '')
     + '<button type="button" class="btn btn-ghost pr-del" onclick="prDelAsk(\'' + rid + '\',\'' + p.id + '\')">Delete</button></div>';
 
   // Photos the scout attached (Drive ids). onerror hides a thumb whose file will not load.
@@ -547,6 +557,24 @@ function proposalsPage_(embedded, admin, back) {
   }
   inner += '<p class="pr-intro">Scout an improvement to our spaces and post it. Everyone rates each one on impact and effort, and the ideas that win enough support become real projects.</p>';
 
+  // The guide lives on the page rather than in a separate doc, so the rules are one
+  // click away at the moment someone is deciding how to rate.
+  inner += '<details class="pr-guide"><summary class="pr-guide-toggle">'
+    + '<span class="pr-guide-icon" aria-hidden="true">&#128029;</span>How this works<span class="pr-guide-caret" aria-hidden="true">&#9662;</span></summary>'
+    + '<div class="pr-guide-body">'
+    + '<p class="pr-guide-lede">This runs like a honeybee swarm picking a new home. Bees send scouts out, each one reports back on what it found, and the hive commits only once enough independent scouts agree. Same idea here, with our spaces.</p>'
+    + '<ol class="pr-guide-steps">'
+    +   '<li><b>Scout.</b> When you spot something that would make a space work better, post it. A title is all that is required; a photo of the spot helps everyone else judge it.</li>'
+    +   '<li><b>Rate, independently.</b> Score every proposal twice: <b>Impact</b> (how much better it makes the place) and <b>Effort</b> (how much work it is). Rating them separately is the point, because a small job with a big payoff should beat a huge job with a modest one.</li>'
+    +   '<li><b>Earn your voice.</b> Your ratings start counting once you have reviewed <b>' + (PR.earnedVoiceK + 1) + ' proposals</b>. Until then they are saved but not counted. This keeps anyone from walking in, voting once for their own favourite, and walking out. The moment you hit ' + (PR.earnedVoiceK + 1) + ', every rating you already gave starts counting too.</li>'
+    +   '<li><b>Quorum.</b> A proposal becomes a real project when it has <b>' + PR.quorumMinVotes + ' counted reviews</b> and an average Impact of <b>' + PR.quorumMinImpact + ' or better</b>. Not a majority, a threshold of genuine support. Effort is recorded for planning, it does not block anything.</li>'
+    + '</ol>'
+    + '<div class="pr-guide-notes">'
+    +   '<p><b>One rating per person per proposal.</b> Changing your mind is fine, just rate it again and it replaces your old one.</p>'
+    +   '<p><b>You cannot rate your own proposal.</b> Post it and let the team judge it.</p>'
+    +   '<p><b>Nothing is lost.</b> Ideas that do not reach quorum stay up for review, so a good idea that arrived early can still get there later.</p>'
+    + '</div></div></details>';
+
   // Identity + the earned-voice meter. Kept together because the meter is the answer to
   // "why does my NetID matter": it is the thing that turns your ratings on.
   inner += '<div class="pr-idbar">'
@@ -567,9 +595,8 @@ function proposalsPage_(embedded, admin, back) {
     +   '<input type="file" accept="image/*" multiple id="pr-c-file" style="display:none" onchange="prPickPhotos(this)">'
     +   '<button type="button" class="btn btn-ghost" onclick="document.getElementById(\'pr-c-file\').click()">Add photos</button>'
     +   '<div id="pr-c-stage"></div></div>'
-    + '<div class="pr-create-foot"><button type="button" class="btn btn-primary" id="pr-c-go" onclick="prCreate()">Post for review</button>'
+    + '<div class="pr-create-foot"><button type="button" class="btn btn-primary pr-btn-post" id="pr-c-go" onclick="prCreate()">Post for review</button>'
     +   '<span id="pr-c-msg" class="tp-lock-msg"></span></div>'
-    + '<div class="pr-upbar" id="pr-upbar" hidden><i id="pr-upbar-fill"></i></div>'
     + '</div></details>';
 
   inner += '<div class="pr-listwrap"><div class="pr-sync" id="pr-sync" hidden></div>'
@@ -617,6 +644,25 @@ function prStyles_() {
     + '.pr-back span{font-size:17px;line-height:1}'
     + '.pr-intro{font-size:15px;line-height:1.65;color:#57534e;margin:14px 0 4px;max-width:60ch}'
 
+    // ---- in-page guide ----
+    + '.pr-guide{margin:14px 0 2px;border:1.5px solid #efe6d2;border-radius:14px;background:linear-gradient(135deg,#fffdf7 0%,#fffaf0 100%);overflow:hidden}'
+    + '.pr-guide-toggle{display:flex;align-items:center;gap:10px;padding:13px 16px;cursor:pointer;list-style:none;'
+    +   'font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:13px;font-weight:800;letter-spacing:.02em;color:#8a5f0f}'
+    + '.pr-guide-toggle::-webkit-details-marker{display:none}'
+    + '.pr-guide-toggle:hover{background:rgba(224,160,30,.06)}'
+    + '.pr-guide-icon{font-size:16px;line-height:1}'
+    + '.pr-guide-caret{margin-left:auto;font-size:11px;transition:transform .2s}'
+    + '.pr-guide[open] .pr-guide-caret{transform:rotate(180deg)}'
+    + '.pr-guide-body{padding:2px 18px 18px;border-top:1.5px solid #f5ecd8}'
+    + '.pr-guide-lede{font-size:14px;line-height:1.65;color:#57534e;margin:14px 0 0;max-width:64ch}'
+    + '.pr-guide-steps{margin:14px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:10px}'
+    + '.pr-guide-steps li{font-size:13.5px;line-height:1.6;color:#57534e;max-width:64ch;padding-left:3px}'
+    + '.pr-guide-steps li::marker{color:#c08a1e;font-weight:800}'
+    + '.pr-guide-steps b,.pr-guide-notes b{color:#14110e;font-weight:800}'
+    + '.pr-guide-notes{margin-top:16px;padding-top:14px;border-top:1.5px dashed #f0e4cc;display:flex;flex-direction:column;gap:7px}'
+    + '.pr-guide-notes p{margin:0;font-size:12.5px;line-height:1.55;color:#8a857c;max-width:64ch}'
+    + '@media(max-width:600px){.pr-guide-body{padding:2px 14px 15px}.pr-guide-steps{padding-left:18px}}'
+
     // ---- identity + earned voice ----
     + '.pr-idbar{display:flex;align-items:center;gap:10px 22px;flex-wrap:wrap;margin:18px 0 6px;padding:13px 16px;background:#fff;border:1.5px solid #e7e7e3;border-radius:14px;box-shadow:0 2px 8px rgba(20,20,30,.05)}'
     + '.pr-idrow{display:flex;align-items:center;gap:11px;flex:0 1 auto;min-width:0}'
@@ -635,8 +681,15 @@ function prStyles_() {
     // ---- create form ----
     + '.pr-optional{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:600;color:#a8a29e;letter-spacing:0;text-transform:none;margin-left:6px}'
     + '.pr-create-foot{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:4px}'
-    + '.pr-upbar{height:5px;border-radius:99px;background:#eceae3;overflow:hidden;margin-top:12px}'
-    + '.pr-upbar i{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,#b31b1b,#e08a1e);transition:width .35s cubic-bezier(.3,.9,.4,1)}'
+    // Per-photo upload state, so the tray shows the work finishing while the form is
+    // still being filled in rather than a single bar at the end.
+    + '.pr-stage-state{position:absolute;left:6px;bottom:6px;display:inline-flex;align-items:center;justify-content:center;min-width:21px;height:21px;padding:0 7px;border-radius:99px;'
+    +   'background:rgba(20,17,14,.72);color:#fff;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:10px;font-weight:800;line-height:1}'
+    + '.stage-item.pr-stage-uploading img{opacity:.6}'
+    + '.stage-item.pr-stage-done .pr-stage-state{background:#157a47}'
+    + '.stage-item.pr-stage-error .pr-stage-state{background:#b31b1b;cursor:pointer}'
+    + '.stage-item.pr-stage-error img{opacity:.55}'
+    + '.pr-stage-state .pr-spin{width:11px;height:11px;border-width:2px}'
 
     // ---- list ----
     + '.pr-listwrap{position:relative}'
@@ -662,30 +715,22 @@ function prStyles_() {
     + '.pr-photos img{max-height:120px;max-width:100%;border-radius:10px;border:1px solid #ececec;display:block}'
 
     // ---- quorum meter ----
-    + '.pr-quorum{margin-top:16px;padding:13px 15px;border-radius:12px;background:#fbfaf7;border:1.5px solid #efece5}'
-    + '.pr-qtop{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}'
-    + '.pr-qcount{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:13px;font-weight:700;color:#57534e}'
-    + '.pr-qcount b{font-size:16px;font-weight:800;color:#14110e}'
-    + '.pr-qsay{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12px;font-weight:700;color:#a8a29e;transition:color .3s}'
-    + '.pr-qsay--close{color:#e08a1e}'
+    + '.pr-quorum{display:flex;align-items:center;gap:9px 14px;flex-wrap:wrap;margin-top:15px;padding:11px 14px;border-radius:11px;background:#fbfaf7;border:1.5px solid #efece5}'
+    + '.pr-qsay{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12.5px;font-weight:700;color:#a8a29e;transition:color .3s;flex:1 1 auto;min-width:0}'
+    + '.pr-qsay--close{color:#c9761a}'
     + '.pr-qsay--good{color:#157a47}'
-    + '.pr-segs{display:flex;gap:6px;margin-top:9px}'
-    + '.pr-seg{flex:1;height:9px;border-radius:99px;background:#eceae3;animation:prSegIn .4s cubic-bezier(.2,.9,.3,1.2) both}'
+    + '.pr-qvals{display:inline-flex;align-items:center;gap:6px;flex:none;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12px;font-weight:600;color:#8a857c}'
+    + '.pr-qv{font-size:13.5px;font-weight:800;color:#14110e;font-variant-numeric:tabular-nums}'
+    + '.pr-qv.good{color:#157a47}'
+    + '.pr-qdot{width:3px;height:3px;border-radius:50%;background:#d6d3ce;margin:0 3px}'
+    + '.pr-segs{display:inline-flex;gap:5px;flex:none}'
+    + '.pr-seg{width:26px;height:8px;border-radius:99px;background:#eceae3;animation:prSegIn .4s cubic-bezier(.2,.9,.3,1.2) both}'
     + '.pr-seg.on{background:linear-gradient(90deg,#c62b2b,#b31b1b)}'
     + '.pr-seg.pending{background:repeating-linear-gradient(115deg,#e6ded2,#e6ded2 5px,#f3ede4 5px,#f3ede4 10px);animation:prPend 1s linear infinite}'
     + '.pr-seg.pop{animation:prSegPop .5s cubic-bezier(.2,.9,.3,1.5)}'
     + '@keyframes prSegIn{from{transform:scaleX(.25);opacity:0}to{transform:none;opacity:1}}'
     + '@keyframes prSegPop{0%{transform:scaleY(1)}45%{transform:scaleY(2.1)}100%{transform:scaleY(1)}}'
     + '@keyframes prPend{to{background-position:20px 0}}'
-    + '.pr-gauges{display:flex;gap:9px 20px;margin-top:12px;flex-wrap:wrap}'
-    + '.pr-gauge{display:flex;align-items:center;gap:9px;flex:1 1 190px;min-width:0}'
-    + '.pr-glbl{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#a8a29e;flex:none;width:44px}'
-    + '.pr-gbar{position:relative;flex:1;height:7px;border-radius:99px;background:#eceae3;min-width:60px}'
-    + '.pr-gfill{position:absolute;left:0;top:0;bottom:0;border-radius:99px;background:#c9c3b8;transition:width .7s cubic-bezier(.2,.85,.3,1),background .4s}'
-    + '.pr-gfill.good{background:linear-gradient(90deg,#1d9d5b,#157a47)}'
-    + '.pr-gfill--eff{background:#c9c3b8}'
-    + '.pr-gbar-mark{position:absolute;top:-3px;bottom:-3px;width:2px;border-radius:2px;background:#14110e;opacity:.28}'
-    + '.pr-gval{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:13px;font-weight:800;color:#14110e;flex:none;width:28px;text-align:right;font-variant-numeric:tabular-nums}'
     + '.pr-promoted{display:flex;align-items:center;gap:9px;margin-top:15px;padding:11px 14px;border-radius:11px;background:#f0f9f3;border:1.5px solid #cfe9da;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12.5px;font-weight:600;color:#157a47}'
     + '.pr-promoted-mark{display:inline-flex;align-items:center;justify-content:center;width:19px;height:19px;border-radius:50%;background:#157a47;color:#fff;font-size:11px;font-weight:800;flex:none}'
 
@@ -730,10 +775,28 @@ function prStyles_() {
     + '.pr-card.is-leaving{animation:prLeave .45s ease-in both}'
     + '@keyframes prLeave{to{opacity:0;transform:translateX(-14px)}}'
 
+    // ---- button colours ----
+    // One colour per KIND of action, so weight matches consequence at a glance. Colour
+    // never carries the meaning alone (WCAG 1.4.1); every button is also labelled.
+    // Contrast checked against WCAG AA (4.5:1 for the label, 3:1 for the control).
+    //   rate      Cornell red #b31b1b   the main loop, 6.8:1 on white text
+    //   post      deep teal   #0f5c73   creating, not rating; Cornell secondary family, 7.5:1
+    //   approve   green       #157a47   affirmative admin outcome, 5.4:1
+    //   decline   amber tint  #8a5f0f   reversible caution, lighter weight than approve, 5.2:1 on its tint
+    //   delete    red outline           destructive, deliberately NOT solid red so it cannot be
+    //                                   mistaken for the primary action; only the confirm goes solid
+    + '.pr-btn-post{background:#0f5c73;box-shadow:0 1px 2px rgba(15,92,115,.25)}'
+    + '.pr-btn-post:hover{background:#0a4557}'
+    + '.pr-btn-post.ok{background:#157a47!important}'
+    + '.pr-btn-decline{color:#8a5f0f;background:#fdf6e7;border-color:#e8d5a8}'
+    + '.pr-btn-decline:hover{color:#6d4b0c;background:#fbf0d8;border-color:#d9c084}'
+
     // ---- admin ----
     + '.pr-adminbar{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px;padding-top:13px;border-top:1.5px dashed #ece9e2}'
-    + '.pr-del{color:#b31b1b;border-color:#f0d5d5}'
+    + '.pr-del{color:#b31b1b;background:#fff;border-color:#f0d5d5}'
     + '.pr-del:hover{background:#fdf3f3;border-color:#e0a5a5;color:#8f1515}'
+    + '.pr-del--go{color:#fff;background:#8f1515;border-color:#8f1515}'
+    + '.pr-del--go:hover{color:#fff;background:#761111;border-color:#761111}'
     + '.pr-delask{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12px;font-weight:700;color:#57534e;align-self:center;margin-right:2px}'
 
     // ---- responsive ----
@@ -746,17 +809,17 @@ function prStyles_() {
     +   '.pr-scale-wrap{flex:1 1 100%;gap:8px}'
     +   '.pr-scale{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;width:100%}'
     +   '.pr-dot{width:100%;height:46px;font-size:16px}'
-    +   '.pr-gauge{flex:1 1 100%}'
+    +   '.pr-quorum{gap:8px 10px}.pr-qsay{flex:1 1 100%;order:3}.pr-qvals{margin-left:auto}'
     +   '.pr-submit{flex:1 1 100%}.pr-vmsg{flex:1 1 100%;text-align:left}'
     +   '.pr-adminbar .btn{flex:1 1 auto}'
     +   '.pr-photos img{max-height:96px}'
     + '}'
-    + '@media(max-width:380px){.pr-dot{height:42px;font-size:14px;border-radius:9px}.pr-glbl{width:38px}}'
+    + '@media(max-width:380px){.pr-dot{height:42px;font-size:14px;border-radius:9px}.pr-seg{width:22px}}'
 
     // ---- motion preferences ----
     + '@media(prefers-reduced-motion:reduce){'
     +   '.pr-card,.pr-verdict{animation:none}'
-    +   '.pr-seg,.pr-voice-seg,.pr-gfill,.pr-dot,.pr-word{transition:none;animation:none}'
+    +   '.pr-seg,.pr-voice-seg,.pr-dot,.pr-word{transition:none;animation:none}'
     +   '.pr-card.is-promoting,.pr-card.is-promoting::after,.pr-card.is-leaving{animation:none}'
     +   '.pr-sync::after{animation:none;width:100%}'
     +   '.pr-spin{animation:none;border-top-color:rgba(255,255,255,.9)}'
@@ -832,7 +895,10 @@ function prClientJs_() {
     + '[].slice.call(segs.children).forEach(function(el,i){el.className="pr-voice-seg"+(i<have?" on":"");'
     + 'if(bump&&i===have-1){el.classList.add("pop");setTimeout(function(){el.classList.remove("pop");},450);}});'
     + 'wrap.classList.toggle("done",done);'
-    + 'note.textContent=done?"Your ratings count.":(have+" of "+need+" reviews. "+(need-have===1?"One more turns your ratings on.":(need-have)+" more turn your ratings on."));'
+    // Terse on purpose: the segments carry the progress, and "How this works" carries the
+    // explanation. A sentence here just repeats both.
+    + 'note.textContent=done?"Ratings on":((need-have)+" to go");'
+    + 'wrap.title=done?"Your ratings are counted.":("Review "+(need-have)+" more proposal"+(need-have===1?"":"s")+" and your ratings start counting.");'
     + 'PR_VOICE_ON=done;}'
 
     // ---------- viewer state (cheap personalisation) ----------
@@ -855,20 +921,15 @@ function prClientJs_() {
     + 'if(counted>=need&&avg<PR_BAR)return "enough reviews, impact below the bar";'
     + 'var left=need-counted;if(left===1)return "one more review and it is in";'
     + 'if(left>1)return left+" more reviews to decide";return "quorum reached";}'
-    + 'function prRoll(el,to){if(!el)return;var from=parseFloat(el.textContent)||0;if(from===to){el.textContent=to;return;}'
-    + 'var t0=Date.now();(function step(){var k=Math.min(1,(Date.now()-t0)/450);'
-    + 'el.textContent=Math.round(from+(to-from)*(1-Math.pow(1-k,3)));if(k<1)requestAnimationFrame(step);else el.textContent=to;})();}'
     + 'function prMeter(rid,counted,avgI,avgE){'
-    + 'prRoll(document.getElementById(rid+"-n"),counted);'
     + 'var segs=document.getElementById(rid+"-segs");'
-    + 'if(segs){[].slice.call(segs.children).forEach(function(el,i){el.classList.remove("pending");'
+    + 'if(segs){segs.title=counted+" of "+PR_NEED+" counted reviews";'
+    + '[].slice.call(segs.children).forEach(function(el,i){el.classList.remove("pending");'
     + 'var on=i<counted;if(on&&!el.classList.contains("on")){el.classList.add("on","pop");setTimeout(function(){el.classList.remove("pop");},520);}'
     + 'else el.classList.toggle("on",on);});}'
-    + 'var gi=document.getElementById(rid+"-gi"),ge=document.getElementById(rid+"-ge");'
-    + 'if(gi){gi.style.width=Math.max(0,Math.min(100,avgI/5*100))+"%";gi.classList.toggle("good",avgI>=PR_BAR);}'
-    + 'if(ge)ge.style.width=Math.max(0,Math.min(100,avgE/5*100))+"%";'
     + 'var vi=document.getElementById(rid+"-vi"),ve=document.getElementById(rid+"-ve");'
-    + 'if(vi)vi.textContent=avgI?avgI.toFixed(1):"\\u2013";if(ve)ve.textContent=avgE?avgE.toFixed(1):"\\u2013";'
+    + 'if(vi){vi.textContent=avgI?avgI.toFixed(1):"\\u2013";vi.classList.toggle("good",!!counted&&avgI>=PR_BAR);}'
+    + 'if(ve)ve.textContent=avgE?avgE.toFixed(1):"\\u2013";'
     + 'var say=document.getElementById(rid+"-say");'
     + 'if(say){say.textContent=prSay(counted,PR_NEED,avgI,true);'
     + 'say.className="pr-qsay"+(PR_NEED-counted===1?" pr-qsay--close":"")+(counted>=PR_NEED&&avgI>=PR_BAR?" pr-qsay--good":"");}}'
@@ -918,28 +979,51 @@ function prClientJs_() {
     + 'setTimeout(function(){prRefresh(true);},2400);}'
 
     // ---------- posting a proposal ----------
+    // Photos go to Drive the moment they are picked, all at once, while the scout is
+    // still typing the title. Posting then costs ONE round trip instead of one per photo
+    // followed by the post, which is what made creating with photos feel slow.
     + 'var PRSTAGE=[];'
-    + 'function prStageRender(){var el=document.getElementById("pr-c-stage");if(el)el.innerHTML=tpStagePreview(PRSTAGE,"prUnstage(","document.getElementById(\'pr-c-file\').click()");}'
-    + 'function prPickPhotos(input){tpStageRead(input,PRSTAGE,prStageRender);}'
-    + 'function prUnstage(i){PRSTAGE.splice(i,1);prStageRender();}'
-    + 'function prUp(pct){var b=document.getElementById("pr-upbar"),f=document.getElementById("pr-upbar-fill");'
-    + 'if(!b||!f)return;b.hidden=pct<0;f.style.width=Math.max(0,pct)+"%";}'
+    + 'function prStageRender(){var el=document.getElementById("pr-c-stage");if(!el)return;'
+    + 'if(!PRSTAGE.length){el.innerHTML="";return;}'
+    + 'var h=\'<div class="stage">\';'
+    + 'for(var i=0;i<PRSTAGE.length;i++){var p=PRSTAGE[i],st=p.state||"pending";'
+    + 'var badge=st==="done"?"\\u2713":(st==="error"?"Retry":\'<span class="pr-spin"></span>\');'
+    + 'h+=\'<div class="stage-item pr-stage-\'+st+\'"><img src="\'+p.dataUrl+\'" alt="">\''
+    + '+\'<span class="stage-idx">\'+(i+1)+\'</span>\''
+    + '+\'<button type="button" class="stage-rm" title="Remove" onclick="prUnstage(\'+i+\')">&times;</button>\''
+    + '+\'<span class="pr-stage-state"\'+(st==="error"?\' role="button" title="Upload again" onclick="prRetryPhoto(\'+i+\')"\':"")+\'>\'+badge+\'</span></div>\';}'
+    + 'h+=\'<button type="button" class="stage-add" onclick="document.getElementById(\\\'pr-c-file\\\').click()"><span class="stage-add-i">+</span>Add more</button></div>\';'
+    + 'el.innerHTML=h;}'
+    + 'function prPickPhotos(input){tpStageRead(input,PRSTAGE,function(){prStageRender();prUploadPending();});}'
+    // Fire every not-yet-started photo at once. Uploads only touch Drive, never the
+    // sheet, so there is nothing for them to contend over.
+    + 'function prUploadPending(){PRSTAGE.forEach(function(p){if(p.state)return;p.state="uploading";prSendPhoto(p);});prStageRender();}'
+    + 'function prSendPhoto(p){google.script.run.withSuccessHandler(function(r){'
+    // Removed while it was in flight: drop the file rather than leave it orphaned.
+    + 'if(PRSTAGE.indexOf(p)<0){if(r&&r.ok&&r.photoId)prTrashPhoto(r.photoId);return;}'
+    + 'if(!r||!r.ok){p.state="error";}else{p.state="done";p.photoId=r.photoId;}prStageRender();'
+    + '}).withFailureHandler(function(){if(PRSTAGE.indexOf(p)>=0){p.state="error";prStageRender();}}).prUploadPhoto(p.dataUrl,p.name);}'
+    + 'function prRetryPhoto(i){var p=PRSTAGE[i];if(!p||p.state!=="error")return;p.state="uploading";prStageRender();prSendPhoto(p);}'
+    + 'function prUnstage(i){var p=PRSTAGE[i];if(!p)return;PRSTAGE.splice(i,1);'
+    + 'if(p.state==="done"&&p.photoId)prTrashPhoto(p.photoId);prStageRender();}'
+    + 'function prTrashPhoto(id){google.script.run.withSuccessHandler(function(){}).withFailureHandler(function(){}).prTrashUpload(id);}'
+    + 'function prPhotosBusy(){return PRSTAGE.filter(function(p){return p.state==="uploading";}).length;}'
+    + 'function prPhotosFailed(){return PRSTAGE.filter(function(p){return p.state==="error";}).length;}'
     + 'function prCreate(){var g=function(id){return (document.getElementById(id)||{}).value||"";};'
     + 'var t=g("pr-c-title"),d=g("pr-c-desc"),a=g("pr-c-area"),nm=g("pr-c-name");'
     + 'var msg=document.getElementById("pr-c-msg"),btn=document.getElementById("pr-c-go"),nid=prNetid();'
     + 'if(!t.trim()){msg.className="tp-lock-msg bad";msg.textContent="A title is required.";return;}'
     + 'if(!nid){msg.className="tp-lock-msg bad";msg.textContent="Enter your NetID at the top first.";'
     + 'var f=document.getElementById("pr-netid");if(f)f.focus();return;}'
+    + 'if(prPhotosFailed()){msg.className="tp-lock-msg bad";msg.textContent="A photo did not upload. Tap Retry on it, or remove it.";return;}'
     + 'msg.className="tp-lock-msg";msg.textContent="";'
-    + 'var total=PRSTAGE.length,ids=[],q=PRSTAGE.slice();'
-    + 'var stages=total?["Uploading your photos","Saving the photos","Posting your proposal"]:["Posting your proposal","Adding it to the board"];'
-    + 'var done=prBusy(btn,stages);if(total)prUp(0);'
-    + '(function step(){if(q.length){var ph=q.shift();'
+    // Usually the photos are already up by now, so this is a single call.
+    + 'var waiting=prPhotosBusy();'
+    + 'var done=prBusy(btn,waiting?["Finishing your photos","Posting your proposal"]:["Posting your proposal","Adding it to the board"]);'
+    + '(function ready(){if(prPhotosBusy()){setTimeout(ready,150);return;}'
+    + 'if(prPhotosFailed()){done();msg.className="tp-lock-msg bad";msg.textContent="A photo did not upload. Tap Retry on it, or remove it.";return;}'
+    + 'var ids=PRSTAGE.map(function(p){return p.photoId;}).filter(Boolean);'
     + 'google.script.run.withSuccessHandler(function(r){'
-    + 'if(!r||!r.ok){done();prUp(-1);msg.className="tp-lock-msg bad";msg.textContent=(r&&r.error)||"Photo upload failed. Try again.";return;}'
-    + 'ids.push(r.photoId);prUp(Math.round(ids.length/total*100));step();'
-    + '}).withFailureHandler(function(){done();prUp(-1);msg.className="tp-lock-msg bad";msg.textContent="Photo upload failed. Try again.";}).prUploadPhoto(ph.dataUrl,ph.name);return;}'
-    + 'google.script.run.withSuccessHandler(function(r){prUp(-1);'
     + 'if(!r||!r.ok){done();msg.className="tp-lock-msg bad";msg.textContent=(r&&r.error)||"Could not post that.";return;}'
     + 'done("\\u2713 Posted","ok");'
     + '["pr-c-title","pr-c-desc","pr-c-area"].forEach(function(id){var el=document.getElementById(id);if(el)el.value="";});'
@@ -947,7 +1031,7 @@ function prClientJs_() {
     + 'msg.className="tp-lock-msg ok";msg.textContent="Posted. The team can rate it now.";'
     + 'var w=document.querySelector(".tp-create-wrap");if(w)w.open=false;'
     + 'tpConfetti("\\uD83D\\uDC1D Posted. Let the swarm decide.");prRefresh();'
-    + '}).withFailureHandler(function(){done();prUp(-1);msg.className="tp-lock-msg bad";msg.textContent="Network hiccup. Try again.";})'
+    + '}).withFailureHandler(function(){done();msg.className="tp-lock-msg bad";msg.textContent="Network hiccup. Try again.";})'
     + '.prSubmitProposal(t,d,a,nm,nid,ids.join(", "));})();}'
 
     // ---------- admin ----------
@@ -964,7 +1048,7 @@ function prClientJs_() {
     + 'if(bar.getAttribute("data-asking")==="1")return;bar.setAttribute("data-asking","1");'
     + 'bar.setAttribute("data-prev",bar.innerHTML);'
     + 'bar.innerHTML=\'<span class="pr-delask">Delete this proposal and its ratings?</span>\''
-    + '+\'<button type="button" class="btn btn-ghost pr-del" onclick="prDelGo(\\\'\'+rid+\'\\\',\\\'\'+pid+\'\\\')">Yes, delete</button>\''
+    + '+\'<button type="button" class="btn pr-del pr-del--go" onclick="prDelGo(\\\'\'+rid+\'\\\',\\\'\'+pid+\'\\\')">Yes, delete</button>\''
     + '+\'<button type="button" class="btn btn-ghost" onclick="prDelCancel(\\\'\'+rid+\'\\\')">Cancel</button>\';}'
     + 'function prDelCancel(rid){var bar=document.getElementById(rid+"-admin");if(!bar)return;'
     + 'bar.innerHTML=bar.getAttribute("data-prev")||"";bar.setAttribute("data-asking","0");}'

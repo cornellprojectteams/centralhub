@@ -63,6 +63,7 @@
         <a href="#reminders" class="doc-sidebar-link"><strong>Reminders</strong><small>Daily follow-ups</small></a>
         <a href="#pages" class="doc-sidebar-link"><strong>Web pages</strong><small>Portal routes</small></a>
         <a href="#workflow" class="doc-sidebar-link"><strong>Completion &amp; approval</strong><small>Photos, approve, edit, delete</small></a>
+        <a href="#proposals" class="doc-sidebar-link"><strong>Proposals</strong><small>Scouting, rating, quorum</small></a>
         <a href="#changes" class="doc-sidebar-link"><strong>Making changes</strong><small>Contacts, teams, deploy</small></a>
         <a href="#utilities" class="doc-sidebar-link"><strong>Utilities</strong><small>Script editor functions</small></a>
         <a href="#links" class="doc-sidebar-link"><strong>Links</strong><small>All resources</small></a>
@@ -93,6 +94,7 @@
       <a href="#reminders">Reminders</a>
       <a href="#pages">Web pages</a>
       <a href="#workflow">Completion &amp; approval</a>
+      <a href="#proposals">Proposals</a>
       <a href="#changes">Making changes</a>
       <a href="#utilities">Utilities</a>
       <a href="#links">Links</a>
@@ -228,8 +230,34 @@
       </p>
     </section>
 
+    <section class="doc-section" id="proposals">
+      <h2><span class="doc-num">08</span>Proposals</h2>
+      <p>
+        Staff scout improvements to our spaces and post them; the team rates each one, and the
+        ideas with enough genuine support become real projects. The rules are modelled on how a
+        honeybee swarm picks a new home: independent scouting reports, and a commitment threshold
+        rather than a show of hands. Students reach it from <strong>Propose an improvement</strong> on
+        the staff hub; admins from <strong>Review proposals</strong> here.
+      </p>
+      <ul>
+        <li><strong>Post.</strong> Title is the only requirement. Photos of the spot are optional and upload in the background while the form is being filled in.</li>
+        <li><strong>Rate independently.</strong> Every voter scores <em>Impact</em> and <em>Effort</em> separately, 1 to 5. Separating them is the point: a small job with a big payoff should outrank a huge job with a modest one. Effort is recorded for planning and never blocks a promotion.</li>
+        <li><strong>Earned voice.</strong> A person's ratings only start counting once they have reviewed <strong>3 proposals</strong>. Until then their ratings are saved but not counted, and the page tells them so. This stops someone voting once for their own favourite and leaving. On reaching 3, their earlier ratings start counting retroactively, which can carry another proposal over the line.</li>
+        <li><strong>Quorum.</strong> A proposal is promoted automatically once it has <strong>3 counted reviews</strong> and an average Impact of <strong>3.5 or better</strong>. Not a majority, a threshold of committed support.</li>
+        <li><strong>Honesty.</strong> One rating per NetID per proposal, enforced on the server; re-rating replaces the old one. Nobody can rate their own proposal.</li>
+        <li><strong>Admin actions.</strong> <em>Approve now</em> promotes without waiting for quorum. <em>Decline</em> closes it but keeps the row for the record. <em>Delete</em> removes the proposal and its ratings entirely, behind a confirm step, for junk or ideas the team has clearly rejected.</li>
+      </ul>
+      <p>
+        Newly promoted proposals appear as a &ldquo;New project proposed&rdquo; strip at the top of the
+        students' open-tasks pages for two weeks, so nobody has to go looking. The thresholds all
+        live in the <code>PR</code> object at the top of <code>07_proposals.gs</code>; the sheets are
+        <code>Proposals</code> and <code>Proposal votes</code>, created by running
+        <code>setupProposals</code> once.
+      </p>
+    </section>
+
     <section class="doc-section" id="changes">
-      <h2><span class="doc-num">08</span>Making changes</h2>
+      <h2><span class="doc-num">09</span>Making changes</h2>
       <ul>
         <li><strong>Contacts and recipients:</strong> edit Team Contacts.</li>
         <li><strong>Wording, deadlines, sender:</strong> edit the constants at the top of the script and save.</li>
@@ -244,7 +272,7 @@
     </section>
 
     <section class="doc-section" id="utilities">
-      <h2><span class="doc-num">09</span>Utilities</h2>
+      <h2><span class="doc-num">10</span>Utilities</h2>
       <p>Run from the script editor:</p>
       <ul>
         <li><code>fillTeamTokens</code> Creates tokens for teams that lack one.</li>
