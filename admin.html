@@ -103,7 +103,7 @@
             <button type="button" class="action action-dashboard" id="proposals-open" data-new-until="2026-08-28" data-keywords="proposals improvement ideas vote rating impact effort approve decline quorum swarm scout provisional">
               <span class="action-badge action-badge--new" hidden>New</span>
               <span class="action-title">Review proposals</span>
-              <span class="action-sub">Improvement ideas posted and rated by the team. Enough support promotes one automatically; you can also approve or decline it here.</span>
+              <span class="action-sub">Improvement ideas posted and rated by the team. Enough support moves one into Projects automatically; you can also approve or decline it here.</span>
             </button>
             <a class="action" data-module="projects-dash" href="#" target="_blank" rel="noopener" data-keywords="projects dashboard hours logged metrics stats completion rate contributors leaderboard before after gallery noah">
               <span class="action-badge">Dashboard</span>
@@ -259,7 +259,7 @@
           </div>
         </div>
         <div class="issues-panel-actions">
-          <a class="issues-panel-btn issues-panel-btn--secondary" id="issues-panel-ext" href="#" target="_blank" rel="noopener">
+          <a class="issues-panel-btn issues-panel-btn--secondary" id="issues-panel-ext" href="#" target="_blank" rel="noopener" aria-label="Open full page">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
             Full page
           </a>
@@ -270,7 +270,7 @@
       </header>
       <div class="issues-seg" id="issues-seg" role="tablist" aria-label="Space issues or projects">
         <button type="button" class="issues-seg-btn is-active" id="seg-tasks" role="tab" aria-selected="true">Space issues</button>
-        <button type="button" class="issues-seg-btn" id="seg-projects" role="tab" aria-selected="false">Projects</button>
+        <button type="button" class="issues-seg-btn" id="seg-projects" role="tab" aria-selected="false">Projects <span class="issues-seg-new" id="seg-projects-new" hidden>New</span></button>
       </div>
       <div class="issues-embed-body is-loading" id="issues-embed-body">
         <div class="issues-loading" id="issues-loading" role="status" aria-live="polite">
@@ -317,7 +317,7 @@
           </div>
         </div>
         <div class="issues-panel-actions">
-          <a class="issues-panel-btn issues-panel-btn--secondary" data-panel-ext href="#" target="_blank" rel="noopener">
+          <a class="issues-panel-btn issues-panel-btn--secondary" data-panel-ext href="#" target="_blank" rel="noopener" aria-label="Open full page">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
             Open full page
           </a>
@@ -359,7 +359,7 @@
           </div>
         </div>
         <div class="issues-panel-actions">
-          <a class="issues-panel-btn issues-panel-btn--secondary" data-panel-ext href="#" target="_blank" rel="noopener">
+          <a class="issues-panel-btn issues-panel-btn--secondary" data-panel-ext href="#" target="_blank" rel="noopener" aria-label="Open full page">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
             Open full page
           </a>

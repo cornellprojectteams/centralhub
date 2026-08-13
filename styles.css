@@ -306,6 +306,7 @@ body:not(.is-searching) .hub-zone:not(.is-active) { display: none; }
   margin: 0 auto;
   padding: 3rem 1.5rem 4rem;
   min-width: 0;
+  overflow-x: hidden;
 }
 
 #staff {
@@ -639,6 +640,7 @@ body.is-searching .hub-zone:not(.hidden) ~ .hub-zone:not(.hidden) {
   flex-direction: column;
   width: 100%;
   max-width: 56rem;
+  min-width: 0;
   height: 100%;
   background: #f5f4f0;
   box-shadow: -12px 0 48px rgba(20, 20, 30, 0.22);
@@ -664,7 +666,8 @@ body.is-searching .hub-zone:not(.hidden) ~ .hub-zone:not(.hidden) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: .75rem;
+  min-width: 0;
   padding: .7rem 1.1rem;
   background: linear-gradient(180deg, #fff 0%, #fafaf8 100%);
   border-bottom: 1.5px solid var(--line);
@@ -800,6 +803,9 @@ body.is-searching .hub-zone:not(.hidden) ~ .hub-zone:not(.hidden) {
   background: transparent;
   padding: .5rem 1.2rem;
   border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
   transition: background .16s ease, color .16s ease, box-shadow .16s ease;
 }
 .issues-seg-btn:hover { color: var(--text); }
@@ -808,11 +814,25 @@ body.is-searching .hub-zone:not(.hidden) ~ .hub-zone:not(.hidden) {
   background: #fff;
   box-shadow: 0 1px 3px rgba(20, 20, 30, .12);
 }
+.issues-seg-new {
+  font-size: .62rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: #8a5a00;
+  background: #f8e7b0;
+  border-radius: 999px;
+  padding: .12rem .4rem;
+  line-height: 1.2;
+}
+.issues-seg-new[hidden] { display: none; }
 
 .issues-embed-body {
   position: relative;
   flex: 1;
   min-height: 0;
+  min-width: 0;
+  overflow: hidden;
   background: #f5f4f0;
 }
 
@@ -927,7 +947,13 @@ body.issues-panel-open { overflow: hidden; }
   }
   .issues-panel-seal { width: 28px; height: 28px; }
   .issues-panel-title { font-size: 1.05rem; }
-  .issues-panel-btn--secondary { padding-left: .6rem; padding-right: .6rem; }
+  .issues-panel-btn--secondary {
+    width: 2.1rem;
+    height: 2.1rem;
+    padding: 0;
+    font-size: 0;
+    gap: 0;
+  }
 }
 
 /* Team self-service: see your open issues */
@@ -966,7 +992,7 @@ body.issues-panel-open { overflow: hidden; }
 
 .status-select {
   flex: 1;
-  min-width: 12rem;
+  min-width: 0;
   font: inherit;
   font-size: .9375rem;
   color: var(--text);

@@ -245,16 +245,17 @@
         <li><strong>Post.</strong> Title is the only requirement. Photos of the spot are optional and upload in the background while the form is being filled in.</li>
         <li><strong>Rate independently.</strong> Every voter scores <em>Impact</em> and <em>Effort</em> separately, 1 to 5. Effort is recorded for planning and never blocks a promotion.</li>
         <li><strong>Earned voice.</strong> A person's ratings only start counting once they have reviewed <strong>3 proposals</strong>. Until then their ratings are saved but not counted, and the page tells them so.</li>
-        <li><strong>Quorum.</strong> A proposal is promoted automatically once it has <strong>3 counted reviews</strong> and an average Impact of <strong>3.5 or better</strong>.</li>
+        <li><strong>Quorum.</strong> A proposal is promoted automatically once it has <strong>3 counted reviews</strong> and an average Impact of <strong>3.5 or better</strong>. That writes a row on the Projects sheet so staff can join it from Your work.</li>
         <li><strong>Honesty.</strong> One rating per NetID per proposal, enforced on the server; re-rating replaces the old one. Nobody can rate their own proposal.</li>
         <li><strong>Admin actions.</strong> <em>Edit</em> changes the title, description, area, and scout name in place. <em>Approve now</em> promotes without waiting for quorum. <em>Decline</em> closes it but keeps the row for the record. <em>Delete</em> removes the proposal and its ratings entirely, behind a confirm step, for junk or ideas the team has clearly rejected.</li>
       </ul>
       <p>
-        Newly promoted proposals appear as a &ldquo;New project proposed&rdquo; strip at the top of the
-        students' open-tasks pages for two weeks, so nobody has to go looking. The thresholds all
-        live in the <code>PR</code> object at the top of <code>07_proposals.gs</code>; the sheets are
-        <code>Proposals</code> and <code>Proposal votes</code>, created by running
-        <code>setupProposals</code> once.
+        Newly promoted proposals become Open projects. A gold strip at the top of the
+        students' tasks pages names the new project for two weeks and switches Your work
+        to the Projects tab; ideas still awaiting ratings sit on a quieter strip below.
+        The thresholds all live in the <code>PR</code> object at the top of
+        <code>07_proposals.gs</code>; the sheets are <code>Proposals</code> and
+        <code>Proposal votes</code>, created by running <code>setupProposals</code> once.
       </p>
     </section>
 

@@ -419,17 +419,17 @@ function portalStyles_() {
     + '.btn-skip:active{background:#f0e4c4}'
     + '.btn-row{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}'
     + '.stats{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}'
-    + '.stat{flex:1;min-width:120px;padding:16px 18px;background:#fff;border:1.5px solid #e7e7e3;border-radius:14px;box-shadow:0 2px 8px rgba(20,20,30,.06);position:relative;overflow:hidden}'
+    + '.stat{flex:1 1 8rem;min-width:0;padding:16px 18px;background:#fff;border:1.5px solid #e7e7e3;border-radius:14px;box-shadow:0 2px 8px rgba(20,20,30,.06);position:relative;overflow:hidden}'
     + '.stat::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#8f1515,#b31b1b,#f0c050)}'
     + '.stat-label{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#8a857c}'
     + '.stat-val{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:28px;font-weight:800;letter-spacing:-.04em;line-height:1.1;margin-top:6px;color:#111}'
     + '.stat-val--danger{color:#b31b1b}'
     + '.filters{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 10px;padding:14px 16px;background:#fff;border:1.5px solid #e7e7e3;border-radius:14px;box-shadow:0 2px 8px rgba(20,20,30,.05)}'
-    + '.search-wrap{flex:1;min-width:180px;position:relative}'
+    + '.search-wrap{flex:1;min-width:0;position:relative}'
     + '.search-wrap input{width:100%;font:inherit;font-size:14px;padding:12px 14px 12px 40px;border:1.5px solid #e0e0dc;border-radius:10px;background:#fafaf8;outline:none;transition:border-color .15s,box-shadow .15s}'
     + '.search-wrap input:focus{border-color:#b31b1b;box-shadow:0 0 0 4px rgba(179,27,27,.12);background:#fff}'
     + '.search-wrap::before{content:"";position:absolute;left:14px;top:50%;transform:translateY(-50%);width:16px;height:16px;background:url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'16\' height=\'16\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%239a9a96\' stroke-width=\'2.2\' stroke-linecap=\'round\'%3E%3Ccircle cx=\'11\' cy=\'11\' r=\'7\'/%3E%3Cline x1=\'21\' y1=\'21\' x2=\'16.65\' y2=\'16.65\'/%3E%3C/svg%3E") center/contain no-repeat;pointer-events:none}'
-    + '.filters select{font:inherit;font-size:14px;font-weight:600;padding:12px 14px;border:1.5px solid #e0e0dc;border-radius:10px;background:#fff;outline:none;cursor:pointer;min-width:150px;color:#333}'
+    + '.filters select{font:inherit;font-size:14px;font-weight:600;padding:12px 14px;border:1.5px solid #e0e0dc;border-radius:10px;background:#fff;outline:none;cursor:pointer;min-width:0;flex:1 1 8rem;max-width:100%;color:#333}'
     + '.filters select:focus{border-color:#b31b1b;box-shadow:0 0 0 4px rgba(179,27,27,.12)}'
     + '.toggle{display:inline-flex;align-items:center;gap:8px;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:13px;font-weight:700;color:#444;padding:10px 14px;border-radius:10px;border:1.5px solid #e0e0dc;background:#fff;cursor:pointer;user-select:none;transition:border-color .15s,background .15s,box-shadow .15s}'
     + '.toggle:hover{border-color:#ccc;box-shadow:0 2px 6px rgba(20,20,30,.06)}'
@@ -451,12 +451,12 @@ function portalStyles_() {
     + '.card-foot .btn-row{gap:8px}'
     + '.card-foot .btn{padding:8px 14px;font-size:12.5px;border-radius:9px}'
     + '.card-team{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#b31b1b}'
-    + '.card-title{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:18px;font-weight:800;letter-spacing:-.02em;line-height:1.25;margin-top:3px;color:#111}'
-    + '.card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}'
+    + '.card-title{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:18px;font-weight:800;letter-spacing:-.02em;line-height:1.25;margin-top:3px;color:#111;overflow-wrap:anywhere}'
+    + '.card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;min-width:0}'
     + '.card-field{margin-top:13px}'
     + '.card-flabel{display:block;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:9.5px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:#a8a29e;margin-bottom:4px}'
-    + '.card-action{font-size:14.5px;color:#26231f;font-weight:600;line-height:1.5}'
-    + '.card-details{font-size:13.5px;color:#57534e;line-height:1.62;white-space:pre-line;padding-left:12px;border-left:2px solid #ece9e2}'
+    + '.card-action{font-size:14.5px;color:#26231f;font-weight:600;line-height:1.5;overflow-wrap:anywhere}'
+    + '.card-details{font-size:13.5px;color:#57534e;line-height:1.62;white-space:pre-line;padding-left:12px;border-left:2px solid #ece9e2;overflow-wrap:anywhere}'
     + '.chip{flex:0 0 auto;white-space:nowrap;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;padding:5px 11px;border-radius:999px}'
     + '.chip--overdue{color:#b31b1b;background:#fdecec;border:1px solid #f5d0d0}'
     + '.chip--due{color:#6b665e;background:#f0efe9;border:1px solid #e5e4de}'
@@ -468,20 +468,22 @@ function portalStyles_() {
     + '.page-kicker{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#9a958c}'
     + '.page-title{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:30px;font-weight:800;letter-spacing:-.035em;line-height:1.05;margin-top:8px;color:#111}'
     + '.page-rule{width:46px;height:3px;background:linear-gradient(90deg,#8f1515,#b31b1b,#f0c050);margin-top:12px;border-radius:99px}'
-    + '@media(max-width:600px){.card-foot{flex-direction:column;align-items:stretch}.btn-row{width:100%;justify-content:stretch}.btn{flex:1;justify-content:center}.filters select{width:100%}.stat-val{font-size:24px}}';
+    + '@media(max-width:600px){.card-foot{flex-direction:column;align-items:stretch}.btn-row{width:100%;justify-content:stretch}.btn{flex:1;justify-content:center;white-space:normal}.search-wrap{flex:1 1 100%}.filters select{width:100%;flex-basis:100%}.stat-val{font-size:24px}.card-body{padding:15px 14px}.card-foot{padding:12px 14px}.swh{font-size:26px!important}}';
 }
 
 function swissShell_(innerHtml, pageTitle, wide, embedded, maxWidth) {
   const maxW = maxWidth || (wide ? '960px' : '600px');
-  const pad = embedded ? '18px 18px 28px' : '40px 28px 64px';
+  const pad = embedded ? '14px 12px 28px' : '40px 28px 64px';
+  const padSm = embedded ? '10px 10px 24px' : '24px 14px 40px';
   const topBar = embedded ? '' : '<div style="height:5px;background:linear-gradient(90deg,#8f1515,#b31b1b,#8f1515)"></div>';
   const enh = '<style>' + portalStyles_()
-    + '@media(max-width:600px){.page-title{font-size:24px !important}}'
+    + '.swiss-inner{max-width:' + maxW + ';width:100%;margin:0 auto;padding:' + pad + ';min-width:0;box-sizing:border-box}'
+    + '@media(max-width:600px){.page-title{font-size:24px !important}.swiss-inner{padding:' + padSm + ' !important}}'
     + '</style>';
   const html = enh
-    + '<div style="margin:0;background:#f5f4f0;min-height:100vh;font-family:Helvetica,Arial,sans-serif;color:#111">'
+    + '<div style="margin:0;background:#f5f4f0;min-height:100vh;max-width:100%;font-family:Helvetica,Arial,sans-serif;color:#111">'
     + topBar
-    + '<div style="max-width:' + maxW + ';margin:0 auto;padding:' + pad + '">' + innerHtml + '</div>'
+    + '<div class="swiss-inner">' + innerHtml + '</div>'
     + '</div>';
   return HtmlService.createHtmlOutput(html).setTitle(pageTitle || 'Space Status')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
@@ -655,12 +657,12 @@ function teamPortal_(team, readOnly, embedded) {
     + icRefreshBtn_()
     + '</div>';
 
-  inner += prTasksStripHtml_();   // "a new project has been proposed" (07_proposals.gs)
+  inner += prTasksStripHtml_();   // new-project / awaiting-ratings strip (07_proposals.gs)
   inner += '<div id="ic-list">' + icTeamSectionsHtml_(data, readOnly) + '</div>';
 
   const scripts = tpSharedJs_() + (readOnly ? '' : icClientJs_()) + icRefreshJs_()
     + '<script>var IC_SCOPE=' + JSON.stringify(team) + ';var IC_READONLY=' + (readOnly ? 'true' : 'false') + ';</script>';
-  return swissShell_(tpStyles_() + prStripStyles_() + inner + scripts, 'Space Status - ' + team, true, embedded);
+  return swissShell_(tpStyles_() + prStripStyles_() + inner + scripts + prStripJs_(), 'Space Status - ' + team, true, embedded);
 }
 
 // The grouped Overdue / Open / Pending sections + "recently completed" for a team
@@ -738,7 +740,7 @@ function pickerPage_() {
     + '<div style="width:46px;height:3px;background:#b31b1b;margin-top:12px"></div>'
     + '<div style="font-size:16px;line-height:1.7;color:#555;margin-top:18px">Select your team to see its open space issues and deadlines.</div>'
     + '<form action="' + escapeHtml_(url) + '" method="get" target="_top" style="margin-top:22px;display:flex;flex-wrap:wrap;gap:12px">'
-    +   '<select name="view" required style="flex:1;min-width:240px;font-size:15px;padding:12px 14px;border:1.5px solid #ddd;border-radius:8px;background:#fff;color:#111">' + opts + '</select>'
+    +   '<select name="view" required style="flex:1 1 12rem;min-width:0;width:100%;font-size:15px;padding:12px 14px;border:1.5px solid #ddd;border-radius:8px;background:#fff;color:#111">' + opts + '</select>'
     +   '<button type="submit" class="b" style="font-size:14px;font-weight:700;color:#fff;background:#b31b1b;border:none;padding:0 24px;border-radius:8px;cursor:pointer">View open issues</button>'
     + '</form>';
   return swissShell_(inner, 'Space Status');
@@ -917,7 +919,7 @@ function allIssuesPage_(embedded, admin) {
     + '<label class="toggle"><input id="odue" type="checkbox" onchange="this.closest(\'.toggle\').classList.toggle(\'is-on\', this.checked); flt()"> Overdue only</label>'
     + '</div>';
 
-  inner += prTasksStripHtml_();   // "a new project has been proposed" (07_proposals.gs)
+  inner += prTasksStripHtml_();   // new-project / awaiting-ratings strip (07_proposals.gs)
   inner += '<div id="ic-list">' + icAllSectionsHtml_(data) + '</div>';
 
   inner += '<script>var IC_SCOPE="*";var IC_READONLY=false;'
@@ -925,7 +927,7 @@ function allIssuesPage_(embedded, admin) {
     +   'document.querySelectorAll(".card").forEach(function(c){var ok=(!q||c.dataset.hay.indexOf(q)>=0)&&(!tm||c.dataset.team===tm)&&(!od||c.dataset.over==="1");c.style.display=ok?"":"none";if(ok)n++;});'
     +   'var e=document.getElementById("empty");if(e)e.style.display=n?"none":"block";}'
     + '</script>';
-  return swissShell_(tpStyles_() + prStripStyles_() + inner + tpSharedJs_() + icClientJs_() + icRefreshJs_() + tpAdminRevealJs_(admin), 'Open issues', true, embedded);
+  return swissShell_(tpStyles_() + prStripStyles_() + inner + tpSharedJs_() + icClientJs_() + icRefreshJs_() + tpAdminRevealJs_(admin) + prStripJs_(), 'Open issues', true, embedded);
 }
 
 // The Pending / Overdue / Open sections + filter-empty note + "recently completed"

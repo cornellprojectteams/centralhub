@@ -6,8 +6,9 @@
  * Inventory run the same code, branched by regFields_(which).
  *
  * SPEED. Sheet round-trips dominate here, so:
- *  - Catalog and item pages paint a named loading shell first, then fetch
- *    the body so the wait is never a blank white screen.
+ *  - Catalog paints a skeleton grid + slim top bar, then fetches the body.
+ *    Item pages are server-rendered. Opening a card slides the record over
+ *    the grid (google.script.run.regGetItem) instead of a centered spinner.
  *  - Spreadsheet handle and tab rows are memoized per execution (REG_MEMO).
  *  - Tab rows and the rendered card HTML are cached in CacheService (~5 min),
  *    dropped on every write. A warm catalog load skips the spreadsheet.
@@ -586,18 +587,34 @@ function regRowsMap(which) {
   return regBuildCards_(which, true).mapJson || '{}';
 }
 
+function regSkelGridHtml_() {
+  var card = '<div class="reg-card reg-skel-card" aria-hidden="true"><div class="reg-card-img reg-skel"></div>'
+    + '<div class="reg-card-b"><div class="reg-skel reg-skel-k"></div><div class="reg-skel reg-skel-title"></div>'
+    + '<div class="reg-skel reg-skel-line"></div></div></div>';
+  var i, html = '';
+  for (i = 0; i < 8; i++) html += card;
+  return '<div class="reg-toolbar"><div class="reg-skel reg-skel-toggle"></div></div>'
+    + '<div class="reg-bar"><div class="reg-skel reg-skel-bar"></div></div>'
+    + '<div class="reg-grid">' + html + '</div>';
+}
+
+function regSkelItemHtml_() {
+  return '<div class="reg-item" aria-busy="true"><div class="reg-skel reg-skel-back"></div>'
+    + '<div class="reg-detail"><div class="reg-detail-media reg-skel"></div><div class="reg-detail-main">'
+    + '<div class="reg-skel reg-skel-k"></div><div class="reg-skel reg-skel-title"></div>'
+    + '<div class="reg-skel reg-skel-line"></div><div class="reg-skel reg-skel-stock"></div>'
+    + '<div class="reg-skel reg-skel-line"></div></div></div></div>';
+}
+
 function registryPage_(which, embedded, admin) {
   const spec = regFields_(which);
   const title = spec.tab === 'Inventory' ? 'Inventory' : 'Equipment registry';
-  const inv = spec.tab === 'Inventory';
   const regBase = regWebUrl_();
   const other = spec.which === 'inventory' ? 'equipment' : 'inventory';
-  const waitT = inv ? 'Loading the shop catalog…' : 'Loading equipment…';
-  const waitH = inv ? 'Fetching items and stock counts' : 'Fetching equipment records';
 
   let inner = '<div id="reg-root" class="reg-page">'
-    + regWaitHtml_(waitT, waitH, true)
-    + '<div id="reg-swap"></div>'
+    + regWaitHtml_()
+    + '<div id="reg-swap">' + regSkelGridHtml_() + '</div>'
     + '<div class="reg-slide" id="reg-slide" hidden><div class="reg-slide-bd" onclick="regBack(event)"></div>'
     + '<div class="reg-slide-dialog" id="reg-itempane" role="dialog" aria-modal="true" aria-label="Item"></div></div>'
     + regStyles_() + regWaitJs_() + regFilterJs_() + regSwitchJs_()
@@ -618,8 +635,8 @@ function regWarm(which, admin) {
 // The swappable body of the registry page - everything the Inventory/Equipment toggle
 // changes. Kept separate so regSwitchHtml() can re-render it IN PLACE via
 // google.script.run: no page navigation means no Apps Script cold-load white flash
-// (which is what the "back and forth" between tabs was hitting), and it lets the toggle
-// show a loading spinner.
+// (which is what the "back and forth" between tabs was hitting). The toggle swaps in
+// a skeleton grid until the other catalog arrives.
 function regBodyMarkup_(which, b, admin, embedded) {
   const spec = regFields_(which);
   const inv = spec.tab === 'Inventory';
@@ -693,6 +710,16 @@ function regSwitchHtml(which, admin, embedded) {
   return { ok: true, html: regBodyMarkup_(which, b, !!admin, !!embedded), which: spec.which, key: b.key, rowsJson: admin ? b.mapJson : '{}' };
 }
 
+// Client-callable item payload. Named like the other google.script.run functions
+// (regSwitchHtml, regCount) so the HtmlService runner actually exposes it.
+function regGetItem(which, id, admin) {
+  return regItemMarkup_(which, id, !!admin);
+}
+
+function regItemHtml(which, id, admin) {
+  return regGetItem(which, id, admin);
+}
+
 // The in-place Inventory/Equipment toggle: swap the body via google.script.run instead
 // of navigating. Named wait copy so a slow fetch never looks like a freeze.
 function regSwitchJs_() {
@@ -701,35 +728,35 @@ function regSwitchJs_() {
     + 'sw.innerHTML=r.html;REG_WHICH=r.which;if(typeof REG_ADMIN!=="undefined"&&REG_ADMIN){REG_KEY=r.key;try{REG_ROWS=JSON.parse(r.rowsJson);}catch(e){REG_ROWS={};}}'
     + 'if(typeof REG_FILTER!=="undefined")REG_FILTER="";if(typeof flt==="function")flt();return true;}'
     + 'function regBoot(which,other){var ad=!!(typeof REG_ADMIN!=="undefined"&&REG_ADMIN);var em=!!(typeof REG_EMBED!=="undefined"&&REG_EMBED);'
-    + 'regWait(true,which==="inventory"?"Loading the shop catalog\\u2026":"Loading equipment\\u2026",which==="inventory"?"Fetching items and stock counts":"Fetching equipment records");'
+    + 'regWait(true,which==="inventory"?"Loading inventory":"Loading equipment","");'
     + 'google.script.run.withSuccessHandler(function(r){if(!regFillBody(r)){regWaitSay("Could not load","Refresh the page and try again.");return;}'
     + 'regWait(false);try{if(other)google.script.run.regWarm(other,ad);}catch(e){}})'
     + '.withFailureHandler(function(){regWaitSay("Could not load","Refresh the page and try again.");}).regSwitchHtml(which,ad,em);}'
     + 'function regSwitch(which){if(typeof REG_WHICH!=="undefined"&&which===REG_WHICH)return;'
-    + 'var inv=which==="inventory";regWait(true,inv?"Loading inventory\\u2026":"Loading equipment\\u2026",inv?"Fetching the shop catalog":"Fetching equipment records");'
+    + 'if(typeof regCloseItem==="function")regCloseItem();'
+    + 'var inv=which==="inventory";var sw=document.getElementById("reg-swap");var prev=sw?sw.innerHTML:"";'
+    + 'if(sw&&typeof REG_SKEL_GRID==="string")sw.innerHTML=REG_SKEL_GRID;'
+    + 'regWait(true,inv?"Loading inventory":"Loading equipment","");'
     + 'var ad=!!(typeof REG_ADMIN!=="undefined"&&REG_ADMIN);var em=!!(typeof REG_EMBED!=="undefined"&&REG_EMBED);'
-    + 'google.script.run.withSuccessHandler(function(r){if(!regFillBody(r)){regWait(false);return;}regWait(false);})'
-    + '.withFailureHandler(function(){regWait(false);alert("Could not switch catalogs. Try again.");}).regSwitchHtml(which,ad,em);}'
+    + 'google.script.run.withSuccessHandler(function(r){if(!regFillBody(r)){if(sw&&prev)sw.innerHTML=prev;regWait(false);return;}regWait(false);})'
+    + '.withFailureHandler(function(){if(sw&&prev)sw.innerHTML=prev;regWait(false);alert("Could not switch catalogs. Try again.");}).regSwitchHtml(which,ad,em);}'
     + 'function regGoItem(ev,a){if(!ev||ev.metaKey||ev.ctrlKey||ev.shiftKey||ev.altKey||(ev.button&&ev.button!==0))return true;'
     + 'ev.preventDefault();var card=a.closest?a.closest(".reg-card"):null;var key=card?card.getAttribute("data-key"):"";'
     + 'var titleEl=card?card.querySelector(".reg-card-title"):null;var name=titleEl?titleEl.textContent:"item";'
     + 'var slide=document.getElementById("reg-slide");var pane=document.getElementById("reg-itempane");'
     + 'var ad=!!(typeof REG_ADMIN!=="undefined"&&REG_ADMIN);var req=++REG_ITEM_REQ;'
-    + 'if(slide&&pane){pane.innerHTML=\'<div class="reg-slide-load"><span class="reg-wait-spin" aria-hidden="true"></span><p class="reg-wait-t"></p><p class="reg-wait-h">Fetching the catalog record</p></div>\';'
-    + 'var t=pane.querySelector(".reg-wait-t");if(t)t.textContent="Opening "+name;regOpenSlide();}'
-    + 'else{regWait(true,"Opening "+name,"Fetching the catalog record");}'
-    + 'google.script.run.withSuccessHandler(function(r){if(req!==REG_ITEM_REQ)return;'
-    + 'if(!r||!r.html){if(slide)regCloseItem();else regWait(false);alert((r&&r.error)||"Could not open that item.");return;}'
-    + 'if(pane&&slide){pane.innerHTML=r.html;}else{var sw=document.getElementById("reg-swap");REG_SAVED=sw.innerHTML;sw.innerHTML=r.html;}'
-    + 'REG_ITEM=1;if(r.ok&&r.row!=null&&r.vals)REG_ROWS[String(r.row)]=r.vals;if(r.key)REG_KEY=r.key;'
-    + 'try{window.scrollTo(0,0);}catch(e){}regWait(false);})'
-    + '.withFailureHandler(function(){if(req!==REG_ITEM_REQ)return;regWait(false);if(slide)regCloseItem();try{location.href=a.href;}catch(e){}}).regItemHtml(REG_WHICH,key,ad);return false;}'
+    + 'var href=a.getAttribute("href")||"";'
+    + 'function fail(){if(req!==REG_ITEM_REQ)return;regWait(false);if(slide)regCloseItem();if(href)location.href=href;}'
+    + 'function ok(r){if(req!==REG_ITEM_REQ)return;if(!r||!r.html){fail();return;}'
+    + 'if(pane&&slide){pane.innerHTML=r.html;}else{var sw=document.getElementById("reg-swap");if(sw){REG_SAVED=sw.innerHTML;sw.innerHTML=r.html;}}'
+    + 'REG_ITEM=1;if(r.ok&&r.row!=null&&r.vals)REG_ROWS[String(r.row)]=r.vals;if(r.key)REG_KEY=r.key;regWait(false);}'
+    + 'if(slide&&pane){pane.innerHTML=REG_SKEL_ITEM;regOpenSlide();}regWait(true,"Opening "+name,"");'
+    + 'regCallItem(REG_WHICH,key,ad,ok,fail);return false;}'
     + '</script>';
 }
 
-// Single-item view: product page. Client-callable so the catalog can open an item
-// in place (named wait, no white flash) and so a QR/deep link can paint a shell first.
-function regItemHtml(which, id, admin) {
+// Single-item view: product page, not a sheet dump.
+function regItemMarkup_(which, id, admin) {
   const spec = regFields_(which);
   const inv = spec.tab === 'Inventory';
   let regBase = regWebUrl_();
@@ -867,7 +894,6 @@ function regItemHtml(which, id, admin) {
     +     sub + stock + panel + facts + actions
     +   '</div>'
     + '</div></div>';
-  if (admin) html += regFormOverlay_(which);
 
   const vals = {};
   H.forEach(function (h, i) { vals[h] = regRawVal_(r[i]); });
@@ -877,17 +903,23 @@ function regItemHtml(which, id, admin) {
 function regItemPage_(which, id, admin) {
   const spec = regFields_(which);
   const inv = spec.tab === 'Inventory';
+  const payload = regItemMarkup_(which, id, !!admin);
+  const title = (payload && payload.name) || (inv ? 'Inventory' : 'Equipment');
+  const rows = {};
+  if (payload && payload.ok && payload.row != null && payload.vals) rows[String(payload.row)] = payload.vals;
   const regBase = regWebUrl_();
   let inner = '<div id="reg-root" class="reg-page">'
-    + regWaitHtml_('Opening item…', 'Fetching the catalog record', true)
-    + '<div id="reg-swap"></div>'
+    + regWaitHtml_()
+    + '<div id="reg-swap">' + ((payload && payload.html) || '') + '</div>'
+    + (admin ? regFormOverlay_(which) : '')
     + regStyles_() + regWaitJs_()
     + '<script>var REG_WHICH=' + JSON.stringify(spec.which) + ';var REG_ADMIN=' + (admin ? 'true' : 'false')
-    + ';var REG_BASE=' + JSON.stringify(regBase) + ';var REG_KEY=' + JSON.stringify(spec.key)
-    + ';var REG_ROWS={};var REG_SAVED="";var REG_ITEM=1;</script>';
+    + ';var REG_EMBED=false;var REG_BASE=' + JSON.stringify(regBase)
+    + ';var REG_KEY=' + JSON.stringify((payload && payload.key) || spec.key)
+    + ';var REG_ROWS=' + JSON.stringify(rows) + ';var REG_SAVED="";var REG_ITEM=1;</script>';
   if (admin) inner += regEditJs_();
-  inner += '<script>regBootItem(' + JSON.stringify(spec.which) + ',' + JSON.stringify(String(id)) + ',' + (admin ? 'true' : 'false') + ');</script></div>';
-  return swissShell_(inner, inv ? 'Inventory' : 'Equipment', true, false, '1040px');
+  inner += '</div>';
+  return swissShell_(inner, title, true, false, '1040px');
 }
 
 // Printable QR labels. Each label deep-links to its item page; scan with any phone camera.
@@ -936,26 +968,26 @@ function regLabelsPage_(which) {
 
 // ---- registry admin: shared styles, filter, unlock, form overlay, edit JS ----
 
-function regWaitHtml_(title, hint, show) {
-  return '<div class="reg-topbar' + (show ? ' on' : '') + '" id="reg-top" aria-hidden="true"></div>'
-    + '<div class="reg-wait" id="reg-wait"' + (show ? '' : ' hidden') + ' role="status" aria-live="polite">'
-    + '<div class="reg-wait-card"><span class="reg-wait-spin" aria-hidden="true"></span>'
-    + '<p class="reg-wait-t" id="reg-wait-t">' + escapeHtml_(title || 'Loading…') + '</p>'
-    + '<p class="reg-wait-h" id="reg-wait-h">' + escapeHtml_(hint || '') + '</p></div></div>';
+function regWaitHtml_() {
+  return '<div class="reg-topbar" id="reg-top" aria-hidden="true"></div>'
+    + '<div class="reg-status" id="reg-status" hidden role="status" aria-live="polite"></div>';
 }
 
 function regWaitJs_() {
   return '<script>'
     + 'var REG_BUSY=0,REG_WAIT_IV=null,REG_ITEM_REQ=0;'
+    + 'var REG_SKEL_GRID=' + JSON.stringify(regSkelGridHtml_()) + ';'
+    + 'var REG_SKEL_ITEM=' + JSON.stringify(regSkelItemHtml_()) + ';'
     + 'function regTop(on){var b=document.getElementById("reg-top");if(!b)return;'
     + 'REG_BUSY=Math.max(0,REG_BUSY+(on?1:-1));'
     + 'if(REG_BUSY>0)b.className="reg-topbar on";else{b.className="reg-topbar done";setTimeout(function(){if(REG_BUSY<=0)b.className="reg-topbar";},600);}}'
-    + 'function regWait(on,title,hint){var w=document.getElementById("reg-wait");if(REG_WAIT_IV){clearInterval(REG_WAIT_IV);REG_WAIT_IV=null;}'
-    + 'if(on){regTop(true);regWaitSay(title||"Loading\\u2026",hint||"");if(w)w.hidden=false;'
-    + 'var n=0;REG_WAIT_IV=setInterval(function(){n++;var h=document.getElementById("reg-wait-h");if(!h)return;'
-    + 'h.textContent=n>=2?"Almost there\\u2026":"Still working\\u2026 this can take a few seconds";},1800);}'
-    + 'else{regTop(false);if(w)w.hidden=true;}}'
-    + 'function regWaitSay(title,hint){var t=document.getElementById("reg-wait-t");var h=document.getElementById("reg-wait-h");if(t&&title)t.textContent=title;if(h&&hint!=null)h.textContent=hint;}'
+    + 'function regWait(on,title,hint){var s=document.getElementById("reg-status");if(REG_WAIT_IV){clearInterval(REG_WAIT_IV);REG_WAIT_IV=null;}'
+    + 'if(on){regTop(true);var msg=title||"Loading\\u2026";if(s){s.hidden=false;s.textContent=msg;}'
+    + 'var n=0;REG_WAIT_IV=setInterval(function(){n++;if(!s||s.hidden)return;s.textContent=(title||"Loading\\u2026")+(n>=2?" \\u00b7 almost there":" \\u00b7 still working");},2200);}'
+    + 'else{regTop(false);if(s){s.hidden=true;s.textContent="";}}}'
+    + 'function regWaitSay(title,hint){var s=document.getElementById("reg-status");if(!s)return;s.hidden=false;s.textContent=title+(hint?" \\u00b7 "+hint:"");}'
+    + 'function regCallItem(which,id,admin,ok,fail){try{var r=google.script.run.withSuccessHandler(ok).withFailureHandler(fail);'
+    + 'if(typeof r.regGetItem!=="function"){fail();return;}r.regGetItem(which,id,!!admin);}catch(e){fail();}}'
     + 'function regImgFb(el){el.classList.remove("reg-img","is-in");var f=el.getAttribute("data-fb");if(f){el.removeAttribute("data-fb");el.src=f;return;}'
     + 'var m=el.getAttribute("data-mono")||"\\u00b7";el.outerHTML=\'<span class="reg-card-mono" aria-hidden="true">\'+m+\'</span>\';}'
     + 'function regOpenSlide(){var slide=document.getElementById("reg-slide");if(!slide)return;slide.hidden=false;requestAnimationFrame(function(){slide.classList.add("is-open");});}'
@@ -963,17 +995,14 @@ function regWaitJs_() {
     + 'if(!slide)return;slide.classList.remove("is-open");setTimeout(function(){if(!slide.classList.contains("is-open")){slide.hidden=true;if(pane)pane.innerHTML="";}},360);}'
     + 'function regBack(ev,a){var slide=document.getElementById("reg-slide");if(slide&&(slide.classList.contains("is-open")||!slide.hidden)){if(ev)ev.preventDefault();regCloseItem();return false;}'
     + 'if(typeof REG_SAVED==="string"&&REG_SAVED){if(ev)ev.preventDefault();document.getElementById("reg-swap").innerHTML=REG_SAVED;REG_SAVED="";REG_ITEM=undefined;try{window.scrollTo(0,0);}catch(e){}if(typeof flt==="function")flt();return false;}'
-    + 'regWait(true,"Loading the catalog\\u2026","Taking you back");return true;}'
+    + 'regWait(true,"Loading the catalog","");return true;}'
     + 'document.addEventListener("keydown",function(e){if(e.key==="Escape"){var slide=document.getElementById("reg-slide");if(slide&&slide.classList.contains("is-open")){e.preventDefault();regCloseItem();}}});'
-    + 'function regBootItem(which,id,admin){regWait(true,"Opening item\\u2026","Fetching the catalog record");google.script.run.withSuccessHandler(function(r){var sw=document.getElementById("reg-swap");'
-    + 'if(!sw||!r||!r.html){regWaitSay("Could not load","Refresh the page and try again.");return;}'
-    + 'sw.innerHTML=r.html;if(r.ok){REG_ITEM=1;if(typeof REG_ROWS!=="object"||!REG_ROWS)REG_ROWS={};if(r.row!=null&&r.vals)REG_ROWS[String(r.row)]=r.vals;if(r.key)REG_KEY=r.key;if(r.name)try{document.title=r.name;}catch(e){}}'
-    + 'regWait(false);}).withFailureHandler(function(){regWaitSay("Could not load","Refresh the page and try again.");}).regItemHtml(which,id,!!admin);}'
     + '</script>';
 }
 
 function regStyles_() {
   return '<style>'
+    + '#reg-root,.reg-page,#reg-swap,.reg-item,.reg-detail,.reg-toolbar,.reg-bar,.reg-grid{max-width:100%;min-width:0}'
     + '.reg-page .page-rule{width:56px;background:linear-gradient(90deg,#0d9488,#14b8a6,#f0c050)}'
     + '.reg-head-row{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-top:8px}'
     + '.reg-head-row .page-title{margin-top:0}'
@@ -981,38 +1010,41 @@ function regStyles_() {
     + '.reg-head-stat b{font-weight:800}'
     + '.reg-stat-low{color:#b06a00}.reg-stat-out{color:#b31b1b}'
     + '.reg-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:18px 0 4px}'
-    + '.reg-toggle{display:inline-flex;background:#efece6;border-radius:999px;padding:3px;gap:2px;margin:0;border:1px solid #e7e2d8}'
-    + '.reg-toggle-btn{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:13px;font-weight:700;color:#8a857c;text-decoration:none;padding:8px 18px;border-radius:999px;border:none;background:transparent;cursor:pointer;transition:background .15s,color .15s,box-shadow .15s}'
+    + '.reg-toggle{display:inline-flex;max-width:100%;background:#efece6;border-radius:999px;padding:3px;gap:2px;margin:0;border:1px solid #e7e2d8}'
+    + '.reg-toggle-btn{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:13px;font-weight:700;color:#8a857c;text-decoration:none;padding:8px 18px;border-radius:999px;border:none;background:transparent;cursor:pointer;flex:1 1 auto;transition:background .15s,color .15s,box-shadow .15s}'
     + '.reg-toggle-btn.on{background:#0d9488;color:#fff;box-shadow:0 2px 8px rgba(13,148,136,.28)}'
     + '.reg-tools{display:flex;gap:8px;flex-wrap:wrap;margin:0}'
-    + '#reg-swap{position:relative}'
-    + '#reg-swap.reg-loading{opacity:.45;pointer-events:none}'
-    + '#reg-swap.reg-loading::after{content:"";position:absolute;left:50%;top:160px;width:34px;height:34px;margin-left:-17px;border:3px solid #e6e1d8;border-top-color:#0d9488;border-radius:50%;animation:regspin .7s linear infinite;z-index:4}'
     + '@keyframes regspin{to{transform:rotate(360deg)}}'
+    + '@keyframes regshimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}'
     + '.reg-topbar{position:fixed;top:0;left:0;height:3px;width:0;z-index:91;background:linear-gradient(90deg,#0d9488,#14b8a6,#f0c050);opacity:0;pointer-events:none}'
     + '.reg-topbar.on{width:88%;opacity:1;transition:width 8s cubic-bezier(.05,.8,.25,1),opacity .2s}'
     + '.reg-topbar.done{width:100%;opacity:0;transition:width .2s,opacity .45s .15s}'
-    + '.reg-wait{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(245,244,240,.78);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}'
-    + '.reg-wait[hidden]{display:none}'
-    + '.reg-wait-card{text-align:center;background:#fff;border:1px solid #e8e4dc;border-radius:20px;padding:28px 32px 24px;box-shadow:0 18px 40px rgba(20,17,14,.1);max-width:360px}'
-    + '.reg-wait-spin{display:inline-block;width:28px;height:28px;border:3px solid #e6e1d8;border-top-color:#0d9488;border-radius:50%;animation:regspin .7s linear infinite;margin-bottom:14px}'
-    + '.reg-wait-t{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:17px;font-weight:800;letter-spacing:-.02em;color:#14110e;margin:0 0 6px}'
-    + '.reg-wait-h{font-size:13.5px;font-weight:600;color:#8a857c;margin:0;min-height:1.35em;line-height:1.35}'
+    + '.reg-status{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12px;font-weight:700;color:#8a857c;padding:6px 0 0;min-height:1.2em}'
+    + '.reg-status[hidden]{display:none}'
+    + '.reg-skel{background:linear-gradient(90deg,#efece6 0%,#f7f5f0 45%,#efece6 90%);background-size:200% 100%;animation:regshimmer 1.1s ease-in-out infinite;border-radius:10px}'
+    + '.reg-skel-card{pointer-events:none;box-shadow:none}'
+    + '.reg-skel-card:hover{transform:none;box-shadow:none;border-color:#e8e4dc}'
+    + '.reg-skel-k{height:10px;width:72px;margin-bottom:8px}'
+    + '.reg-skel-title{height:16px;width:78%;margin-bottom:8px}'
+    + '.reg-skel-line{height:12px;width:54%}'
+    + '.reg-skel-stock{height:44px;width:120px;margin:16px 0;border-radius:12px}'
+    + '.reg-skel-back{height:36px;width:160px;border-radius:10px}'
+    + '.reg-skel-toggle{height:38px;width:min(220px,100%);border-radius:999px}'
+    + '.reg-skel-bar{height:44px;width:100%;border-radius:12px;margin:8px 0}'
     + '.reg-img{opacity:0;transition:opacity .28s ease}.reg-img.is-in{opacity:1}'
     + '.reg-slide{position:fixed;inset:0;z-index:45;display:flex;align-items:stretch;justify-content:flex-end;pointer-events:none}'
     + '.reg-slide[hidden]{display:none}'
     + '.reg-slide.is-open{pointer-events:auto}'
     + '.reg-slide-bd{position:absolute;inset:0;background:rgba(14,14,18,.52);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);opacity:0;transition:opacity .32s ease}'
     + '.reg-slide.is-open .reg-slide-bd{opacity:1}'
-    + '.reg-slide-dialog{position:relative;z-index:1;width:100%;height:100%;background:#f5f4f0;box-shadow:-12px 0 48px rgba(20,20,30,.22);transform:translateX(100%);transition:transform .36s cubic-bezier(.22,1,.36,1);overflow:auto;padding:22px 24px 48px}'
+    + '.reg-slide-dialog{position:relative;z-index:1;width:100%;max-width:100%;height:100%;background:#f5f4f0;box-shadow:-12px 0 48px rgba(20,20,30,.22);transform:translateX(100%);transition:transform .36s cubic-bezier(.22,1,.36,1);overflow:auto;overflow-x:hidden;padding:18px 16px 40px;box-sizing:border-box}'
     + '.reg-slide.is-open .reg-slide-dialog{transform:translateX(0)}'
-    + '.reg-slide-load{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;text-align:center;gap:8px}'
     + '@media(prefers-reduced-motion:reduce){.reg-slide-bd,.reg-slide-dialog{transition:none}}'
     + '.reg-spin{display:inline-block;width:13px;height:13px;margin-right:7px;vertical-align:-2px;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;animation:regspin .6s linear infinite}'
-    + '.reg-bar{position:sticky;top:0;z-index:8;padding:12px 2px 14px;margin:8px -2px 2px;background:rgba(245,244,240,.9);-webkit-backdrop-filter:saturate(1.15) blur(12px);backdrop-filter:saturate(1.15) blur(12px);border-bottom:1px solid rgba(20,17,14,.06)}'
-    + '.reg-page .filters{margin:0;padding:0;background:transparent;border:none;box-shadow:none;gap:8px;align-items:center}'
-    + '.reg-page .filters select{min-width:0;padding:10px 12px;border-radius:11px}'
-    + '.reg-page .search-wrap{min-width:200px}'
+    + '.reg-bar{position:sticky;top:0;z-index:8;padding:12px 0 14px;margin:8px 0 2px;background:rgba(245,244,240,.9);-webkit-backdrop-filter:saturate(1.15) blur(12px);backdrop-filter:saturate(1.15) blur(12px);border-bottom:1px solid rgba(20,17,14,.06)}'
+    + '.reg-page .filters{margin:0;padding:0;width:100%;min-width:0;background:transparent;border:none;box-shadow:none;gap:8px;align-items:stretch;flex-wrap:wrap}'
+    + '.reg-page .filters select{min-width:0;flex:1 1 8rem;max-width:100%;padding:10px 12px;border-radius:11px}'
+    + '.reg-page .search-wrap{min-width:0;flex:1 1 12rem}'
     + '.reg-page .search-wrap input:focus{border-color:#0d9488;box-shadow:0 0 0 4px rgba(13,148,136,.14)}'
     + '.reg-page .page-kicker{color:#0f766e}'
     + '.reg-page .filters select:focus{border-color:#0d9488;box-shadow:0 0 0 4px rgba(13,148,136,.14)}'
@@ -1025,8 +1057,8 @@ function regStyles_() {
     + '.reg-page .reg-detail-media .reg-card-mono{font-size:56px;color:#cbbfa8}'
     + '.reg-chip{display:inline-block;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#b31b1b;background:#fdecec;border:1px solid #f5d0d0;padding:3px 9px;border-radius:999px;align-self:flex-start}'
     + '.reg-chip-low{color:#b06a00;background:#fbf3e1;border-color:#eeddb4}'
-    + '.reg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:18px;margin-top:8px}'
-    + '.reg-card{position:relative;display:flex;flex-direction:column;background:#fff;border:1px solid #e8e4dc;border-radius:18px;overflow:hidden;box-shadow:0 1px 2px rgba(20,17,14,.04);transition:box-shadow .2s ease,transform .2s ease,border-color .2s ease;content-visibility:auto;contain-intrinsic-size:400px}'
+    + '.reg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,176px),1fr));gap:18px;margin-top:8px}'
+    + '.reg-card{position:relative;display:flex;flex-direction:column;min-width:0;max-width:100%;background:#fff;border:1px solid #e8e4dc;border-radius:18px;overflow:hidden;box-shadow:0 1px 2px rgba(20,17,14,.04);transition:box-shadow .2s ease,transform .2s ease,border-color .2s ease;content-visibility:auto;contain-intrinsic-size:0 340px}'
     + '.reg-card:hover{box-shadow:0 16px 36px rgba(20,17,14,.12);transform:translateY(-4px);border-color:#ddd6c8}'
     + '.reg-card[data-stock="out"]{border-color:#f0cfcf}'
     + '.reg-card[data-stock="low"]{border-color:#eed9a8}'
@@ -1063,18 +1095,19 @@ function regStyles_() {
     + '.reg-cu{font-size:10px;font-weight:700;letter-spacing:.04em;color:#a8a29e;text-transform:uppercase}'
     + '.reg-csaved{flex:0 0 auto;width:16px;text-align:center;font-size:13px;font-weight:800;transition:color .14s}'
     + '.reg-csaved.saving{color:#cbc4b8}.reg-csaved.ok{color:#0d9488}.reg-csaved.bad{color:#b31b1b}'
-    + '@media(prefers-reduced-motion:reduce){.reg-card,.reg-card-img img,.reg-card-go,.reg-img{transition:none}.reg-card:hover{transform:none}.reg-card:hover .reg-card-img img{transform:none}.reg-wait-spin,.reg-topbar.on{animation:none;transition:opacity .2s}}'
+    + '@media(prefers-reduced-motion:reduce){.reg-card,.reg-card-img img,.reg-card-go,.reg-img{transition:none}.reg-card:hover{transform:none}.reg-card:hover .reg-card-img img{transform:none}.reg-skel,.reg-topbar.on{animation:none;transition:opacity .2s}}'
     // ---- product detail ----
-    + '.reg-item{padding-bottom:12px}'
+    + '.reg-item{padding-bottom:12px;max-width:100%;min-width:0;overflow-wrap:anywhere}'
     + '.reg-back{display:inline-flex;align-items:center;gap:8px;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:13px;font-weight:800;letter-spacing:-.01em;color:#0f766e;text-decoration:none;padding:9px 14px 9px 12px;border-radius:10px;background:#fff;border:1.5px solid #cde8e4;box-shadow:0 1px 2px rgba(20,17,14,.05);transition:color .15s,background .15s,border-color .15s,box-shadow .15s,transform .15s}'
     + '.reg-back:hover{color:#fff;background:#0d9488;border-color:#0d9488;box-shadow:0 6px 16px rgba(13,148,136,.22);transform:translateY(-1px)}'
     + '.reg-detail{display:grid;grid-template-columns:minmax(0,420px) minmax(0,1fr);gap:40px;align-items:start;margin-top:22px}'
     + '.reg-detail-media{position:relative;aspect-ratio:1/1;background:linear-gradient(165deg,#f7f4ee 0%,#efe8da 100%);border:1px solid #e8e4dc;border-radius:22px;overflow:hidden;display:flex;align-items:center;justify-content:center;box-shadow:0 18px 40px rgba(20,17,14,.08)}'
-    + '.reg-detail-media:not(:has(img.is-in)):not(:has(.reg-card-mono))::before{content:"";position:absolute;width:28px;height:28px;border:3px solid #e6e1d8;border-top-color:#0d9488;border-radius:50%;animation:regspin .7s linear infinite}'
+    + '.reg-detail-media:not(:has(img.is-in)):not(:has(.reg-card-mono)):not(.reg-skel)::before{content:"";position:absolute;width:28px;height:28px;border:3px solid #e6e1d8;border-top-color:#0d9488;border-radius:50%;animation:regspin .7s linear infinite}'
+    + '.reg-detail-media.reg-skel::before{display:none}'
     + '.reg-detail-media img{width:100%;height:100%;object-fit:contain;padding:16px}'
     + '.reg-detail-main{display:flex;flex-direction:column;min-width:0;padding-top:4px}'
     + '.reg-detail-kicker{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#0f766e}'
-    + '.reg-detail-title{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:34px;font-weight:800;letter-spacing:-.04em;line-height:1.08;margin:8px 0 0;color:#14110e}'
+    + '.reg-detail-title{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:34px;font-weight:800;letter-spacing:-.04em;line-height:1.08;margin:8px 0 0;color:#14110e;overflow-wrap:anywhere}'
     + '.reg-detail-rule{width:48px;height:3px;border-radius:99px;background:linear-gradient(90deg,#0d9488,#14b8a6,#f0c050);margin:14px 0 12px}'
     + '.reg-detail-sub{font-size:14px;font-weight:600;color:#8a857c;line-height:1.45}'
     + '.reg-dotsep{display:inline-block;width:4px;height:4px;margin:0 9px 2px;border-radius:50%;background:#14b8a6;vertical-align:middle;opacity:.75}'
@@ -1091,7 +1124,7 @@ function regStyles_() {
     + '.reg-facts > .reg-fact:only-of-type,.reg-fact:has(.reg-ext){grid-column:1/-1}'
     + '.reg-detail-v a{color:#0d9488;text-decoration:none;border-bottom:1px solid #99f6e4}'
     + '.reg-detail-v a:hover{color:#0a6d64;border-bottom-color:#0d9488}'
-    + '.reg-ext{display:inline-flex;align-items:center;color:#0f766e;background:#e6f7f5;border:1px solid #cde8e4;border-radius:999px;padding:7px 12px;font-size:13px;font-weight:800;text-decoration:none}'
+    + '.reg-ext{display:inline-flex;align-items:center;max-width:100%;color:#0f766e;background:#e6f7f5;border:1px solid #cde8e4;border-radius:999px;padding:7px 12px;font-size:13px;font-weight:800;text-decoration:none;overflow-wrap:anywhere}'
     + '.reg-ext:hover{color:#fff;background:#0d9488;border-color:#0d9488}'
     + '.reg-facts-more{grid-column:1/-1;margin-top:2px}'
     + '.reg-facts-more summary{list-style:none;cursor:pointer;user-select:none;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12.5px;font-weight:800;color:#0f766e;padding:8px 2px}'
@@ -1102,7 +1135,7 @@ function regStyles_() {
     + '.reg-detail-act{display:flex;gap:8px;flex-wrap:wrap;margin-top:22px}'
     + '.reg-item .btn-primary{background:linear-gradient(180deg,#14b8a6 0%,#0d9488 55%,#0f766e 100%);box-shadow:0 4px 14px rgba(13,148,136,.28)}'
     + '.reg-item .btn-primary:hover{box-shadow:0 8px 20px rgba(13,148,136,.36)}'
-    + '@media(max-width:760px){.reg-detail{grid-template-columns:1fr;gap:22px}.reg-detail-media{max-width:420px;margin:0 auto}.reg-detail-title{font-size:28px}.reg-stock-n{font-size:40px}.reg-facts{grid-template-columns:1fr}}'
+    + '@media(max-width:760px){.reg-detail{grid-template-columns:1fr;gap:18px}.reg-detail-media{max-width:min(420px,100%);width:100%;margin:0 auto}.reg-detail-title{font-size:26px}.reg-stock-n{font-size:36px}.reg-facts{grid-template-columns:1fr}.reg-slide-dialog{padding:14px 12px 36px}.reg-toggle-btn{padding:8px 12px}.reg-tools{width:100%}.reg-page .search-wrap{flex:1 1 100%}.reg-co-form input{min-width:0;width:100%}.reg-ov{padding:3vh 10px}.reg-ov-h{padding:20px 18px 8px}.reg-form{padding:14px 18px}.reg-more{margin:2px 18px 4px}.reg-ov-foot{flex-wrap:wrap;padding:14px 18px 18px}.reg-imgblock{flex-direction:column}}'
     // quick-filter chips
     + '.reg-chips{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 2px}'
     + '.reg-fchip{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12px;font-weight:700;color:#57534e;background:#fff;border:1.5px solid #e2ddd6;border-radius:999px;padding:7px 14px;cursor:pointer}'
@@ -1115,7 +1148,7 @@ function regStyles_() {
     + '.reg-co-who{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:18px;font-weight:800;color:#14110e}'
     + '.reg-co-sub{font-size:13px;color:#8a857c;margin-top:3px;margin-bottom:12px}'
     + '.reg-co-form{display:flex;gap:8px;flex-wrap:wrap;align-items:center}'
-    + '.reg-co-form input{font:inherit;font-size:14px;padding:11px 13px;border:1.5px solid #e0e0dc;border-radius:10px;outline:none;flex:1;min-width:150px}'
+    + '.reg-co-form input{font:inherit;font-size:14px;padding:11px 13px;border:1.5px solid #e0e0dc;border-radius:10px;outline:none;flex:1;min-width:0}'
     + '.reg-co-form input:focus{border-color:#0d9488;box-shadow:0 0 0 3px rgba(13,148,136,.14)}'
     + '.reg-step{display:flex;align-items:center;gap:10px;flex-wrap:wrap}'
     + '.reg-stepbtn{width:46px;height:46px;border-radius:12px;border:1.5px solid #e2ddd6;background:#fff;font-size:22px;font-weight:700;color:#26231f;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center;flex:0 0 auto}'
@@ -1151,7 +1184,7 @@ function regStyles_() {
     + '.reg-past-img{width:50px;height:50px;border-radius:8px;overflow:hidden;border:2px solid transparent;cursor:pointer;background:#fff;padding:0}'
     + '.reg-past-img img{width:100%;height:100%;object-fit:cover}.reg-past-img:hover{border-color:#b31b1b}'
     + '.reg-ov-foot{display:flex;align-items:center;gap:10px;padding:16px 24px 22px;border-top:1.5px solid #f1f1f1;margin-top:6px}.reg-ov-foot>:first-child{margin-right:auto}'
-    + '@media(max-width:520px){.reg-form{grid-template-columns:1fr}.reg-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}}'
+    + '@media(max-width:520px){.reg-form{grid-template-columns:1fr}.reg-grid{gap:12px}.reg-card-b{padding:11px 12px 13px}.reg-count{padding:8px 8px}.reg-cbtn{width:32px;height:32px}}'
     + '</style>';
 }
 
@@ -1253,12 +1286,12 @@ function regEditJs_() {
     + 'function regDeleteRow(row,btn){var card=btn&&btn.closest?btn.closest(".reg-row"):null;var v=REG_ROWS[row]||{};var key=v[REG_KEY]||(card&&card.getAttribute("data-key"))||"";if(!confirm("Delete \\""+key+"\\"? This cannot be undone."))return;if(btn)btn.disabled=true;'
     + 'if(typeof REG_ITEM!=="undefined"&&REG_ITEM)regWait(true,"Deleting\\u2026","Removing this item");'
     + 'google.script.run.withSuccessHandler(function(res){if(res&&res.ok){if(typeof REG_ITEM!=="undefined"&&REG_ITEM){var slide=document.getElementById("reg-slide");if(slide){document.querySelectorAll(".reg-card").forEach(function(c){if(c.getAttribute("data-key")===key)c.remove();});delete REG_ROWS[row];regWait(false);regCloseItem();}else{REG_SAVED="";regNav("registry="+REG_WHICH+"&admin=1");}}else{var c=btn&&btn.closest?btn.closest(".reg-row"):null;if(c)c.remove();delete REG_ROWS[row];}}else{if(btn)btn.disabled=false;regWait(false);alert((res&&res.error)||"Could not delete.");}}).withFailureHandler(function(e){if(btn)btn.disabled=false;regWait(false);alert(String(e));}).regDelete(REG_WHICH,row,key);}'
-    + 'function regReloadItem(key){REG_SAVED="";regWait(true,"Updating\\u2026","Refreshing this item");'
-    + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.html){regNav("registry=item&which="+REG_WHICH+"&id="+encodeURIComponent(key)+"&admin=1");return;}'
-    + 'var slide=document.getElementById("reg-slide");var pane=document.getElementById("reg-itempane");'
+    + 'function regReloadItem(key){REG_SAVED="";var slide=document.getElementById("reg-slide");var pane=document.getElementById("reg-itempane");'
     + 'var target=(slide&&slide.classList.contains("is-open")&&pane)?pane:document.getElementById("reg-swap");'
-    + 'if(target)target.innerHTML=r.html;REG_ITEM=1;if(r.row!=null&&r.vals)REG_ROWS[String(r.row)]=r.vals;regWait(false);})'
-    + '.withFailureHandler(function(){regNav("registry=item&which="+REG_WHICH+"&id="+encodeURIComponent(key)+"&admin=1");}).regItemHtml(REG_WHICH,key,true);}'
+    + 'if(target&&typeof REG_SKEL_ITEM==="string")target.innerHTML=REG_SKEL_ITEM;regWait(true,"Updating\\u2026","");'
+    + 'function fail(){regNav("registry=item&which="+REG_WHICH+"&id="+encodeURIComponent(key)+"&admin=1");}'
+    + 'function ok(r){if(!r||!r.html){fail();return;}if(target)target.innerHTML=r.html;REG_ITEM=1;if(r.row!=null&&r.vals)REG_ROWS[String(r.row)]=r.vals;if(r.key)REG_KEY=r.key;regWait(false);}'
+    + 'if(typeof regCallItem==="function")regCallItem(REG_WHICH,key,true,ok,fail);else fail();}'
     + 'function regBtnBusy(btn,label){if(!btn)return;btn.disabled=true;if(btn.getAttribute("data-txt")==null)btn.setAttribute("data-txt",btn.innerHTML);btn.innerHTML="<span class=\\"reg-spin\\"></span>"+(label||"Working\\u2026");}'
     + 'function regBtnReset(btn){if(!btn)return;btn.disabled=false;var t=btn.getAttribute("data-txt");if(t!=null){btn.innerHTML=t;btn.removeAttribute("data-txt");}}'
     + 'function regCheckoutOne(row,btn){var v=REG_ROWS[row]||{};var key=v[REG_KEY]||"";var person=(document.getElementById("co-person")||{}).value||"";var due=(document.getElementById("co-due")||{}).value||"";if(!person.trim()){alert("Enter who is taking it.");return;}regBtnBusy(btn,"Checking out\\u2026");google.script.run.withSuccessHandler(function(res){if(res&&res.ok){regReloadItem(key);}else{regBtnReset(btn);alert((res&&res.error)||"Could not check out.");}}).withFailureHandler(function(e){regBtnReset(btn);alert(String(e));}).regCheckout(REG_WHICH,row,key,person,due);}'

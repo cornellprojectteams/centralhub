@@ -8,7 +8,9 @@
  * Honeybee mechanics:
  *  - Independent assessment: every voter rates Impact and Effort separately.
  *  - Quorum sensing: a real threshold of committed support flips it to Real (not a bare
- *    majority).
+ *    majority). Hitting quorum (or an admin Approve) writes a row on the Projects
+ *    sheet so staff can join it from Your work → Projects. The proposals board then
+ *    shows a compact “in Projects” row instead of keeping it up for review.
  *  - Earned voice: a vote only COUNTS once its voter has rated >= PR.earnedVoiceK OTHER
  *    proposals - you commit scouting effort before your signal is heard. Waived while
  *    fewer than PR.earnedVoiceBootstrap proposals are open, so the pool can bootstrap.
@@ -52,8 +54,8 @@ var PR = {
   quorumMinImpact: 3.5,    // ...and the average Impact must reach this
   earnedVoiceK: 2,         // rate this many OTHER proposals before your votes count
   earnedVoiceBootstrap: 3, // ...waived while fewer than this many proposals are open
-  cacheKey: 'pr_list_v4',  // rendered list HTML (netid-agnostic)
-  stripKey: 'pr_strip_v1', // the "new project proposed" strip shown on the tasks pages
+  cacheKey: 'pr_list_v5',  // rendered list HTML (netid-agnostic)
+  stripKey: 'pr_strip_v5', // one-line banner on the tasks pages
   cacheSeconds: 120,
   freshDays: 14,           // a promotion counts as news on the tasks page for this long
 };
@@ -81,7 +83,29 @@ function prCacheSvc_() { try { return CacheService.getScriptCache(); } catch (e)
 function prInvalidate_() {
   PR_MEMO = {};
   var c = prCacheSvc_();
-  if (c) { try { c.removeAll([PR.cacheKey, PR.stripKey]); } catch (e) { /* cache is best-effort */ } }
+  if (!c) return;
+  var keys = [PR.cacheKey, PR.stripKey];
+  if (typeof TP !== 'undefined' && TP.cacheKey) keys.push(TP.cacheKey);
+  try { c.removeAll(keys); } catch (e) { /* cache is best-effort */ }
+}
+
+function prWebHref_(module) {
+  var base = (typeof CONFIG !== 'undefined' && CONFIG.webAppUrl) ? String(CONFIG.webAppUrl) : '';
+  var join = base.indexOf('?') >= 0 ? '&' : '?';
+  return base + join + 'module=' + encodeURIComponent(module);
+}
+
+// Any Real proposal that does not yet have a Projects row gets one. Cheap when the
+// two already match; used as a backfill for proposals promoted before spawn existed.
+function prSpawnMissing_() {
+  var reals = prProposals_().filter(function (p) { return norm_(p.status) === norm_(PR.status.real); });
+  if (!reals.length || typeof tpSpawnFromProposal_ !== 'function') return 0;
+  var n = 0;
+  reals.forEach(function (p) {
+    try { if (tpSpawnFromProposal_(p, true)) n++; } catch (e) { Logger.log('spawn ' + p.id + ': ' + e); }
+  });
+  if (n && typeof tpInvalidate_ === 'function') tpInvalidate_();
+  return n;
 }
 
 // ---- data ----
@@ -190,21 +214,27 @@ function prPromoteAll_(data) {
     p.status = PR.status.real;
     p.promotedAt = new Date();
     promoted.push(p.id);
+    try { if (typeof tpSpawnFromProposal_ === 'function') tpSpawnFromProposal_(p, true); } catch (err) { Logger.log('spawn failed: ' + err); }
   });
+  if (promoted.length && typeof tpInvalidate_ === 'function') tpInvalidate_();
   return promoted;
 }
 
 // ---- mutations (client-callable) ----
 
 // Admin decision on a provisional proposal: 'approve' promotes it without waiting for
-// quorum, 'decline' closes it (the row stays in the sheet for the record; the page
-// only lists Provisional + Real). The buttons only render revealed in admin mode.
+// quorum (and spawns it as an Open project), 'decline' closes it (the row stays in the
+// sheet for the record; the board only lists what is still up for review, plus a compact
+// "in Projects" row for recently promoted ones).
 function prAdminSetStatus(proposalId, decision) {
   var o = tpOpen_(PR.proposalsSheet, PR.proposalHeaders), r = tpFindRow_(o.sh, o.col['Proposal ID'], proposalId);
   if (r < 0) return { ok: false, error: 'That proposal could not be found.' };
   if (decision === 'approve') {
     o.sh.getRange(r, o.col['Status']).setValue(PR.status.real);
     o.sh.getRange(r, o.col['Promoted at']).setValue(new Date());
+    prInvalidate_();
+    var p = prProposals_().filter(function (x) { return x.id === proposalId; })[0];
+    try { if (p && typeof tpSpawnFromProposal_ === 'function') tpSpawnFromProposal_(p); } catch (err) { Logger.log('spawn failed: ' + err); }
   } else if (decision === 'decline') {
     o.sh.getRange(r, o.col['Status']).setValue(PR.status.declined);
   } else {
@@ -480,15 +510,29 @@ function prCardHtml_(p, rid, votable) {
 
 function prListSectionsHtml_(data) {
   var provisional = data.proposals.filter(function (p) { return norm_(p.status) === norm_(PR.status.provisional); });
-  var real = data.proposals.filter(function (p) { return norm_(p.status) === norm_(PR.status.real); });
+  var cutoff = Date.now() - PR.freshDays * 86400000;
+  var real = data.proposals.filter(function (p) {
+    return norm_(p.status) === norm_(PR.status.real) && p.promotedAt && new Date(p.promotedAt).getTime() >= cutoff;
+  });
   provisional.sort(function (a, b) { return (b.avgImpact - a.avgImpact) || (b.countedVotes - a.countedVotes) || (new Date(b.createdAt || 0) - new Date(a.createdAt || 0)); });
   real.sort(function (a, b) { return new Date(b.promotedAt || 0) - new Date(a.promotedAt || 0); });
   var idx = 0, out = '';
   out += prSection_('Up for review', provisional.length, 'section-label--review');
   if (!provisional.length) out += '<div class="empty pr-empty"><span class="pr-empty-bee" aria-hidden="true">&#128029;</span>Nothing up for review yet. Scout an improvement and post it above.</div>';
   else provisional.forEach(function (p) { out += prCardHtml_(p, 'pr' + (idx++), true); });
-  if (real.length) { out += prSection_('Approved', real.length, 'section-label--real'); real.forEach(function (p) { out += prCardHtml_(p, 'pr' + (idx++), false); }); }
+  if (real.length) {
+    out += prSection_('Now in Projects', real.length, 'section-label--real');
+    real.forEach(function (p) { out += prMovedHtml_(p); });
+  }
   return out;
+}
+
+function prMovedHtml_(p) {
+  var href = prWebHref_('projects');
+  return '<a class="pr-moved" href="' + escapeHtml_(href) + '" target="_blank" rel="noopener" onclick="return prStripGo(event,\'projects\')">'
+    + '<span class="pr-moved-mark" aria-hidden="true">&#10003;</span>'
+    + '<span class="pr-moved-title">' + escapeHtml_(p.title) + '</span>'
+    + '<span class="pr-moved-go">In Projects &rarr;</span></a>';
 }
 
 // The list is identical for every viewer (personal state is patched in client-side), so
@@ -521,27 +565,33 @@ function prTasksStripHtml_() {
   try {
     var proposals = prProposals_();
     var cutoff = new Date().getTime() - PR.freshDays * 86400000;
-    var fresh = proposals.filter(function (p) {
+    var freshProj = [];
+    try {
+      if (typeof tpListProjects_ === 'function') {
+        freshProj = tpListProjects_().filter(function (p) {
+          var st = norm_(p.status);
+          return (st === norm_(TP.projectStatus.assigned) || !p.status) && tpIsFresh_(p);
+        }).sort(function (a, b) { return tpTime_(b.createdAt) - tpTime_(a.createdAt); });
+      }
+    } catch (e2) { freshProj = []; }
+    var freshReal = proposals.filter(function (p) {
       return norm_(p.status) === norm_(PR.status.real) && p.promotedAt && new Date(p.promotedAt).getTime() >= cutoff;
     }).sort(function (a, b) { return new Date(b.promotedAt || 0) - new Date(a.promotedAt || 0); });
     var open = proposals.filter(function (p) { return norm_(p.status) === norm_(PR.status.provisional); });
-    var href = CONFIG.webAppUrl + (CONFIG.webAppUrl.indexOf('?') >= 0 ? '&' : '?') + 'module=proposals';
 
-    if (fresh.length || open.length) {
-      var lead = fresh.length
-        ? '<b>' + escapeHtml_(fresh[0].title) + '</b>' + (fresh.length > 1 ? ' and ' + (fresh.length - 1) + ' more' : '')
-        : '<b>' + open.length + ' idea' + (open.length === 1 ? '' : 's') + '</b> waiting on the team';
-      var kicker = fresh.length ? 'New project proposed' : 'Proposals need your rating';
-      var sub = fresh.length
-        ? 'Voted up by the team, it is a real project now.'
-        : 'Rate impact and effort. Enough support turns one into a real project.';
-      html = '<a class="pr-strip" href="' + escapeHtml_(href) + '" target="_blank" rel="noopener">'
-        + '<span class="pr-strip-bee" aria-hidden="true">&#128029;</span>'
-        + '<span class="pr-strip-main"><span class="pr-strip-kicker">' + kicker + '</span>'
-        +   '<span class="pr-strip-title">' + lead + '</span>'
-        +   '<span class="pr-strip-sub">' + sub + '</span></span>'
-        + '<span class="pr-strip-go" aria-hidden="true">&rarr;</span></a>';
+    var news = freshProj.length ? freshProj : freshReal;
+    var parts = [];
+    if (news.length) {
+      var line = '<b>' + escapeHtml_(news[0].title) + '</b>'
+        + (news.length > 1 ? ' +' + (news.length - 1) : '')
+        + ' is waiting in Projects';
+      parts.push(prStripLink_('projects', line, 'pr-strip--project', news.length));
     }
+    if (open.length) {
+      var ideas = '<b>' + open.length + ' idea' + (open.length === 1 ? '' : 's') + '</b> awaiting ratings';
+      parts.push(prStripLink_('proposals', ideas, 'pr-strip--ideas', 0));
+    }
+    html = parts.length ? '<div class="pr-strips" data-pr-news="' + news.length + '">' + parts.join('') + '</div>' : '';
   } catch (err) {
     html = '';   // the tasks page must never fail because proposals are not set up yet
   }
@@ -549,22 +599,43 @@ function prTasksStripHtml_() {
   return html;
 }
 
+function prStripLink_(module, line, cls, news) {
+  var href = prWebHref_(module);
+  return '<a class="pr-strip ' + cls + '" href="' + escapeHtml_(href) + '" target="_blank" rel="noopener" onclick="return prStripGo(event,\'' + module + '\')"'
+    + (news ? ' data-pr-news="' + news + '"' : '') + '>'
+    + '<span class="pr-strip-bee" aria-hidden="true">&#128029;</span>'
+    + '<span class="pr-strip-title">' + line + '</span>'
+    + '<span class="pr-strip-go" aria-hidden="true">&rarr;</span></a>';
+}
+
 // Styles for the strip only. The tasks pages do not load prStyles_.
 function prStripStyles_() {
   return '<style>'
-    + '.pr-strip{display:flex;align-items:center;gap:14px;margin:18px 0 2px;padding:14px 18px;border-radius:16px;text-decoration:none;'
+    + '.pr-strips{display:flex;flex-direction:column;gap:8px;margin:18px 0 2px}'
+    + '.pr-strip{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:16px;text-decoration:none;'
     +   'background:linear-gradient(135deg,#fffdf5 0%,#fff8e6 100%);border:1.5px solid #f0e2b8;box-shadow:0 2px 10px rgba(120,90,20,.07);transition:transform .16s,box-shadow .16s}'
     + '.pr-strip:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(120,90,20,.14)}'
+    + '.pr-strip--ideas{background:#faf9f6;border-color:#e7e4dc;box-shadow:none}'
+    + '.pr-strip--ideas:hover{box-shadow:0 8px 18px rgba(20,20,30,.08)}'
     + '.pr-strip-bee{font-size:22px;line-height:1;flex:none}'
-    + '.pr-strip-main{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}'
-    + '.pr-strip-kicker{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:10.5px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:#a8791a}'
-    + '.pr-strip-title{font-size:15px;font-weight:600;color:#3f3a31;line-height:1.35}'
+    + '.pr-strip-title{flex:1;min-width:0;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:15px;font-weight:600;color:#3f3a31;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
     + '.pr-strip-title b{font-weight:800;color:#14110e}'
-    + '.pr-strip-sub{font-size:12.5px;color:#8a857c;line-height:1.4}'
     + '.pr-strip-go{font-size:19px;color:#a8791a;flex:none}'
-    + '@media(max-width:560px){.pr-strip{padding:12px 14px;gap:11px}.pr-strip-go{display:none}.pr-strip-title{font-size:14px}}'
+    + '@media(max-width:560px){.pr-strip{padding:11px 12px;gap:10px}.pr-strip-title{font-size:14px}}'
     + '@media(prefers-reduced-motion:reduce){.pr-strip{transition:none}.pr-strip:hover{transform:none}}'
     + '</style>';
+}
+
+function prStripJs_() {
+  return '<script>'
+    + 'function prHubMsg(action,extra){try{var m={source:"ops-hub",action:action};if(extra)for(var k in extra)m[k]=extra[k];'
+    + 'if(window.parent&&window.parent!==window)window.parent.postMessage(m,"*");'
+    + 'if(window.top&&window.top!==window)window.top.postMessage(m,"*");}catch(e){}}'
+    + 'function prStripGo(ev,dest){prHubMsg(dest==="projects"?"open-projects":"open-proposals");'
+    + 'if(/[?&]embed=1(?:&|$)/.test(location.search||"")){if(ev)ev.preventDefault();return false;}return true;}'
+    + '(function(){var n=0,el=document.querySelector("[data-pr-news]");if(el)n=parseInt(el.getAttribute("data-pr-news"),10)||0;'
+    + 'if(n>0)prHubMsg("projects-news",{count:n});})();'
+    + '</script>';
 }
 
 // ---- the page ----
@@ -585,7 +656,7 @@ function proposalsPage_(embedded, admin, back) {
       + '<div class="page-head"><div class="page-kicker">Project Teams Ops Hub</div><div class="page-title">Proposals</div><div class="page-rule"></div></div>';
   }
   inner += '<div class="pr-hero">'
-    + '<p class="pr-intro">Scout an improvement to our spaces and post it. Everyone rates each one on impact and effort, and the ideas that win enough support become real projects.</p>';
+    + '<p class="pr-intro">Scout an improvement to our spaces and post it. Everyone rates each one on impact and effort, and the ideas that win enough support move to Projects for the team to pick up.</p>';
 
   // Compact honey chip in the hero; opens in place so the rules sit next to the board
   // rather than as another stacked card.
@@ -599,7 +670,7 @@ function proposalsPage_(embedded, admin, back) {
     +   '<li><b>Scout.</b> When you spot something that would make a space work better, post it. A title is all that is required; a photo of the spot helps everyone else judge it.</li>'
     +   '<li><b>Rate, independently.</b> Score every proposal twice: <b>Impact</b> (how much better it makes the place) and <b>Effort</b> (how much work it is).</li>'
     +   '<li><b>Earn your voice.</b> Your ratings start counting once you have reviewed <b>' + (PR.earnedVoiceK + 1) + ' proposals</b>. Until then they are saved but not counted.</li>'
-    +   '<li><b>Quorum.</b> A proposal becomes a real project when it has <b>' + PR.quorumMinVotes + ' counted reviews</b> and an average Impact of <b>' + PR.quorumMinImpact + ' or better</b>.</li>'
+    +   '<li><b>Quorum.</b> A proposal becomes a real project when it has <b>' + PR.quorumMinVotes + ' counted reviews</b> and an average Impact of <b>' + PR.quorumMinImpact + ' or better</b>. It then moves to <b>Projects</b>, where staff can join it.</li>'
     + '</ol>'
     + '<div class="pr-guide-notes">'
     +   '<p><b>You cannot rate your own proposal.</b></p>'
@@ -637,7 +708,7 @@ function proposalsPage_(embedded, admin, back) {
     + ',PR_VOICE_NEED=' + (PR.earnedVoiceK + 1) + ';</script>';
 
   return swissShell_('<div class="pr-topbar" id="pr-top" aria-hidden="true"></div>'
-    + tpStyles_() + prStyles_() + inner + boot + tpSharedJs_() + prClientJs_() + tpAdminRevealJs_(admin),
+    + tpStyles_() + prStyles_() + inner + boot + tpSharedJs_() + prStripJs_() + prClientJs_() + tpAdminRevealJs_(admin),
     'Proposals', true, embedded);
 }
 
@@ -666,6 +737,7 @@ function prVerdictText_(imp, eff) {
 function prStyles_() {
   return '<style>'
     // ---- page frame ----
+    + '.pr-page{max-width:100%;min-width:0}'
     + '.pr-page .page-head{margin-bottom:2px}'
     + '.pr-page .page-title{letter-spacing:-.04em}'
     + '.pr-page .page-rule{width:56px;background:linear-gradient(90deg,#c08a1e,#f0c050,#b31b1b)}'
@@ -679,7 +751,7 @@ function prStyles_() {
 
     // ---- hero: intro + compact honey chip ----
     + '.pr-hero{margin:14px 0 2px}'
-    + '.pr-intro{font-size:15.5px;line-height:1.65;color:#57534e;margin:0 0 12px}'
+    + '.pr-intro{font-size:15.5px;line-height:1.65;color:#57534e;margin:0 0 12px;overflow-wrap:anywhere}'
     + '.pr-guide{position:relative;display:inline-flex;max-width:100%;vertical-align:middle;margin:0;'
     +   'border:1.5px solid #ead9a8;border-radius:999px;overflow:visible;'
     +   'background:linear-gradient(180deg,#fffef6 0%,#fff4d6 100%);'
@@ -721,8 +793,8 @@ function prStyles_() {
     +   '86%{opacity:.85}100%{opacity:0;right:78%;top:15px;transform:rotate(-8deg) scale(.8)}}'
 
     // ---- toolbar: identity + propose on one row ----
-    + '.pr-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:16px 0 6px}'
-    + '.pr-idbar{display:flex;align-items:center;gap:10px 18px;flex-wrap:wrap;flex:1 1 280px;margin:0;padding:10px 14px;'
+    + '.pr-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:16px 0 6px;max-width:100%;min-width:0}'
+    + '.pr-idbar{display:flex;align-items:center;gap:10px 18px;flex-wrap:wrap;flex:1 1 12rem;min-width:0;margin:0;padding:10px 14px;'
     +   'background:#fff;border:1px solid #ece6d8;border-radius:14px;box-shadow:0 1px 2px rgba(20,17,14,.04)}'
     + '.pr-idrow{display:flex;align-items:center;gap:10px;flex:0 1 auto;min-width:0}'
     + '.pr-idlbl{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:10.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#8a857c;white-space:nowrap}'
@@ -772,11 +844,11 @@ function prStyles_() {
     + '.pr-page .pr-card:hover{transform:translateY(-2px);box-shadow:0 14px 36px -14px rgba(20,17,14,.2)}'
     + '.pr-page .pr-card .card-body{padding:18px 20px 16px}'
     + '@keyframes prCardIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}'
-    + '.pr-title{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:clamp(17px,2.4vw,20px);font-weight:800;letter-spacing:-.03em;line-height:1.25;color:#14110e;margin:0}'
-    + '.pr-desc{font-size:14.5px;line-height:1.55;color:#57534e;margin:8px 0 0}'
+    + '.pr-title{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:clamp(17px,2.4vw,20px);font-weight:800;letter-spacing:-.03em;line-height:1.25;color:#14110e;margin:0;overflow-wrap:anywhere}'
+    + '.pr-desc{font-size:14.5px;line-height:1.55;color:#57534e;margin:8px 0 0;overflow-wrap:anywhere}'
     + '.pr-meta{display:flex;align-items:center;flex-wrap:wrap;gap:0;margin-top:8px;font-size:12.5px;font-weight:600;color:#8a857c}'
     + '.pr-area:not([hidden])+.pr-by:not([hidden])::before{content:"\\00b7";margin:0 8px;color:#d6d3ce;font-weight:800}'
-    + '.pr-photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;margin-top:12px}'
+    + '.pr-photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,92px),1fr));gap:8px;margin-top:12px}'
     + '.pr-photos a{display:block;aspect-ratio:1;border-radius:12px;overflow:hidden;line-height:0;box-shadow:0 2px 8px rgba(20,17,14,.08);transition:transform .16s}'
     + '.pr-photos a:hover{transform:scale(1.04)}'
     + '.pr-photos img{width:100%;height:100%;object-fit:cover;display:block;border:0}'
@@ -790,7 +862,7 @@ function prStyles_() {
     + '.pr-qv{font-size:13.5px;font-weight:800;color:#14110e}'
     + '.pr-qv.good{color:#157a47}'
     + '.pr-qslash{color:#d6d3ce;font-weight:700;font-size:12px}'
-    + '.pr-segs{display:inline-flex;gap:5px;flex:none}'
+    + '.pr-segs{display:inline-flex;flex-wrap:wrap;gap:5px;flex:none;max-width:100%}'
     + '.pr-seg{width:28px;height:7px;border-radius:99px;background:#ece6d8;animation:prSegIn .4s cubic-bezier(.2,.9,.3,1.2) both}'
     + '.pr-seg.on{background:linear-gradient(90deg,#e0a11e,#c08a1e)}'
     + '.pr-seg.pending{background:repeating-linear-gradient(115deg,#e6ded2,#e6ded2 5px,#f3ede4 5px,#f3ede4 10px);animation:prPend 1s linear infinite}'
@@ -800,14 +872,19 @@ function prStyles_() {
     + '@keyframes prPend{to{background-position:20px 0}}'
     + '.pr-promoted{display:flex;align-items:center;gap:9px;margin-top:16px;padding:11px 0 0;border-top:1.5px solid #e4f0e8;background:none;border-radius:0;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12.5px;font-weight:600;color:#157a47}'
     + '.pr-promoted-mark{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#157a47;color:#fff;font-size:11px;font-weight:800;flex:none}'
+    + '.pr-moved{display:flex;align-items:center;gap:12px;margin:0 0 8px;padding:12px 16px;border-radius:14px;text-decoration:none;background:#f4faf6;border:1.5px solid #d7eadf;transition:transform .16s,box-shadow .16s}'
+    + '.pr-moved:hover{transform:translateY(-1px);box-shadow:0 8px 18px rgba(21,122,71,.12)}'
+    + '.pr-moved-mark{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#157a47;color:#fff;font-size:12px;font-weight:800;flex:none}'
+    + '.pr-moved-title{flex:1;min-width:0;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:15px;font-weight:800;color:#14110e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+    + '.pr-moved-go{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12.5px;font-weight:800;color:#157a47;flex:none;white-space:nowrap}'
 
     // ---- rating: two scales, two colours, sitting on the card ----
-    + '.pr-rate{margin-top:2px;padding:14px 0 0;background:none;border:none;border-radius:0}'
-    + '.pr-rate-row{display:flex;align-items:center;gap:12px;margin-bottom:10px}'
+    + '.pr-rate{margin-top:2px;padding:14px 0 0;background:none;border:none;border-radius:0;min-width:0}'
+    + '.pr-rate-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;margin-bottom:10px;min-width:0}'
     + '.pr-rate-lbl{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#8a857c;flex:0 0 64px}'
-    + '.pr-scale-wrap{display:flex;align-items:center;gap:10px;flex:1;min-width:0}'
-    + '.pr-scale{display:inline-flex;gap:6px;flex:none}'
-    + '.pr-dot{width:36px;height:36px;border-radius:10px;border:1.5px solid #e8e2d4;background:#fff;padding:0;cursor:pointer;'
+    + '.pr-scale-wrap{display:flex;align-items:center;flex-wrap:wrap;gap:8px 10px;flex:1 1 12rem;min-width:0}'
+    + '.pr-scale{display:flex;gap:6px;flex:1 1 auto;min-width:0;max-width:100%}'
+    + '.pr-dot{flex:1 1 0;min-width:0;max-width:40px;width:auto;height:36px;border-radius:10px;border:1.5px solid #e8e2d4;background:#fff;padding:0;cursor:pointer;'
     +   'font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:14px;font-weight:800;color:#a8a29e;line-height:1;'
     +   'transition:border-color .14s,background .14s,color .14s,transform .16s cubic-bezier(.2,.9,.3,1.6),box-shadow .16s;-webkit-tap-highlight-color:transparent}'
     + '.pr-dot:hover{border-color:#c4b89a;color:#57534e;background:#fffdf8}'
@@ -820,7 +897,7 @@ function prStyles_() {
     + '.pr-dot.bump{animation:prDotBump .42s cubic-bezier(.2,.9,.3,1.5)}'
     + '@keyframes prDotBump{0%{transform:scale(1)}40%{transform:scale(1.24)}100%{transform:scale(1)}}'
     + '.pr-dot:active{transform:scale(.93)}'
-    + '.pr-word{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12px;font-weight:700;color:#8f1515;min-height:1em;opacity:0;transform:translateY(3px);transition:opacity .25s,transform .25s}'
+    + '.pr-word{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12px;font-weight:700;color:#8f1515;min-height:1em;min-width:0;flex:1 1 8rem;overflow-wrap:anywhere;opacity:0;transform:translateY(3px);transition:opacity .25s,transform .25s}'
     + '.pr-rate-row:has([data-k="effort"]) .pr-word{color:#8a5f0f}'
     + '.pr-word.show{opacity:1;transform:none}'
     + '.pr-rate-foot{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:4px}'
@@ -869,17 +946,21 @@ function prStyles_() {
     +   '.pr-idbar{padding:11px 12px;gap:10px}.pr-idrow{flex:1 1 100%}.pr-idinput{flex:1;width:auto}'
     +   '.pr-voice{flex:1 1 100%}'
     +   '.pr-propose{flex:1 1 100%}.pr-page .pr-propose .tp-create-toggle{width:100%;justify-content:center}'
-    +   '.pr-rate-lbl{flex:0 0 56px}'
-    +   '.pr-scale-wrap{flex:1;gap:8px}'
-    +   '.pr-scale{display:flex;gap:6px}'
-    +   '.pr-dot{width:36px;height:36px;font-size:14px}'
-    +   '.pr-quorum{gap:8px 10px}.pr-qsay{flex:1 1 auto}.pr-qvals{margin-left:auto}'
-    +   '.pr-submit{flex:1 1 auto}.pr-vmsg{flex:1 1 100%;text-align:left}'
+    +   '.pr-rate-row{align-items:flex-start}'
+    +   '.pr-rate-lbl{flex:1 1 100%}'
+    +   '.pr-scale-wrap{flex:1 1 100%;gap:6px}'
+    +   '.pr-scale{width:100%;justify-content:space-between}'
+    +   '.pr-dot{flex:1 1 0;max-width:none;height:40px;font-size:14px}'
+    +   '.pr-word{flex:1 1 100%}'
+    +   '.pr-quorum{gap:8px 10px}.pr-qsay{flex:1 1 100%}.pr-qvals{margin-left:0}'
+    +   '.pr-submit{flex:1 1 auto;min-width:0}.pr-vmsg{flex:1 1 100%;text-align:left}'
     +   '.pr-adminbar .btn{flex:1 1 auto}'
     +   '.pr-guide-body{padding:4px 14px 15px}'
-    +   '.pr-page .pr-card .card-body{padding:15px 15px 14px}'
+    +   '.pr-guide-fly{display:none}'
+    +   '.pr-page .pr-card .card-body{padding:15px 14px 14px}'
+    +   '.pr-optional{display:block;margin:4px 0 0}'
     + '}'
-    + '@media(max-width:380px){.pr-dot{width:32px;height:32px;font-size:13px;border-radius:9px}.pr-seg{width:22px}}'
+    + '@media(max-width:380px){.pr-dot{height:36px;font-size:13px;border-radius:9px}.pr-seg{width:20px}}'
 
     // ---- motion preferences ----
     + '@media(prefers-reduced-motion:reduce){'
@@ -1041,7 +1122,7 @@ function prClientJs_() {
     + 'card.classList.add("is-promoting");'
     + 'setTimeout(function(){'
     + 'var say=document.getElementById(rid+"-say");if(say){say.textContent="quorum reached";say.className="pr-qsay pr-qsay--good";}'
-    + 'tpConfetti("\\uD83D\\uDC1D Quorum reached. It is a real project now.");},620);'
+    + 'tpConfetti("\\uD83D\\uDC1D Quorum reached. It is waiting in Projects.");},620);'
     + 'setTimeout(function(){prRefresh(true);},2400);}'
 
     // ---------- posting a proposal ----------

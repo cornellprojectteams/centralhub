@@ -145,25 +145,39 @@
   const adminSuffix = /(?:^|&)admin=1(?:&|$)/.test(embedQuery || '') ? '&admin=1' : '';
   const projectsUrl = SPACE_STATUS_URL ? SPACE_STATUS_URL + sep + 'module=projects&embed=1' + adminSuffix : '';
   const projectsFullUrl = SPACE_STATUS_URL ? SPACE_STATUS_URL + sep + 'module=projects' + adminSuffix : '';
+  const projectsNew = document.getElementById('seg-projects-new');
   let projectsFrameStarted = false;
+  let projectsLoadBound = false;
 
-  function loadProjectsFrame() {
-    if (projectsFrameStarted || !projectsFrame || !projectsUrl) return;
+  function hideProjectsNew() {
+    if (projectsNew) projectsNew.hidden = true;
+  }
+
+  function loadProjectsFrame(refresh) {
+    if (!projectsFrame || !projectsUrl) return;
+    if (projectsFrameStarted && !refresh) return;
+    if (!projectsLoadBound) {
+      projectsLoadBound = true;
+      projectsFrame.addEventListener('load', () => {
+        if (projectsEmbedBody) projectsEmbedBody.classList.remove('is-loading');
+      });
+    }
     projectsFrameStarted = true;
-    projectsFrame.addEventListener('load', () => {
-      if (projectsEmbedBody) projectsEmbedBody.classList.remove('is-loading');
-    }, { once: true });
+    if (projectsEmbedBody) projectsEmbedBody.classList.add('is-loading');
     projectsFrame.src = projectsUrl;
   }
 
-  function showPanelView(view) {
+  function showPanelView(view, opts) {
     const tasks = view !== 'projects';
     if (issuesEmbedBody) issuesEmbedBody.hidden = !tasks;
     if (projectsEmbedBody) projectsEmbedBody.hidden = tasks;
     if (segTasks) { segTasks.classList.toggle('is-active', tasks); segTasks.setAttribute('aria-selected', String(tasks)); }
     if (segProjects) { segProjects.classList.toggle('is-active', !tasks); segProjects.setAttribute('aria-selected', String(!tasks)); }
     if (issuesPanelExt) issuesPanelExt.href = tasks ? issuesFullUrl : projectsFullUrl;
-    if (!tasks) loadProjectsFrame();
+    if (!tasks) {
+      hideProjectsNew();
+      loadProjectsFrame(opts && opts.refresh);
+    }
   }
 
   if (segTasks) segTasks.addEventListener('click', () => showPanelView('tasks'));
@@ -233,12 +247,13 @@
     issuesFrame.src = issuesUrl;
   }
 
-  function openIssuesPanel() {
+  function openIssuesPanel(view) {
+    if (view && typeof view !== 'string') view = 'tasks';
     if (!issuesPanel) return;
     issuesPanel.hidden = false;
     requestAnimationFrame(() => issuesPanel.classList.add('is-open'));
     document.body.classList.add('issues-panel-open');
-    if (segTasks) showPanelView('tasks');   // always open on the Tasks tab
+    showPanelView(view || 'tasks');
     loadIssuesFrame();
     if (issuesCloseBtn) issuesCloseBtn.focus();
   }
@@ -265,7 +280,9 @@
   });
 
   // Open the issues dashboard straight away via a shared admin.html#issues link.
-  if (location.hash.slice(1) === 'issues') openIssuesPanel();
+  const bootHash = location.hash.slice(1);
+  if (bootHash === 'issues') openIssuesPanel();
+  if (bootHash === 'projects') openIssuesPanel('projects');
 
   /**
    * Generic slide-over panel: same shell and behaviour as the tasks panel above, but
@@ -360,7 +377,7 @@
   // can offer a way back to this hub (it has no other way to know where it was opened from).
   const proposalsAdmin = document.getElementById('admin') ? '&admin=1' : '';
   const proposalsBase = SPACE_STATUS_URL ? SPACE_STATUS_URL + sep + 'module=proposals' : '';
-  createSlideOver({
+  const proposalsSlide = createSlideOver({
     panelId: 'proposals-panel',
     openBtnId: 'proposals-open',
     url: proposalsBase ? proposalsBase + '&embed=1' + proposalsAdmin : '',
@@ -369,6 +386,23 @@
       ['Loading the proposal board…', 'This can take a few seconds on first open', 2800],
       ['Almost ready…', 'Counting reviews and impact scores', 7000],
     ],
+  });
+
+  window.addEventListener('message', ev => {
+    const d = ev.data;
+    if (!d || d.source !== 'ops-hub') return;
+    if (d.action === 'projects-news') {
+      if (projectsNew) projectsNew.hidden = !(d.count > 0);
+    }
+    if (d.action === 'open-projects') {
+      const open = issuesPanel && issuesPanel.classList.contains('is-open');
+      if (!open) openIssuesPanel('projects');
+      else showPanelView('projects', { refresh: true });
+    }
+    if (d.action === 'open-proposals') {
+      closeIssuesPanel();
+      if (proposalsSlide) proposalsSlide.open();
+    }
   });
 
   // Inventory catalog. Staff and admin both carry data-admin so stock counts can be

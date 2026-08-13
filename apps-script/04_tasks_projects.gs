@@ -12,10 +12,10 @@
  *      Sends back -> clears the submission (back to Open / Uncompleted).
  * This reuses the one Form Responses tracking sheet, with no parallel system.
  *
- *   ?module=projects  Multi-user projects created/assigned by an admin. Any
- *                     student can pick (join) a project; the first pick flips it
- *                     Assigned -> In Progress. Completion is a manual trigger that
- *                     ENFORCES both a "before" and an "after" photo.
+ *   ?module=projects  Multi-user projects. Admins can create them, and a proposal
+ *                     that hits quorum (or is admin-approved) is spawned here as an
+ *                     Open project staff can join. The first pick flips Assigned ->
+ *                     In Progress. Completion ENFORCES a "before" and an "after" photo.
  *
  * Roles (no login): everyone is a doer by default. Admin-only actions (approve or
  * send back completions, create/assign projects) are gated by the shared passcode,
@@ -34,10 +34,37 @@
 
 var TP = {
   projectsSheet: 'Projects',
-  projectHeaders: ['Project ID', 'Title', 'Description', 'Status', 'Assignees', 'Before photo', 'After photo', 'Hours', 'Started at', 'Completed at', 'Created at', 'Sent back reason', 'Attachment', 'Link'],
+  projectHeaders: ['Project ID', 'Title', 'Description', 'Status', 'Assignees', 'Before photo', 'After photo', 'Hours', 'Started at', 'Completed at', 'Created at', 'Sent back reason', 'Attachment', 'Link', 'Proposal ID', 'Area'],
   projectStatus: { assigned: 'Assigned', active: 'In Progress', pending: 'Pending', done: 'Completed' },
   uploadsFolderName: 'Ops Hub completion and project uploads',
+  cacheKey: 'tp_list_v2',
+  cacheSeconds: 120,
+  freshDays: 14,
 };
+
+var TP_MEMO = {};
+
+function tpCacheSvc_() { try { return CacheService.getScriptCache(); } catch (e) { return null; } }
+
+function tpInvalidate_() {
+  TP_MEMO = {};
+  var c = tpCacheSvc_();
+  if (!c) return;
+  var keys = [TP.cacheKey];
+  if (typeof PR !== 'undefined' && PR.stripKey) keys.push(PR.stripKey);
+  try { c.removeAll(keys); } catch (e) { /* cache is best-effort */ }
+}
+
+function tpTime_(v) {
+  if (!v) return 0;
+  var t = new Date(v).getTime();
+  return isNaN(t) ? 0 : t;
+}
+
+function tpIsFresh_(p) {
+  var t = tpTime_(p && p.createdAt);
+  return t > 0 && t >= Date.now() - TP.freshDays * 86400000;
+}
 
 // ---- One-time setup (mirrors setupRegistry). Safe to re-run. ----
 
@@ -329,38 +356,85 @@ function rejectIssueCompletion(token, reason, pass) {
 // ---- Projects: data ----
 
 function tpListProjects_() {
+  if (TP_MEMO.projects) return TP_MEMO.projects;
   var o = tpOpen_(TP.projectsSheet, TP.projectHeaders);
   var sh = o.sh, col = o.col;
   var last = sh.getLastRow();
   var out = [];
-  if (last < 2) return out;
+  if (last < 2) { TP_MEMO.projects = out; return out; }
   var v = sh.getRange(2, 1, last - 1, sh.getLastColumn()).getValues();
   var pending = [];
+  var cell = function (row, h) { return col[h] ? row[col[h] - 1] : ''; };
   for (var i = 0; i < v.length; i++) {
     var row = v[i];
-    var title = String(row[col['Title'] - 1] || '').trim();
+    var title = String(cell(row, 'Title') || '').trim();
     if (!title) continue;
-    var id = String(row[col['Project ID'] - 1] || '').trim();
+    var id = String(cell(row, 'Project ID') || '').trim();
     if (!id) { id = newToken_(); pending.push({ r: i + 2, c: col['Project ID'], val: id }); }
-    var status = String(row[col['Status'] - 1] || '').trim();
+    var status = String(cell(row, 'Status') || '').trim();
     if (!status) { status = TP.projectStatus.assigned; pending.push({ r: i + 2, c: col['Status'], val: status }); }
     out.push({
       id: id,
       title: title,
-      description: String(row[col['Description'] - 1] || '').trim(),
+      description: String(cell(row, 'Description') || '').trim(),
       status: status,
-      assignees: tpSplitList_(row[col['Assignees'] - 1]),
-      before: String(row[col['Before photo'] - 1] || '').trim(),
-      after: String(row[col['After photo'] - 1] || '').trim(),
-      hours: Number(row[col['Hours'] - 1]) || 0,
-      completedAt: row[col['Completed at'] - 1] || '',
-      sentBackReason: String(row[col['Sent back reason'] - 1] || '').trim(),
-      attachment: String(row[col['Attachment'] - 1] || '').trim(),
-      link: String(row[col['Link'] - 1] || '').trim(),
+      assignees: tpSplitList_(cell(row, 'Assignees')),
+      before: String(cell(row, 'Before photo') || '').trim(),
+      after: String(cell(row, 'After photo') || '').trim(),
+      hours: Number(cell(row, 'Hours')) || 0,
+      createdAt: cell(row, 'Created at') || '',
+      completedAt: cell(row, 'Completed at') || '',
+      sentBackReason: String(cell(row, 'Sent back reason') || '').trim(),
+      attachment: String(cell(row, 'Attachment') || '').trim(),
+      link: String(cell(row, 'Link') || '').trim(),
+      proposalId: String(cell(row, 'Proposal ID') || '').trim(),
+      area: String(cell(row, 'Area') || '').trim(),
     });
   }
   pending.forEach(function (w) { sh.getRange(w.r, w.c).setValue(w.val); });
+  TP_MEMO.projects = out;
   return out;
+}
+
+function tpProjectCounts_(projects) {
+  projects = projects || tpListProjects_();
+  return {
+    assigned: projects.filter(function (p) { return norm_(p.status) === norm_(TP.projectStatus.assigned) || !p.status; }).length,
+    active: projects.filter(function (p) { return norm_(p.status) === norm_(TP.projectStatus.active); }).length,
+    pending: projects.filter(function (p) { return norm_(p.status) === norm_(TP.projectStatus.pending); }).length,
+    done: projects.filter(function (p) { return norm_(p.status) === norm_(TP.projectStatus.done); }).length,
+  };
+}
+
+// Turn an approved proposal into an Open project staff can join. Idempotent on
+// Proposal ID, so a second promote (or the backfill) will not duplicate the row.
+function tpSpawnFromProposal_(p, skipInvalidate) {
+  if (!p || !p.id || !String(p.title || '').trim()) return '';
+  var o = tpOpen_(TP.projectsSheet, TP.projectHeaders);
+  var last = o.sh.getLastRow();
+  var pidCol = o.col['Proposal ID'];
+  if (last >= 2 && pidCol) {
+    var ids = o.sh.getRange(2, pidCol, last - 1, 1).getValues();
+    for (var i = 0; i < ids.length; i++) {
+      if (String(ids[i][0]).trim() === String(p.id)) return '';
+    }
+  }
+  var id = newToken_();
+  var maxCol = o.sh.getLastColumn();
+  var row = [];
+  for (var c = 0; c < maxCol; c++) row.push('');
+  var put = function (h, val) { if (o.col[h]) row[o.col[h] - 1] = val; };
+  put('Project ID', id);
+  put('Title', String(p.title).trim());
+  put('Description', String(p.description || '').trim());
+  put('Status', TP.projectStatus.assigned);
+  put('Created at', new Date());
+  put('Proposal ID', p.id);
+  put('Area', String(p.area || '').trim());
+  if (p.photos) put('Before photo', String(p.photos).trim());
+  o.sh.getRange(last + 1, 1, 1, row.length).setValues([row]);
+  if (!skipInvalidate) tpInvalidate_();
+  return id;
 }
 
 // ---- Projects: mutations ----
@@ -385,6 +459,7 @@ function tpJoinProject(projectId, name) {
       o.sh.getRange(r, o.col['Started at']).setValue(new Date());
     }
   }
+  tpInvalidate_();
   return { ok: true, status: status, assignees: list };
 }
 
@@ -400,6 +475,7 @@ function tpUpdateProject(projectId, title, description, assignees) {
   o.sh.getRange(r, o.col['Title']).setValue(t);
   o.sh.getRange(r, o.col['Description']).setValue(desc);
   o.sh.getRange(r, o.col['Assignees']).setValue(list.join(', '));
+  tpInvalidate_();
   return { ok: true, title: t, description: desc, assignees: list };
 }
 
@@ -421,6 +497,7 @@ function tpCompleteProject(projectId, afterUrl, afterName, hours) {
   o.sh.getRange(r, o.col['Status']).setValue(TP.projectStatus.pending);
   o.sh.getRange(r, o.col['Sent back reason']).setValue('');
   var beforeIds = extractFileIds_(String(o.sh.getRange(r, o.col['Before photo']).getValue() || ''));
+  tpInvalidate_();
   return { ok: true, status: TP.projectStatus.pending, afterId: afterId, beforeId: (beforeIds[0] || ''), hours: h };
 }
 
@@ -431,6 +508,7 @@ function tpApproveProject(projectId, pass) {
   if (r < 0) return { ok: false, error: 'That project could not be found.' };
   o.sh.getRange(r, o.col['Status']).setValue(TP.projectStatus.done);
   o.sh.getRange(r, o.col['Completed at']).setValue(new Date());
+  tpInvalidate_();
   return { ok: true, status: TP.projectStatus.done };
 }
 
@@ -442,6 +520,7 @@ function tpRejectProject(projectId, reason, pass) {
   if (r < 0) return { ok: false, error: 'That project could not be found.' };
   o.sh.getRange(r, o.col['Status']).setValue(TP.projectStatus.active);
   o.sh.getRange(r, o.col['Sent back reason']).setValue(String(reason || '').trim());
+  tpInvalidate_();
   return { ok: true, status: TP.projectStatus.active };
 }
 
@@ -472,6 +551,7 @@ function tpCreateProject(title, description, assignees, beforeUrl, beforeName, f
     if (!/^https?:\/\//i.test(lk)) lk = 'https://' + lk.replace(/^\/+/, '');
     o.sh.getRange(r, o.col['Link']).setValue(lk);
   }
+  tpInvalidate_();
   return { ok: true, project: { id: id, title: title } };
 }
 
@@ -481,6 +561,7 @@ function tpDeleteProject(projectId, pass) {
   var r = tpFindRow_(o.sh, o.col['Project ID'], projectId);
   if (r < 0) return { ok: false, error: 'That project could not be found.' };
   o.sh.deleteRow(r);
+  tpInvalidate_();
   return { ok: true };
 }
 
@@ -497,7 +578,7 @@ function tpStyles_() {
     + '.ic-admin-toggle{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#b5b0a8;background:none;border:none;cursor:pointer;padding:4px 2px}'
     + '.ic-admin-toggle:hover{color:#8f1515}'
     + '.ic-admin-fields{display:inline-flex;gap:8px;align-items:center;flex-wrap:wrap}'
-    + '.ic-admin-fields input{font:inherit;font-size:13px;padding:8px 11px;border:1.5px solid #e0e0dc;border-radius:9px;background:#fff;outline:none;min-width:150px}'
+    + '.ic-admin-fields input{font:inherit;font-size:13px;padding:8px 11px;border:1.5px solid #e0e0dc;border-radius:9px;background:#fff;outline:none;min-width:0;flex:1 1 8rem}'
     + '.ic-admin-fields input:focus{border-color:#b31b1b;box-shadow:0 0 0 3px rgba(179,27,27,.1)}'
     + '.tp-lock-msg{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12px;font-weight:700}'
     + '.tp-lock-msg.ok{color:#157a47}.tp-lock-msg.bad{color:#b31b1b}'
@@ -521,7 +602,7 @@ function tpStyles_() {
     + '.tp-photo figure{margin:0}'
     + '.tp-photo figcaption{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#a8a29e;margin-bottom:5px}'
     // ---- staged-photo tray (add photos before submitting) ----
-    + '.stage{display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:11px;margin-top:16px}'
+    + '.stage{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,108px),1fr));gap:11px;margin-top:16px}'
     + '.stage-item{position:relative;aspect-ratio:1;border-radius:14px;overflow:hidden;background:#efeee9;border:1px solid #e6e3db;box-shadow:0 3px 12px rgba(20,20,30,.08);animation:stageIn .3s cubic-bezier(.2,.9,.3,1.35) both}'
     + '@keyframes stageIn{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}'
     + '.stage-item img{width:100%;height:100%;object-fit:cover;display:block}'
@@ -544,11 +625,11 @@ function tpStyles_() {
     + '.ic-refreshed{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12px;font-weight:600;color:#157a47;white-space:nowrap}'
     + '.tp-uploader{margin-top:14px;padding:14px 16px;background:#fbfbf9;border:1.5px dashed #ddd;border-radius:12px}'
     + '.tp-drop{display:flex;flex-wrap:wrap;gap:10px}'
-    + '.tp-slot{flex:1;min-width:150px}'
+    + '.tp-slot{flex:1;min-width:0}'
     + '.tp-slot-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12.5px;font-weight:700;color:#57534e;padding:14px 12px;border:1.5px solid #e0e0dc;border-radius:10px;background:#fff;cursor:pointer;text-align:center}'
     + '.tp-slot-btn:hover{border-color:#b31b1b;color:#8f1515}'
     + '.tp-slot.is-set .tp-slot-btn{border-color:#157a47;color:#157a47;background:#f2fbf6}'
-    + '.tp-hours-field{flex:1;min-width:150px;display:flex;flex-direction:column;justify-content:center}'
+    + '.tp-hours-field{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center}'
     + '.tp-hours-label{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#8a857c;margin-bottom:5px}'
     + '.tp-hours-input{font:inherit;font-size:14px;padding:12px 12px;border:1.5px solid #e0e0dc;border-radius:10px;background:#fff;outline:none;width:100%}'
     + '.tp-hours-input:focus{border-color:#b31b1b;box-shadow:0 0 0 3px rgba(179,27,27,.1)}'
@@ -577,7 +658,7 @@ function tpStyles_() {
     + '.tp-field input,.tp-field textarea{width:100%;font:inherit;font-size:14px;padding:10px 12px;border:1.5px solid #e0e0dc;border-radius:10px;background:#fafaf8;outline:none;resize:vertical}'
     + '.tp-field input:focus,.tp-field textarea:focus{border-color:#b31b1b;box-shadow:0 0 0 4px rgba(179,27,27,.12);background:#fff}'
     + '.tp-inline-join{display:flex;gap:8px;flex-wrap:wrap;align-items:center}'
-    + '.tp-inline-join input{font:inherit;font-size:14px;padding:9px 12px;border:1.5px solid #e0e0dc;border-radius:10px;background:#fff;outline:none;min-width:160px}'
+    + '.tp-inline-join input{font:inherit;font-size:14px;padding:9px 12px;border:1.5px solid #e0e0dc;border-radius:10px;background:#fff;outline:none;min-width:0;flex:1 1 10rem}'
     + '.tp-inline-join input:focus{border-color:#b31b1b;box-shadow:0 0 0 4px rgba(179,27,27,.12)}'
     + '#tp-cfx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9999}'
     + '.ic-note{margin-top:12px;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12.5px;font-weight:600;line-height:1.55;color:#6b665e;background:#f7f6f2;border:1px solid #ece9e2;border-radius:10px;padding:10px 13px}'
@@ -599,7 +680,7 @@ function tpStyles_() {
     + '.tp-pill--sent{color:#b31b1b;background:#fdecec;border:1px solid #f5d0d0}'
     + '.tp-del{color:#b31b1b;border-color:#f0d0d0}'
     + '.tp-del:hover{border-color:#e0a0a0;background:#fdf6f6;color:#8f1515}'
-    + '.ic-reason{font:inherit;font-size:13px;padding:9px 12px;border:1.5px solid #e0e0dc;border-radius:9px;background:#fff;outline:none;min-width:170px;flex:1}'
+    + '.ic-reason{font:inherit;font-size:13px;padding:9px 12px;border:1.5px solid #e0e0dc;border-radius:9px;background:#fff;outline:none;min-width:0;flex:1}'
     + '.ic-reason:focus{border-color:#b31b1b;box-shadow:0 0 0 3px rgba(179,27,27,.1)}'
     + '#tp-cheer{position:fixed;left:50%;top:20%;transform:translate(-50%,-10px) scale(.92);z-index:10000;pointer-events:none;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-weight:800;font-size:18px;color:#fff;background:linear-gradient(180deg,#1d9d5b 0%,#157a47 100%);padding:14px 22px;border-radius:14px;box-shadow:0 14px 34px rgba(21,122,71,.34);opacity:0;transition:opacity .3s ease,transform .35s cubic-bezier(.2,.9,.3,1.4);max-width:88vw;text-align:center}'
     + '#tp-cheer.show{opacity:1;transform:translate(-50%,0) scale(1)}'
@@ -610,10 +691,25 @@ function tpStyles_() {
     + '#tp-proj-list .card[data-status="In Progress"]{border-left-color:#e08a1e}'
     + '#tp-proj-list .card[data-status="Pending"]{border-left-color:#b06a00}'
     + '#tp-proj-list .card[data-status="Completed"]{border-left-color:#157a47}'
+    + '#tp-proj-list .card.is-fresh{border-color:#f0d48a;box-shadow:0 2px 14px rgba(180,140,20,.12)}'
     + '#tp-proj-list .card-team{color:#a8a29e}'
     + '#tp-proj-list .card-title{font-size:19px;margin-top:5px}'
     + '#tp-proj-list .card-body{padding:20px 22px 18px}'
     + '#tp-proj-list .tp-chip{background:#f4f2ec;border-color:#e8e3d7;color:#4a453d;padding:5px 12px}'
+    + '#tp-proj-list .card-head [id$="-pill"]{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:flex-end}'
+    + '.tp-pill--new{color:#8a5a00;background:#fbf3d7;border:1px solid #f0d48a}'
+    + '.tp-kicker-bee{font-size:13px;margin-right:4px}'
+    + '.tp-lede{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:14.5px;font-weight:600;line-height:1.5;color:#6b665e;margin:10px 0 4px;max-width:40rem}'
+    + '.tp-skel{pointer-events:none;box-shadow:none}'
+    + '.tp-skel-line{height:10px;border-radius:6px;background:linear-gradient(90deg,#efeee9 0%,#f7f6f2 40%,#efeee9 80%);background-size:200% 100%;animation:tpSkel 1.15s ease infinite;margin-top:10px}'
+    + '.tp-skel-line--title{height:18px;width:58%;margin-top:0}'
+    + '.tp-skel-line--short{width:38%}'
+    + '@keyframes tpSkel{to{background-position:-200% 0}}'
+    + '.tp-done-pack{margin-top:8px}'
+    + '.tp-done-sum{cursor:pointer;list-style:none;user-select:none}'
+    + '.tp-done-sum::-webkit-details-marker{display:none}'
+    + '.tp-done-sum::marker{content:""}'
+    + '.tp-done-pack>summary.section-head{margin-top:22px}'
     + '.tp-create{border-radius:16px;box-shadow:0 6px 20px rgba(20,20,30,.06)}'
     + '.tp-create h3{font-size:14px;letter-spacing:-.01em;text-transform:none}'
     + '.tp-c-photo{max-width:none;width:100%}'
@@ -634,6 +730,7 @@ function tpStyles_() {
     +   '.ic-summary{gap:7px 12px;font-size:12.5px}.ic-sum b{font-size:15px}'
     + '}'
     + '@media(max-width:400px){.tp-photos{flex-direction:column}.tp-photo img{max-height:none;width:100%}}'
+    + '@media(prefers-reduced-motion:reduce){.tp-skel-line{animation:none}#tp-proj-list .card:hover{transform:none}}'
     + '</style>';
 }
 
@@ -923,17 +1020,23 @@ function tpRenderProjectCard_(p, rid) {
   var pill = isDone ? '<span class="tp-pill tp-pill--done">Completed</span>'
     : isPending ? '<span class="tp-pill tp-pill--pending">Pending approval</span>'
     : isActive ? '<span class="tp-pill tp-pill--active">In progress</span>'
-    : '<span class="tp-pill tp-pill--assigned">Assigned</span>';
+    : '<span class="tp-pill tp-pill--assigned">Open</span>';
+  if (tpIsFresh_(p) && !isDone && !isPending) {
+    pill += '<span class="tp-pill tp-pill--new">New</span>';
+  }
 
   var chips = p.assignees.length
     ? p.assignees.map(function (a) { return '<span class="tp-chip">' + escapeHtml_(a) + '</span>'; }).join('')
     : '<span class="tp-chip tp-chip--empty">No one yet</span>';
 
   var accentHex = isDone ? '#157a47' : isPending ? '#b06a00' : isActive ? '#d97a12' : '#2563c9';
+  var kicker = p.area
+    ? escapeHtml_(p.area)
+    : (p.proposalId ? '<span class="tp-kicker-bee" aria-hidden="true">&#128029;</span>From the swarm' : 'Project');
 
   var photoInner = '';
-  if (p.before) photoInner += '<div class="tp-photo"><figure><figcaption>Before</figcaption>' + tpThumb_(p.before) + '</figure></div>';
-  if (p.after && (isPending || isDone || sentBack)) photoInner += '<div class="tp-photo"><figure><figcaption>After</figcaption>' + tpThumb_(p.after) + '</figure></div>';
+  if (p.before) photoInner += tpPhotoCells_(p.before, 160, 'Before');
+  if (p.after && (isPending || isDone || sentBack)) photoInner += tpPhotoCells_(p.after, 160, 'After');
   var photos = '<div id="' + rid + '-photos">' + (photoInner ? '<div class="tp-photos">' + photoInner + '</div>' : '') + '</div>';
 
   var hoursField = ((isPending || isDone) && p.hours)
@@ -941,7 +1044,7 @@ function tpRenderProjectCard_(p, rid) {
 
   var body = '<div class="card-body">'
     + '<div id="' + rid + '-view">'
-    + '<div class="card-head"><div><div class="card-team">Project</div>'
+    + '<div class="card-head"><div><div class="card-team">' + kicker + '</div>'
     + '<div class="card-title" id="' + rid + '-vtitle">' + escapeHtml_(p.title) + '</div></div>'
     + '<span id="' + rid + '-pill">' + pill + '</span></div>'
     + '<div class="card-field" id="' + rid + '-vscope-wrap"' + (p.description ? '' : ' hidden') + '><span class="card-flabel">Scope</span><div class="card-details" id="' + rid + '-vscope">' + escapeHtml_(p.description) + '</div></div>'
@@ -963,7 +1066,7 @@ function tpRenderProjectCard_(p, rid) {
       + '<span id="' + rid + '-act" class="btn-row">' + tpProjPendingFoot_(rid, p.id) + '</span>'
       + '<span class="btn-row">' + tpEditBtn_(rid) + tpDelWrap_(rid, p.id) + '</span></div>';
   } else {
-    foot = '<div class="card-foot"><span id="' + rid + '-status" class="due">' + (isActive ? 'Work in progress' : 'Waiting to be picked up') + '</span>'
+    foot = '<div class="card-foot"><span id="' + rid + '-status" class="due">' + (isActive ? 'Work in progress' : (tpIsFresh_(p) ? 'New · waiting to be picked up' : 'Waiting to be picked up')) + '</span>'
       + '<span class="btn-row">'
       + '<span id="' + rid + '-join"><button type="button" class="btn btn-ghost" onclick="tpJoinOpen(\'' + rid + '\')">Join project</button></span>'
       + '<span id="' + rid + '-joinbox" class="tp-inline-join" style="display:none"><input id="' + rid + '-name" placeholder="Your name" onkeydown="if(event.key===\'Enter\')tpJoin(\'' + rid + '\',\'' + p.id + '\')"><button type="button" class="btn btn-primary" onclick="tpJoin(\'' + rid + '\',\'' + p.id + '\')">Join</button></span>'
@@ -973,17 +1076,21 @@ function tpRenderProjectCard_(p, rid) {
       + tpProjUploader_(rid, p.id);
   }
 
-  return '<div class="card" id="' + rid + '" data-status="' + escapeHtml_(p.status) + '"><div class="card-accent" id="' + rid + '-accent" style="background:' + accentHex + '"></div>' + body + foot + '</div>';
+  var fresh = tpIsFresh_(p) && !isDone ? ' is-fresh' : '';
+  return '<div class="card' + fresh + '" id="' + rid + '" data-status="' + escapeHtml_(p.status) + '" data-id="' + escapeHtml_(p.id) + '"><div class="card-accent" id="' + rid + '-accent" style="background:' + accentHex + '"></div>' + body + foot + '</div>';
 }
 
-// The grouped Assigned / In progress / Completed sections for #tp-proj-list.
+// The grouped Open / In progress / Completed sections for #tp-proj-list.
 function tpProjectsSectionsHtml_(projects) {
   if (!projects) projects = tpListProjects_();
   var assigned = projects.filter(function (p) { return norm_(p.status) === norm_(TP.projectStatus.assigned) || (!p.status); });
   var active = projects.filter(function (p) { return norm_(p.status) === norm_(TP.projectStatus.active); });
   var pending = projects.filter(function (p) { return norm_(p.status) === norm_(TP.projectStatus.pending); });
   var done = projects.filter(function (p) { return norm_(p.status) === norm_(TP.projectStatus.done); });
-  if (!projects.length) return '<div class="empty">No projects yet.</div>';
+  assigned.sort(function (a, b) { return tpTime_(b.createdAt) - tpTime_(a.createdAt); });
+  if (!projects.length) {
+    return '<div class="empty">No projects yet. When a proposal hits quorum it lands here, ready to pick up.</div>';
+  }
   var sectionHead = function (label, count, cls) {
     return '<div class="section-head"><span class="section-label ' + cls + '">' + label + '</span>'
       + '<span class="section-count">' + count + '</span><span class="section-rule"></span></div>';
@@ -993,13 +1100,52 @@ function tpProjectsSectionsHtml_(projects) {
   var out = '';
   if (pending.length) { out += sectionHead('Pending approval', pending.length, 'section-label--late'); pending.forEach(function (p) { out += render(p); }); }
   if (active.length) { out += sectionHead('In progress', active.length, 'section-label--late'); active.forEach(function (p) { out += render(p); }); }
-  if (assigned.length) { out += sectionHead('Assigned', assigned.length, 'section-label--open'); assigned.forEach(function (p) { out += render(p); }); }
-  if (done.length) { out += sectionHead('Completed', done.length, 'section-label--open'); done.forEach(function (p) { out += render(p); }); }
+  if (assigned.length) { out += sectionHead('Open', assigned.length, 'section-label--open'); assigned.forEach(function (p) { out += render(p); }); }
+  if (done.length) {
+    var openDone = !(pending.length || active.length || assigned.length);
+    out += '<details class="tp-done-pack"' + (openDone ? ' open' : '') + '>'
+      + '<summary class="section-head tp-done-sum"><span class="section-label section-label--open">Completed</span>'
+      + '<span class="section-count">' + done.length + '</span><span class="section-rule"></span></summary>';
+    done.forEach(function (p) { out += render(p); });
+    out += '</details>';
+  }
   return out;
 }
 
-// Client-callable: re-fetch the project list HTML so a create/refresh needs no reload.
-function tpProjectsListHtml() { return tpProjectsSectionsHtml_(); }
+function tpSkelHtml_() {
+  var card = '<div class="card tp-skel" aria-hidden="true"><div class="card-accent" style="background:#e7e7e3"></div><div class="card-body">'
+    + '<div class="tp-skel-line tp-skel-line--title"></div>'
+    + '<div class="tp-skel-line"></div>'
+    + '<div class="tp-skel-line tp-skel-line--short"></div>'
+    + '</div></div>';
+  return card + card + card;
+}
+
+function tpProjectsListHtml() { return tpProjectsSectionsHtml_(tpListProjects_()); }
+
+function tpProjectsPayload() {
+  var c = tpCacheSvc_();
+  if (c) {
+    try {
+      var hit = c.get(TP.cacheKey);
+      if (hit) {
+        var parsed = JSON.parse(hit);
+        if (parsed && parsed.html) return { ok: true, html: parsed.html, counts: parsed.counts || {} };
+      }
+    } catch (e) { /* rebuild below */ }
+  }
+  try { if (typeof prSpawnMissing_ === 'function') prSpawnMissing_(); } catch (e) { Logger.log('prSpawnMissing_: ' + e); }
+  var projects = tpListProjects_();
+  var html = tpProjectsSectionsHtml_(projects);
+  var counts = tpProjectCounts_(projects);
+  if (c) {
+    try {
+      var raw = JSON.stringify({ html: html, counts: counts });
+      if (raw.length < 90000) c.put(TP.cacheKey, raw, TP.cacheSeconds);
+    } catch (e) { /* best effort */ }
+  }
+  return { ok: true, html: html, counts: counts };
+}
 
 // ---- Projects dashboard ----
 
@@ -1023,7 +1169,7 @@ function tpProjectStats_() {
 
 function tpDashStyles_() {
   return '<style>'
-    + '.dash{max-width:1040px;margin:0 auto}'
+    + '.dash{max-width:1040px;margin:0 auto;min-width:0;overflow-x:hidden}'
     + '.dash-hero{position:relative;overflow:hidden;border-radius:22px;padding:34px 34px 30px;color:#fff;background:radial-gradient(120% 140% at 0% 0%,#d62b2b 0%,#8f1515 46%,#5c0d0d 100%);box-shadow:0 24px 60px rgba(143,21,21,.34)}'
     + '.dash-hero-glow{position:absolute;right:-80px;top:-90px;width:320px;height:320px;background:radial-gradient(circle,rgba(240,192,80,.55),transparent 65%);pointer-events:none}'
     + '.dash-kicker{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:rgba(255,255,255,.7)}'
@@ -1031,7 +1177,7 @@ function tpDashStyles_() {
     + '.dash-hero-row{position:relative;display:flex;align-items:flex-end;gap:34px;margin-top:26px;flex-wrap:wrap}'
     + '.dash-hero-num{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:76px;font-weight:800;letter-spacing:-.05em;line-height:.9;background:linear-gradient(180deg,#fff,#ffe6a8);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}'
     + '.dash-hero-lbl{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:13px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.78);margin-top:6px}'
-    + '.dash-hero-mini{display:flex;gap:26px;padding-bottom:8px}'
+    + '.dash-hero-mini{display:flex;gap:26px;padding-bottom:8px;flex-wrap:wrap}'
     + '.dash-hero-mini>div{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:14px;font-weight:600;color:rgba(255,255,255,.82)}'
     + '.dash-hero-mini b{display:block;font-size:26px;font-weight:800;letter-spacing:-.03em;color:#fff}'
     + '.dash-tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:16px}'
@@ -1075,7 +1221,7 @@ function tpDashStyles_() {
     + '.dash-gal-who{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11.5px;font-weight:600;color:#8a857c}'
     + '.dash-empty{background:#fff;border:1.5px dashed #ddd;border-radius:16px;padding:30px;text-align:center;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:15px;color:#8a857c;margin-top:14px}'
     + '.dash-sec{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#8a857c;margin:26px 0 12px}'
-    + '@media(max-width:760px){.dash-tiles{grid-template-columns:repeat(2,1fr)}.dash-grid{grid-template-columns:1fr}.dash-h1{font-size:30px}.dash-hero-num{font-size:60px}.dash-hero{padding:26px 22px 24px}.dash-hero-row{gap:22px}}'
+    + '@media(max-width:760px){.dash-tiles{grid-template-columns:repeat(2,1fr)}.dash-grid{grid-template-columns:1fr}.dash-h1{font-size:30px}.dash-hero-num{font-size:60px}.dash-hero{padding:26px 18px 24px}.dash-hero-row{gap:18px}.dash-hero-mini{gap:16px}}'
     + '@media(max-width:440px){.dash-hero-num{font-size:50px}.dash-hero-mini{gap:16px}.dash-hero-mini b{font-size:22px}.dash-card{padding:18px 16px}.dash-ring{width:158px;height:158px}.dash-tile{padding:15px 14px}.dash-tile-num{font-size:28px}}'
     + '</style>';
 }
@@ -1178,17 +1324,14 @@ function projectsDashboardPage_(embedded) {
 // ---- Projects page ----
 
 function projectsPage_(embedded, admin) {
-  var projects = tpListProjects_();
-  var assigned = projects.filter(function (p) { return norm_(p.status) === norm_(TP.projectStatus.assigned) || (!p.status); });
-  var active = projects.filter(function (p) { return norm_(p.status) === norm_(TP.projectStatus.active); });
-  var pending = projects.filter(function (p) { return norm_(p.status) === norm_(TP.projectStatus.pending); });
-  var done = projects.filter(function (p) { return norm_(p.status) === norm_(TP.projectStatus.done); });
-
+  // Chrome only: the list arrives from tpProjectsPayload so the iframe paints immediately.
   var inner = '';
   if (!embedded) {
     inner += '<div class="page-head"><div class="page-kicker">Project Teams Ops Hub</div>'
       + '<div class="page-title">Projects</div><div class="page-rule"></div></div>';
   }
+
+  inner += '<p class="tp-lede">Join a project, do the work, finish with an after photo. Ideas that win enough support land here on their own.</p>';
 
   // Admin create form (revealed only in admin mode via tpAdminRevealJs_).
   // Collapsed into a disclosure so it stays out of the way until needed.
@@ -1213,19 +1356,26 @@ function projectsPage_(embedded, admin) {
     + '</details>';
 
   inner += '<div class="ic-summary">'
-    + '<span class="ic-sum"><b id="tp-n-assigned">' + assigned.length + '</b> assigned</span>'
+    + '<span class="ic-sum"><b id="tp-n-assigned">\u2013</b> open</span>'
     + '<span class="ic-dot"></span>'
-    + '<span class="ic-sum"><b id="tp-n-active">' + active.length + '</b> in progress</span>'
+    + '<span class="ic-sum"><b id="tp-n-active">\u2013</b> in progress</span>'
     + '<span class="ic-dot"></span>'
-    + '<span class="ic-sum"><b id="tp-n-pending">' + pending.length + '</b> pending</span>'
+    + '<span class="ic-sum"><b id="tp-n-pending">\u2013</b> pending</span>'
     + '<span class="ic-dot"></span>'
-    + '<span class="ic-sum"><b id="tp-n-done">' + done.length + '</b> completed</span>'
+    + '<span class="ic-sum"><b id="tp-n-done">\u2013</b> completed</span>'
     + '</div>';
 
-  inner += '<div id="tp-proj-list">' + tpProjectsSectionsHtml_(projects) + '</div>';
+  inner += '<div id="tp-proj-list">' + tpSkelHtml_() + '</div>';
 
   inner += '<script>'
     + 'var TPUP={};var TPCB=null;var TPCF=null;'
+    + 'function tpReveal(){if(ADMIN_PASS)document.querySelectorAll(".tp-admin").forEach(function(e){e.hidden=false;});}'
+    + 'function tpSetCounts(c){if(!c)return;var set=function(id,n){if(n==null)return;var e=document.getElementById(id);if(e)e.textContent=n;};'
+    + 'set("tp-n-assigned",c.assigned);set("tp-n-active",c.active);set("tp-n-pending",c.pending);set("tp-n-done",c.done);}'
+    + 'function tpPaint(r){var list=document.getElementById("tp-proj-list");if(!list)return;'
+    + 'if(!r||!r.ok){list.innerHTML="<div class=\\"empty\\">Could not load projects. Refresh and try again.</div>";return;}'
+    + 'list.innerHTML=r.html||"";tpSetCounts(r.counts);tpReveal();}'
+    + 'google.script.run.withSuccessHandler(tpPaint).withFailureHandler(function(){tpPaint(null);}).tpProjectsPayload();'
     + 'function tpCreateSlot(input){tpReadFile(input,function(res){if(!res)return;TPCB=res;var s=document.getElementById("tp-c-slot-b");if(s)s.classList.add("is-set");var l=document.getElementById("tp-c-blabel");if(l)l.textContent="\\u2713 Before: "+res.name;});}'
     + 'function tpCreateFile(input){tpReadAnyFile(input,function(res){if(!res)return;TPCF=res;var s=document.getElementById("tp-c-slot-f");if(s)s.classList.add("is-set");var l=document.getElementById("tp-c-flabel");if(l)l.textContent="\\u2713 "+res.name;});}'
     + 'function tpBump(id,d){var e=document.getElementById(id);if(e)e.textContent=Math.max(0,(parseInt(e.textContent,10)||0)+d);}'
@@ -1244,7 +1394,7 @@ function projectsPage_(embedded, admin) {
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){box.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed")+"</span>";return;}'
     + 'var chips=document.getElementById(rid+"-chips");if(chips)chips.innerHTML=r.assignees.length?r.assignees.map(function(a){return "<span class=\\"tp-chip\\">"+String(a).replace(/&/g,"&amp;").replace(/</g,"&lt;")+"</span>";}).join(""):"<span class=\\"tp-chip tp-chip--empty\\">No one yet</span>";'
     + 'var card=document.getElementById(rid);var was=card.dataset.status;card.dataset.status=r.status;'
-    + 'if((was||"").toLowerCase()!=="in progress"&&r.status==="In Progress"){tpSetPill(rid,"tp-pill--active","In progress");document.getElementById(rid+"-status").textContent="Work in progress";tpAdvance(rid,"#d97a12","#fdf1e0",1);tpBump("tp-n-assigned",-1);tpBump("tp-n-active",1);}'
+    + 'if((was||"").toLowerCase()!=="in progress"&&r.status==="In Progress"){tpSetPill(rid,"tp-pill--active","In progress");document.getElementById(rid+"-status").textContent="Work in progress";tpAdvance(rid,"#d97a12","#fdf1e0",1);tpBump("tp-n-assigned",-1);tpBump("tp-n-active",1);if(card)card.classList.remove("is-fresh");}'
     + 'document.getElementById(rid+"-joinbox").style.display="none";document.getElementById(rid+"-join").style.display="inline";'
     + 'document.getElementById(rid+"-join").innerHTML="<span class=\\"tp-hint\\">\\u2713 You\'re on this project</span>";'
     + '}).withFailureHandler(function(){box.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).tpJoinProject(pid,nm);}'
@@ -1286,14 +1436,14 @@ function projectsPage_(embedded, admin) {
     + 'function tpProjRejectCancel(rid,pid){document.getElementById(rid+"-act").innerHTML=tpProjAdminFootJs(rid,pid);}'
     + 'function tpProjRejectDo(rid,pid){var act=document.getElementById(rid+"-act");var reason=(document.getElementById(rid+"-reason")||{}).value||"";act.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed")+"</span>";return;}'
-    + 'google.script.run.withSuccessHandler(function(html){document.getElementById("tp-proj-list").innerHTML=html;document.querySelectorAll(".tp-admin").forEach(function(e){e.hidden=false;});tpBump("tp-n-pending",-1);tpBump("tp-n-active",1);}).withFailureHandler(function(){}).tpProjectsListHtml();'
+    + 'google.script.run.withSuccessHandler(function(html){document.getElementById("tp-proj-list").innerHTML=html;tpReveal();tpBump("tp-n-pending",-1);tpBump("tp-n-active",1);}).withFailureHandler(function(){}).tpProjectsListHtml();'
     + '}).withFailureHandler(function(){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).tpRejectProject(pid,reason,ADMIN_PASS);}'
     + 'function tpCreate(ev){ev.preventDefault();var t=document.getElementById("tp-c-title").value.trim();var d=document.getElementById("tp-c-desc").value.trim();var a=document.getElementById("tp-c-assignees").value.trim();var lk=(document.getElementById("tp-c-link")||{}).value||"";var msg=document.getElementById("tp-c-msg");'
     + 'if(!t){msg.className="tp-lock-msg bad";msg.textContent="A title is required.";return false;}'
     + 'msg.className="tp-lock-msg";msg.textContent="Creating\\u2026";'
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){msg.className="tp-lock-msg bad";msg.textContent=(r&&r.error)||"Failed";return;}'
     // Refresh the list in place (no location.reload: that reloads the sandboxed iframe to a blank page).
-    + 'google.script.run.withSuccessHandler(function(html){document.getElementById("tp-proj-list").innerHTML=html;document.querySelectorAll(".tp-admin").forEach(function(e){e.hidden=false;});tpBump("tp-n-assigned",1);'
+    + 'google.script.run.withSuccessHandler(function(html){document.getElementById("tp-proj-list").innerHTML=html;tpReveal();tpBump("tp-n-assigned",1);'
     + 'document.getElementById("tp-c-title").value="";document.getElementById("tp-c-desc").value="";document.getElementById("tp-c-assignees").value="";TPCB=null;var sb=document.getElementById("tp-c-slot-b");if(sb)sb.classList.remove("is-set");var bl=document.getElementById("tp-c-blabel");if(bl)bl.textContent="Before photo";var bf=document.getElementById("tp-c-before");if(bf)bf.value="";'
     + 'TPCF=null;var sf=document.getElementById("tp-c-slot-f");if(sf)sf.classList.remove("is-set");var fl=document.getElementById("tp-c-flabel");if(fl)fl.textContent="File";var ff=document.getElementById("tp-c-file");if(ff)ff.value="";var lkf=document.getElementById("tp-c-link");if(lkf)lkf.value="";'
     + 'msg.className="tp-lock-msg ok";msg.textContent="\\u2713 Project created";'
