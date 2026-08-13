@@ -526,26 +526,48 @@ body.is-searching .hub-zone:not(.hidden) ~ .hub-zone:not(.hidden) {
   transition: transform .18s ease, background .18s ease, color .18s ease;
 }
 
-/* Staff buttons (red, primary feel) */
+/* Staff buttons, all Cornell red. The depth comes from restraint rather than a strong
+   gradient: a narrow tonal range, a hairline top highlight so the surface reads as lit
+   from above, and a two-part red-tinted shadow (a tight contact edge plus a soft
+   ambient one) instead of a single grey blur. */
 
 #staff .action {
   color: #fff;
-  background: linear-gradient(180deg, var(--red-bright) 0%, var(--red) 55%, var(--red-dark) 100%);
-  box-shadow: 0 4px 14px rgba(179, 27, 27, 0.28);
+  background: linear-gradient(176deg, #bd2020 0%, var(--red) 52%, #971717 100%);
+  box-shadow:
+    0 1px 2px rgba(94, 13, 13, 0.24),
+    0 8px 20px -6px rgba(143, 21, 21, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
 }
 
 #staff .action-title { color: #fff; }
-#staff .action-sub { color: rgba(255, 255, 255, 0.85); }
+#staff .action-sub { color: rgba(255, 255, 255, 0.82); }
 
-#staff .action::after { background: rgba(255, 255, 255, 0.18); color: #fff; }
-
-#staff .action:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 12px 28px rgba(179, 27, 27, 0.4);
+#staff .action::after {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
 }
 
-#staff .action:hover::after { background: rgba(255, 255, 255, 0.28); transform: translateY(-50%) translateX(3px); }
-#staff .action:active { transform: translateY(-1px); }
+#staff .action:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 2px 4px rgba(94, 13, 13, 0.22),
+    0 16px 32px -10px rgba(143, 21, 21, 0.44),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+}
+
+#staff .action:hover::after { background: rgba(255, 255, 255, 0.24); transform: translateY(-50%) translateX(3px); }
+
+#staff .action:active {
+  transform: translateY(0);
+  box-shadow:
+    0 1px 2px rgba(94, 13, 13, 0.26),
+    0 4px 10px -4px rgba(143, 21, 21, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
 
 /* Featured staff task */
 
@@ -554,8 +576,20 @@ body.is-searching .hub-zone:not(.hidden) ~ .hub-zone:not(.hidden) {
 #staff .task-featured .action {
   padding: 1.5rem 3.5rem 1.625rem 1.5rem;
   border-radius: var(--radius-lg);
-  background: linear-gradient(135deg, #e23232 0%, var(--red) 55%, var(--red-dark) 100%);
-  box-shadow: 0 10px 30px rgba(179, 27, 27, 0.35);
+  background: linear-gradient(148deg, #c62525 0%, var(--red) 46%, #8d1414 100%);
+  box-shadow:
+    0 1px 2px rgba(94, 13, 13, 0.26),
+    0 14px 34px -10px rgba(143, 21, 21, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+#staff .task-featured .action:hover {
+  box-shadow:
+    0 2px 4px rgba(94, 13, 13, 0.24),
+    0 22px 44px -12px rgba(143, 21, 21, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
 #staff .task-featured .action-title { font-size: 1.75rem; letter-spacing: -0.04em; line-height: 1.05; }
@@ -1137,24 +1171,24 @@ body.issues-panel-open { overflow: hidden; }
   appearance: none;
 }
 
-/* Featured dashboard opener — hero CTA (Space admin, and Staff Ops tasks) */
-
-/* Staff has no category color vars, so supply the red palette for its hero. */
-#staff .action-dashboard {
-  --cat: var(--red-bright);
-  --cat-deep: var(--red-dark);
-  --glow: rgba(179, 27, 27, 0.32);
-}
+/* Featured dashboard opener, the hero CTA (Space admin, and the Staff panel openers).
+   Admin keeps its per-category hue via --cat; staff falls back to the red palette. */
 
 #space-admin .action-dashboard,
 #staff .action-dashboard {
   padding: 1.35rem 3.75rem 1.4rem 1.35rem;
   border-radius: var(--radius-lg);
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, transparent 42%),
-    linear-gradient(145deg, #e04040 0%, var(--cat) 48%, var(--cat-deep) 100%);
-  box-shadow: 0 10px 32px var(--glow), inset 0 1px 0 rgba(255, 255, 255, 0.22);
-  border: 1.5px solid rgba(255, 255, 255, 0.14);
+    linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 44%),
+    linear-gradient(148deg,
+      var(--cat, #c62525) 0%,
+      var(--cat, var(--red)) 46%,
+      var(--cat-deep, #8d1414) 100%);
+  box-shadow:
+    0 1px 2px rgba(94, 13, 13, 0.24),
+    0 14px 34px -10px var(--glow, rgba(143, 21, 21, 0.4)),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   overflow: hidden;
 }
 
@@ -1163,7 +1197,7 @@ body.issues-panel-open { overflow: hidden; }
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse 80% 60% at 100% 0%, rgba(240, 192, 80, 0.22), transparent 55%);
+  background: radial-gradient(ellipse 80% 60% at 100% 0%, rgba(255, 255, 255, 0.18), transparent 55%);
   pointer-events: none;
 }
 
@@ -1225,18 +1259,19 @@ body.issues-panel-open { overflow: hidden; }
   animation: live-pulse 2s ease-in-out infinite;
 }
 
-/* "New" flag on a recently shipped tool. Gold rather than the Live badge's green, so
-   the two never read as the same status. Shown until the tool's data-new-until date
-   passes (see app.js); solid fill with dark text keeps it legible on both the red
-   staff cards and the light admin cards. */
+/* "New" flag on a recently shipped tool. Solid white with dark text so it stays crisp
+   on any category colour (a tinted badge disappears on a button of a similar hue), and
+   reads as a different kind of thing from the Live badge's translucent green dot.
+   Shown until the tool's data-new-until date passes; see app.js. */
 .action-badge--new {
-  color: #2a2109;
-  background: #f0c050;
-  border-color: rgba(255, 255, 255, 0.5);
+  color: #14110e;
+  background: #fff;
+  border-color: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 1px 4px rgba(20, 20, 30, 0.18);
 }
 
 .action-badge--new::before {
-  background: #2a2109;
+  background: #14110e;
   box-shadow: none;
   animation: none;
 }

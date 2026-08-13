@@ -71,14 +71,16 @@
     a.href = href;
   });
 
-  // Module links (Projects) point at the same web app via ?module=.
+  // Module links (Projects, Proposals, …) point at the same web app via ?module=.
   // data-admin links (only on the unlisted admin page) add &admin=1, which unlocks
   // the admin controls without a passcode. Regular staff links never carry it.
+  // back= lets the full page show a return link to this hub.
   document.querySelectorAll('a[data-module]').forEach(a => {
     if (!SPACE_STATUS_URL) return;
     const sep = SPACE_STATUS_URL.indexOf('?') >= 0 ? '&' : '?';
     a.href = SPACE_STATUS_URL + sep + 'module=' + encodeURIComponent(a.dataset.module)
-      + (a.hasAttribute('data-admin') ? '&admin=1' : '');
+      + (a.hasAttribute('data-admin') ? '&admin=1' : '')
+      + '&back=' + encodeURIComponent(location.origin + location.pathname);
   });
 
   // "New" flags expire on their own: set data-new-until="YYYY-MM-DD" on a tool and its

@@ -15,9 +15,10 @@
  *  - Honesty: one rating per proposal per NetID, deduped server-side.
  *
  * Admin mode (?admin=1, links from the unlisted admin page - same gate as projects)
- * reveals Approve now / Decline / Delete on each provisional card via tpAdminRevealJs_.
- * Delete is for proposals the swarm has clearly rejected; it removes the row and its
- * votes. Decline keeps the row for the record.
+ * reveals Edit / Approve now / Decline / Delete on each card via tpAdminRevealJs_.
+ * Edit changes the scout-entered fields in place. Delete is for proposals the swarm
+ * has clearly rejected; it removes the row and its votes. Decline keeps the row for
+ * the record.
  *
  * Proposals can carry photos of the spot to improve. The create form stages them
  * client-side (tpStageRead) and sends them to Drive AS SOON AS THEY ARE PICKED, all in
@@ -51,7 +52,7 @@ var PR = {
   quorumMinImpact: 3.5,    // ...and the average Impact must reach this
   earnedVoiceK: 2,         // rate this many OTHER proposals before your votes count
   earnedVoiceBootstrap: 3, // ...waived while fewer than this many proposals are open
-  cacheKey: 'pr_list_v1',  // rendered list HTML (netid-agnostic)
+  cacheKey: 'pr_list_v3',  // rendered list HTML (netid-agnostic)
   stripKey: 'pr_strip_v1', // the "new project proposed" strip shown on the tasks pages
   cacheSeconds: 120,
   freshDays: 14,           // a promotion counts as news on the tasks page for this long
@@ -231,6 +232,22 @@ function prDeleteProposal(proposalId) {
   }
   prInvalidate_();
   return { ok: true };
+}
+
+// Admin edits the scout-entered fields in place: title, what & why, area, and name.
+// Status, NetID, photos and ratings stay put.
+function prUpdateProposal(proposalId, title, description, area, name) {
+  var o = tpOpen_(PR.proposalsSheet, PR.proposalHeaders);
+  var r = tpFindRow_(o.sh, o.col['Proposal ID'], proposalId);
+  if (r < 0) return { ok: false, error: 'That proposal could not be found.' };
+  var t = String(title || '').trim();
+  if (!t) return { ok: false, error: 'A title is required.' };
+  var desc = String(description || '').trim();
+  var ar = String(area || '').trim();
+  var nm = String(name || '').trim();
+  o.sh.getRange(r, o.col['Title'], 1, 4).setValues([[t, desc, ar, nm]]);
+  prInvalidate_();
+  return { ok: true, title: t, description: desc, area: ar, proposedBy: nm };
 }
 
 function prSubmitProposal(title, description, area, name, netid, photoIds) {
@@ -418,9 +435,19 @@ function prCardHtml_(p, rid, votable) {
 
   // Admin-only decisions (revealed by tpAdminRevealJs_ / re-revealed after prRefresh).
   var adminBar = '<div class="tp-admin pr-adminbar" hidden id="' + rid + '-admin">'
+    + '<button type="button" class="btn btn-ghost" onclick="prEditOpen(\'' + rid + '\')">Edit</button>'
     + (votable ? '<button type="button" class="btn btn-confirm" onclick="prAdmin(\'' + rid + '\',\'' + p.id + '\',\'approve\')">Approve now</button>'
       + '<button type="button" class="btn btn-ghost pr-btn-decline" onclick="prAdmin(\'' + rid + '\',\'' + p.id + '\',\'decline\')">Decline</button>' : '')
     + '<button type="button" class="btn btn-ghost pr-del" onclick="prDelAsk(\'' + rid + '\',\'' + p.id + '\')">Delete</button></div>';
+
+  var edit = '<div id="' + rid + '-edit" class="ic-edit" hidden>'
+    + '<label class="ic-edit-lbl">Title<input id="' + rid + '-etitle" class="ic-edit-in" value="' + escapeHtml_(p.title || '') + '"></label>'
+    + '<label class="ic-edit-lbl">What &amp; why<textarea id="' + rid + '-edesc" class="ic-edit-in" rows="3">' + escapeHtml_(p.description || '') + '</textarea></label>'
+    + '<label class="ic-edit-lbl">Area / space<input id="' + rid + '-earea" class="ic-edit-in" value="' + escapeHtml_(p.area || '') + '"></label>'
+    + '<label class="ic-edit-lbl">Scouted by<input id="' + rid + '-ename" class="ic-edit-in" value="' + escapeHtml_(p.proposedBy || '') + '"></label>'
+    + '<div class="ic-edit-btns"><button type="button" class="btn btn-primary" onclick="prEditSave(\'' + rid + '\',\'' + p.id + '\')">Save changes</button>'
+    + '<button type="button" class="btn btn-ghost" onclick="prEditCancel(\'' + rid + '\')">Cancel</button>'
+    + '<span id="' + rid + '-emsg" class="ic-edit-msg"></span></div></div>';
 
   // Photos the scout attached (Drive ids). onerror hides a thumb whose file will not load.
   var photoIds = extractFileIds_(p.photos);
@@ -436,15 +463,18 @@ function prCardHtml_(p, rid, votable) {
     : '<div class="pr-promoted"><span class="pr-promoted-mark" aria-hidden="true">&#10003;</span>Promoted ' + (p.promotedAt ? escapeHtml_(fmtShort_(p.promotedAt)) : '') + ' with '
       + (p.countedVotes ? p.avgImpact.toFixed(1) : '&ndash;') + ' impact from ' + (p.countedVotes || 0) + ' reviews</div>';
 
-  return '<div class="card pr-card" id="' + rid + '" data-id="' + p.id + '" data-owner="' + escapeHtml_(p.netid) + '">'
+  return '<div class="card pr-card" id="' + rid + '" data-id="' + p.id + '" data-owner="' + escapeHtml_(p.netid) + '" data-status="' + (votable ? 'review' : 'real') + '">'
     + '<div class="card-body">'
-    +   '<div class="pr-head"><div class="pr-head-main"><div class="pr-kicker">Proposal' + (p.area ? '<span class="pr-area"> &middot; ' + escapeHtml_(p.area) + '</span>' : '') + '</div>'
-    +     '<h3 class="pr-title">' + escapeHtml_(p.title) + '</h3></div><span class="pr-pill-wrap" id="' + rid + '-pill">' + pill + '</span></div>'
-    +   (p.description ? '<p class="pr-desc">' + escapeHtml_(p.description) + '</p>' : '')
-    +   (p.proposedBy ? '<div class="pr-by">Scouted by ' + escapeHtml_(p.proposedBy) + '</div>' : '')
+    +   '<div id="' + rid + '-view">'
+    +   '<div class="pr-head"><div class="pr-head-main"><div class="pr-kicker">Proposal<span class="pr-area" id="' + rid + '-area">' + (p.area ? ' &middot; ' + escapeHtml_(p.area) : '') + '</span></div>'
+    +     '<h3 class="pr-title" id="' + rid + '-title">' + escapeHtml_(p.title) + '</h3></div><span class="pr-pill-wrap" id="' + rid + '-pill">' + pill + '</span></div>'
+    +   '<p class="pr-desc" id="' + rid + '-desc"' + (p.description ? '' : ' hidden') + '>' + escapeHtml_(p.description) + '</p>'
+    +   '<div class="pr-by" id="' + rid + '-by"' + (p.proposedBy ? '' : ' hidden') + '>' + (p.proposedBy ? 'Scouted by ' + escapeHtml_(p.proposedBy) : '') + '</div>'
     +   photos
     +   meta
     +   rate
+    +   '</div>'
+    +   edit
     +   adminBar
     + '</div></div>';
 }
@@ -455,10 +485,10 @@ function prListSectionsHtml_(data) {
   provisional.sort(function (a, b) { return (b.avgImpact - a.avgImpact) || (b.countedVotes - a.countedVotes) || (new Date(b.createdAt || 0) - new Date(a.createdAt || 0)); });
   real.sort(function (a, b) { return new Date(b.promotedAt || 0) - new Date(a.promotedAt || 0); });
   var idx = 0, out = '';
-  out += prSection_('Up for review', provisional.length, 'section-label--late');
-  if (!provisional.length) out += '<div class="empty">Nothing up for review yet. Scout an improvement and post it above.</div>';
+  out += prSection_('Up for review', provisional.length, 'section-label--review');
+  if (!provisional.length) out += '<div class="empty pr-empty"><span class="pr-empty-bee" aria-hidden="true">&#128029;</span>Nothing up for review yet. Scout an improvement and post it above.</div>';
   else provisional.forEach(function (p) { out += prCardHtml_(p, 'pr' + (idx++), true); });
-  if (real.length) { out += prSection_('Approved', real.length, 'section-label--open'); real.forEach(function (p) { out += prCardHtml_(p, 'pr' + (idx++), false); }); }
+  if (real.length) { out += prSection_('Approved', real.length, 'section-label--real'); real.forEach(function (p) { out += prCardHtml_(p, 'pr' + (idx++), false); }); }
   return out;
 }
 
@@ -548,59 +578,62 @@ function prSafeUrl_(u) {
 
 function proposalsPage_(embedded, admin, back) {
   var backHref = prSafeUrl_(back);
-  var inner = '';
+  var inner = '<div class="pr-page">';
   if (!embedded) {
     inner += '<div class="pr-top">'
-      + (backHref ? '<a class="pr-back" href="' + escapeHtml_(backHref) + '"><span aria-hidden="true">&#8249;</span> Back to the hub</a>' : '')
+      + (backHref ? '<a class="pr-back" href="' + escapeHtml_(backHref) + '" target="_top" rel="noopener"><span class="pr-back-arrow" aria-hidden="true">&#8592;</span> Back to the hub</a>' : '')
       + '</div>'
       + '<div class="page-head"><div class="page-kicker">Project Teams Ops Hub</div><div class="page-title">Proposals</div><div class="page-rule"></div></div>';
   }
-  inner += '<p class="pr-intro">Scout an improvement to our spaces and post it. Everyone rates each one on impact and effort, and the ideas that win enough support become real projects.</p>';
+  inner += '<div class="pr-hero">'
+    + '<p class="pr-intro">Scout an improvement to our spaces and post it. Everyone rates each one on impact and effort, and the ideas that win enough support become real projects.</p>';
 
-  // The guide lives on the page rather than in a separate doc, so the rules are one
-  // click away at the moment someone is deciding how to rate.
+  // Compact honey chip in the hero; opens in place so the rules sit next to the board
+  // rather than as another stacked card.
   inner += '<details class="pr-guide"><summary class="pr-guide-toggle">'
-    + '<span class="pr-guide-icon" aria-hidden="true">&#128029;</span>How this works<span class="pr-guide-caret" aria-hidden="true">&#9662;</span></summary>'
+    + '<span class="pr-guide-icon" aria-hidden="true">&#128029;</span>How this works'
+    + '<span class="pr-guide-fly" aria-hidden="true">&#128029;</span>'
+    + '<span class="pr-guide-caret" aria-hidden="true">&#9662;</span></summary>'
     + '<div class="pr-guide-body">'
     + '<p class="pr-guide-lede">This runs like a honeybee swarm picking a new home. Bees send scouts out, each one reports back on what it found, and the hive commits only once enough independent scouts agree. Same idea here, with our spaces.</p>'
     + '<ol class="pr-guide-steps">'
     +   '<li><b>Scout.</b> When you spot something that would make a space work better, post it. A title is all that is required; a photo of the spot helps everyone else judge it.</li>'
-    +   '<li><b>Rate, independently.</b> Score every proposal twice: <b>Impact</b> (how much better it makes the place) and <b>Effort</b> (how much work it is). Rating them separately is the point, because a small job with a big payoff should beat a huge job with a modest one.</li>'
-    +   '<li><b>Earn your voice.</b> Your ratings start counting once you have reviewed <b>' + (PR.earnedVoiceK + 1) + ' proposals</b>. Until then they are saved but not counted. This keeps anyone from walking in, voting once for their own favourite, and walking out. The moment you hit ' + (PR.earnedVoiceK + 1) + ', every rating you already gave starts counting too.</li>'
-    +   '<li><b>Quorum.</b> A proposal becomes a real project when it has <b>' + PR.quorumMinVotes + ' counted reviews</b> and an average Impact of <b>' + PR.quorumMinImpact + ' or better</b>. Not a majority, a threshold of genuine support. Effort is recorded for planning, it does not block anything.</li>'
+    +   '<li><b>Rate, independently.</b> Score every proposal twice: <b>Impact</b> (how much better it makes the place) and <b>Effort</b> (how much work it is).</li>'
+    +   '<li><b>Earn your voice.</b> Your ratings start counting once you have reviewed <b>' + (PR.earnedVoiceK + 1) + ' proposals</b>. Until then they are saved but not counted.</li>'
+    +   '<li><b>Quorum.</b> A proposal becomes a real project when it has <b>' + PR.quorumMinVotes + ' counted reviews</b> and an average Impact of <b>' + PR.quorumMinImpact + ' or better</b>.</li>'
     + '</ol>'
     + '<div class="pr-guide-notes">'
     +   '<p><b>One rating per person per proposal.</b> Changing your mind is fine, just rate it again and it replaces your old one.</p>'
     +   '<p><b>You cannot rate your own proposal.</b> Post it and let the team judge it.</p>'
-    +   '<p><b>Nothing is lost.</b> Ideas that do not reach quorum stay up for review, so a good idea that arrived early can still get there later.</p>'
-    + '</div></div></details>';
+    + '</div></div></details></div>';
 
-  // Identity + the earned-voice meter. Kept together because the meter is the answer to
-  // "why does my NetID matter": it is the thing that turns your ratings on.
-  inner += '<div class="pr-idbar">'
-    + '<div class="pr-idrow"><label class="pr-idlbl" for="pr-netid">Your NetID</label>'
-    +   '<input id="pr-netid" class="pr-idinput" placeholder="e.g. abc123" autocomplete="off" spellcheck="false" oninput="prSaveNetid()"></div>'
-    + '<div class="pr-voice" id="pr-voice" hidden>'
-    +   '<div class="pr-voice-segs" id="pr-voice-segs"></div>'
-    +   '<span class="pr-voice-note" id="pr-idnote"></span></div>'
-    + '</div>';
-
-  inner += '<details class="tp-create-wrap"><summary class="tp-create-toggle"><span class="tp-create-caret">&#43;</span> Propose an improvement</summary>'
+  // One toolbar: who you are (so ratings can count) and the act of posting. Kept on
+  // one row so the board is not buried under stacked boxes.
+  inner += '<div class="pr-toolbar">'
+    + '<div class="pr-idbar">'
+    +   '<div class="pr-idrow"><label class="pr-idlbl" for="pr-netid">Rating as</label>'
+    +     '<input id="pr-netid" class="pr-idinput" placeholder="your NetID" autocomplete="username" spellcheck="false" aria-describedby="pr-idnote" oninput="prSaveNetid()"></div>'
+    +   '<div class="pr-voice" id="pr-voice">'
+    +     '<div class="pr-voice-segs" id="pr-voice-segs" hidden></div>'
+    +     '<span class="pr-voice-note" id="pr-idnote">yours only, so we count your ratings</span></div>'
+    + '</div>'
+    + '<details class="tp-create-wrap pr-propose"><summary class="tp-create-toggle"><span class="tp-create-caret">&#43;</span> Propose an improvement</summary>'
     + '<div class="tp-create">'
     + '<div class="tp-field"><label>Title <span class="tp-req">Required</span></label><input id="pr-c-title" placeholder="e.g. Add a shadow board to the hand-tool wall"></div>'
     + '<div class="tp-field"><label>What &amp; why</label><textarea id="pr-c-desc" rows="3" placeholder="What to change, and why it helps"></textarea></div>'
-    + '<div class="tp-field"><label>Area / space</label><input id="pr-c-area" placeholder="e.g. Baja bay, composites lab"></div>'
-    + '<div class="tp-field"><label>Your name</label><input id="pr-c-name" placeholder="Your name"></div>'
+    + '<div class="pr-create-split">'
+    +   '<div class="tp-field"><label>Area / space</label><input id="pr-c-area" placeholder="e.g. Baja bay, composites lab"></div>'
+    +   '<div class="tp-field"><label>Your name</label><input id="pr-c-name" placeholder="Your name"></div></div>'
     + '<div class="tp-field"><label>Photos <span class="pr-optional">Optional, show the spot you want to improve</span></label>'
     +   '<input type="file" accept="image/*" multiple id="pr-c-file" style="display:none" onchange="prPickPhotos(this)">'
     +   '<button type="button" class="btn btn-ghost" onclick="document.getElementById(\'pr-c-file\').click()">Add photos</button>'
     +   '<div id="pr-c-stage"></div></div>'
     + '<div class="pr-create-foot"><button type="button" class="btn btn-primary pr-btn-post" id="pr-c-go" onclick="prCreate()">Post for review</button>'
     +   '<span id="pr-c-msg" class="tp-lock-msg"></span></div>'
-    + '</div></details>';
+    + '</div></details></div>';
 
   inner += '<div class="pr-listwrap"><div class="pr-sync" id="pr-sync" hidden></div>'
-    + '<div id="pr-list">' + prListSectionsCached_() + '</div></div>';
+    + '<div id="pr-list">' + prListSectionsCached_() + '</div></div></div>';
 
   var boot = '<script>var PR_NEED=' + PR.quorumMinVotes + ',PR_BAR=' + PR.quorumMinImpact
     + ',PR_VOICE_NEED=' + (PR.earnedVoiceK + 1) + ';</script>';
@@ -635,54 +668,85 @@ function prVerdictText_(imp, eff) {
 function prStyles_() {
   return '<style>'
     // ---- page frame ----
+    + '.pr-page .page-head{margin-bottom:2px}'
+    + '.pr-page .page-title{letter-spacing:-.04em}'
+    + '.pr-page .page-rule{width:56px;background:linear-gradient(90deg,#c08a1e,#f0c050,#b31b1b)}'
     + '.pr-topbar{position:fixed;top:0;left:0;height:3px;width:0;z-index:60;background:linear-gradient(90deg,#b31b1b,#e08a1e);opacity:0;transition:width .3s ease,opacity .25s}'
     + '.pr-topbar.on{width:88%;opacity:1;transition:width 9s cubic-bezier(.05,.8,.25,1),opacity .2s}'
     + '.pr-topbar.done{width:100%;opacity:0;transition:width .2s,opacity .45s .15s}'
-    + '.pr-top{margin-bottom:6px}'
-    + '.pr-back{display:inline-flex;align-items:center;gap:7px;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12.5px;font-weight:700;color:#8a857c;text-decoration:none;padding:7px 12px 7px 9px;border-radius:9px;border:1.5px solid transparent;transition:color .15s,background .15s,border-color .15s}'
-    + '.pr-back:hover{color:#b31b1b;background:#fff;border-color:#eceae3}'
-    + '.pr-back span{font-size:17px;line-height:1}'
-    + '.pr-intro{font-size:15px;line-height:1.65;color:#57534e;margin:14px 0 4px;max-width:60ch}'
+    + '.pr-top{margin-bottom:14px}'
+    + '.pr-back{display:inline-flex;align-items:center;gap:8px;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:13px;font-weight:800;letter-spacing:-.01em;color:#8f1515;text-decoration:none;padding:9px 14px 9px 12px;border-radius:10px;background:#fff;border:1.5px solid #ead0d0;box-shadow:0 1px 2px rgba(20,17,14,.05);transition:color .15s,background .15s,border-color .15s,box-shadow .15s,transform .15s}'
+    + '.pr-back:hover{color:#fff;background:#b31b1b;border-color:#b31b1b;box-shadow:0 6px 16px rgba(179,27,27,.22);transform:translateY(-1px)}'
+    + '.pr-back-arrow{font-size:15px;line-height:1}'
 
-    // ---- in-page guide ----
-    + '.pr-guide{margin:14px 0 2px;border:1.5px solid #efe6d2;border-radius:14px;background:linear-gradient(135deg,#fffdf7 0%,#fffaf0 100%);overflow:hidden}'
-    + '.pr-guide-toggle{display:flex;align-items:center;gap:10px;padding:13px 16px;cursor:pointer;list-style:none;'
-    +   'font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:13px;font-weight:800;letter-spacing:.02em;color:#8a5f0f}'
+    // ---- hero: intro + compact honey chip ----
+    + '.pr-hero{margin:14px 0 2px}'
+    + '.pr-intro{font-size:15.5px;line-height:1.65;color:#57534e;margin:0 0 12px}'
+    + '.pr-guide{position:relative;display:inline-flex;max-width:100%;vertical-align:middle;margin:0;'
+    +   'border:1.5px solid #ead9a8;border-radius:999px;overflow:visible;'
+    +   'background:linear-gradient(180deg,#fffef6 0%,#fff4d6 100%);'
+    +   'box-shadow:0 1px 2px rgba(140,100,20,.08),inset 0 1px 0 rgba(255,255,255,.8);'
+    +   'transition:border-color .2s,box-shadow .2s,border-radius .2s}'
+    + '.pr-guide:hover{border-color:#e0c47a;box-shadow:0 6px 18px rgba(168,121,26,.14),inset 0 1px 0 rgba(255,255,255,.9)}'
+    + '.pr-guide[open]{display:block;border-radius:18px;overflow:hidden;border-color:#e0c47a;'
+    +   'background:radial-gradient(ellipse 80% 120% at 0% 0%,rgba(240,192,80,.2),transparent 55%),linear-gradient(165deg,#fffef8 0%,#fff8e6 100%);'
+    +   'box-shadow:0 10px 28px rgba(168,121,26,.14),inset 0 1px 0 rgba(255,255,255,.9)}'
+    + '.pr-guide-toggle{display:inline-flex;align-items:center;gap:8px;padding:8px 14px 8px 12px;cursor:pointer;list-style:none;position:relative;z-index:1;'
+    +   'font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12.5px;font-weight:800;letter-spacing:.02em;color:#8a5f0f}'
+    + '.pr-guide[open] .pr-guide-toggle{display:flex;padding:14px 18px}'
     + '.pr-guide-toggle::-webkit-details-marker{display:none}'
-    + '.pr-guide-toggle:hover{background:rgba(224,160,30,.06)}'
-    + '.pr-guide-icon{font-size:16px;line-height:1}'
-    + '.pr-guide-caret{margin-left:auto;font-size:11px;transition:transform .2s}'
-    + '.pr-guide[open] .pr-guide-caret{transform:rotate(180deg)}'
-    + '.pr-guide-body{padding:2px 18px 18px;border-top:1.5px solid #f5ecd8}'
-    + '.pr-guide-lede{font-size:14px;line-height:1.65;color:#57534e;margin:14px 0 0;max-width:64ch}'
-    + '.pr-guide-steps{margin:14px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:10px}'
-    + '.pr-guide-steps li{font-size:13.5px;line-height:1.6;color:#57534e;max-width:64ch;padding-left:3px}'
-    + '.pr-guide-steps li::marker{color:#c08a1e;font-weight:800}'
+    + '.pr-guide-icon{font-size:16px;line-height:1;display:inline-block;transform-origin:50% 80%;'
+    +   'animation:prBeeBuzz 2.15s ease-in-out infinite;filter:drop-shadow(0 2px 2px rgba(140,100,20,.22))}'
+    + '.pr-guide-toggle:hover .pr-guide-icon{animation:prBeeHop .55s cubic-bezier(.2,.9,.3,1.5)}'
+    + '.pr-guide[open] .pr-guide-icon{animation:prBeeHop .5s cubic-bezier(.2,.9,.3,1.4) both,prBeeBuzz 2.15s ease-in-out .5s infinite}'
+    + '.pr-guide-fly{position:absolute;top:10px;right:44px;font-size:12px;opacity:0;pointer-events:none;filter:drop-shadow(0 1px 1px rgba(140,100,20,.2))}'
+    + '.pr-guide[open] .pr-guide-fly{animation:prBeeDrift 5.4s ease-in-out .12s infinite}'
+    + '.pr-guide-caret{margin-left:4px;font-size:10px;transition:transform .22s cubic-bezier(.2,.8,.3,1);color:#c08a1e}'
+    + '.pr-guide[open] .pr-guide-caret{margin-left:auto;transform:rotate(180deg)}'
+    + '.pr-guide-body{padding:4px 18px 18px;border-top:1.5px solid #f0e4c4;position:relative;z-index:1;animation:prCardIn .32s ease both}'
+    + '.pr-guide-lede{font-size:14px;line-height:1.65;color:#57534e;margin:12px 0 0}'
+    + '.pr-guide-steps{margin:14px 0 0;padding:0;list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:10px;counter-reset:prstep}'
+    + '.pr-guide-steps li{counter-increment:prstep;font-size:13.5px;line-height:1.55;color:#57534e;margin:0;padding:13px 14px 13px 42px;position:relative;'
+    +   'background:rgba(255,255,255,.72);border:1px solid rgba(224,196,122,.4);border-radius:14px}'
+    + '.pr-guide-steps li::before{content:counter(prstep);position:absolute;left:12px;top:13px;width:22px;height:22px;border-radius:8px;'
+    +   'display:flex;align-items:center;justify-content:center;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:800;color:#8a5f0f;'
+    +   'background:linear-gradient(180deg,#fff6d6,#f0d78a);box-shadow:inset 0 1px 0 rgba(255,255,255,.8)}'
     + '.pr-guide-steps b,.pr-guide-notes b{color:#14110e;font-weight:800}'
-    + '.pr-guide-notes{margin-top:16px;padding-top:14px;border-top:1.5px dashed #f0e4cc;display:flex;flex-direction:column;gap:7px}'
-    + '.pr-guide-notes p{margin:0;font-size:12.5px;line-height:1.55;color:#8a857c;max-width:64ch}'
-    + '@media(max-width:600px){.pr-guide-body{padding:2px 14px 15px}.pr-guide-steps{padding-left:18px}}'
+    + '.pr-guide-notes{margin-top:14px;padding-top:12px;border-top:1.5px dashed #f0e4cc;display:flex;flex-direction:column;gap:6px}'
+    + '.pr-guide-notes p{margin:0;font-size:12.5px;line-height:1.55;color:#8a857c}'
+    + '@keyframes prBeeBuzz{0%,100%{transform:translate(0,0) rotate(-7deg)}25%{transform:translate(1px,-3px) rotate(9deg)}'
+    +   '50%{transform:translate(-1px,-1px) rotate(-5deg)}75%{transform:translate(2px,-4px) rotate(11deg)}}'
+    + '@keyframes prBeeHop{0%{transform:translate(0,0) rotate(-6deg) scale(1)}40%{transform:translate(3px,-6px) rotate(16deg) scale(1.18)}'
+    +   '100%{transform:translate(0,0) rotate(-6deg) scale(1)}}'
+    + '@keyframes prBeeDrift{0%{opacity:0;right:6%;top:11px;transform:rotate(-18deg) scale(.75)}'
+    +   '14%{opacity:.95}52%{right:46%;top:5px;transform:rotate(16deg) scale(1)}'
+    +   '86%{opacity:.85}100%{opacity:0;right:78%;top:15px;transform:rotate(-8deg) scale(.8)}}'
 
-    // ---- identity + earned voice ----
-    + '.pr-idbar{display:flex;align-items:center;gap:10px 22px;flex-wrap:wrap;margin:18px 0 6px;padding:13px 16px;background:#fff;border:1.5px solid #e7e7e3;border-radius:14px;box-shadow:0 2px 8px rgba(20,20,30,.05)}'
-    + '.pr-idrow{display:flex;align-items:center;gap:11px;flex:0 1 auto;min-width:0}'
-    + '.pr-idlbl{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#8a857c;white-space:nowrap}'
-    + '.pr-idinput{font:inherit;font-size:14px;padding:10px 13px;border:1.5px solid #e0e0dc;border-radius:10px;outline:none;background:#fafaf8;min-width:0;width:11ch;transition:border-color .15s,box-shadow .15s,background .15s}'
-    + '.pr-idinput:focus{border-color:#b31b1b;box-shadow:0 0 0 4px rgba(179,27,27,.12);background:#fff}'
-    + '.pr-voice{display:flex;align-items:center;gap:11px;flex:1 1 240px;min-width:0}'
-    + '.pr-voice-segs{display:inline-flex;gap:5px;flex:none}'
-    + '.pr-voice-seg{width:26px;height:7px;border-radius:99px;background:#eceae3;transition:background .45s cubic-bezier(.2,.9,.3,1.3),transform .45s cubic-bezier(.2,.9,.3,1.3)}'
+    // ---- toolbar: identity + propose on one row ----
+    + '.pr-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:16px 0 6px}'
+    + '.pr-idbar{display:flex;align-items:center;gap:10px 18px;flex-wrap:wrap;flex:1 1 280px;margin:0;padding:10px 14px;'
+    +   'background:#fff;border:1px solid #ece6d8;border-radius:14px;box-shadow:0 1px 2px rgba(20,17,14,.04)}'
+    + '.pr-idrow{display:flex;align-items:center;gap:10px;flex:0 1 auto;min-width:0}'
+    + '.pr-idlbl{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:10.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#8a857c;white-space:nowrap}'
+    + '.pr-idinput{font:inherit;font-size:14px;padding:9px 12px;border:1.5px solid #e8e2d4;border-radius:10px;outline:none;background:#fafaf8;min-width:0;width:14ch;transition:border-color .15s,box-shadow .15s,background .15s}'
+    + '.pr-idinput:focus{border-color:#c08a1e;box-shadow:0 0 0 4px rgba(192,138,30,.14);background:#fff}'
+    + '.pr-voice{display:flex;align-items:center;gap:10px;flex:1 1 200px;min-width:0}'
+    + '.pr-voice-segs{display:inline-flex;gap:4px;flex:none}'
+    + '.pr-voice-seg{width:22px;height:6px;border-radius:99px;background:#eceae3;transition:background .45s cubic-bezier(.2,.9,.3,1.3),transform .45s cubic-bezier(.2,.9,.3,1.3)}'
     + '.pr-voice-seg.on{background:linear-gradient(90deg,#e0a11e,#e08a1e)}'
     + '.pr-voice-seg.pop{transform:scaleY(1.7)}'
     + '.pr-voice.done .pr-voice-seg.on{background:linear-gradient(90deg,#1d9d5b,#157a47)}'
     + '.pr-voice-note{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12px;font-weight:600;color:#8a857c;line-height:1.35;min-width:0}'
     + '.pr-voice.done .pr-voice-note{color:#157a47}'
-
-    // ---- create form ----
+    + '.pr-propose{flex:0 0 auto;margin:0}'
+    + '.pr-propose[open]{flex:1 1 100%}'
+    + '.pr-page .pr-propose .tp-create-toggle{color:#8a5f0f;background:linear-gradient(180deg,#fffef8,#fff4d6);border:1.5px solid #ead9a8;border-radius:12px;padding:10px 16px;font-weight:800;box-shadow:0 1px 2px rgba(140,100,20,.08),inset 0 1px 0 rgba(255,255,255,.8)}'
+    + '.pr-page .pr-propose .tp-create-toggle:hover{border-color:#e0c47a;color:#6d4b0c}'
+    + '.pr-page .pr-propose[open] .tp-create-toggle{background:#fff;border-color:#ece6d8;color:#14110e;box-shadow:none}'
+    + '.pr-page .pr-propose .tp-create{margin-top:10px;border-color:#ece6d8;border-radius:16px;box-shadow:0 8px 24px rgba(20,17,14,.06)}'
+    + '.pr-create-split{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}'
     + '.pr-optional{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:600;color:#a8a29e;letter-spacing:0;text-transform:none;margin-left:6px}'
     + '.pr-create-foot{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:4px}'
-    // Per-photo upload state, so the tray shows the work finishing while the form is
-    // still being filled in rather than a single bar at the end.
     + '.pr-stage-state{position:absolute;left:6px;bottom:6px;display:inline-flex;align-items:center;justify-content:center;min-width:21px;height:21px;padding:0 7px;border-radius:99px;'
     +   'background:rgba(20,17,14,.72);color:#fff;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:10px;font-weight:800;line-height:1}'
     + '.stage-item.pr-stage-uploading img{opacity:.6}'
@@ -691,31 +755,41 @@ function prStyles_() {
     + '.stage-item.pr-stage-error img{opacity:.55}'
     + '.pr-stage-state .pr-spin{width:11px;height:11px;border-width:2px}'
 
-    // ---- list ----
+    // ---- list + cards ----
     + '.pr-listwrap{position:relative}'
     + '.pr-sync{position:absolute;top:-2px;left:0;right:0;height:2px;border-radius:99px;overflow:hidden;background:#eceae3;z-index:3}'
-    + '.pr-sync::after{content:"";position:absolute;inset:0;width:38%;border-radius:99px;background:linear-gradient(90deg,transparent,#b31b1b,transparent);animation:prSweep 1.15s linear infinite}'
+    + '.pr-sync::after{content:"";position:absolute;inset:0;width:38%;border-radius:99px;background:linear-gradient(90deg,transparent,#c08a1e,transparent);animation:prSweep 1.15s linear infinite}'
     + '@keyframes prSweep{0%{transform:translateX(-110%)}100%{transform:translateX(320%)}}'
     + '#pr-list.is-syncing{opacity:.55;transition:opacity .2s}'
-    + '.pr-card{animation:prCardIn .42s cubic-bezier(.2,.85,.3,1.05) both}'
+    + '.pr-page .section-head{margin:28px 0 14px}'
+    + '.pr-page .section-label--review{color:#c08a1e}'
+    + '.pr-page .section-label--real{color:#157a47}'
+    + '.pr-page .section-rule{background:linear-gradient(90deg,#efe6d2,transparent)}'
+    + '.pr-empty{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;padding:28px 22px;'
+    +   'background:linear-gradient(180deg,#fffef8,#fff8e8);border:1.5px dashed #e8d49a;color:#8a5f0f}'
+    + '.pr-empty-bee{font-size:20px;line-height:1;animation:prBeeBuzz 2.4s ease-in-out infinite}'
+    + '.pr-page .pr-card{position:relative;overflow:hidden;margin-bottom:14px;border-radius:18px;border:1px solid #ece6d8;border-left:4px solid #e0a11e;'
+    +   'box-shadow:0 1px 2px rgba(20,17,14,.04),0 10px 28px -16px rgba(20,17,14,.18);animation:prCardIn .42s cubic-bezier(.2,.85,.3,1.05) both}'
+    + '.pr-page .pr-card[data-status="real"]{border-left-color:#157a47}'
+    + '.pr-page .pr-card:hover{transform:translateY(-2px);box-shadow:0 14px 36px -14px rgba(20,17,14,.2)}'
+    + '.pr-page .pr-card .card-body{padding:20px 22px 18px}'
     + '@keyframes prCardIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}'
-
-    // ---- card head ----
     + '.pr-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}'
     + '.pr-head-main{min-width:0;flex:1 1 260px}'
-    + '.pr-kicker{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:10.5px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:#b31b1b}'
+    + '.pr-kicker{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:10.5px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:#c08a1e}'
+    + '.pr-card[data-status="real"] .pr-kicker{color:#157a47}'
     + '.pr-area{color:#a8a29e}'
-    + '.pr-title{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:clamp(17px,2.4vw,20px);font-weight:800;letter-spacing:-.02em;line-height:1.25;color:#14110e;margin:5px 0 0}'
+    + '.pr-title{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:clamp(18px,2.5vw,22px);font-weight:800;letter-spacing:-.03em;line-height:1.22;color:#14110e;margin:6px 0 0}'
     + '.pr-pill-wrap{flex:none}'
-    + '.pr-desc{font-size:14.5px;line-height:1.6;color:#57534e;margin:11px 0 0;max-width:62ch}'
+    + '.pr-desc{font-size:14.5px;line-height:1.62;color:#57534e;margin:11px 0 0}'
     + '.pr-by{font-size:12.5px;font-weight:600;color:#8a857c;margin-top:9px}'
-    + '.pr-photos{display:flex;flex-wrap:wrap;gap:8px;margin-top:13px}'
-    + '.pr-photos a{display:inline-block;line-height:0;border-radius:10px;overflow:hidden;transition:transform .16s}'
-    + '.pr-photos a:hover{transform:scale(1.03)}'
-    + '.pr-photos img{max-height:120px;max-width:100%;border-radius:10px;border:1px solid #ececec;display:block}'
+    + '.pr-photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;margin-top:14px}'
+    + '.pr-photos a{display:block;aspect-ratio:1;border-radius:12px;overflow:hidden;line-height:0;box-shadow:0 2px 8px rgba(20,17,14,.08);transition:transform .16s}'
+    + '.pr-photos a:hover{transform:scale(1.04)}'
+    + '.pr-photos img{width:100%;height:100%;object-fit:cover;display:block;border:0}'
 
-    // ---- quorum meter ----
-    + '.pr-quorum{display:flex;align-items:center;gap:9px 14px;flex-wrap:wrap;margin-top:15px;padding:11px 14px;border-radius:11px;background:#fbfaf7;border:1.5px solid #efece5}'
+    // ---- quorum as an instrument, not a nested box ----
+    + '.pr-quorum{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap;margin-top:16px;padding:12px 0 0;border-top:1.5px solid #f0ebe0;background:none;border-radius:0}'
     + '.pr-qsay{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12.5px;font-weight:700;color:#a8a29e;transition:color .3s;flex:1 1 auto;min-width:0}'
     + '.pr-qsay--close{color:#c9761a}'
     + '.pr-qsay--good{color:#157a47}'
@@ -724,35 +798,39 @@ function prStyles_() {
     + '.pr-qv.good{color:#157a47}'
     + '.pr-qdot{width:3px;height:3px;border-radius:50%;background:#d6d3ce;margin:0 3px}'
     + '.pr-segs{display:inline-flex;gap:5px;flex:none}'
-    + '.pr-seg{width:26px;height:8px;border-radius:99px;background:#eceae3;animation:prSegIn .4s cubic-bezier(.2,.9,.3,1.2) both}'
-    + '.pr-seg.on{background:linear-gradient(90deg,#c62b2b,#b31b1b)}'
+    + '.pr-seg{width:28px;height:7px;border-radius:99px;background:#ece6d8;animation:prSegIn .4s cubic-bezier(.2,.9,.3,1.2) both}'
+    + '.pr-seg.on{background:linear-gradient(90deg,#e0a11e,#c08a1e)}'
     + '.pr-seg.pending{background:repeating-linear-gradient(115deg,#e6ded2,#e6ded2 5px,#f3ede4 5px,#f3ede4 10px);animation:prPend 1s linear infinite}'
     + '.pr-seg.pop{animation:prSegPop .5s cubic-bezier(.2,.9,.3,1.5)}'
     + '@keyframes prSegIn{from{transform:scaleX(.25);opacity:0}to{transform:none;opacity:1}}'
     + '@keyframes prSegPop{0%{transform:scaleY(1)}45%{transform:scaleY(2.1)}100%{transform:scaleY(1)}}'
     + '@keyframes prPend{to{background-position:20px 0}}'
-    + '.pr-promoted{display:flex;align-items:center;gap:9px;margin-top:15px;padding:11px 14px;border-radius:11px;background:#f0f9f3;border:1.5px solid #cfe9da;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12.5px;font-weight:600;color:#157a47}'
-    + '.pr-promoted-mark{display:inline-flex;align-items:center;justify-content:center;width:19px;height:19px;border-radius:50%;background:#157a47;color:#fff;font-size:11px;font-weight:800;flex:none}'
+    + '.pr-promoted{display:flex;align-items:center;gap:9px;margin-top:16px;padding:11px 0 0;border-top:1.5px solid #e4f0e8;background:none;border-radius:0;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12.5px;font-weight:600;color:#157a47}'
+    + '.pr-promoted-mark{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#157a47;color:#fff;font-size:11px;font-weight:800;flex:none}'
 
-    // ---- rating control ----
-    + '.pr-rate{margin-top:14px;padding:15px 16px;background:#faf9f6;border:1.5px solid #ece9e2;border-radius:12px}'
-    + '.pr-rate-row{display:flex;align-items:center;gap:10px 16px;flex-wrap:wrap;margin-bottom:13px}'
+    // ---- rating: two scales, two colours, sitting on the card ----
+    + '.pr-rate{margin-top:4px;padding:16px 0 0;background:none;border:none;border-radius:0}'
+    + '.pr-rate-row{display:flex;align-items:center;gap:10px 16px;flex-wrap:wrap;margin-bottom:14px}'
     + '.pr-rate-lbl{display:flex;flex-direction:column;gap:2px;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12.5px;font-weight:800;letter-spacing:.02em;color:#3f3a31;flex:1 1 190px;min-width:0}'
     + '.pr-rate-lbl em{font-style:normal;font-size:11.5px;font-weight:600;color:#a8a29e;letter-spacing:0}'
     + '.pr-scale-wrap{display:flex;align-items:center;gap:11px;flex:1 1 260px;min-width:0;flex-wrap:wrap}'
     + '.pr-scale{display:inline-flex;gap:6px;flex:0 1 auto}'
-    + '.pr-dot{width:42px;height:42px;border-radius:11px;border:1.5px solid #e0e0dc;background:#fff;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:15px;font-weight:800;color:#a8a29e;cursor:pointer;'
+    + '.pr-dot{width:42px;height:42px;border-radius:12px;border:1.5px solid #e8e2d4;background:#fff;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:15px;font-weight:800;color:#a8a29e;cursor:pointer;'
     +   'transition:border-color .14s,background .14s,color .14s,transform .16s cubic-bezier(.2,.9,.3,1.6),box-shadow .16s;-webkit-tap-highlight-color:transparent}'
-    + '.pr-dot:hover{border-color:#b5b0a8}'
+    + '.pr-dot:hover{border-color:#c4b89a}'
     + '.pr-dot.fill{background:#f3d2d2;border-color:#e6b4b4;color:#8f1515}'
-    + '.pr-dot.on{background:#b31b1b;border-color:#b31b1b;color:#fff;box-shadow:0 4px 12px rgba(179,27,27,.3)}'
+    + '.pr-dot.on{background:linear-gradient(180deg,#d62b2b,#b31b1b);border-color:#b31b1b;color:#fff;box-shadow:0 4px 12px rgba(179,27,27,.28),inset 0 1px 0 rgba(255,255,255,.22)}'
     + '.pr-dot.preview{border-color:#d99a9a;background:#fdf3f3;color:#8f1515}'
+    + '.pr-scale[data-k="effort"] .pr-dot.fill{background:#f3e4b8;border-color:#e0c47a;color:#8a5f0f}'
+    + '.pr-scale[data-k="effort"] .pr-dot.on{background:linear-gradient(180deg,#e0a11e,#c08a1e);border-color:#c08a1e;color:#fff;box-shadow:0 4px 12px rgba(192,138,30,.3),inset 0 1px 0 rgba(255,255,255,.25)}'
+    + '.pr-scale[data-k="effort"] .pr-dot.preview{border-color:#e0c47a;background:#fff8e6;color:#8a5f0f}'
     + '.pr-dot.bump{animation:prDotBump .42s cubic-bezier(.2,.9,.3,1.5)}'
     + '@keyframes prDotBump{0%{transform:scale(1)}40%{transform:scale(1.24)}100%{transform:scale(1)}}'
     + '.pr-dot:active{transform:scale(.93)}'
     + '.pr-word{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12px;font-weight:700;color:#8f1515;min-height:1em;opacity:0;transform:translateY(3px);transition:opacity .25s,transform .25s}'
+    + '.pr-rate-row:has([data-k="effort"]) .pr-word{color:#8a5f0f}'
     + '.pr-word.show{opacity:1;transform:none}'
-    + '.pr-verdict{font-size:13px;line-height:1.5;color:#57534e;padding:10px 13px;border-radius:10px;background:#fff;border:1.5px dashed #e6e1d8;margin-bottom:13px;animation:prCardIn .35s ease both}'
+    + '.pr-verdict{font-size:13px;line-height:1.5;color:#57534e;padding:10px 14px;border-radius:12px;background:#fffaf0;border:1px solid #f0e4cc;margin-bottom:14px;animation:prCardIn .35s ease both}'
     + '.pr-verdict b{color:#14110e;font-weight:800}'
     + '.pr-verdict[hidden]{display:none}'
     + '.pr-rate-foot{display:flex;align-items:center;gap:12px;flex-wrap:wrap}'
@@ -767,7 +845,6 @@ function prStyles_() {
     + '.pr-vmsg.bad{color:#b31b1b}.pr-vmsg.good{color:#157a47}'
 
     // ---- promotion moment ----
-    + '.pr-card{position:relative;overflow:hidden}'
     + '.pr-card.is-promoting{animation:prLift .9s cubic-bezier(.2,.85,.3,1) both}'
     + '.pr-card.is-promoting::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 30%,rgba(240,192,80,.55) 50%,transparent 70%);transform:translateX(-100%);animation:prSweepGold 1.1s ease-out both}'
     + '@keyframes prSweepGold{to{transform:translateX(100%)}}'
@@ -776,15 +853,12 @@ function prStyles_() {
     + '@keyframes prLeave{to{opacity:0;transform:translateX(-14px)}}'
 
     // ---- button colours ----
-    // One colour per KIND of action, so weight matches consequence at a glance. Colour
-    // never carries the meaning alone (WCAG 1.4.1); every button is also labelled.
-    // Contrast checked against WCAG AA (4.5:1 for the label, 3:1 for the control).
-    //   rate      Cornell red #b31b1b   the main loop, 6.8:1 on white text
-    //   post      deep teal   #0f5c73   creating, not rating; Cornell secondary family, 7.5:1
-    //   approve   green       #157a47   affirmative admin outcome, 5.4:1
-    //   decline   amber tint  #8a5f0f   reversible caution, lighter weight than approve, 5.2:1 on its tint
-    //   delete    red outline           destructive, deliberately NOT solid red so it cannot be
-    //                                   mistaken for the primary action; only the confirm goes solid
+    // One colour per KIND of action, so weight matches consequence at a glance.
+    //   rate      Cornell red   the main loop
+    //   post      deep teal     creating, not rating
+    //   approve   green         affirmative admin outcome
+    //   decline   amber tint    reversible caution
+    //   delete    red outline   destructive, not the primary
     + '.pr-btn-post{background:#0f5c73;box-shadow:0 1px 2px rgba(15,92,115,.25)}'
     + '.pr-btn-post:hover{background:#0a4557}'
     + '.pr-btn-post.ok{background:#157a47!important}'
@@ -800,10 +874,11 @@ function prStyles_() {
     + '.pr-delask{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12px;font-weight:700;color:#57534e;align-self:center;margin-right:2px}'
 
     // ---- responsive ----
-    + '@media(max-width:720px){.pr-quorum{padding:12px 13px}.pr-rate{padding:13px}}'
+    + '@media(max-width:720px){.pr-guide-steps{grid-template-columns:1fr}.pr-create-split{grid-template-columns:1fr}}'
     + '@media(max-width:600px){'
-    +   '.pr-idbar{padding:12px 13px;gap:12px}.pr-idrow{flex:1 1 100%}.pr-idinput{flex:1;width:auto}'
+    +   '.pr-idbar{padding:11px 12px;gap:10px}.pr-idrow{flex:1 1 100%}.pr-idinput{flex:1;width:auto}'
     +   '.pr-voice{flex:1 1 100%}'
+    +   '.pr-propose{flex:1 1 100%}.pr-page .pr-propose .tp-create-toggle{width:100%;justify-content:center}'
     +   '.pr-head{flex-wrap:nowrap}.pr-pill-wrap{align-self:flex-start}'
     +   '.pr-rate-lbl{flex:1 1 100%}'
     +   '.pr-scale-wrap{flex:1 1 100%;gap:8px}'
@@ -812,18 +887,22 @@ function prStyles_() {
     +   '.pr-quorum{gap:8px 10px}.pr-qsay{flex:1 1 100%;order:3}.pr-qvals{margin-left:auto}'
     +   '.pr-submit{flex:1 1 100%}.pr-vmsg{flex:1 1 100%;text-align:left}'
     +   '.pr-adminbar .btn{flex:1 1 auto}'
-    +   '.pr-photos img{max-height:96px}'
+    +   '.pr-guide-body{padding:4px 14px 15px}'
+    +   '.pr-page .pr-card .card-body{padding:16px 16px 15px}'
     + '}'
     + '@media(max-width:380px){.pr-dot{height:42px;font-size:14px;border-radius:9px}.pr-seg{width:22px}}'
 
     // ---- motion preferences ----
     + '@media(prefers-reduced-motion:reduce){'
-    +   '.pr-card,.pr-verdict{animation:none}'
+    +   '.pr-card,.pr-verdict,.pr-guide-body,.pr-empty-bee{animation:none}'
+    +   '.pr-guide-icon,.pr-guide-fly,.pr-guide-toggle:hover .pr-guide-icon,'
+    +   '.pr-guide[open] .pr-guide-icon,.pr-guide[open] .pr-guide-fly{animation:none}'
     +   '.pr-seg,.pr-voice-seg,.pr-dot,.pr-word{transition:none;animation:none}'
     +   '.pr-card.is-promoting,.pr-card.is-promoting::after,.pr-card.is-leaving{animation:none}'
     +   '.pr-sync::after{animation:none;width:100%}'
     +   '.pr-spin{animation:none;border-top-color:rgba(255,255,255,.9)}'
     +   '.pr-topbar.on{transition:opacity .2s}'
+    +   '.pr-page .pr-card:hover{transform:none}'
     + '}'
     + '</style>';
 }
@@ -888,15 +967,16 @@ function prClientJs_() {
     + 'var PR_REVIEWS=0,PR_VOICE_ON=false;'
     + 'function prVoiceRender(count,bump){PR_REVIEWS=count;'
     + 'var wrap=document.getElementById("pr-voice"),segs=document.getElementById("pr-voice-segs"),note=document.getElementById("pr-idnote");'
-    + 'if(!wrap||!segs||!note)return;'
-    + 'if(!prNetid()){wrap.hidden=true;return;}wrap.hidden=false;'
+    + 'if(!wrap||!segs||!note)return;wrap.hidden=false;'
+    + 'if(!prNetid()){segs.hidden=true;wrap.classList.remove("done");'
+    + 'note.textContent="yours only, so we count your ratings";'
+    + 'wrap.title="Enter your own NetID. Do not add someone else.";return;}'
+    + 'segs.hidden=false;'
     + 'var need=PR_VOICE_NEED,have=Math.min(count,need),done=have>=need;'
     + 'if(segs.children.length!==need){segs.innerHTML="";for(var i=0;i<need;i++)segs.appendChild(document.createElement("i"));}'
     + '[].slice.call(segs.children).forEach(function(el,i){el.className="pr-voice-seg"+(i<have?" on":"");'
     + 'if(bump&&i===have-1){el.classList.add("pop");setTimeout(function(){el.classList.remove("pop");},450);}});'
     + 'wrap.classList.toggle("done",done);'
-    // Terse on purpose: the segments carry the progress, and "How this works" carries the
-    // explanation. A sentence here just repeats both.
     + 'note.textContent=done?"Ratings on":((need-have)+" to go");'
     + 'wrap.title=done?"Your ratings are counted.":("Review "+(need-have)+" more proposal"+(need-have===1?"":"s")+" and your ratings start counting.");'
     + 'PR_VOICE_ON=done;}'
@@ -957,11 +1037,9 @@ function prClientJs_() {
     + 'if(r.voice)prVoiceRender(Math.min(r.voice.have,PR_VOICE_NEED),true);'
     + 'if(r.promoted){done("\\u2713 It is in","ok");prPromoteFx(rid);}'
     + 'else if(unlocked){done("\\u2713 Counted","ok");'
-    + 'tpConfetti("\\uD83D\\uDC1D Your ratings count from here on.");msg.className="pr-vmsg good";msg.textContent="Your earlier ratings just started counting too.";prRefresh(true);}'
-    // Not qualified yet: the rating is saved but deliberately not counted, so say so
-    // rather than claiming a result the meter does not show.
+    + 'tpConfetti("\\uD83D\\uDC1D Your ratings count from here on.");msg.className="pr-vmsg good";msg.textContent="Your ratings now count.";prRefresh(true);}'
     + 'else if(r.voice&&!r.voice.counted){var togo=r.voice.need-r.voice.have;done("\\u2713 Saved","ok");'
-    + 'msg.className="pr-vmsg";msg.textContent="Saved. Review "+togo+" more proposal"+(togo===1?"":"s")+" and your ratings start counting, including this one.";}'
+    + 'msg.className="pr-vmsg";msg.textContent="Saved. Review "+togo+" more proposal"+(togo===1?"":"s")+" and your ratings start counting.";}'
     + 'else{done("\\u2713 Counted","ok");msg.className="pr-vmsg good";'
     + 'msg.textContent=r.updated?"Rating updated.":(PR_NEED-r.counted===1?"Counted. One more review and this one is in.":"Rating counted.");'
     + 'if(r.alsoPromoted>0){tpConfetti("\\uD83D\\uDC1D That review carried another proposal over the line.");prRefresh(true);}}'
@@ -1035,8 +1113,24 @@ function prClientJs_() {
     + '.prSubmitProposal(t,d,a,nm,nid,ids.join(", "));})();}'
 
     // ---------- admin ----------
+    + 'function prEditOpen(rid){var v=document.getElementById(rid+"-view"),e=document.getElementById(rid+"-edit"),a=document.getElementById(rid+"-admin");'
+    + 'if(v)v.hidden=true;if(e)e.hidden=false;if(a)a.hidden=true;var t=document.getElementById(rid+"-etitle");if(t)t.focus();}'
+    + 'function prEditCancel(rid){var v=document.getElementById(rid+"-view"),e=document.getElementById(rid+"-edit"),a=document.getElementById(rid+"-admin"),m=document.getElementById(rid+"-emsg");'
+    + 'if(e)e.hidden=true;if(v)v.hidden=false;if(a)a.hidden=false;if(m){m.textContent="";m.style.color="";}}'
+    + 'function prEditSave(rid,pid){var g=function(s){var el=document.getElementById(rid+s);return el?el.value:"";};'
+    + 'var title=g("-etitle"),desc=g("-edesc"),area=g("-earea"),name=g("-ename"),m=document.getElementById(rid+"-emsg");'
+    + 'if(!title.trim()){if(m){m.style.color="#b31b1b";m.textContent="A title is required.";}return;}'
+    + 'if(m){m.style.color="";m.textContent="Saving\\u2026";}'
+    + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){if(m){m.style.color="#b31b1b";m.textContent=(r&&r.error)||"Could not save.";}return;}'
+    + 'var esc=function(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;");};'
+    + 'var t=document.getElementById(rid+"-title");if(t)t.textContent=r.title;'
+    + 'var ar=document.getElementById(rid+"-area");if(ar)ar.innerHTML=r.area?" &middot; "+esc(r.area):"";'
+    + 'var d=document.getElementById(rid+"-desc");if(d){if(r.description){d.hidden=false;d.textContent=r.description;}else{d.hidden=true;d.textContent="";}}'
+    + 'var b=document.getElementById(rid+"-by");if(b){if(r.proposedBy){b.hidden=false;b.textContent="Scouted by "+r.proposedBy;}else{b.hidden=true;b.textContent="";}}'
+    + 'prEditCancel(rid);'
+    + '}).withFailureHandler(function(){if(m){m.style.color="#b31b1b";m.textContent="Network hiccup. Try again.";}}).prUpdateProposal(pid,title,desc,area,name);}'
     + 'function prAdmin(rid,pid,dec){var msg=document.getElementById(rid+"-vmsg"),card=document.getElementById(rid);'
-    + 'var btn=card?card.querySelector(".pr-adminbar .btn"):null;'
+    + 'var btn=card?card.querySelector(dec==="approve"?".btn-confirm":".pr-btn-decline"):null;'
     + 'var done=prBusy(btn,[dec==="approve"?"Approving":"Declining","Updating the board"]);'
     + 'google.script.run.withSuccessHandler(function(r){done();'
     + 'if(!r||!r.ok){if(msg){msg.className="pr-vmsg bad";msg.textContent=(r&&r.error)||"Failed.";}return;}'

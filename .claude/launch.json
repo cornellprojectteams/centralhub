@@ -6,6 +6,12 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["serve", "-l", "4200", "/Users/okal/Desktop/centralhub"],
       "port": 4200
+    },
+    {
+      "name": "gs-harness",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-l", "4300", "/private/tmp/claude-501/-Users-okal-Desktop-centralhub/5e986fdb-ce2e-4dec-8b11-75940f08f6d0/scratchpad"],
+      "port": 4300
     }
   ]
 }
