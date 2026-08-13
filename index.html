@@ -68,10 +68,10 @@
           <span class="action-sub">Your team&rsquo;s tasks and projects in one place. Finish a job by adding a photo.</span>
         </button>
 
-        <a class="action category task-block" id="proposals" data-module="proposals" href="#" target="_blank" rel="noopener" data-keywords="propose improvement idea proposal suggest vote rate rating stars impact effort review scout space upgrade fix new project swarm">
+        <button type="button" class="action category action-dashboard" id="proposals-open" data-keywords="propose improvement idea proposal suggest vote rate rating stars impact effort review scout space upgrade fix new project swarm">
           <span class="action-title">Propose an improvement</span>
           <span class="action-sub">Post an idea to make our spaces better, with photos of the spot. Rate other proposals; ideas with enough support become real projects.</span>
-        </a>
+        </button>
         <a class="action category task-block" id="inventory" data-registry="inventory" data-admin target="_blank" rel="noopener" data-keywords="inventory stock supplies tools consumables parts materials find item on hand location where in stock look up search shop count update edit add">
           <span class="action-title">Look up inventory</span>
           <span class="action-sub">Search the shop for tools and supplies, and update stock counts</span>
@@ -145,6 +145,48 @@
       <p class="issues-fallback" id="issues-fallback" hidden>
         Could not load your tasks here.
         <a class="issues-panel-btn issues-panel-btn--primary issues-panel-btn--inline" id="issues-fallback-link" href="#" target="_blank" rel="noopener">Open in a new tab</a>
+      </p>
+    </div>
+  </div>
+
+  <div class="issues-panel" id="proposals-panel" hidden>
+    <div class="issues-panel-backdrop" data-panel-backdrop aria-hidden="true"></div>
+    <div class="issues-panel-dialog" role="dialog" aria-modal="true" aria-labelledby="proposals-panel-title">
+      <div class="issues-panel-accent" aria-hidden="true"></div>
+      <header class="issues-panel-head">
+        <div class="issues-panel-brand">
+          <img src="assets/cornell-seal.svg" alt="" class="issues-panel-seal" aria-hidden="true">
+          <div>
+            <p class="issues-panel-eyebrow">Improvements</p>
+            <h2 class="issues-panel-title" id="proposals-panel-title">Proposals</h2>
+          </div>
+        </div>
+        <div class="issues-panel-actions">
+          <a class="issues-panel-btn issues-panel-btn--secondary" data-panel-ext href="#" target="_blank" rel="noopener">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+            Open full page
+          </a>
+          <button type="button" class="issues-panel-btn issues-panel-btn--close" data-panel-close aria-label="Close proposals">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
+        </div>
+      </header>
+      <div class="issues-embed-body is-loading" data-panel-body>
+        <div class="issues-loading" role="status" aria-live="polite">
+          <div class="issues-loading-mark" aria-hidden="true"></div>
+          <p class="issues-loading-text">Opening the proposal board…</p>
+          <p class="issues-loading-hint">Fetching ideas and their ratings</p>
+          <div class="issues-loading-cards" aria-hidden="true">
+            <div class="issues-skeleton-card"></div>
+            <div class="issues-skeleton-card"></div>
+            <div class="issues-skeleton-card issues-skeleton-card--short"></div>
+          </div>
+        </div>
+        <iframe data-panel-frame class="issues-frame" title="Proposals"></iframe>
+      </div>
+      <p class="issues-fallback" data-panel-fallback hidden>
+        Could not load the proposals here.
+        <a class="issues-panel-btn issues-panel-btn--primary issues-panel-btn--inline" data-panel-fallback-link href="#" target="_blank" rel="noopener">Open in a new tab</a>
       </p>
     </div>
   </div>

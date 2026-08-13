@@ -382,7 +382,7 @@ function doGet(e) {
   // Admin mode: set only by links from the (unlisted) admin page. It unlocks the
   // admin controls without a passcode - the admin page's obscurity is the gate.
   const admin = p.admin === '1' || p.admin === 'true';
-  if (p.module === 'proposals') return proposalsPage_(embed, admin);   // Honeybee-swarm improvement voting (07_proposals.gs)
+  if (p.module === 'proposals') return proposalsPage_(embed, admin, p.back);   // Honeybee-swarm improvement voting (07_proposals.gs); ?back= is the hub link for the back button
   if (p.module === 'projects') return projectsPage_(embed, admin);   // Multi-user projects (04_tasks_projects.gs)
   if (p.module === 'projects-dash') return projectsDashboardPage_(embed);   // Projects dashboard (04_tasks_projects.gs)
   if (p.module === 'registry-dash') return registryDashboardPage_(embed);   // CMMS dashboard: equipment, inventory, maintenance, action items
@@ -648,11 +648,12 @@ function teamPortal_(team, readOnly, embedded) {
     + icRefreshBtn_()
     + '</div>';
 
+  inner += prTasksStripHtml_();   // "a new project has been proposed" (07_proposals.gs)
   inner += '<div id="ic-list">' + icTeamSectionsHtml_(data, readOnly) + '</div>';
 
   const scripts = tpSharedJs_() + (readOnly ? '' : icClientJs_()) + icRefreshJs_()
     + '<script>var IC_SCOPE=' + JSON.stringify(team) + ';var IC_READONLY=' + (readOnly ? 'true' : 'false') + ';</script>';
-  return swissShell_(tpStyles_() + inner + scripts, 'Space Status - ' + team, true, embedded);
+  return swissShell_(tpStyles_() + prStripStyles_() + inner + scripts, 'Space Status - ' + team, true, embedded);
 }
 
 // The grouped Overdue / Open / Pending sections + "recently completed" for a team
@@ -902,6 +903,7 @@ function allIssuesPage_(embedded, admin) {
     + '<label class="toggle"><input id="odue" type="checkbox" onchange="this.closest(\'.toggle\').classList.toggle(\'is-on\', this.checked); flt()"> Overdue only</label>'
     + '</div>';
 
+  inner += prTasksStripHtml_();   // "a new project has been proposed" (07_proposals.gs)
   inner += '<div id="ic-list">' + icAllSectionsHtml_(data) + '</div>';
 
   inner += '<script>var IC_SCOPE="*";var IC_READONLY=false;'
@@ -909,7 +911,7 @@ function allIssuesPage_(embedded, admin) {
     +   'document.querySelectorAll(".card").forEach(function(c){var ok=(!q||c.dataset.hay.indexOf(q)>=0)&&(!tm||c.dataset.team===tm)&&(!od||c.dataset.over==="1");c.style.display=ok?"":"none";if(ok)n++;});'
     +   'var e=document.getElementById("empty");if(e)e.style.display=n?"none":"block";}'
     + '</script>';
-  return swissShell_(tpStyles_() + inner + tpSharedJs_() + icClientJs_() + icRefreshJs_() + tpAdminRevealJs_(admin), 'Open issues', true, embedded);
+  return swissShell_(tpStyles_() + prStripStyles_() + inner + tpSharedJs_() + icClientJs_() + icRefreshJs_() + tpAdminRevealJs_(admin), 'Open issues', true, embedded);
 }
 
 // The Pending / Overdue / Open sections + filter-empty note + "recently completed"

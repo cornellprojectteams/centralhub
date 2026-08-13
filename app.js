@@ -19,7 +19,7 @@
   const SPACE_STATUS_URL = window.SPACE_STATUS_URL || 'https://script.google.com/macros/s/AKfycbwNbGjVcBrcsMZiOl2nXzpqZHz04nvKLm9D_aC0VJDz7Xxxf_4kLKlNSOHubPXj1X74/exec';
 
   // Ops Command Center stats API. Used only to put a live attention count on the
-  // Command button — the page still works fine if it never answers.
+  // Command button. The page still works fine if it never answers.
   const STATS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbzSfUQgCfkOpXAmEExVh1bHIbIQ7LAipTzP_uW2x2XKKTmZuGvmxpPI6gS1cw7oLVOz/exec';
 
   /**
@@ -50,7 +50,7 @@
       badge.textContent = n > 99 ? '99+' : String(n);
       badge.hidden = false;
       const link = badge.closest('.cmd-link');
-      if (link) link.setAttribute('aria-label', `Command Center — ${n} items need attention`);
+      if (link) link.setAttribute('aria-label', `Command Center, ${n} items need attention`);
     };
     script.onerror = cleanup;
     script.src = STATS_ENDPOINT + '?callback=' + cb;
@@ -88,7 +88,7 @@
 
   const adminNav = document.getElementById('admin-nav');
 
-  // Open space issues dashboard — slide-over panel under Space (not inline in ELL).
+  // Open space issues dashboard: slide-over panel under Space (not inline in ELL).
   const issuesPanel = document.getElementById('issues-panel');
   const issuesOpenBtn = document.getElementById('issues-open');
   const issuesCloseBtn = document.getElementById('issues-panel-close');
@@ -247,6 +247,108 @@
 
   // Open the issues dashboard straight away via a shared admin.html#issues link.
   if (location.hash.slice(1) === 'issues') openIssuesPanel();
+
+  /**
+   * Generic slide-over panel: same shell and behaviour as the tasks panel above, but
+   * driven by data-attributes instead of fixed ids, so any button can open any embedded
+   * module. The iframe is lazy-loaded on first open and its loading copy steps forward
+   * while Apps Script wakes up.
+   * @param {{panelId: string, openBtnId: string, url: string, fullUrl: string, steps: Array<[string, string, number]>}} opts
+   */
+  function createSlideOver(opts) {
+    const panel = document.getElementById(opts.panelId);
+    const openBtn = document.getElementById(opts.openBtnId);
+    if (!panel || !openBtn) return null;
+
+    const q = sel => panel.querySelector(sel);
+    const frame = q('[data-panel-frame]');
+    const body = q('[data-panel-body]');
+    const closeBtn = q('[data-panel-close]');
+    const backdrop = q('[data-panel-backdrop]');
+    const fallback = q('[data-panel-fallback]');
+    const fallbackLink = q('[data-panel-fallback-link]');
+    const extLink = q('[data-panel-ext]');
+    const loadText = q('.issues-loading-text');
+    const loadHint = q('.issues-loading-hint');
+
+    if (fallbackLink && opts.fullUrl) fallbackLink.href = opts.fullUrl;
+    if (extLink && opts.fullUrl) extLink.href = opts.fullUrl;
+
+    let started = false;
+    let timers = [];
+
+    const clearTimers = () => { timers.forEach(clearTimeout); timers = []; };
+
+    const finish = () => { clearTimers(); if (body) body.classList.remove('is-loading'); };
+
+    const fail = () => {
+      clearTimers();
+      if (body) body.classList.remove('is-loading');
+      if (fallback) fallback.hidden = false;
+    };
+
+    function load() {
+      if (started || !frame) return;
+      if (!opts.url) { fail(); return; }
+      started = true;
+      if (body) body.classList.add('is-loading');
+      if (fallback) fallback.hidden = true;
+
+      (opts.steps || []).forEach(([text, hint, at]) => {
+        timers.push(window.setTimeout(() => {
+          if (loadText) loadText.textContent = text;
+          if (loadHint) loadHint.textContent = hint;
+        }, at));
+      });
+      timers.push(window.setTimeout(() => {
+        if (body && body.classList.contains('is-loading')) fail();
+      }, 45000));
+
+      frame.addEventListener('load', finish, { once: true });
+      frame.addEventListener('error', fail, { once: true });
+      frame.src = opts.url;
+    }
+
+    function open() {
+      panel.hidden = false;
+      requestAnimationFrame(() => panel.classList.add('is-open'));
+      document.body.classList.add('issues-panel-open');
+      load();
+      if (closeBtn) closeBtn.focus();
+    }
+
+    function close() {
+      panel.classList.remove('is-open');
+      document.body.classList.remove('issues-panel-open');
+      window.setTimeout(() => {
+        if (!panel.classList.contains('is-open')) panel.hidden = true;
+      }, 320);
+      openBtn.focus();
+    }
+
+    openBtn.addEventListener('click', open);
+    if (closeBtn) closeBtn.addEventListener('click', close);
+    if (backdrop) backdrop.addEventListener('click', close);
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && panel.classList.contains('is-open')) { e.preventDefault(); close(); }
+    });
+
+    return { open, close };
+  }
+
+  // Proposals board. The full-page link carries ?back= so the Apps Script page can offer
+  // a way back to this hub (it has no other way to know where it was opened from).
+  const proposalsBase = SPACE_STATUS_URL ? SPACE_STATUS_URL + sep + 'module=proposals' : '';
+  createSlideOver({
+    panelId: 'proposals-panel',
+    openBtnId: 'proposals-open',
+    url: proposalsBase ? proposalsBase + '&embed=1' : '',
+    fullUrl: proposalsBase ? proposalsBase + '&back=' + encodeURIComponent(location.origin + location.pathname) : '',
+    steps: [
+      ['Loading the proposal board…', 'This can take a few seconds on first open', 2800],
+      ['Almost ready…', 'Counting reviews and impact scores', 7000],
+    ],
+  });
 
   // Scroll-spy: highlight the sidebar link for the section currently in view.
   if (adminNav && 'IntersectionObserver' in window) {
