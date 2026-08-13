@@ -4,7 +4,8 @@
  * TASKS ARE THE OPEN ISSUES. There is no separate task list. Completing any open
  * action item (in the all-issues dashboard, a team portal, or the "mark complete"
  * button in the notification email) now works like this:
- *   1. The doer uploads a photo as EVIDENCE of completion (required).
+ *   1. The doer uploads a photo as EVIDENCE of completion (required for most
+ *      tasks) and can add an optional note about what they did.
  *   2. Submitting fires a client-side confetti burst and moves the item to
  *      "Pending approval" (stamps `Completed at`; reminders pause).
  *   3. An admin (passcode) Approves -> stamps `Addressed at` (Completed), or
@@ -52,6 +53,7 @@ function setupTasksProjects() {
   var resp = ss.getSheetByName(CONFIG.responsesSheet);
   if (resp) {
     ensureColumn_(resp, CONFIG.completionPhotoHeader);
+    ensureColumn_(resp, CONFIG.completionNoteHeader);
     ensureColumn_(resp, CONFIG.completedAtHeader);
     ensureColumn_(resp, CONFIG.sentBackHeader);
     Logger.log('Ensured completion columns on "' + CONFIG.responsesSheet + '".');
@@ -249,12 +251,12 @@ function resolveIssueComplete(token) {
 }
 
 // Doer submits completion evidence -> Pending approval. A photo is required unless
-// the action type is photo-optional.
+// the action type is photo-optional. An optional note travels with the photos.
 // Doers can attach more than one completion photo. The client uploads each selected
-// image in turn: the first call (append falsy) replaces the cell so a re-submission
-// drops any stale photo from a prior sent-back attempt; later calls (append true)
-// tack onto the comma-separated list.
-function submitIssueCompletion(token, dataUrl, filename, append) {
+// image in turn: the first call (append falsy) replaces the photo cell and writes the
+// note, so a re-submission drops any stale photo from a prior sent-back attempt; later
+// calls (append true) tack onto the comma-separated list and leave the note alone.
+function submitIssueCompletion(token, dataUrl, filename, append, note) {
   var loc = icLocate_(token);
   if (!loc) return { ok: false, error: 'That item could not be found.' };
   if (loc.addressed) return { ok: false, error: 'This was already approved as complete.' };
@@ -273,6 +275,11 @@ function submitIssueCompletion(token, dataUrl, filename, append) {
     photoCell.setValue(prior ? prior + ', ' + url : url);
   } else if (!append) {
     photoCell.setValue('');
+  }
+  // The note is written on the first call of a submission (append falsy), including
+  // the no-photo path, so later photo uploads in the same batch do not wipe it.
+  if (!append) {
+    loc.sh.getRange(loc.row, loc.col(CONFIG.completionNoteHeader)).setValue(String(note || '').trim());
   }
   loc.sh.getRange(loc.row, loc.col(CONFIG.completedAtHeader)).setValue(new Date());
   loc.sh.getRange(loc.row, loc.col(CONFIG.sentBackHeader)).setValue('');   // clear any prior send-back reason
@@ -307,8 +314,8 @@ function approveIssueCompletion(token, pass) {
   return { ok: true, status: 'Completed' };
 }
 
-// Admin sends back -> Uncompleted, with an optional reason. The doer's photo is KEPT
-// (not cleared) so they can see what they submitted and what to fix.
+// Admin sends back -> Uncompleted, with an optional reason. The doer's photo and
+// note are KEPT (not cleared) so they can see what they submitted and what to fix.
 function rejectIssueCompletion(token, reason, pass) {
   var loc = icLocate_(token);
   if (!loc) return { ok: false, error: 'That item could not be found.' };
@@ -578,6 +585,10 @@ function tpStyles_() {
     + '.ic-note--warn{color:#8a4b00;background:#fdf2df;border-color:#f4dfb0}'
     + '.ic-note--warn b{color:#8a4b00}'
     + '.ic-note-cta{display:block;margin-top:5px;font-weight:600;opacity:.82}'
+    + '.ic-reply{margin-top:12px}'
+    + '.ic-reply-lbl{display:block;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#8a857c;margin-bottom:5px}'
+    + '.ic-reply-in{display:block;width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e2ddd6;border-radius:10px;font:inherit;font-size:14px;line-height:1.5;color:#111;background:#fafaf8;outline:none;resize:vertical;min-height:64px}'
+    + '.ic-reply-in:focus{border-color:#b31b1b;box-shadow:0 0 0 4px rgba(179,27,27,.12);background:#fff}'
     + '.ic-edit{margin-top:8px;padding:14px 15px;background:#faf9f6;border:1px solid #e9e6df;border-radius:12px}'
     + '.ic-edit-lbl{display:block;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:9.5px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:#a8a29e;margin-bottom:12px}'
     + '.ic-edit-in{display:block;width:100%;box-sizing:border-box;margin-top:5px;padding:9px 11px;border:1.5px solid #e2ddd6;border-radius:9px;font-family:inherit;font-size:13.5px;color:#111;background:#fff}'
@@ -671,8 +682,8 @@ function tpSharedJs_() {
     + 'function tpStageRead(input,arr,cb){var files=[];for(var k=0;input.files&&k<input.files.length;k++){if(/^image\\//.test(input.files[k].type))files.push(input.files[k]);}input.value="";if(!files.length){cb();return;}var i=0;(function next(){if(i>=files.length){cb();return;}tpReadOne(files[i],function(res){if(res)arr.push(res);i++;next();},true);})();}'
     // Upload an already-read buffer (from tpStageRead) in order. The first upload
     // replaces the cell (dropping any stale sent-back photo); the rest append.
-    + 'function tpUploadStaged(arr,token,onProgress,onDone,onError){if(!arr||!arr.length){onDone([]);return;}var ids=[],i=0;function step(){if(i>=arr.length){onDone(ids);return;}if(onProgress)onProgress(i,arr.length);'
-    + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){onError((r&&r.error)||"Upload failed");return;}if(r.photoId)ids.push(r.photoId);i++;step();}).withFailureHandler(function(){onError("Upload failed. Please retry.");}).submitIssueCompletion(token,arr[i].dataUrl,arr[i].name,ids.length>0);}step();}'
+    + 'function tpUploadStaged(arr,token,onProgress,onDone,onError,note){if(!arr||!arr.length){onDone([]);return;}var ids=[],i=0;function step(){if(i>=arr.length){onDone(ids);return;}if(onProgress)onProgress(i,arr.length);'
+    + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){onError((r&&r.error)||"Upload failed");return;}if(r.photoId)ids.push(r.photoId);i++;step();}).withFailureHandler(function(){onError("Upload failed. Please retry.");}).submitIssueCompletion(token,arr[i].dataUrl,arr[i].name,ids.length>0,note);}step();}'
     // The staged-photo tray (local data URLs, not yet uploaded): a grid of cover-fit
     // thumbnails each with a remove (x), and a trailing "Add more" tile. removeFn is the
     // call prefix, e.g. "icUnstage(\'iss0\'," -> icUnstage(\'iss0\',2); addExpr is the
@@ -708,8 +719,8 @@ function icPhotoBlock_(rid, url) {
 // needs a photo.
 function icNoteText_(photoOptional) {
   return photoOptional
-    ? 'Finished? Tap <b>Mark done</b> and an admin gives it a quick review. A photo is optional here, so add one only if it helps.'
-    : 'Finished? Add a photo of the completed work and an admin gives it a quick review.';
+    ? 'Finished? Tap <b>Mark done</b> and an admin gives it a quick review. A photo or a note is optional — add either if it helps.'
+    : 'Finished? Add a photo of the completed work. A note is optional. An admin gives it a quick review.';
 }
 function icNoteInner_(photoOptional) { return '<div class="ic-note">' + icNoteText_(photoOptional) + '</div>'; }
 
@@ -729,6 +740,26 @@ function icNoteContainer_(rid, isPending, sentBackReason, show, photoOptional) {
     else if (!isPending) inner = icNoteInner_(photoOptional);
   }
   return '<div id="' + rid + '-note">' + inner + '</div>';
+}
+
+// Optional text the doer sends with the completion. Open items get a textarea
+// (prefilled after a send-back); pending items show the submitted note to reviewers.
+function icReplyShown_(text) {
+  var t = String(text || '').trim();
+  if (!t) return '';
+  return '<div class="card-field"><span class="card-flabel">Response</span><div class="card-details">' + escapeHtml_(t) + '</div></div>';
+}
+function icReplyInput_(rid, existing) {
+  return '<div class="ic-reply">'
+    + '<label class="ic-reply-lbl" for="' + rid + '-notein">Note <span class="tp-opt">optional</span></label>'
+    + '<textarea id="' + rid + '-notein" class="ic-reply-in" rows="2" placeholder="What you did, or anything the reviewer should know">' + escapeHtml_(existing || '') + '</textarea>'
+    + '</div>';
+}
+function icReplyBlock_(rid, note, isPending, canRespond) {
+  var inner = '';
+  if (isPending) inner = icReplyShown_(note);
+  else if (canRespond) inner = icReplyInput_(rid, note);
+  return '<div id="' + rid + '-reply">' + inner + '</div>';
 }
 
 // Foot action for an OPEN item. Photos are STAGED (added one pick at a time and
@@ -774,22 +805,25 @@ function icClientJs_() {
     + 'function icNoteInner(){return "<div class=\\"ic-note\\">Finished? Add a photo of the completed work and an admin gives it a quick review.</div>";}'
     + 'function icAdminFootJs(rid,token){return ADMIN_PASS?"<span class=\\"tp-admin btn-row\\"><button type=\\"button\\" class=\\"btn btn-confirm\\" onclick=\\"icApprove(\'"+rid+"\',\'"+token+"\')\\">Approve</button><button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"icRejectOpen(\'"+rid+"\',\'"+token+"\')\\">Send back</button></span>":"";}'
     + 'function icSentBackInner(reason){var r=(reason||"").trim();var esc=function(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");};var lead=r?"<b>Sent back:</b> "+esc(r):"<b>Sent back.</b>";return "<div class=\\"ic-note ic-note--warn\\">"+lead+"<span class=\\"ic-note-cta\\">Make the fix, then send it in again.</span></div>";}'
-    + 'function icAfterSubmit(rid,token,photoIds){tpConfetti();icSetPill(rid,"tp-pill--pending","Pending approval");tpAdvance(rid,"#b06a00","#f7edd8",1);var ids=Array.isArray(photoIds)?photoIds:(photoIds?[photoIds]:[]);var ph=document.getElementById(rid+"-photo");if(ph)ph.innerHTML=tpThumbs(ids);'
+    + 'function icReplyValue(rid){var ta=document.getElementById(rid+"-notein");if(ta)return (ta.value||"").trim();var d=document.querySelector("#"+rid+"-reply .card-details");return d?(d.textContent||"").trim():"";}'
+    + 'function icShowReply(rid,text){var el=document.getElementById(rid+"-reply");if(!el)return;text=(text||"").trim();if(!text){el.innerHTML="";return;}el.innerHTML="<div class=\\"card-field\\"><span class=\\"card-flabel\\">Response</span><div class=\\"card-details\\"></div></div>";el.querySelector(".card-details").textContent=text;}'
+    + 'function icReplyForm(rid,text){var el=document.getElementById(rid+"-reply");if(!el)return;el.innerHTML="<div class=\\"ic-reply\\"><label class=\\"ic-reply-lbl\\" for=\\""+rid+"-notein\\">Note <span class=\\"tp-opt\\">optional</span></label><textarea id=\\""+rid+"-notein\\" class=\\"ic-reply-in\\" rows=\\"2\\" placeholder=\\"What you did, or anything the reviewer should know\\"></textarea></div>";var ta=document.getElementById(rid+"-notein");if(ta)ta.value=text||"";}'
+    + 'function icAfterSubmit(rid,token,photoIds,note){tpConfetti();icSetPill(rid,"tp-pill--pending","Pending approval");tpAdvance(rid,"#b06a00","#f7edd8",1);var ids=Array.isArray(photoIds)?photoIds:(photoIds?[photoIds]:[]);var ph=document.getElementById(rid+"-photo");if(ph)ph.innerHTML=tpThumbs(ids);'
     + 'var s=document.getElementById(rid+"-status");if(s){s.textContent="Submitted, awaiting approval";s.className="due";}'
-    + 'var nt=document.getElementById(rid+"-note");if(nt)nt.innerHTML="";'
+    + 'var nt=document.getElementById(rid+"-note");if(nt)nt.innerHTML="";icShowReply(rid,note);'
     + 'var act=document.getElementById(rid+"-act");if(act)act.innerHTML=icAdminFootJs(rid,token);var c=document.getElementById(rid);if(c){if(c.dataset.over==="1"){icBump("sum-over",-1);c.dataset.over="0";}c.dataset.state="pending";}'
     + 'icBump("sum-open",-1);icBump("sum-pending",1);}'
     + 'var ICBUF={};'
     + 'function icPick(input,rid){ICBUF[rid]=ICBUF[rid]||[];tpStageRead(input,ICBUF[rid],function(){icRenderStage(rid);});}'
     + 'function icRenderStage(rid){var buf=ICBUF[rid]||[];var ph=document.getElementById(rid+"-photo");if(ph)ph.innerHTML=tpStagePreview(buf,"icUnstage(\'"+rid+"\',","document.getElementById(\'"+rid+"-file\').click()");var h=document.getElementById(rid+"-stagehint");if(h){h.style.color="";h.textContent="";}var c=document.getElementById(rid);var po=c&&c.dataset.po==="1";var db=document.getElementById(rid+"-done");if(db)db.textContent=buf.length?((po?"Submit":"Complete")+" \\u00b7 "+buf.length+" photo"+(buf.length===1?"":"s")):(po?"Mark done":"Complete");}'
     + 'function icUnstage(rid,idx){if(ICBUF[rid]){ICBUF[rid].splice(idx,1);icRenderStage(rid);}}'
-    + 'function icComplete(rid,token,po){var buf=ICBUF[rid]||[];var act=document.getElementById(rid+"-act");var h=document.getElementById(rid+"-stagehint");'
+    + 'function icComplete(rid,token,po){var buf=ICBUF[rid]||[];var note=icReplyValue(rid);var act=document.getElementById(rid+"-act");var h=document.getElementById(rid+"-stagehint");'
     + 'if(!po&&!buf.length){if(h){h.style.color="#b31b1b";h.textContent="Add at least one photo first.";}return;}'
     + 'act.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
-    + 'if(!buf.length){google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed")+"</span>";return;}icAfterSubmit(rid,token,[]);}).withFailureHandler(function(){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).submitIssueCompletion(token,"","");return;}'
+    + 'if(!buf.length){google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed")+"</span>";return;}icAfterSubmit(rid,token,[],note);}).withFailureHandler(function(){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).submitIssueCompletion(token,"","",false,note);return;}'
     + 'tpUploadStaged(buf,token,function(done,total){act.innerHTML="<span class=\\"tp-hint\\">Uploading photo "+(done+1)+" of "+total+"\\u2026</span>";},'
-    + 'function(ids){delete ICBUF[rid];icAfterSubmit(rid,token,ids);},'
-    + 'function(msg){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+msg+"</span>";});}'
+    + 'function(ids){delete ICBUF[rid];icAfterSubmit(rid,token,ids,note);},'
+    + 'function(msg){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+msg+"</span>";},note);}'
     + 'function icEditOpen(rid){var v=document.getElementById(rid+"-view"),e=document.getElementById(rid+"-edit"),c=document.getElementById(rid);if(v)v.hidden=true;if(e)e.hidden=false;var f=c&&c.querySelector(".card-foot");if(f)f.style.display="none";}'
     + 'function icEditCancel(rid){var v=document.getElementById(rid+"-view"),e=document.getElementById(rid+"-edit"),m=document.getElementById(rid+"-emsg"),c=document.getElementById(rid);if(e)e.hidden=true;if(v)v.hidden=false;if(m)m.textContent="";var f=c&&c.querySelector(".card-foot");if(f)f.style.display="";}'
     + 'function icEditSave(rid,token){var g=function(s){var el=document.getElementById(rid+s);return el?el.value:"";};var team=g("-eteam"),type=g("-etype"),det=g("-edetails");var m=document.getElementById(rid+"-emsg");if(m){m.style.color="";m.textContent="Saving\\u2026";}'
@@ -814,7 +848,8 @@ function icClientJs_() {
     + 'function icRejectDo(rid,token){var act=document.getElementById(rid+"-act");var reason=(document.getElementById(rid+"-reason")||{}).value||"";act.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed")+"</span>";return;}'
     + 'icSetPill(rid,"tp-pill--sent","Sent back");var s=document.getElementById(rid+"-status");if(s){s.textContent="Sent back";s.className="due";}'
-    + 'var nt=document.getElementById(rid+"-note");if(nt)nt.innerHTML=icSentBackInner(reason);'   // photo left in place
+    + 'var nt=document.getElementById(rid+"-note");if(nt)nt.innerHTML=icSentBackInner(reason);'
+    + 'icReplyForm(rid,icReplyValue(rid));'
     + 'act.innerHTML=icOpenFootJs(rid,token);var c=document.getElementById(rid);if(c)c.dataset.state="open";icBump("sum-pending",-1);icBump("sum-open",1);'
     + '}).withFailureHandler(function(){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).rejectIssueCompletion(token,reason,ADMIN_PASS);}'
     + '</script>';

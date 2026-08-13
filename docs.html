@@ -216,9 +216,9 @@
         then an admin reviews and approves. Nothing closes on a single click.
       </p>
       <ul>
-        <li><strong>Complete with a photo.</strong> On a team page or the confirm page, the doer adds a photo of the finished work. The item moves to <em>Pending approval</em> (it stamps <code>Completed at</code> and reminders pause). It is not closed yet.</li>
+        <li><strong>Complete with a photo.</strong> On a team page or the confirm page, the doer adds a photo of the finished work, and can add an optional note about what they did. The item moves to <em>Pending approval</em> (it stamps <code>Completed at</code> and reminders pause). It is not closed yet. The note is stored in <code>Completion note</code> and shown to the reviewer.</li>
         <li><strong>Photo-optional tasks.</strong> A photo is required for most tasks, but optional for four Required-action types: informational notices, facilities work orders, unsafe-practice corrections, and &ldquo;Other&rdquo;. Those show a one-tap <em>Mark done</em>. The server enforces this, so a photo cannot be skipped where it is required.</li>
-        <li><strong>Approve or send back.</strong> In the Open issues dashboard (Admin hub) each pending item shows Approve and Send back. Approve stamps <code>Addressed at</code> = Completed. Send back reopens the item with an optional reason shown to the doer, and keeps the submitted photo.</li>
+        <li><strong>Approve or send back.</strong> In the Open issues dashboard (Admin hub) each pending item shows Approve and Send back. Approve stamps <code>Addressed at</code> = Completed. Send back reopens the item with an optional reason shown to the doer, and keeps the submitted photo and note.</li>
         <li><strong>Edit in place.</strong> Admins can edit an item without leaving the dashboard: team, issue type, and details on a space issue; title, scope, and assignees on a project. Team and issue type are picklists so values stay valid; Required action is fixed at submission and not editable.</li>
         <li><strong>Delete.</strong> Admins can permanently remove a task or project from the dashboard, behind a confirm step. It deletes the row.</li>
       </ul>
@@ -237,7 +237,9 @@
         ideas with enough genuine support become real projects. The rules are modelled on how a
         honeybee swarm picks a new home: independent scouting reports, and a commitment threshold
         rather than a show of hands. Students reach it from <strong>Propose an improvement</strong> on
-        the staff hub; admins from <strong>Review proposals</strong> here.
+        the staff hub; admins from <strong>Review proposals</strong> here, which opens as a slide-over
+        with an option to go full page. Both carry the same board; the admin view unlocks Edit,
+        Approve, Decline, and Delete.
       </p>
       <ul>
         <li><strong>Post.</strong> Title is the only requirement. Photos of the spot are optional and upload in the background while the form is being filled in.</li>

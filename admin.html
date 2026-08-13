@@ -100,11 +100,11 @@
         <section class="category admin-block" id="projects-admin" data-keywords="projects assign create multi student before after photo in progress completed assignees tasks approve reject completion evidence confetti proposals improvement ideas vote rating impact effort quorum">
           <h3 class="admin-label">Projects</h3>
           <div class="action-group">
-            <a class="action" data-module="proposals" data-admin href="#" target="_blank" rel="noopener" data-new-until="2026-08-28" data-keywords="proposals improvement ideas vote rating impact effort approve decline quorum swarm scout provisional">
+            <button type="button" class="action action-dashboard" id="proposals-open" data-new-until="2026-08-28" data-keywords="proposals improvement ideas vote rating impact effort approve decline quorum swarm scout provisional">
               <span class="action-badge action-badge--new" hidden>New</span>
               <span class="action-title">Review proposals</span>
               <span class="action-sub">Improvement ideas posted and rated by the team. Enough support promotes one automatically; you can also approve or decline it here.</span>
-            </a>
+            </button>
             <a class="action" data-module="projects-dash" href="#" target="_blank" rel="noopener" data-keywords="projects dashboard hours logged metrics stats completion rate contributors leaderboard before after gallery noah">
               <span class="action-badge">Dashboard</span>
               <span class="action-title">Projects dashboard</span>
@@ -300,6 +300,48 @@
       <p class="issues-fallback" id="issues-fallback" hidden>
         The dashboard could not load here.
         <a class="issues-panel-btn issues-panel-btn--primary issues-panel-btn--inline" id="issues-fallback-link" href="#" target="_blank" rel="noopener">Open in a new tab</a>
+      </p>
+    </div>
+  </div>
+
+  <div class="issues-panel" id="proposals-panel" hidden>
+    <div class="issues-panel-backdrop" data-panel-backdrop aria-hidden="true"></div>
+    <div class="issues-panel-dialog" role="dialog" aria-modal="true" aria-labelledby="proposals-panel-title">
+      <div class="issues-panel-accent" aria-hidden="true"></div>
+      <header class="issues-panel-head">
+        <div class="issues-panel-brand">
+          <img src="assets/cornell-seal.svg" alt="" class="issues-panel-seal" aria-hidden="true">
+          <div>
+            <p class="issues-panel-eyebrow">Projects</p>
+            <h2 class="issues-panel-title" id="proposals-panel-title">Review proposals</h2>
+          </div>
+        </div>
+        <div class="issues-panel-actions">
+          <a class="issues-panel-btn issues-panel-btn--secondary" data-panel-ext href="#" target="_blank" rel="noopener">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+            Open full page
+          </a>
+          <button type="button" class="issues-panel-btn issues-panel-btn--close" data-panel-close aria-label="Close proposals">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
+        </div>
+      </header>
+      <div class="issues-embed-body is-loading" data-panel-body>
+        <div class="issues-loading" role="status" aria-live="polite">
+          <div class="issues-loading-mark" aria-hidden="true"></div>
+          <p class="issues-loading-text">Opening the proposal board…</p>
+          <p class="issues-loading-hint">Fetching ideas and their ratings</p>
+          <div class="issues-loading-cards" aria-hidden="true">
+            <div class="issues-skeleton-card"></div>
+            <div class="issues-skeleton-card"></div>
+            <div class="issues-skeleton-card issues-skeleton-card--short"></div>
+          </div>
+        </div>
+        <iframe data-panel-frame class="issues-frame" title="Review proposals"></iframe>
+      </div>
+      <p class="issues-fallback" data-panel-fallback hidden>
+        Could not load the proposals here.
+        <a class="issues-panel-btn issues-panel-btn--primary issues-panel-btn--inline" data-panel-fallback-link href="#" target="_blank" rel="noopener">Open in a new tab</a>
       </p>
     </div>
   </div>

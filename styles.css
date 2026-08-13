@@ -1175,6 +1175,7 @@ body.issues-panel-open { overflow: hidden; }
    Admin keeps its per-category hue via --cat; staff falls back to the red palette. */
 
 #space-admin .action-dashboard,
+#projects-admin .action-dashboard,
 #staff .action-dashboard {
   padding: 1.35rem 3.75rem 1.4rem 1.35rem;
   border-radius: var(--radius-lg);
@@ -1193,6 +1194,7 @@ body.issues-panel-open { overflow: hidden; }
 }
 
 #space-admin .action-dashboard::before,
+#projects-admin .action-dashboard::before,
 #staff .action-dashboard::before {
   content: '';
   position: absolute;
@@ -1202,12 +1204,14 @@ body.issues-panel-open { overflow: hidden; }
 }
 
 #space-admin .action-dashboard .action-title,
+#projects-admin .action-dashboard .action-title,
 #staff .action-dashboard .action-title {
   font-size: 1.25rem;
   letter-spacing: -0.035em;
 }
 
 #space-admin .action-dashboard .action-sub,
+#projects-admin .action-dashboard .action-sub,
 #staff .action-dashboard .action-sub {
   font-size: .875rem;
   margin-top: .15rem;
@@ -1215,6 +1219,7 @@ body.issues-panel-open { overflow: hidden; }
 }
 
 #space-admin .action-dashboard::after,
+#projects-admin .action-dashboard::after,
 #staff .action-dashboard::after {
   content: '';
   width: 2.5rem;
@@ -1226,6 +1231,7 @@ body.issues-panel-open { overflow: hidden; }
 }
 
 #space-admin .action-dashboard:hover::after,
+#projects-admin .action-dashboard:hover::after,
 #staff .action-dashboard:hover::after {
   background-color: rgba(255, 255, 255, 0.32);
   transform: translateY(-50%) translateX(3px);
@@ -1259,24 +1265,100 @@ body.issues-panel-open { overflow: hidden; }
   animation: live-pulse 2s ease-in-out infinite;
 }
 
-/* "New" flag on a recently shipped tool. Solid white with dark text so it stays crisp
-   on any category colour (a tinted badge disappears on a button of a similar hue), and
-   reads as a different kind of thing from the Live badge's translucent green dot.
-   Shown until the tool's data-new-until date passes; see app.js. */
+/* "New" flag on a recently shipped tool. Honey-gold so it reads as a different kind of
+   thing from the Live badge, and stays crisp on any category colour. Shown until the
+   tool's data-new-until date passes; see app.js. */
 .action-badge--new {
-  color: #14110e;
-  background: #fff;
-  border-color: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 1px 4px rgba(20, 20, 30, 0.18);
+  color: #3f2a08;
+  background: linear-gradient(180deg, #fff8dc 0%, #f0c050 55%, #e0a82e 100%);
+  border-color: rgba(255, 236, 170, 0.95);
+  box-shadow:
+    0 0 0 1px rgba(240, 192, 80, 0.45),
+    0 2px 10px rgba(240, 192, 80, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  animation: new-badge-glow 2.4s ease-in-out infinite;
 }
 
 .action-badge--new::before {
-  background: #14110e;
-  box-shadow: none;
-  animation: none;
+  background: #fff;
+  box-shadow: 0 0 6px #fff6d4, 0 0 10px #f0c050;
+  animation: live-pulse 1.4s ease-in-out infinite;
 }
 
 .action-badge--new[hidden] { display: none; }
+
+@keyframes new-badge-glow {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(240, 192, 80, 0.4), 0 2px 8px rgba(240, 192, 80, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.7); }
+  50% { box-shadow: 0 0 0 2px rgba(255, 220, 120, 0.7), 0 4px 16px rgba(240, 192, 80, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.85); }
+}
+
+/* Sweeping gold sheen on a newly shipped tool, so it catches the eye in a list of
+   otherwise identical red cards. Injected by app.js while data-new-until is live. */
+.action-shine {
+  display: none;
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  z-index: 0;
+}
+
+.action.is-new { isolation: isolate; }
+
+.action.is-new .action-shine { display: block; }
+
+.action.is-new .action-shine::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  bottom: -50%;
+  width: 42%;
+  left: -55%;
+  background: linear-gradient(
+    105deg,
+    transparent 0%,
+    transparent 38%,
+    rgba(255, 255, 255, 0.08) 45%,
+    rgba(255, 236, 170, 0.55) 50%,
+    rgba(255, 255, 255, 0.35) 54%,
+    transparent 62%,
+    transparent 100%
+  );
+  transform: skewX(-20deg);
+  animation: action-sheen 3.2s ease-in-out infinite;
+}
+
+.action.is-new > *:not(.action-shine) { position: relative; z-index: 1; }
+
+#staff .action.is-new,
+#admin .action.is-new,
+#space-admin .action.is-new {
+  box-shadow:
+    0 0 0 1.5px rgba(240, 192, 80, 0.9),
+    0 0 22px rgba(240, 192, 80, 0.38),
+    0 1px 2px rgba(94, 13, 13, 0.24),
+    0 14px 34px -10px var(--glow, rgba(143, 21, 21, 0.4)),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+#staff .action.is-new:hover,
+#admin .action.is-new:hover,
+#space-admin .action.is-new:hover {
+  box-shadow:
+    0 0 0 1.5px rgba(255, 220, 120, 1),
+    0 0 28px rgba(240, 192, 80, 0.55),
+    0 2px 4px rgba(94, 13, 13, 0.22),
+    0 16px 32px -10px var(--glow, rgba(143, 21, 21, 0.44)),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+
+@keyframes action-sheen {
+  0%, 22% { transform: skewX(-20deg) translateX(0); opacity: 0; }
+  32% { opacity: 1; }
+  62% { transform: skewX(-20deg) translateX(430%); opacity: 1; }
+  78%, 100% { transform: skewX(-20deg) translateX(430%); opacity: 0; }
+}
 
 @keyframes live-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
@@ -1442,6 +1524,7 @@ body.issues-panel-open { overflow: hidden; }
   .issues-loading-spinner { animation: none; border-top-color: var(--red); }
   .issues-loading, .issues-frame, .issues-panel-dialog, .issues-panel-backdrop { transition: none; }
   .issues-loading-skeleton span { animation: none; background: #ececea; }
+  .action-shine::after, .action-badge--new, .action-badge--new::before { animation: none; }
 }
 
 /* Guide pages (docs.html, dev-guide.html) */

@@ -84,12 +84,20 @@
   });
 
   // "New" flags expire on their own: set data-new-until="YYYY-MM-DD" on a tool and its
-  // badge shows until that date passes, so nobody has to remember to take it down.
+  // badge (and gold sheen) show until that date passes, so nobody has to remember to
+  // take it down.
   document.querySelectorAll('[data-new-until]').forEach(el => {
     const until = new Date(el.dataset.newUntil + 'T23:59:59');
     const badge = el.querySelector('.action-badge--new');
     if (!badge || Number.isNaN(until.getTime()) || Date.now() > until.getTime()) return;
     badge.hidden = false;
+    el.classList.add('is-new');
+    if (!el.querySelector('.action-shine')) {
+      const shine = document.createElement('span');
+      shine.className = 'action-shine';
+      shine.setAttribute('aria-hidden', 'true');
+      el.prepend(shine);
+    }
   });
 
   const search = document.getElementById('search');
@@ -347,14 +355,16 @@
     return { open, close };
   }
 
-  // Proposals board. The full-page link carries ?back= so the Apps Script page can offer
-  // a way back to this hub (it has no other way to know where it was opened from).
+  // Proposals board. On the admin page this carries ?admin=1 so Edit / Approve /
+  // Decline / Delete show. The full-page link carries ?back= so the Apps Script page
+  // can offer a way back to this hub (it has no other way to know where it was opened from).
+  const proposalsAdmin = document.getElementById('admin') ? '&admin=1' : '';
   const proposalsBase = SPACE_STATUS_URL ? SPACE_STATUS_URL + sep + 'module=proposals' : '';
   createSlideOver({
     panelId: 'proposals-panel',
     openBtnId: 'proposals-open',
-    url: proposalsBase ? proposalsBase + '&embed=1' : '',
-    fullUrl: proposalsBase ? proposalsBase + '&back=' + encodeURIComponent(location.origin + location.pathname) : '',
+    url: proposalsBase ? proposalsBase + '&embed=1' + proposalsAdmin : '',
+    fullUrl: proposalsBase ? proposalsBase + proposalsAdmin + '&back=' + encodeURIComponent(location.origin + location.pathname) : '',
     steps: [
       ['Loading the proposal board…', 'This can take a few seconds on first open', 2800],
       ['Almost ready…', 'Counting reviews and impact scores', 7000],

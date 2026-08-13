@@ -28,6 +28,7 @@ const CONFIG = {
   addressedHeader: 'Addressed at',            // set on ADMIN APPROVAL = Completed
   lastReminderHeader: 'Last reminder',
   completionPhotoHeader: 'Completion photo',  // evidence uploaded by the doer
+  completionNoteHeader: 'Completion note',     // optional text the doer sends with the photos
   completedAtHeader: 'Completed at',           // doer submitted -> Pending approval
   sentBackHeader: 'Sent back reason',          // admin's note when sending a submission back (photo is kept)
   headers: {
@@ -526,8 +527,8 @@ function confirmPage_(id) {
     ? '<div style="margin-top:14px;font:600 14px/1.6 Arial,sans-serif;color:#8a4b00;background:#fdf2df;border:1px solid #f4dfb0;border-radius:10px;padding:11px 14px"><b>Sent back:</b> ' + escapeHtml_(info.sentBackReason) + '</div>'
     : '';
   const lead = photoOptional
-    ? 'Tap <b>Mark done</b> and an admin gives it a quick review. Photos are optional here, so add one or more only if they help.'
-    : 'Add one or more photos of the completed work and an admin gives it a quick review.';
+    ? 'Tap <b>Mark done</b> and an admin gives it a quick review. A photo or a note is optional — add either if it helps.'
+    : 'Add one or more photos of the completed work. A note is optional.';
   const controls = '<button type="button" class="btn btn-ghost" onclick="document.getElementById(\'cf-file\').click()">Add photos</button>'
     + '<button type="button" class="btn btn-primary" id="cf-done" onclick="cfComplete()">' + (photoOptional ? 'Mark done' : 'Complete') + '</button>'
     + '<span id="cf-stage" class="tp-hint"></span>';
@@ -535,7 +536,11 @@ function confirmPage_(id) {
     + '<div class="swh" style="font-size:30px;font-weight:800;letter-spacing:-.025em;line-height:1.1;margin-top:16px">Mark complete</div>'
     + '<div style="font-size:16px;line-height:1.7;color:#555;margin-top:12px">' + lead + '</div>'
     + sentBackBanner
-    + '<div id="act" style="margin-top:24px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+    + '<div class="ic-reply" style="margin-top:18px">'
+    +   '<label class="ic-reply-lbl" for="cf-note">Note <span class="tp-opt">optional</span></label>'
+    +   '<textarea id="cf-note" class="ic-reply-in" rows="2" placeholder="What you did, or anything the reviewer should know">' + escapeHtml_(info.completionNote || '') + '</textarea>'
+    + '</div>'
+    + '<div id="act" style="margin-top:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
     +   '<input type="file" accept="image/*" multiple id="cf-file" style="display:none" onchange="cfPick(this)">'
     +   controls
     + '</div>'
@@ -543,17 +548,18 @@ function confirmPage_(id) {
     + '<div id="done" style="display:none;font-size:22px;font-weight:800;letter-spacing:-.02em;color:#1d7a46;margin-top:14px"></div>'
     + '<script>'
     + 'var CFBUF=[];'
+    + 'function cfNote(){var el=document.getElementById("cf-note");return el?(el.value||"").trim():"";}'
     + 'function cfPick(input){tpStageRead(input,CFBUF,cfRenderStage);}'
     + 'function cfRenderStage(){document.getElementById("cf-photo").innerHTML=tpStagePreview(CFBUF,"cfUnstage(","document.getElementById(\'cf-file\').click()");var h=document.getElementById("cf-stage");if(h){h.style.color="";h.textContent="";}var db=document.getElementById("cf-done");if(db)db.textContent=CFBUF.length?("' + (photoOptional ? 'Submit' : 'Complete') + ' \\u00b7 "+CFBUF.length+" photo"+(CFBUF.length===1?"":"s")):"' + (photoOptional ? 'Mark done' : 'Complete') + '";}'
     + 'function cfUnstage(idx){CFBUF.splice(idx,1);cfRenderStage();}'
-    + 'function cfDoneUi(ids){tpConfetti();var a=document.getElementById("act");a.style.display="none";ids=Array.isArray(ids)?ids:(ids?[ids]:[]);document.getElementById("cf-photo").innerHTML=tpThumbs(ids);var d=document.getElementById("done");d.style.display="block";d.innerHTML="\\u2713 Submitted, pending approval";}'
-    + 'function cfComplete(){var a=document.getElementById("act");var h=document.getElementById("cf-stage");'
+    + 'function cfDoneUi(ids){tpConfetti();var a=document.getElementById("act");a.style.display="none";ids=Array.isArray(ids)?ids:(ids?[ids]:[]);document.getElementById("cf-photo").innerHTML=tpThumbs(ids);var n=document.getElementById("cf-note");if(n)n.readOnly=true;var d=document.getElementById("done");d.style.display="block";d.innerHTML="\\u2713 Submitted, pending approval";}'
+    + 'function cfComplete(){var a=document.getElementById("act");var h=document.getElementById("cf-stage");var note=cfNote();'
     + 'if(' + (photoOptional ? 'false' : '!CFBUF.length') + '){if(h){h.style.color="#b31b1b";h.textContent="Add at least one photo first.";}return;}'
     + 'a.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
-    + 'if(!CFBUF.length){google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Could not save")+"</span>";return;}cfDoneUi([]);}).withFailureHandler(function(){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Could not save. Please retry.</span>";}).submitIssueCompletion(' + JSON.stringify(id) + ',"","");return;}'
+    + 'if(!CFBUF.length){google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Could not save")+"</span>";return;}cfDoneUi([]);}).withFailureHandler(function(){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Could not save. Please retry.</span>";}).submitIssueCompletion(' + JSON.stringify(id) + ',"","",false,note);return;}'
     + 'tpUploadStaged(CFBUF,' + JSON.stringify(id) + ',function(done,total){a.innerHTML="<span class=\\"tp-hint\\">Uploading photo "+(done+1)+" of "+total+"\\u2026</span>";},'
     + 'function(ids){cfDoneUi(ids);},'
-    + 'function(msg){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+msg+"</span>";});}'
+    + 'function(msg){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+msg+"</span>";},note);}'
     + '</script>';
   return swissShell_(tpStyles_() + inner + tpSharedJs_(), 'Space Status');
 }
@@ -579,6 +585,7 @@ function icDoneSection_(doneList, showTeam) {
     s += '<div style="background:#fff;border:1px solid #ececea;border-radius:14px;opacity:.94;margin-bottom:10px;padding:16px 18px;box-shadow:0 2px 8px rgba(20,20,30,.05)">'
       + '<div style="font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#157a47">' + escapeHtml_((showTeam && d.team ? d.team + ' · ' : '') + (d.issueType ? phrase_(d.issueType) : 'Issue')) + '</div>'
       + (d.details ? '<div style="font-size:14px;color:#444;line-height:1.6;margin-top:6px;white-space:pre-line">' + escapeHtml_(d.details) + '</div>' : '')
+      + (d.completionNote ? '<div style="font-size:13.5px;color:#57534e;line-height:1.6;margin-top:8px;white-space:pre-line;padding-left:12px;border-left:2px solid #c7e9d5">' + escapeHtml_(d.completionNote) + '</div>' : '')
       + thumb
       + '<div style="font-size:13px;font-weight:700;color:#157a47;margin-top:12px">&#10003; Completed ' + escapeHtml_(fmtShort_(d.addressed)) + '</div>'
       + '</div>';
@@ -693,6 +700,7 @@ function icTeamSectionsHtml_(data, readOnly) {
       +   (it.photos && it.photos.length ? photoStrip_(it.photos) : '')
       +   icPhotoBlock_(rid, it.completionPhoto)
       +   icNoteContainer_(rid, isPending, it.sentBackReason, !readOnly, it.photoOptional)
+      +   icReplyBlock_(rid, it.completionNote, isPending, !readOnly)
       + '</div>'
       + '<div class="card-foot">'
       +   '<span id="' + rid + '-status" class="' + (isPending ? 'due' : dueCls) + '">' + statusTxt + '</span>'
@@ -760,7 +768,8 @@ function listTeamIssues_(teamName) {
   const cTeam = ci(CONFIG.headers.team), cStatus = ci(CONFIG.headers.status), cIssue = ci(CONFIG.headers.issueType),
         cAction = ci(CONFIG.headers.action), cDetails = ci(CONFIG.headers.details), cTs = ci(CONFIG.headers.timestamp),
         cTok = ci(CONFIG.issueTokenHeader), cAddr = ci(CONFIG.addressedHeader), cPhoto = ci(CONFIG.headers.photo),
-        cCompletedAt = ci(CONFIG.completedAtHeader), cCompletionPhoto = ci(CONFIG.completionPhotoHeader), cSentBack = ci(CONFIG.sentBackHeader);
+        cCompletedAt = ci(CONFIG.completedAtHeader), cCompletionPhoto = ci(CONFIG.completionPhotoHeader),
+        cCompletionNote = ci(CONFIG.completionNoteHeader), cSentBack = ci(CONFIG.sentBackHeader);
   const open = [], done = [];
   let resolved = 0;
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -773,6 +782,7 @@ function listTeamIssues_(teamName) {
         issueType: cIssue >= 0 ? String(v[i][cIssue]).trim() : '',
         details: cDetails >= 0 ? String(v[i][cDetails]).trim() : '',
         completionPhoto: cCompletionPhoto >= 0 ? String(v[i][cCompletionPhoto] || '').trim() : '',
+        completionNote: cCompletionNote >= 0 ? String(v[i][cCompletionNote] || '').trim() : '',
         reportedPhoto: cPhoto >= 0 ? String(v[i][cPhoto] || '').trim() : '',
         addressed: new Date(v[i][cAddr])
       });
@@ -795,6 +805,7 @@ function listTeamIssues_(teamName) {
       photos: cPhoto >= 0 ? extractFileIds_(v[i][cPhoto]) : [],
       color: color, deadline: deadline, overdue: overdue,
       pending: pending, completionPhoto: cCompletionPhoto >= 0 ? String(v[i][cCompletionPhoto] || '').trim() : '',
+      completionNote: cCompletionNote >= 0 ? String(v[i][cCompletionNote] || '').trim() : '',
       sentBackReason: (!pending && cSentBack >= 0) ? String(v[i][cSentBack] || '').trim() : '',
     });
   }
@@ -815,7 +826,8 @@ function listAllIssues_() {
   const cTeam = ci(CONFIG.headers.team), cStatus = ci(CONFIG.headers.status), cIssue = ci(CONFIG.headers.issueType),
         cAction = ci(CONFIG.headers.action), cDetails = ci(CONFIG.headers.details), cTs = ci(CONFIG.headers.timestamp),
         cTok = ci(CONFIG.issueTokenHeader), cAddr = ci(CONFIG.addressedHeader), cPhoto = ci(CONFIG.headers.photo),
-        cCompletedAt = ci(CONFIG.completedAtHeader), cCompletionPhoto = ci(CONFIG.completionPhotoHeader), cSentBack = ci(CONFIG.sentBackHeader);
+        cCompletedAt = ci(CONFIG.completedAtHeader), cCompletionPhoto = ci(CONFIG.completionPhotoHeader),
+        cCompletionNote = ci(CONFIG.completionNoteHeader), cSentBack = ci(CONFIG.sentBackHeader);
   const open = [], done = [];
   let resolved = 0;
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -828,6 +840,7 @@ function listAllIssues_() {
         issueType: cIssue >= 0 ? String(v[i][cIssue]).trim() : '',
         details: cDetails >= 0 ? String(v[i][cDetails]).trim() : '',
         completionPhoto: cCompletionPhoto >= 0 ? String(v[i][cCompletionPhoto] || '').trim() : '',
+        completionNote: cCompletionNote >= 0 ? String(v[i][cCompletionNote] || '').trim() : '',
         reportedPhoto: cPhoto >= 0 ? String(v[i][cPhoto] || '').trim() : '',
         addressed: new Date(v[i][cAddr])
       });
@@ -851,6 +864,7 @@ function listAllIssues_() {
       photos: cPhoto >= 0 ? extractFileIds_(v[i][cPhoto]) : [],
       color: color, deadline: deadline, overdue: overdue,
       pending: pending, completionPhoto: cCompletionPhoto >= 0 ? String(v[i][cCompletionPhoto] || '').trim() : '',
+      completionNote: cCompletionNote >= 0 ? String(v[i][cCompletionNote] || '').trim() : '',
       sentBackReason: (!pending && cSentBack >= 0) ? String(v[i][cSentBack] || '').trim() : '',
     });
   }
@@ -947,7 +961,7 @@ function icAllSectionsHtml_(data) {
         : (it.overdue
           ? '<span class="chip chip--overdue">Overdue</span>'
           : (it.deadline ? '<span class="chip chip--due">' + daysLeftLabel_(it.deadline) + '</span>' : '')));
-    const hay = ((it.team || '') + ' ' + (it.issueType || '') + ' ' + (it.action || '') + ' ' + (it.details || '')).toLowerCase();
+    const hay = ((it.team || '') + ' ' + (it.issueType || '') + ' ' + (it.action || '') + ' ' + (it.details || '') + ' ' + (it.completionNote || '')).toLowerCase();
     const accent = COLOR_HEX[it.color] || '#d6d3ce';
     const statusTxt = isPending ? 'Submitted, awaiting approval' : (isSentBack ? 'Sent back' : ('Due ' + escapeHtml_(dl)));
     const foot = isPending ? icPendingFoot_(rid, it.token) : icOpenFoot_(rid, it.token, it.photoOptional);
@@ -965,6 +979,7 @@ function icAllSectionsHtml_(data) {
       +     (it.photos && it.photos.length ? photoStrip_(it.photos) : '')
       +     icPhotoBlock_(rid, it.completionPhoto)
       +     icNoteContainer_(rid, isPending, it.sentBackReason, true, it.photoOptional)
+      +     icReplyBlock_(rid, it.completionNote, isPending, true)
       +   '</div>'
       +   icEditForm_(rid, it, teams, fieldOpts.issueTypes)
       + '</div>'
@@ -1050,6 +1065,7 @@ function findIssue_(id) {
   const cAddr = H.indexOf(norm_(CONFIG.addressedHeader));
   const cComp = H.indexOf(norm_(CONFIG.completedAtHeader));
   const cSent = H.indexOf(norm_(CONFIG.sentBackHeader));
+  const cNote = H.indexOf(norm_(CONFIG.completionNoteHeader));
   for (let i = 1; i < v.length; i++) {
     if (String(v[i][cTok]) === String(id)) {
       return {
@@ -1060,6 +1076,7 @@ function findIssue_(id) {
         addressed: cAddr >= 0 ? v[i][cAddr] : '',
         completedAt: cComp >= 0 ? v[i][cComp] : '',
         sentBackReason: cSent >= 0 ? String(v[i][cSent] || '').trim() : '',
+        completionNote: cNote >= 0 ? String(v[i][cNote] || '').trim() : '',
       };
     }
   }
