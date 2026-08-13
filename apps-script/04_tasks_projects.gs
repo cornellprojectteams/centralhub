@@ -25,7 +25,7 @@
  * escapeHtml_, phrase_, fmtShort_, newToken_, ensureColumn_, norm_, ss_,
  * extractFileIds_, findIssue_). Apps Script shares one global scope, so the doGet
  * router in 02 delegates ?module=projects here, the issue pages in 02 call the
- * ic*/tp* UI helpers below, and the client pages call the server functions via
+ * ic- and tp-prefixed UI helpers below, and the client pages call the server functions via
  * google.script.run.
  *
  * Any change to web-app logic needs a NEW deployment version. Same URL after.

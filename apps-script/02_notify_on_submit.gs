@@ -382,6 +382,7 @@ function doGet(e) {
   // Admin mode: set only by links from the (unlisted) admin page. It unlocks the
   // admin controls without a passcode - the admin page's obscurity is the gate.
   const admin = p.admin === '1' || p.admin === 'true';
+  if (p.module === 'proposals') return proposalsPage_(embed, admin);   // Honeybee-swarm improvement voting (07_proposals.gs)
   if (p.module === 'projects') return projectsPage_(embed, admin);   // Multi-user projects (04_tasks_projects.gs)
   if (p.module === 'projects-dash') return projectsDashboardPage_(embed);   // Projects dashboard (04_tasks_projects.gs)
   if (p.module === 'registry-dash') return registryDashboardPage_(embed);   // CMMS dashboard: equipment, inventory, maintenance, action items
@@ -563,11 +564,16 @@ function icDoneSection_(doneList, showTeam) {
   if (!doneList || !doneList.length) return '';
   let s = '<details style="margin-top:28px"><summary style="cursor:pointer;font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#157a47">Recently completed (' + doneList.length + ')</summary><div style="margin-top:16px">';
   doneList.forEach(function (d) {
-    const ids = extractFileIds_(d.completionPhoto);
+    // Show the completion photo(s); if the task was finished without one (one-tap /
+    // photo-optional / admin close), fall back to the originally reported photo so the
+    // card still has an image. onerror hides any thumbnail whose Drive file will not load.
+    let ids = extractFileIds_(d.completionPhoto);
+    let capt = 'Completed';
+    if (!ids.length) { ids = extractFileIds_(d.reportedPhoto || ''); if (ids.length) capt = 'Reported'; }
     const thumb = ids.length
       ? '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">' + ids.map(function (fid) {
           const e = encodeURIComponent(fid);
-          return '<a href="https://drive.google.com/file/d/' + e + '/view" target="_blank" rel="noopener" style="display:inline-block;line-height:0"><img src="https://drive.google.com/thumbnail?id=' + e + '&sz=w400" loading="lazy" style="max-height:120px;border-radius:10px;border:1px solid #ececec"></a>';
+          return '<a href="https://drive.google.com/file/d/' + e + '/view" target="_blank" rel="noopener" style="display:inline-block;line-height:0" title="' + capt + ' photo"><img src="https://drive.google.com/thumbnail?id=' + e + '&sz=w400" loading="lazy" onerror="this.closest(\'a\').style.display=\'none\'" style="max-height:120px;border-radius:10px;border:1px solid #ececec"></a>';
         }).join('') + '</div>'
       : '';
     s += '<div style="background:#fff;border:1px solid #ececea;border-radius:14px;opacity:.94;margin-bottom:10px;padding:16px 18px;box-shadow:0 2px 8px rgba(20,20,30,.05)">'
@@ -766,6 +772,7 @@ function listTeamIssues_(teamName) {
         issueType: cIssue >= 0 ? String(v[i][cIssue]).trim() : '',
         details: cDetails >= 0 ? String(v[i][cDetails]).trim() : '',
         completionPhoto: cCompletionPhoto >= 0 ? String(v[i][cCompletionPhoto] || '').trim() : '',
+        reportedPhoto: cPhoto >= 0 ? String(v[i][cPhoto] || '').trim() : '',
         addressed: new Date(v[i][cAddr])
       });
       continue;
@@ -820,6 +827,7 @@ function listAllIssues_() {
         issueType: cIssue >= 0 ? String(v[i][cIssue]).trim() : '',
         details: cDetails >= 0 ? String(v[i][cDetails]).trim() : '',
         completionPhoto: cCompletionPhoto >= 0 ? String(v[i][cCompletionPhoto] || '').trim() : '',
+        reportedPhoto: cPhoto >= 0 ? String(v[i][cPhoto] || '').trim() : '',
         addressed: new Date(v[i][cAddr])
       });
       continue;
