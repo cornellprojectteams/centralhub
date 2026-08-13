@@ -52,7 +52,7 @@ var PR = {
   quorumMinImpact: 3.5,    // ...and the average Impact must reach this
   earnedVoiceK: 2,         // rate this many OTHER proposals before your votes count
   earnedVoiceBootstrap: 3, // ...waived while fewer than this many proposals are open
-  cacheKey: 'pr_list_v3',  // rendered list HTML (netid-agnostic)
+  cacheKey: 'pr_list_v4',  // rendered list HTML (netid-agnostic)
   stripKey: 'pr_strip_v1', // the "new project proposed" strip shown on the tasks pages
   cacheSeconds: 120,
   freshDays: 14,           // a promotion counts as news on the tasks page for this long
@@ -401,18 +401,16 @@ function prMeterHtml_(p, rid) {
     + '<span class="pr-segs" id="' + rid + '-segs" title="' + counted + ' of ' + need + ' counted reviews">' + segs + '</span>'
     + '<span class="pr-qsay' + (need - counted === 1 ? ' pr-qsay--close' : (good && counted >= need ? ' pr-qsay--good' : '')) + '" id="' + rid + '-say">'
     +   prSayText_(counted, need, p.avgImpact, p.votes) + '</span>'
-    + '<span class="pr-qvals">Impact <b class="pr-qv' + (good ? ' good' : '') + '" id="' + rid + '-vi">' + (counted ? p.avgImpact.toFixed(1) : '&ndash;') + '</b>'
-    +   '<span class="pr-qdot" aria-hidden="true"></span>Effort <b class="pr-qv" id="' + rid + '-ve">' + (counted ? p.avgEffort.toFixed(1) : '&ndash;') + '</b></span>'
+    + '<span class="pr-qvals" title="Average impact / effort">'
+    +   '<b class="pr-qv' + (good ? ' good' : '') + '" id="' + rid + '-vi">' + (counted ? p.avgImpact.toFixed(1) : '&ndash;') + '</b>'
+    +   '<span class="pr-qslash" aria-hidden="true">/</span>'
+    +   '<b class="pr-qv" id="' + rid + '-ve">' + (counted ? p.avgEffort.toFixed(1) : '&ndash;') + '</b></span>'
     + '</div>';
 }
 
 // One proposal card. votable => provisional (shows the rating control); else it's an
 // approved (Real) card.
 function prCardHtml_(p, rid, votable) {
-  var pill = votable
-    ? '<span class="tp-pill tp-pill--active">Up for review</span>'
-    : '<span class="tp-pill tp-pill--done">Approved</span>';
-
   var scale = function (k, val) {
     var out = '<span class="pr-scale" data-k="' + k + '" data-val="' + (val || '') + '">';
     for (var n = 1; n <= 5; n++) {
@@ -424,11 +422,10 @@ function prCardHtml_(p, rid, votable) {
   var my = p.myVote;
   var rate = votable
     ? '<div class="pr-rate" id="' + rid + '-rate">'
-      + '<div class="pr-rate-row"><span class="pr-rate-lbl">Impact <em>how much better does this make the place</em></span>'
+      + '<div class="pr-rate-row"><span class="pr-rate-lbl">Impact</span>'
       +   '<span class="pr-scale-wrap">' + scale('impact', my ? my.impact : 0) + '<span class="pr-word" id="' + rid + '-w-impact">' + (my ? prWordFor_('impact', my.impact) : '') + '</span></span></div>'
-      + '<div class="pr-rate-row"><span class="pr-rate-lbl">Effort <em>how much work is it to pull off</em></span>'
+      + '<div class="pr-rate-row"><span class="pr-rate-lbl">Effort</span>'
       +   '<span class="pr-scale-wrap">' + scale('effort', my ? my.effort : 0) + '<span class="pr-word" id="' + rid + '-w-effort">' + (my ? prWordFor_('effort', my.effort) : '') + '</span></span></div>'
-      + '<div class="pr-verdict" id="' + rid + '-verdict"' + (my ? '' : ' hidden') + '>' + (my ? prVerdictText_(my.impact, my.effort) : '') + '</div>'
       + '<div class="pr-rate-foot"><button type="button" class="btn btn-primary pr-submit" id="' + rid + '-go" onclick="prSubmitVote(\'' + rid + '\',\'' + p.id + '\')">' + (my ? 'Update rating' : 'Submit rating') + '</button>'
       + '<span id="' + rid + '-vmsg" class="pr-vmsg"></span></div></div>'
     : '';
@@ -466,10 +463,12 @@ function prCardHtml_(p, rid, votable) {
   return '<div class="card pr-card" id="' + rid + '" data-id="' + p.id + '" data-owner="' + escapeHtml_(p.netid) + '" data-status="' + (votable ? 'review' : 'real') + '">'
     + '<div class="card-body">'
     +   '<div id="' + rid + '-view">'
-    +   '<div class="pr-head"><div class="pr-head-main"><div class="pr-kicker">Proposal<span class="pr-area" id="' + rid + '-area">' + (p.area ? ' &middot; ' + escapeHtml_(p.area) : '') + '</span></div>'
-    +     '<h3 class="pr-title" id="' + rid + '-title">' + escapeHtml_(p.title) + '</h3></div><span class="pr-pill-wrap" id="' + rid + '-pill">' + pill + '</span></div>'
+    +   '<h3 class="pr-title" id="' + rid + '-title">' + escapeHtml_(p.title) + '</h3>'
     +   '<p class="pr-desc" id="' + rid + '-desc"' + (p.description ? '' : ' hidden') + '>' + escapeHtml_(p.description) + '</p>'
-    +   '<div class="pr-by" id="' + rid + '-by"' + (p.proposedBy ? '' : ' hidden') + '>' + (p.proposedBy ? 'Scouted by ' + escapeHtml_(p.proposedBy) : '') + '</div>'
+    +   '<div class="pr-meta" id="' + rid + '-meta"' + (p.area || p.proposedBy ? '' : ' hidden') + '>'
+    +     '<span class="pr-area" id="' + rid + '-area"' + (p.area ? '' : ' hidden') + '>' + escapeHtml_(p.area || '') + '</span>'
+    +     '<span class="pr-by" id="' + rid + '-by"' + (p.proposedBy ? '' : ' hidden') + '>' + escapeHtml_(p.proposedBy || '') + '</span>'
+    +   '</div>'
     +   photos
     +   meta
     +   rate
@@ -603,8 +602,7 @@ function proposalsPage_(embedded, admin, back) {
     +   '<li><b>Quorum.</b> A proposal becomes a real project when it has <b>' + PR.quorumMinVotes + ' counted reviews</b> and an average Impact of <b>' + PR.quorumMinImpact + ' or better</b>.</li>'
     + '</ol>'
     + '<div class="pr-guide-notes">'
-    +   '<p><b>One rating per person per proposal.</b> Changing your mind is fine, just rate it again and it replaces your old one.</p>'
-    +   '<p><b>You cannot rate your own proposal.</b> Post it and let the team judge it.</p>'
+    +   '<p><b>You cannot rate your own proposal.</b></p>'
     + '</div></div></details></div>';
 
   // One toolbar: who you are (so ratings can count) and the act of posting. Kept on
@@ -615,7 +613,7 @@ function proposalsPage_(embedded, admin, back) {
     +     '<input id="pr-netid" class="pr-idinput" placeholder="your NetID" autocomplete="username" spellcheck="false" aria-describedby="pr-idnote" oninput="prSaveNetid()"></div>'
     +   '<div class="pr-voice" id="pr-voice">'
     +     '<div class="pr-voice-segs" id="pr-voice-segs" hidden></div>'
-    +     '<span class="pr-voice-note" id="pr-idnote">yours only, so we count your ratings</span></div>'
+    +     '<span class="pr-voice-note" id="pr-idnote"></span></div>'
     + '</div>'
     + '<details class="tp-create-wrap pr-propose"><summary class="tp-create-toggle"><span class="tp-create-caret">&#43;</span> Propose an improvement</summary>'
     + '<div class="tp-create">'
@@ -772,18 +770,13 @@ function prStyles_() {
     +   'box-shadow:0 1px 2px rgba(20,17,14,.04),0 10px 28px -16px rgba(20,17,14,.18);animation:prCardIn .42s cubic-bezier(.2,.85,.3,1.05) both}'
     + '.pr-page .pr-card[data-status="real"]{border-left-color:#157a47}'
     + '.pr-page .pr-card:hover{transform:translateY(-2px);box-shadow:0 14px 36px -14px rgba(20,17,14,.2)}'
-    + '.pr-page .pr-card .card-body{padding:20px 22px 18px}'
+    + '.pr-page .pr-card .card-body{padding:18px 20px 16px}'
     + '@keyframes prCardIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}'
-    + '.pr-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}'
-    + '.pr-head-main{min-width:0;flex:1 1 260px}'
-    + '.pr-kicker{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:10.5px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:#c08a1e}'
-    + '.pr-card[data-status="real"] .pr-kicker{color:#157a47}'
-    + '.pr-area{color:#a8a29e}'
-    + '.pr-title{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:clamp(18px,2.5vw,22px);font-weight:800;letter-spacing:-.03em;line-height:1.22;color:#14110e;margin:6px 0 0}'
-    + '.pr-pill-wrap{flex:none}'
-    + '.pr-desc{font-size:14.5px;line-height:1.62;color:#57534e;margin:11px 0 0}'
-    + '.pr-by{font-size:12.5px;font-weight:600;color:#8a857c;margin-top:9px}'
-    + '.pr-photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;margin-top:14px}'
+    + '.pr-title{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:clamp(17px,2.4vw,20px);font-weight:800;letter-spacing:-.03em;line-height:1.25;color:#14110e;margin:0}'
+    + '.pr-desc{font-size:14.5px;line-height:1.55;color:#57534e;margin:8px 0 0}'
+    + '.pr-meta{display:flex;align-items:center;flex-wrap:wrap;gap:0;margin-top:8px;font-size:12.5px;font-weight:600;color:#8a857c}'
+    + '.pr-area:not([hidden])+.pr-by:not([hidden])::before{content:"\\00b7";margin:0 8px;color:#d6d3ce;font-weight:800}'
+    + '.pr-photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;margin-top:12px}'
     + '.pr-photos a{display:block;aspect-ratio:1;border-radius:12px;overflow:hidden;line-height:0;box-shadow:0 2px 8px rgba(20,17,14,.08);transition:transform .16s}'
     + '.pr-photos a:hover{transform:scale(1.04)}'
     + '.pr-photos img{width:100%;height:100%;object-fit:cover;display:block;border:0}'
@@ -793,10 +786,10 @@ function prStyles_() {
     + '.pr-qsay{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12.5px;font-weight:700;color:#a8a29e;transition:color .3s;flex:1 1 auto;min-width:0}'
     + '.pr-qsay--close{color:#c9761a}'
     + '.pr-qsay--good{color:#157a47}'
-    + '.pr-qvals{display:inline-flex;align-items:center;gap:6px;flex:none;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12px;font-weight:600;color:#8a857c}'
-    + '.pr-qv{font-size:13.5px;font-weight:800;color:#14110e;font-variant-numeric:tabular-nums}'
+    + '.pr-qvals{display:inline-flex;align-items:baseline;gap:5px;flex:none;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-variant-numeric:tabular-nums}'
+    + '.pr-qv{font-size:13.5px;font-weight:800;color:#14110e}'
     + '.pr-qv.good{color:#157a47}'
-    + '.pr-qdot{width:3px;height:3px;border-radius:50%;background:#d6d3ce;margin:0 3px}'
+    + '.pr-qslash{color:#d6d3ce;font-weight:700;font-size:12px}'
     + '.pr-segs{display:inline-flex;gap:5px;flex:none}'
     + '.pr-seg{width:28px;height:7px;border-radius:99px;background:#ece6d8;animation:prSegIn .4s cubic-bezier(.2,.9,.3,1.2) both}'
     + '.pr-seg.on{background:linear-gradient(90deg,#e0a11e,#c08a1e)}'
@@ -809,20 +802,20 @@ function prStyles_() {
     + '.pr-promoted-mark{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#157a47;color:#fff;font-size:11px;font-weight:800;flex:none}'
 
     // ---- rating: two scales, two colours, sitting on the card ----
-    + '.pr-rate{margin-top:4px;padding:16px 0 0;background:none;border:none;border-radius:0}'
-    + '.pr-rate-row{display:flex;align-items:center;gap:10px 16px;flex-wrap:wrap;margin-bottom:14px}'
-    + '.pr-rate-lbl{display:flex;flex-direction:column;gap:2px;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12.5px;font-weight:800;letter-spacing:.02em;color:#3f3a31;flex:1 1 190px;min-width:0}'
-    + '.pr-rate-lbl em{font-style:normal;font-size:11.5px;font-weight:600;color:#a8a29e;letter-spacing:0}'
-    + '.pr-scale-wrap{display:flex;align-items:center;gap:11px;flex:1 1 260px;min-width:0;flex-wrap:wrap}'
-    + '.pr-scale{display:inline-flex;gap:6px;flex:0 1 auto}'
-    + '.pr-dot{width:42px;height:42px;border-radius:12px;border:1.5px solid #e8e2d4;background:#fff;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:15px;font-weight:800;color:#a8a29e;cursor:pointer;'
+    + '.pr-rate{margin-top:2px;padding:14px 0 0;background:none;border:none;border-radius:0}'
+    + '.pr-rate-row{display:flex;align-items:center;gap:12px;margin-bottom:10px}'
+    + '.pr-rate-lbl{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#8a857c;flex:0 0 64px}'
+    + '.pr-scale-wrap{display:flex;align-items:center;gap:10px;flex:1;min-width:0}'
+    + '.pr-scale{display:inline-flex;gap:6px;flex:none}'
+    + '.pr-dot{width:36px;height:36px;border-radius:10px;border:1.5px solid #e8e2d4;background:#fff;padding:0;cursor:pointer;'
+    +   'font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:14px;font-weight:800;color:#a8a29e;line-height:1;'
     +   'transition:border-color .14s,background .14s,color .14s,transform .16s cubic-bezier(.2,.9,.3,1.6),box-shadow .16s;-webkit-tap-highlight-color:transparent}'
-    + '.pr-dot:hover{border-color:#c4b89a}'
+    + '.pr-dot:hover{border-color:#c4b89a;color:#57534e;background:#fffdf8}'
     + '.pr-dot.fill{background:#f3d2d2;border-color:#e6b4b4;color:#8f1515}'
-    + '.pr-dot.on{background:linear-gradient(180deg,#d62b2b,#b31b1b);border-color:#b31b1b;color:#fff;box-shadow:0 4px 12px rgba(179,27,27,.28),inset 0 1px 0 rgba(255,255,255,.22)}'
+    + '.pr-dot.on{background:linear-gradient(180deg,#d62b2b,#b31b1b);border-color:#b31b1b;color:#fff;box-shadow:0 3px 8px rgba(179,27,27,.28)}'
     + '.pr-dot.preview{border-color:#d99a9a;background:#fdf3f3;color:#8f1515}'
     + '.pr-scale[data-k="effort"] .pr-dot.fill{background:#f3e4b8;border-color:#e0c47a;color:#8a5f0f}'
-    + '.pr-scale[data-k="effort"] .pr-dot.on{background:linear-gradient(180deg,#e0a11e,#c08a1e);border-color:#c08a1e;color:#fff;box-shadow:0 4px 12px rgba(192,138,30,.3),inset 0 1px 0 rgba(255,255,255,.25)}'
+    + '.pr-scale[data-k="effort"] .pr-dot.on{background:linear-gradient(180deg,#e0a11e,#c08a1e);border-color:#c08a1e;color:#fff;box-shadow:0 3px 8px rgba(192,138,30,.3)}'
     + '.pr-scale[data-k="effort"] .pr-dot.preview{border-color:#e0c47a;background:#fff8e6;color:#8a5f0f}'
     + '.pr-dot.bump{animation:prDotBump .42s cubic-bezier(.2,.9,.3,1.5)}'
     + '@keyframes prDotBump{0%{transform:scale(1)}40%{transform:scale(1.24)}100%{transform:scale(1)}}'
@@ -830,10 +823,7 @@ function prStyles_() {
     + '.pr-word{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12px;font-weight:700;color:#8f1515;min-height:1em;opacity:0;transform:translateY(3px);transition:opacity .25s,transform .25s}'
     + '.pr-rate-row:has([data-k="effort"]) .pr-word{color:#8a5f0f}'
     + '.pr-word.show{opacity:1;transform:none}'
-    + '.pr-verdict{font-size:13px;line-height:1.5;color:#57534e;padding:10px 14px;border-radius:12px;background:#fffaf0;border:1px solid #f0e4cc;margin-bottom:14px;animation:prCardIn .35s ease both}'
-    + '.pr-verdict b{color:#14110e;font-weight:800}'
-    + '.pr-verdict[hidden]{display:none}'
-    + '.pr-rate-foot{display:flex;align-items:center;gap:12px;flex-wrap:wrap}'
+    + '.pr-rate-foot{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:4px}'
     + '.pr-submit{min-width:148px;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:background .2s,transform .12s}'
     + '.pr-submit.is-busy{opacity:.92;cursor:progress}'
     + '.pr-submit.ok{background:#157a47!important}'
@@ -879,22 +869,21 @@ function prStyles_() {
     +   '.pr-idbar{padding:11px 12px;gap:10px}.pr-idrow{flex:1 1 100%}.pr-idinput{flex:1;width:auto}'
     +   '.pr-voice{flex:1 1 100%}'
     +   '.pr-propose{flex:1 1 100%}.pr-page .pr-propose .tp-create-toggle{width:100%;justify-content:center}'
-    +   '.pr-head{flex-wrap:nowrap}.pr-pill-wrap{align-self:flex-start}'
-    +   '.pr-rate-lbl{flex:1 1 100%}'
-    +   '.pr-scale-wrap{flex:1 1 100%;gap:8px}'
-    +   '.pr-scale{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;width:100%}'
-    +   '.pr-dot{width:100%;height:46px;font-size:16px}'
-    +   '.pr-quorum{gap:8px 10px}.pr-qsay{flex:1 1 100%;order:3}.pr-qvals{margin-left:auto}'
-    +   '.pr-submit{flex:1 1 100%}.pr-vmsg{flex:1 1 100%;text-align:left}'
+    +   '.pr-rate-lbl{flex:0 0 56px}'
+    +   '.pr-scale-wrap{flex:1;gap:8px}'
+    +   '.pr-scale{display:flex;gap:6px}'
+    +   '.pr-dot{width:36px;height:36px;font-size:14px}'
+    +   '.pr-quorum{gap:8px 10px}.pr-qsay{flex:1 1 auto}.pr-qvals{margin-left:auto}'
+    +   '.pr-submit{flex:1 1 auto}.pr-vmsg{flex:1 1 100%;text-align:left}'
     +   '.pr-adminbar .btn{flex:1 1 auto}'
     +   '.pr-guide-body{padding:4px 14px 15px}'
-    +   '.pr-page .pr-card .card-body{padding:16px 16px 15px}'
+    +   '.pr-page .pr-card .card-body{padding:15px 15px 14px}'
     + '}'
-    + '@media(max-width:380px){.pr-dot{height:42px;font-size:14px;border-radius:9px}.pr-seg{width:22px}}'
+    + '@media(max-width:380px){.pr-dot{width:32px;height:32px;font-size:13px;border-radius:9px}.pr-seg{width:22px}}'
 
     // ---- motion preferences ----
     + '@media(prefers-reduced-motion:reduce){'
-    +   '.pr-card,.pr-verdict,.pr-guide-body,.pr-empty-bee{animation:none}'
+    +   '.pr-card,.pr-guide-body,.pr-empty-bee{animation:none}'
     +   '.pr-guide-icon,.pr-guide-fly,.pr-guide-toggle:hover .pr-guide-icon,'
     +   '.pr-guide[open] .pr-guide-icon,.pr-guide[open] .pr-guide-fly{animation:none}'
     +   '.pr-seg,.pr-voice-seg,.pr-dot,.pr-word{transition:none;animation:none}'
@@ -969,7 +958,7 @@ function prClientJs_() {
     + 'var wrap=document.getElementById("pr-voice"),segs=document.getElementById("pr-voice-segs"),note=document.getElementById("pr-idnote");'
     + 'if(!wrap||!segs||!note)return;wrap.hidden=false;'
     + 'if(!prNetid()){segs.hidden=true;wrap.classList.remove("done");'
-    + 'note.textContent="yours only, so we count your ratings";'
+    + 'note.textContent="";'
     + 'wrap.title="Enter your own NetID. Do not add someone else.";return;}'
     + 'segs.hidden=false;'
     + 'var need=PR_VOICE_NEED,have=Math.min(count,need),done=have>=need;'
@@ -1050,8 +1039,7 @@ function prClientJs_() {
     // pause is the point; a reveal with no anticipation barely registers.
     + 'function prPromoteFx(rid){var card=document.getElementById(rid);if(!card){prRefresh(true);return;}'
     + 'card.classList.add("is-promoting");'
-    + 'setTimeout(function(){var pill=document.getElementById(rid+"-pill");'
-    + 'if(pill)pill.innerHTML=\'<span class="tp-pill tp-pill--done">Approved</span>\';'
+    + 'setTimeout(function(){'
     + 'var say=document.getElementById(rid+"-say");if(say){say.textContent="quorum reached";say.className="pr-qsay pr-qsay--good";}'
     + 'tpConfetti("\\uD83D\\uDC1D Quorum reached. It is a real project now.");},620);'
     + 'setTimeout(function(){prRefresh(true);},2400);}'
@@ -1122,11 +1110,11 @@ function prClientJs_() {
     + 'if(!title.trim()){if(m){m.style.color="#b31b1b";m.textContent="A title is required.";}return;}'
     + 'if(m){m.style.color="";m.textContent="Saving\\u2026";}'
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){if(m){m.style.color="#b31b1b";m.textContent=(r&&r.error)||"Could not save.";}return;}'
-    + 'var esc=function(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;");};'
     + 'var t=document.getElementById(rid+"-title");if(t)t.textContent=r.title;'
-    + 'var ar=document.getElementById(rid+"-area");if(ar)ar.innerHTML=r.area?" &middot; "+esc(r.area):"";'
+    + 'var ar=document.getElementById(rid+"-area");if(ar){if(r.area){ar.hidden=false;ar.textContent=r.area;}else{ar.hidden=true;ar.textContent="";}}'
     + 'var d=document.getElementById(rid+"-desc");if(d){if(r.description){d.hidden=false;d.textContent=r.description;}else{d.hidden=true;d.textContent="";}}'
-    + 'var b=document.getElementById(rid+"-by");if(b){if(r.proposedBy){b.hidden=false;b.textContent="Scouted by "+r.proposedBy;}else{b.hidden=true;b.textContent="";}}'
+    + 'var b=document.getElementById(rid+"-by");if(b){if(r.proposedBy){b.hidden=false;b.textContent=r.proposedBy;}else{b.hidden=true;b.textContent="";}}'
+    + 'var meta=document.getElementById(rid+"-meta");if(meta)meta.hidden=!(r.area||r.proposedBy);'
     + 'prEditCancel(rid);'
     + '}).withFailureHandler(function(){if(m){m.style.color="#b31b1b";m.textContent="Network hiccup. Try again.";}}).prUpdateProposal(pid,title,desc,area,name);}'
     + 'function prAdmin(rid,pid,dec){var msg=document.getElementById(rid+"-vmsg"),card=document.getElementById(rid);'

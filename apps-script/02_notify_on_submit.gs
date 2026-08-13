@@ -471,8 +471,8 @@ function portalStyles_() {
     + '@media(max-width:600px){.card-foot{flex-direction:column;align-items:stretch}.btn-row{width:100%;justify-content:stretch}.btn{flex:1;justify-content:center}.filters select{width:100%}.stat-val{font-size:24px}}';
 }
 
-function swissShell_(innerHtml, pageTitle, wide, embedded) {
-  const maxW = wide ? '960px' : '600px';
+function swissShell_(innerHtml, pageTitle, wide, embedded, maxWidth) {
+  const maxW = maxWidth || (wide ? '960px' : '600px');
   const pad = embedded ? '18px 18px 28px' : '40px 28px 64px';
   const topBar = embedded ? '' : '<div style="height:5px;background:linear-gradient(90deg,#8f1515,#b31b1b,#8f1515)"></div>';
   const enh = '<style>' + portalStyles_()

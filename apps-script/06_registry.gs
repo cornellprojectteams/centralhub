@@ -5,6 +5,17 @@
  * (in 02) routes straight into these functions with no import needed. Equipment and
  * Inventory run the same code, branched by regFields_(which).
  *
+ * SPEED. Sheet round-trips dominate here, so:
+ *  - Catalog and item pages paint a named loading shell first, then fetch
+ *    the body so the wait is never a blank white screen.
+ *  - Spreadsheet handle and tab rows are memoized per execution (REG_MEMO).
+ *  - Tab rows and the rendered card HTML are cached in CacheService (~5 min),
+ *    dropped on every write. A warm catalog load skips the spreadsheet.
+ *  - Admin row maps load after first paint so the grid is not blocked on JSON.
+ *  - Drive photos render as thumbnails (sz=w400), not full files.
+ *  - After the page paints, the client warms the other tab (Inventory <-> Equipment)
+ *    so the toggle is a cache hit instead of another cold read.
+ *
  * Reuses engine helpers that live in 02/04: swissShell_, portalStyles_, tpDashStyles_,
  * escapeHtml_, norm_, fmtShort_, phrase_, registrySs_, icTeamNames_, tpSaveUpload_,
  * tpViewUrl_, extractFileIds_. Any change here still needs a NEW deployment version.
@@ -247,6 +258,35 @@ function registryDashboardPage_(embedded) {
 var REG_CATEGORIES = ['Machine tools', 'Power & hand tools', 'Cutting tooling', 'Measurement & inspection', 'Electronics & test', '3D printing & prototyping', 'Materials', 'Fasteners & hardware', 'Abrasives', 'Adhesives & chemicals', 'Filters', 'PPE', 'First aid', 'Batteries', 'Facility & finishing', 'Other'];
 var REG_BATTERY_STATES = ['Charged', 'Storage', 'Needs charge', 'Retire'];
 
+var REG_MEMO = {};
+function regCacheSvc_() { try { return CacheService.getScriptCache(); } catch (e) { return null; } }
+function regSs_() {
+  if (REG_MEMO.ss) return REG_MEMO.ss;
+  REG_MEMO.ss = registrySs_();
+  return REG_MEMO.ss;
+}
+function regWebUrl_() {
+  if (REG_MEMO.url != null) return REG_MEMO.url;
+  var u = '';
+  try { u = ScriptApp.getService().getUrl(); } catch (e) { u = CONFIG.webAppUrl || ''; }
+  REG_MEMO.url = u;
+  return u;
+}
+function regInvalidate_() {
+  REG_MEMO = {};
+  var c = regCacheSvc_();
+  if (!c) return;
+  var keys = [];
+  ['reg_t_Inventory', 'reg_t_Equipment',
+    'reg_c3_inventory_1', 'reg_c3_inventory_0', 'reg_c3_equipment_1', 'reg_c3_equipment_0',
+    'reg_c3_inventory_1_m', 'reg_c3_inventory_0_m', 'reg_c3_equipment_1_m', 'reg_c3_equipment_0_m'
+  ].forEach(function (p) {
+    keys.push(p, p + '_n');
+    for (var i = 0; i < 6; i++) keys.push(p + '_' + i);
+  });
+  try { c.removeAll(keys); } catch (e) { /* cache is best-effort */ }
+}
+
 // Field spec drives the add/edit forms and identifies each tab's natural key.
 function regFields_(which) {
   if (String(which).toLowerCase() === 'inventory') {
@@ -272,17 +312,37 @@ function regFields_(which) {
 }
 
 function readTabRows_(name) {
-  const sh = registrySs_().getSheetByName(name);
+  var memoKey = 'tab_' + name;
+  if (REG_MEMO[memoKey]) return REG_MEMO[memoKey];
+  var ck = 'reg_t_' + name, hit = null;
+  try { hit = regCacheGet_(ck); } catch (e) { hit = null; }
+  if (hit) {
+    try {
+      var parsed = JSON.parse(hit);
+      REG_MEMO[memoKey] = parsed;
+      return parsed;
+    } catch (e) { /* fall through to a live read */ }
+  }
+  const sh = regSs_().getSheetByName(name);
   if (!sh) return { headers: [], rows: [] };
   const v = sh.getDataRange().getValues();
   if (!v.length) return { headers: [], rows: [] };
   const headers = v[0].map(function (h) { return String(h).trim(); });
   const rows = [];
   for (let i = 1; i < v.length; i++) {
-    if (v[i].every(function (c) { return String(c).trim() === ''; })) continue;
-    rows.push({ row: i + 1, cells: v[i] });
+    if (v[i].every(function (cell) { return String(cell).trim() === ''; })) continue;
+    rows.push({
+      row: i + 1,
+      cells: v[i].map(function (cell) {
+        if (cell instanceof Date) return Utilities.formatDate(cell, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+        return cell;
+      })
+    });
   }
-  return { headers: headers, rows: rows };
+  var out = { headers: headers, rows: rows };
+  REG_MEMO[memoKey] = out;
+  try { regCachePut_(ck, JSON.stringify(out), 300); } catch (e) { /* cache is best-effort */ }
+  return out;
 }
 
 function regRawVal_(v) {
@@ -291,10 +351,140 @@ function regRawVal_(v) {
   return String(v == null ? '' : v);
 }
 
+// Drive file -> thumbnail (fast). Only real Drive / googleusercontent URLs (or a bare
+// file id) are rewritten. Wikimedia / Amazon / product URLs must pass through as-is:
+// extractFileIds_ would otherwise treat a long filename as a Drive id and the <img>
+// would 404 (this is why Inventory photos vanished while Equipment still showed).
+function regDriveId_(img) {
+  var s = String(img || '').trim();
+  var im = /^\s*=?\s*IMAGE\s*\(\s*"([^"]+)"/i.exec(s);
+  if (im) s = im[1];
+  if (!s) return '';
+  var m = /drive\.google\.com\/file\/d\/([\w-]{25,44})/i.exec(s);
+  if (m) return m[1];
+  m = /lh3\.googleusercontent\.com\/d\/([\w-]{25,44})/i.exec(s);
+  if (m) return m[1];
+  m = /[?&]id=([\w-]{25,44})/.exec(s);
+  if (m && /(?:drive|docs)\.google\.com/i.test(s)) return m[1];
+  if (/^[\w-]{25,44}$/.test(s)) return s;
+  return '';
+}
+
+function regThumb_(img, sz) {
+  var s = String(img || '').trim();
+  if (!s) return '';
+  var im = /^\s*=?\s*IMAGE\s*\(\s*"([^"]+)"/i.exec(s);
+  if (im) s = im[1];
+  if (s.indexOf('data:') === 0) return s;
+  var id = regDriveId_(s);
+  if (id) return 'https://lh3.googleusercontent.com/d/' + encodeURIComponent(id) + '=w' + (sz || 400);
+  if (/^https?:\/\//i.test(s)) return s;
+  return '';
+}
+
+function regImgTag_(raw, sz, mono) {
+  var src = regThumb_(raw, sz);
+  if (!src) return '<span class="reg-card-mono" aria-hidden="true">' + escapeHtml_(mono) + '</span>';
+  var id = regDriveId_(raw);
+  var fb = id ? 'https://drive.google.com/uc?export=view&id=' + encodeURIComponent(id) : '';
+  if (fb && fb === src) fb = '';
+  return '<img class="reg-img" src="' + escapeHtml_(src) + '"'
+    + (fb ? ' data-fb="' + escapeHtml_(fb) + '"' : '')
+    + ' data-mono="' + escapeHtml_(mono) + '"'
+    + ' width="' + (sz || 400) + '" height="' + (sz || 400) + '" loading="lazy" decoding="async" alt="" referrerpolicy="no-referrer"'
+    + ' onload="this.classList.add(\'is-in\')" onerror="regImgFb(this)">';
+}
+
+function regMonogram_(name) {
+  var parts = String(name || '').trim().split(/\s+/).filter(function (p) { return p; });
+  var a = parts[0] ? parts[0].charAt(0) : '';
+  var b = parts[1] ? parts[1].charAt(0) : (parts[0] && parts[0].length > 1 ? parts[0].charAt(1) : '');
+  return (a + b).toUpperCase() || '·';
+}
+
+function regKeepHeaders_(spec) {
+  const keepH = {};
+  spec.fields.forEach(function (f) { keepH[f.h] = 1; });
+  ['On hand', 'Reorder point', 'Checked out to', 'Due back', 'Out since', spec.key].forEach(function (h) { keepH[h] = 1; });
+  return keepH;
+}
+
+function regSlimMap_(spec) {
+  const data = readTabRows_(spec.tab);
+  const H = data.headers, rows = data.rows;
+  const idx = function (n) { for (let i = 0; i < H.length; i++) { if (norm_(H[i]) === norm_(n)) return i; } return -1; };
+  const keepH = regKeepHeaders_(spec);
+  const mapParts = [];
+  rows.forEach(function (rr) {
+    const r = rr.cells, obj = {};
+    Object.keys(keepH).forEach(function (h) {
+      var i = idx(h);
+      obj[h] = i >= 0 ? regRawVal_(r[i]) : '';
+    });
+    mapParts.push(JSON.stringify(String(rr.row)) + ':' + JSON.stringify(obj));
+  });
+  return '{' + mapParts.join(',') + '}';
+}
+
+function regCacheGet_(key) {
+  var c = regCacheSvc_();
+  if (!c) return null;
+  try {
+    var nRaw = c.get(key + '_n');
+    if (nRaw) {
+      var n = parseInt(nRaw, 10);
+      if (!(n > 0 && n <= 6)) return null;
+      var keys = [];
+      for (var i = 0; i < n; i++) keys.push(key + '_' + i);
+      var bag = c.getAll(keys) || {};
+      var parts = [];
+      for (var i = 0; i < n; i++) {
+        if (bag[keys[i]] == null) return null;
+        parts.push(bag[keys[i]]);
+      }
+      return parts.join('');
+    }
+    return c.get(key);
+  } catch (e) { return null; }
+}
+
+function regCachePut_(key, value, sec) {
+  var c = regCacheSvc_();
+  if (!c || value == null) return;
+  sec = sec || 300;
+  var CHUNK = 85000;
+  try {
+    if (value.length < CHUNK) {
+      c.put(key, value, sec);
+      try { c.remove(key + '_n'); } catch (e2) { /* ok */ }
+      return;
+    }
+    var n = Math.ceil(value.length / CHUNK);
+    if (n > 6) return;
+    c.put(key + '_n', String(n), sec);
+    for (var i = 0; i < n; i++) {
+      c.put(key + '_' + i, value.substring(i * CHUNK, (i + 1) * CHUNK), sec);
+    }
+  } catch (e) { /* cache is best-effort */ }
+}
+
 // Build the product cards + a {rowNumber: {header: value}} map, reused by the page and refreshes.
 function regBuildCards_(which, admin) {
   const spec = regFields_(which);
+  admin = !!admin;
   const inv = spec.tab === 'Inventory';
+  var ck = 'reg_c3_' + spec.which + '_' + (admin ? '1' : '0');
+  var hit = regCacheGet_(ck), mapHit = admin ? regCacheGet_(ck + '_m') : null;
+  if (hit) {
+    try {
+      var cached = JSON.parse(hit);
+      if (cached && cached.html != null) {
+        cached.mapJson = admin ? (mapHit || regSlimMap_(spec)) : '{}';
+        return cached;
+      }
+    } catch (e) { /* rebuild */ }
+  }
+
   const data = readTabRows_(spec.tab);
   const H = data.headers, rows = data.rows;
   const idx = function (n) { for (let i = 0; i < H.length; i++) { if (norm_(H[i]) === norm_(n)) return i; } return -1; };
@@ -302,29 +492,38 @@ function regBuildCards_(which, admin) {
     cOn = idx('On hand'), cRe = idx('Reorder point'), cUnit = idx('Unit'), cLoc = idx('Location'),
     cSup = idx('Supplier'), cCat = idx('Category'), cStatus = idx('Status'), cCoTo = idx('Checked out to'), cDue = idx('Due back');
   const today = new Date(); today.setHours(0, 0, 0, 0);
-  let base = ''; try { base = ScriptApp.getService().getUrl(); } catch (e) { base = ''; }
+  const base = regWebUrl_();
   let html = ''; const mapParts = [], owners = {}, cats = {};
+  var nOut = 0, nLow = 0, nCo = 0, nOver = 0;
+
+  const keepH = {};
+  spec.fields.forEach(function (f) { keepH[f.h] = 1; });
+  ['On hand', 'Reorder point', 'Checked out to', 'Due back', 'Out since', spec.key].forEach(function (h) { keepH[h] = 1; });
+
   rows.forEach(function (rr) {
     const r = rr.cells;
     const name = cName >= 0 ? String(r[cName]).trim() : '';
     const key = cKey >= 0 ? String(r[cKey]).trim() : '';
     const owner = cTeam >= 0 ? String(r[cTeam]).trim() : ''; if (owner) owners[owner] = 1;
     const cat = cCat >= 0 ? String(r[cCat]).trim() : ''; if (cat) cats[cat] = 1;
-    const hay = r.map(function (c) { return String(c); }).join(' ').toLowerCase();
-    const img = cImg >= 0 ? String(r[cImg]).trim() : '';
-    const imgHtml = (/^https?:\/\//i.test(img) || img.indexOf('data:') === 0)
-      ? '<img src="' + escapeHtml_(img) + '" loading="lazy" alt="" onerror="this.remove()">'
-      : '<span class="reg-card-noimg">No photo</span>';
-    let primary = '', chip = '', coState = '', stockState = '', stepper = '';
+    const loc = cLoc >= 0 ? String(r[cLoc]).trim() : '';
+    const hay = [name, cat, owner, loc, key, inv && cSup >= 0 ? String(r[cSup]).trim() : ''].join(' ').toLowerCase();
+    const imgHtml = regImgTag_(cImg >= 0 ? r[cImg] : '', 400, regMonogram_(name));
+    let primary = '', chip = '', coState = '', stockState = '', stepper = '', stockBadge = '';
+    var unit = '', reVal = '';
     if (inv) {
       const on = cOn >= 0 && isNum_(r[cOn]) ? Number(r[cOn]) : null;
       const re = cRe >= 0 && isNum_(r[cRe]) ? Number(r[cRe]) : 0;
-      const unit = cUnit >= 0 ? String(r[cUnit]).trim() : '';
-      if (on !== null) primary = '<span class="reg-card-num">' + on + '</span><span class="reg-card-num-sub">' + escapeHtml_((unit ? unit + ' ' : '') + 'on hand') + '</span>';
+      unit = cUnit >= 0 ? String(r[cUnit]).trim() : '';
+      reVal = re ? String(re) : '';
+      if (on !== null) {
+        primary = '<span class="reg-card-num">' + on + '</span><span class="reg-card-num-sub">' + escapeHtml_((unit ? unit + ' ' : '') + 'on hand') + '</span>';
+        stockBadge = '<span class="reg-card-qty">' + on + (unit ? ' ' + escapeHtml_(unit) : '') + '</span>';
+      }
       stockState = (on !== null && on <= 0) ? 'out' : ((on !== null && re > 0 && on > 0 && on <= re) ? 'low' : '');
+      if (stockState === 'out') nOut++;
+      else if (stockState === 'low') nLow++;
       chip = stockState === 'out' ? '<span class="reg-chip">Out of stock</span>' : (stockState === 'low' ? '<span class="reg-chip reg-chip-low">Low stock</span>' : '');
-      // Admins adjust stock inline on the card (auto-saves), so the number lives in the
-      // stepper instead of a static line - no need to open the item just to count.
       if (admin && on !== null) {
         stepper = '<div class="reg-count">'
           + '<button type="button" class="reg-cbtn" onclick="regQadj(' + rr.row + ',this,-1)" aria-label="Decrease">−</button>'
@@ -336,30 +535,45 @@ function regBuildCards_(which, admin) {
     } else {
       const outTo = cCoTo >= 0 ? String(r[cCoTo]).trim() : '';
       let overdue = false;
-      if (outTo && cDue >= 0 && String(r[cDue]).trim()) { const d = r[cDue] instanceof Date ? new Date(r[cDue]) : new Date(r[cDue]); if (!isNaN(d.getTime())) { d.setHours(0, 0, 0, 0); overdue = d < today; } }
-      if (overdue) { chip = '<span class="reg-chip">Overdue</span>'; coState = 'overdue'; }
-      else if (outTo) { chip = '<span class="reg-chip reg-chip-low">Checked out</span>'; coState = 'out'; }
+      if (outTo && cDue >= 0 && String(r[cDue]).trim()) { const d = new Date(r[cDue]); if (!isNaN(d.getTime())) { d.setHours(0, 0, 0, 0); overdue = d < today; } }
+      if (overdue) { chip = '<span class="reg-chip">Overdue</span>'; coState = 'overdue'; nOver++; nCo++; }
+      else if (outTo) { chip = '<span class="reg-chip reg-chip-low">Checked out</span>'; coState = 'out'; nCo++; }
       else { const st = cStatus >= 0 ? String(r[cStatus]).trim() : ''; chip = st && /down|out of service|repair|broken/i.test(st) ? '<span class="reg-chip">' + escapeHtml_(st) + '</span>' : ''; }
     }
     const tag = cat ? '<div class="reg-card-tag">' + escapeHtml_(cat) + '</div>' : '';
     const metaBits = [];
-    if (cLoc >= 0 && String(r[cLoc]).trim()) metaBits.push(String(r[cLoc]).trim());
+    if (loc) metaBits.push(loc);
     if (owner) metaBits.push(owner);
     if (inv && cSup >= 0 && String(r[cSup]).trim()) metaBits.push(String(r[cSup]).trim());
     const meta = metaBits.length ? '<div class="reg-card-meta">' + escapeHtml_(metaBits.join(' · ')) + '</div>' : '';
     const href = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'registry=item&which=' + spec.which + '&id=' + encodeURIComponent(key) + (admin ? '&admin=1' : '');
-    html += '<div class="reg-card reg-row" data-hay="' + escapeHtml_(hay) + '" data-cat="' + escapeHtml_(cat) + '" data-owner="' + escapeHtml_(owner) + '" data-co="' + coState + '" data-stock="' + stockState + '">'
-      + '<a class="reg-card-link" href="' + escapeHtml_(href) + '"><div class="reg-card-img">' + imgHtml
+    html += '<div class="reg-card reg-row" data-hay="' + escapeHtml_(hay) + '" data-cat="' + escapeHtml_(cat) + '" data-owner="' + escapeHtml_(owner) + '" data-co="' + coState + '" data-stock="' + stockState + '" data-key="' + escapeHtml_(key) + '" data-rp="' + escapeHtml_(reVal) + '" data-unit="' + escapeHtml_(unit) + '">'
+      + '<a class="reg-card-link" href="' + escapeHtml_(href) + '" title="Open ' + escapeHtml_(name || 'item') + '" onclick="return regGoItem(event,this)"><div class="reg-card-img">' + imgHtml
+      + (stockBadge ? stockBadge : '')
       + '<span class="reg-card-go" aria-hidden="true"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></span></div>'
       + '<div class="reg-card-b"><div class="reg-card-title">' + escapeHtml_(name || '(unnamed)') + '</div>' + tag
       + (primary ? '<div class="reg-card-primary">' + primary + '</div>' : '') + (chip || '') + meta + '</div></a>'
       + stepper
       + (admin ? '<div class="reg-card-act"><button type="button" class="reg-iconbtn" title="Edit" onclick="regOpenEdit(' + rr.row + ')">Edit</button><button type="button" class="reg-iconbtn reg-del" title="Delete" onclick="regDeleteRow(' + rr.row + ',this)">Delete</button></div>' : '')
       + '</div>';
-    const obj = {}; H.forEach(function (h, i) { obj[h] = regRawVal_(r[i]); });
+    const obj = {};
+    Object.keys(keepH).forEach(function (h) {
+      var i = idx(h);
+      obj[h] = i >= 0 ? regRawVal_(r[i]) : '';
+    });
     mapParts.push(JSON.stringify(String(rr.row)) + ':' + JSON.stringify(obj));
   });
-  return { html: html, mapJson: '{' + mapParts.join(',') + '}', owners: Object.keys(owners).sort(), cats: Object.keys(cats).sort(), key: spec.key };
+
+  var mapJson = '{' + mapParts.join(',') + '}';
+  var out = {
+    html: html,
+    owners: Object.keys(owners).sort(), cats: Object.keys(cats).sort(),
+    key: spec.key, count: rows.length, nOut: nOut, nLow: nLow, nCo: nCo, nOver: nOver
+  };
+  regCachePut_(ck, JSON.stringify(out), 300);
+  if (admin) regCachePut_(ck + '_m', mapJson, 300);
+  out.mapJson = mapJson;
+  return out;
 }
 
 // Client-callable: re-render the cards after a change (no page reload, which blanks the sandbox).
@@ -368,23 +582,37 @@ function regRowsHtml(which) {
   return { ok: true, html: b.html, mapJson: b.mapJson };
 }
 
+function regRowsMap(which) {
+  return regBuildCards_(which, true).mapJson || '{}';
+}
+
 function registryPage_(which, embedded, admin) {
   const spec = regFields_(which);
   const title = spec.tab === 'Inventory' ? 'Inventory' : 'Equipment registry';
-  const b = regBuildCards_(which, admin);
+  const inv = spec.tab === 'Inventory';
+  const regBase = regWebUrl_();
+  const other = spec.which === 'inventory' ? 'equipment' : 'inventory';
+  const waitT = inv ? 'Loading the shop catalog…' : 'Loading equipment…';
+  const waitH = inv ? 'Fetching items and stock counts' : 'Fetching equipment records';
 
-  let regBase = ''; try { regBase = ScriptApp.getService().getUrl(); } catch (e) { regBase = CONFIG.webAppUrl || ''; }
-  let inner = '<div id="reg-root"><div id="reg-swap">' + regBodyMarkup_(which, b, admin, embedded) + '</div>'
-    + regStyles_() + regFilterJs_() + regSwitchJs_();
-  if (admin) {
-    inner += '<script>var REG_WHICH=' + JSON.stringify(spec.which) + ';var REG_ADMIN=true;var REG_BASE=' + JSON.stringify(regBase) + ';var REG_KEY=' + JSON.stringify(b.key)
-      + ';var REG_ROWS=' + b.mapJson.replace(/<\//g, '<\\/') + ';</script>'
-      + regEditJs_();
-  } else {
-    inner += '<script>var REG_WHICH=' + JSON.stringify(spec.which) + ';var REG_ADMIN=false;var REG_BASE=' + JSON.stringify(regBase) + ';</script>';
-  }
-  inner += '</div>';
-  return swissShell_(inner, title, true, embedded);
+  let inner = '<div id="reg-root" class="reg-page">'
+    + regWaitHtml_(waitT, waitH, true)
+    + '<div id="reg-swap"></div>'
+    + '<div class="reg-slide" id="reg-slide" hidden><div class="reg-slide-bd" onclick="regBack(event)"></div>'
+    + '<div class="reg-slide-dialog" id="reg-itempane" role="dialog" aria-modal="true" aria-label="Item"></div></div>'
+    + regStyles_() + regWaitJs_() + regFilterJs_() + regSwitchJs_()
+    + '<script>var REG_WHICH=' + JSON.stringify(spec.which) + ';var REG_ADMIN=' + (admin ? 'true' : 'false')
+    + ';var REG_EMBED=' + (embedded ? 'true' : 'false')
+    + ';var REG_BASE=' + JSON.stringify(regBase) + ';var REG_KEY="";var REG_ROWS={};var REG_SAVED="";</script>';
+  if (admin) inner += regEditJs_();
+  inner += '<script>regBoot(' + JSON.stringify(spec.which) + ',' + JSON.stringify(other) + ');</script></div>';
+  return swissShell_(inner, title, true, embedded, '1120px');
+}
+
+// Pre-build the other catalog tab into CacheService so Inventory <-> Equipment is instant.
+function regWarm(which, admin) {
+  try { regBuildCards_(which, !!admin); } catch (e) { /* warm is best-effort */ }
+  return { ok: true };
 }
 
 // The swappable body of the registry page - everything the Inventory/Equipment toggle
@@ -395,13 +623,25 @@ function registryPage_(which, embedded, admin) {
 function regBodyMarkup_(which, b, admin, embedded) {
   const spec = regFields_(which);
   const inv = spec.tab === 'Inventory';
-  const title = inv ? 'Inventory' : 'Equipment registry';
-  let base = ''; try { base = ScriptApp.getService().getUrl(); } catch (e) { base = CONFIG.webAppUrl || ''; }
+  const title = inv ? 'Inventory' : 'Equipment';
+  const base = regWebUrl_();
+  const n = b.count || 0;
+  const stats = inv
+    ? (n + ' item' + (n === 1 ? '' : 's')
+      + (b.nLow ? ' · <b class="reg-stat-low">' + b.nLow + ' low</b>' : '')
+      + (b.nOut ? ' · <b class="reg-stat-out">' + b.nOut + ' out</b>' : ''))
+    : (n + ' item' + (n === 1 ? '' : 's')
+      + (b.nCo ? ' · ' + b.nCo + ' out' : '')
+      + (b.nOver ? ' · <b class="reg-stat-out">' + b.nOver + ' overdue</b>' : ''));
 
   let head = '';
   if (!embedded) {
-    head = '<div class="page-head"><div class="page-kicker">Ops registry</div>'
-      + '<div class="page-title">' + escapeHtml_(title) + '</div><div class="page-rule"></div></div>';
+    head = '<div class="page-head"><div class="page-kicker">' + (inv ? 'Shop catalog' : 'Equipment registry') + '</div>'
+      + '<div class="reg-head-row"><div class="page-title">' + escapeHtml_(title) + '</div>'
+      + '<div class="reg-head-stat" id="reg-count" data-base="' + escapeHtml_(stats) + '">' + stats + '</div></div>'
+      + '<div class="page-rule"></div></div>';
+  } else {
+    head = '<div class="reg-head-row" style="margin-bottom:4px"><div class="reg-head-stat" id="reg-count" data-base="' + escapeHtml_(stats) + '">' + stats + '</div></div>';
   }
 
   const toggle = '<div class="reg-toggle">'
@@ -420,11 +660,9 @@ function regBodyMarkup_(which, b, admin, embedded) {
   }
 
   let controls = '';
-  // Category filter shows the full canonical list (same as the add/edit form), plus any
-  // stray legacy values; 'Other' last.
   const catList = [], catSeen = {};
-  const pushCat = function (c) { if (c && !catSeen[c]) { catSeen[c] = 1; catList.push(c); } };
-  REG_CATEGORIES.forEach(function (c) { if (c !== 'Other') pushCat(c); });
+  const pushCat = function (cat) { if (cat && !catSeen[cat]) { catSeen[cat] = 1; catList.push(cat); } };
+  REG_CATEGORIES.forEach(function (cat) { if (cat !== 'Other') pushCat(cat); });
   b.cats.forEach(pushCat);
   if (REG_CATEGORIES.indexOf('Other') >= 0) pushCat('Other');
   controls += '<select id="cat" onchange="flt()"><option value="">All categories</option>'
@@ -438,42 +676,63 @@ function regBodyMarkup_(which, b, admin, embedded) {
     ? '<div class="reg-chips"><button type="button" class="reg-fchip" data-f="stock" onclick="regChip(this)">Low or out</button></div>'
     : '<div class="reg-chips"><button type="button" class="reg-fchip" data-f="out" onclick="regChip(this)">Checked out</button><button type="button" class="reg-fchip" data-f="overdue" onclick="regChip(this)">Overdue</button></div>';
 
-  let out = head + toggle + toolbar
-    + '<div class="filters"><div class="search-wrap"><input id="q" type="search" placeholder="Search ' + escapeHtml_(spec.tab.toLowerCase()) + '" oninput="flt()"></div>' + controls + '</div>'
-    + chipsHtml
+  let out = head + '<div class="reg-toolbar">' + toggle + toolbar + '</div>'
+    + '<div class="reg-bar"><div class="filters"><div class="search-wrap"><input id="q" type="search" placeholder="Search name, location, or team" oninput="flt()" autocomplete="off"></div>' + controls + '</div>'
+    + chipsHtml + '</div>'
     + '<div class="reg-grid" id="reg-cards">' + b.html + '</div>'
-    + '<div id="empty" class="empty" style="display:none">Nothing matches those filters.</div>';
+    + '<div id="empty" class="empty reg-empty" style="display:none"><div class="reg-empty-title">No matching items</div>Try a different search, or clear the filters.</div>';
   if (!b.html) out += '<div class="empty">Nothing here yet.' + (admin ? ' Add the first ' + escapeHtml_(spec.noun) + '.' : '') + '</div>';
   if (admin) out += regFormOverlay_(which);
   return out;
 }
 
 // Client-callable: fresh body markup + row data for the other tab (drives the in-place toggle).
-function regSwitchHtml(which, admin) {
+function regSwitchHtml(which, admin, embedded) {
   const spec = regFields_(which);
   const b = regBuildCards_(which, !!admin);
-  return { ok: true, html: regBodyMarkup_(which, b, !!admin, false), which: spec.which, key: b.key, rowsJson: admin ? b.mapJson : '{}' };
+  return { ok: true, html: regBodyMarkup_(which, b, !!admin, !!embedded), which: spec.which, key: b.key, rowsJson: admin ? b.mapJson : '{}' };
 }
 
 // The in-place Inventory/Equipment toggle: swap the body via google.script.run instead
-// of navigating, and dim + spin while it loads.
+// of navigating. Named wait copy so a slow fetch never looks like a freeze.
 function regSwitchJs_() {
   return '<script>'
-    + 'function regSwitch(which){if(typeof REG_WHICH!=="undefined"&&which===REG_WHICH)return;var sw=document.getElementById("reg-swap");if(sw)sw.classList.add("reg-loading");var ad=(typeof REG_ADMIN!=="undefined"&&REG_ADMIN);'
-    + 'google.script.run.withSuccessHandler(function(r){if(sw)sw.classList.remove("reg-loading");if(!r||!r.ok)return;'
-    + 'sw.innerHTML=r.html;REG_WHICH=r.which;if(ad){REG_KEY=r.key;try{REG_ROWS=JSON.parse(r.rowsJson);}catch(e){REG_ROWS={};}}'
-    + 'if(typeof REG_FILTER!=="undefined")REG_FILTER="";if(typeof flt==="function")flt();})'
-    + '.withFailureHandler(function(){if(sw)sw.classList.remove("reg-loading");}).regSwitchHtml(which, ad);}'
+    + 'function regFillBody(r){var sw=document.getElementById("reg-swap");if(!sw||!r||!r.ok)return false;'
+    + 'sw.innerHTML=r.html;REG_WHICH=r.which;if(typeof REG_ADMIN!=="undefined"&&REG_ADMIN){REG_KEY=r.key;try{REG_ROWS=JSON.parse(r.rowsJson);}catch(e){REG_ROWS={};}}'
+    + 'if(typeof REG_FILTER!=="undefined")REG_FILTER="";if(typeof flt==="function")flt();return true;}'
+    + 'function regBoot(which,other){var ad=!!(typeof REG_ADMIN!=="undefined"&&REG_ADMIN);var em=!!(typeof REG_EMBED!=="undefined"&&REG_EMBED);'
+    + 'regWait(true,which==="inventory"?"Loading the shop catalog\\u2026":"Loading equipment\\u2026",which==="inventory"?"Fetching items and stock counts":"Fetching equipment records");'
+    + 'google.script.run.withSuccessHandler(function(r){if(!regFillBody(r)){regWaitSay("Could not load","Refresh the page and try again.");return;}'
+    + 'regWait(false);try{if(other)google.script.run.regWarm(other,ad);}catch(e){}})'
+    + '.withFailureHandler(function(){regWaitSay("Could not load","Refresh the page and try again.");}).regSwitchHtml(which,ad,em);}'
+    + 'function regSwitch(which){if(typeof REG_WHICH!=="undefined"&&which===REG_WHICH)return;'
+    + 'var inv=which==="inventory";regWait(true,inv?"Loading inventory\\u2026":"Loading equipment\\u2026",inv?"Fetching the shop catalog":"Fetching equipment records");'
+    + 'var ad=!!(typeof REG_ADMIN!=="undefined"&&REG_ADMIN);var em=!!(typeof REG_EMBED!=="undefined"&&REG_EMBED);'
+    + 'google.script.run.withSuccessHandler(function(r){if(!regFillBody(r)){regWait(false);return;}regWait(false);})'
+    + '.withFailureHandler(function(){regWait(false);alert("Could not switch catalogs. Try again.");}).regSwitchHtml(which,ad,em);}'
+    + 'function regGoItem(ev,a){if(!ev||ev.metaKey||ev.ctrlKey||ev.shiftKey||ev.altKey||(ev.button&&ev.button!==0))return true;'
+    + 'ev.preventDefault();var card=a.closest?a.closest(".reg-card"):null;var key=card?card.getAttribute("data-key"):"";'
+    + 'var titleEl=card?card.querySelector(".reg-card-title"):null;var name=titleEl?titleEl.textContent:"item";'
+    + 'var slide=document.getElementById("reg-slide");var pane=document.getElementById("reg-itempane");'
+    + 'var ad=!!(typeof REG_ADMIN!=="undefined"&&REG_ADMIN);var req=++REG_ITEM_REQ;'
+    + 'if(slide&&pane){pane.innerHTML=\'<div class="reg-slide-load"><span class="reg-wait-spin" aria-hidden="true"></span><p class="reg-wait-t"></p><p class="reg-wait-h">Fetching the catalog record</p></div>\';'
+    + 'var t=pane.querySelector(".reg-wait-t");if(t)t.textContent="Opening "+name;regOpenSlide();}'
+    + 'else{regWait(true,"Opening "+name,"Fetching the catalog record");}'
+    + 'google.script.run.withSuccessHandler(function(r){if(req!==REG_ITEM_REQ)return;'
+    + 'if(!r||!r.html){if(slide)regCloseItem();else regWait(false);alert((r&&r.error)||"Could not open that item.");return;}'
+    + 'if(pane&&slide){pane.innerHTML=r.html;}else{var sw=document.getElementById("reg-swap");REG_SAVED=sw.innerHTML;sw.innerHTML=r.html;}'
+    + 'REG_ITEM=1;if(r.ok&&r.row!=null&&r.vals)REG_ROWS[String(r.row)]=r.vals;if(r.key)REG_KEY=r.key;'
+    + 'try{window.scrollTo(0,0);}catch(e){}regWait(false);})'
+    + '.withFailureHandler(function(){if(req!==REG_ITEM_REQ)return;regWait(false);if(slide)regCloseItem();try{location.href=a.href;}catch(e){}}).regItemHtml(REG_WHICH,key,ad);return false;}'
     + '</script>';
 }
 
-// Single-item view: the QR-label scan target. Focused card with quick actions.
-function regItemPage_(which, id, admin) {
+// Single-item view: product page. Client-callable so the catalog can open an item
+// in place (named wait, no white flash) and so a QR/deep link can paint a shell first.
+function regItemHtml(which, id, admin) {
   const spec = regFields_(which);
   const inv = spec.tab === 'Inventory';
-  // Absolute URL for the "Back" links (relative ones break in the sandbox iframe).
-  let regBase = '';
-  try { regBase = ScriptApp.getService().getUrl(); } catch (e) { regBase = CONFIG.webAppUrl || ''; }
+  let regBase = regWebUrl_();
   const backHref = regBase + (regBase.indexOf('?') >= 0 ? '&' : '?') + 'registry=' + spec.which + (admin ? '&admin=1' : '');
   const data = readTabRows_(spec.tab);
   const H = data.headers;
@@ -481,22 +740,21 @@ function regItemPage_(which, id, admin) {
   let found = null;
   data.rows.forEach(function (rr) { if (ki >= 0 && String(rr.cells[ki]).trim() === String(id).trim()) found = rr; });
 
-  const head = '<div class="page-head"><div class="page-kicker">' + (inv ? 'Inventory item' : 'Equipment') + '</div>';
+  const back = '<a class="reg-back" href="' + escapeHtml_(backHref) + '" target="_top" rel="noopener" onclick="return regBack(event,this)"><span aria-hidden="true">&#8592;</span> Back to ' + escapeHtml_(spec.tab.toLowerCase()) + '</a>';
+
   if (!found) {
-    return swissShell_('<div id="reg-root">' + head + '<div class="page-title">Not found</div><div class="page-rule"></div></div>'
-      + '<div class="empty">No ' + escapeHtml_(spec.noun) + ' matches "' + escapeHtml_(id) + '".</div>'
-      + '<p style="margin-top:16px"><a class="btn btn-ghost" href="' + escapeHtml_(backHref) + '">Back to ' + escapeHtml_(spec.tab.toLowerCase()) + '</a></p></div>', 'Not found', false, false);
+    return { ok: false, error: 'Not found', html: '<div class="reg-item">' + back
+      + '<div class="page-title" style="margin-top:18px">Not found</div>'
+      + '<p class="reg-detail-sub">No ' + escapeHtml_(spec.noun) + ' matches "' + escapeHtml_(id) + '".</p></div>' };
   }
+
   const r = found.cells;
   const hi = function (n) { return H.map(function (h) { return norm_(h); }).indexOf(norm_(n)); };
-  const nameI = hi(inv ? 'Item' : 'Name'), imgI = hi('Image');
-  const name = nameI >= 0 ? String(r[nameI]) : String(id);
-
-  const imgUrl = imgI >= 0 ? String(r[imgI]).trim() : '';
-  const hasImg = /^https?:\/\//i.test(imgUrl) || imgUrl.indexOf('data:') === 0;
-  const media = '<div class="reg-detail-media">' + (hasImg
-    ? '<img src="' + escapeHtml_(imgUrl) + '" alt="" onerror="this.parentNode.innerHTML=\'<span class=&quot;reg-card-noimg&quot;>No photo</span>\'">'
-    : '<span class="reg-card-noimg">No photo</span>') + '</div>';
+  const val = function (n) { var i = hi(n); return i >= 0 ? r[i] : ''; };
+  const txt = function (n) { return String(val(n) == null ? '' : val(n)).trim(); };
+  const name = txt(inv ? 'Item' : 'Name') || String(id);
+  const cat = txt('Category'), loc = txt('Location'), owner = txt('Owning team');
+  const imgRaw = val('Image');
 
   const toi = hi('Checked out to'), osi = hi('Out since'), dbi = hi('Due back'), oni = hi('On hand');
   const outTo = toi >= 0 ? String(r[toi]).trim() : '';
@@ -508,34 +766,87 @@ function regItemPage_(which, id, admin) {
     const t = new Date(); t.setHours(0, 0, 0, 0); d.setHours(0, 0, 0, 0); return d < t;
   })();
 
-  const skip = {}; skip[imgI] = 1; skip[nameI] = 1;
-  if (!inv) { [toi, osi, dbi].forEach(function (x) { if (x >= 0) skip[x] = 1; }); }
-  if (inv && oni >= 0) skip[oni] = 1;   // On hand is shown as the count stepper, not a duplicate row
-  let fieldsHtml = '';
-  H.forEach(function (h, i) {
-    if (skip[i] || !String(r[i]).trim()) return;
-    fieldsHtml += '<div class="reg-detail-kv"><span class="reg-detail-l">' + escapeHtml_(h) + '</span><span class="reg-detail-v">' + regCell_(r[i]) + '</span></div>';
-  });
+  const on = oni >= 0 && isNum_(r[oni]) ? Number(r[oni]) : null;
+  const re = hi('Reorder point') >= 0 && isNum_(val('Reorder point')) ? Number(val('Reorder point')) : 0;
+  const unit = txt('Unit');
+  const stockState = (on !== null && on <= 0) ? 'out' : ((on !== null && re > 0 && on > 0 && on <= re) ? 'low' : '');
+  const stockChip = stockState === 'out' ? '<span class="reg-chip">Out of stock</span>'
+    : (stockState === 'low' ? '<span class="reg-chip reg-chip-low">Low stock</span>' : '');
+
+  const media = '<div class="reg-detail-media">' + (regThumb_(imgRaw, 800)
+    ? regImgTag_(imgRaw, 800, regMonogram_(name))
+    : '<span class="reg-card-mono">' + escapeHtml_(regMonogram_(name)) + '</span>') + '</div>';
+
+  const subBits = [];
+  if (cat) subBits.push(escapeHtml_(cat));
+  if (loc) subBits.push(escapeHtml_(loc));
+  if (owner) subBits.push(escapeHtml_(owner));
+  const sub = subBits.length ? '<div class="reg-detail-sub">' + subBits.join('<span class="reg-dotsep" aria-hidden="true"></span>') + '</div>' : '';
+
+  let stock = '';
+  if (inv && on !== null) {
+    stock = '<div class="reg-stock' + (stockState ? ' is-' + stockState : '') + '">'
+      + '<span class="reg-stock-n">' + on + '</span>'
+      + '<span class="reg-stock-u">' + escapeHtml_((unit ? unit + ' ' : '') + 'on hand') + '</span>'
+      + stockChip + '</div>'
+      + (re > 0 ? '<div class="reg-stock-re">Reorder at ' + re + '</div>' : '');
+  }
 
   let panel = '';
   if (!inv) {
     if (outTo) {
-      const sub = (osi >= 0 && String(r[osi]).trim() ? 'out since ' + regCell_(r[osi]) : '') + (dueTxt ? (osi >= 0 && String(r[osi]).trim() ? ' · ' : '') + 'due ' + dueTxt : '');
+      const when = (osi >= 0 && String(r[osi]).trim() ? 'out since ' + regCell_(r[osi]) : '') + (dueTxt ? (osi >= 0 && String(r[osi]).trim() ? ' · ' : '') + 'due ' + dueTxt : '');
       panel = '<div class="reg-co' + (overdue ? ' is-over' : '') + '"><div class="reg-co-h">' + (overdue ? 'Overdue' : 'Checked out') + '</div>'
         + '<div class="reg-co-who">' + escapeHtml_(outTo) + '</div>'
-        + (sub ? '<div class="reg-co-sub">' + sub + '</div>' : '')
+        + (when ? '<div class="reg-co-sub">' + when + '</div>' : '')
         + (admin ? '<button type="button" class="btn btn-confirm" onclick="regReturnOne(' + found.row + ',this)">Mark returned</button>' : '') + '</div>';
     } else if (admin) {
       panel = '<div class="reg-co"><div class="reg-co-h">Check out</div>'
         + '<div class="reg-co-form"><input id="co-person" placeholder="Who is taking it?"><input id="co-due" type="date" title="Due back"><button type="button" class="btn btn-primary" onclick="regCheckoutOne(' + found.row + ',this)">Check out</button></div></div>';
     }
-  } else if (admin && oni >= 0) {
-    const onNow = isNum_(r[oni]) ? Number(r[oni]) : 0;
-    panel = '<div class="reg-co"><div class="reg-co-h">Count on hand</div>'
-      + '<div class="reg-step"><button type="button" class="reg-stepbtn" onclick="regStep(-1)">&minus;</button>'
-      + '<input id="co-count" type="number" inputmode="numeric" value="' + onNow + '">'
-      + '<button type="button" class="reg-stepbtn" onclick="regStep(1)">+</button>'
-      + '<button type="button" class="btn btn-confirm" onclick="regCountSave(' + found.row + ',this)">Save count</button></div></div>';
+  } else if (admin && on !== null) {
+    panel = '<div class="reg-co reg-co-count"><div class="reg-co-h">Update count</div>'
+      + '<div class="reg-step"><button type="button" class="reg-stepbtn" onclick="regStep(-1)" aria-label="Decrease">&minus;</button>'
+      + '<input id="co-count" type="number" inputmode="numeric" value="' + on + '" aria-label="On hand">'
+      + '<button type="button" class="reg-stepbtn" onclick="regStep(1)" aria-label="Increase">+</button>'
+      + '<button type="button" class="btn btn-confirm" onclick="regCountSave(' + found.row + ',this)">Save</button></div></div>';
+  }
+
+  const nice = { 'Owning team': 'Owner', 'Product link': 'Product', 'eShop info': 'eShop', 'Asset ID': 'ID' };
+  const skip = { Image: 1, Item: 1, Name: 1, Category: 1, Location: 1, 'Owning team': 1 };
+  if (inv) { skip['On hand'] = 1; skip['Unit'] = 1; if (re > 0) skip['Reorder point'] = 1; }
+  if (!inv) { skip['Checked out to'] = 1; skip['Out since'] = 1; skip['Due back'] = 1; }
+
+  const primaryNames = inv
+    ? ['Supplier', 'Product link']
+    : ['Status', 'Asset ID'];
+  const moreNames = inv
+    ? ['Reorder point', 'Reorder qty', 'eShop info', 'Assign to', 'Last restocked', 'Last counted', 'Battery state', 'Battery spec']
+    : ['Owner', 'Installed', 'Notes'];
+
+  const kv = function (h) {
+    var i = hi(h);
+    if (i < 0 || skip[h] || !String(r[i]).trim()) return '';
+    var raw = String(r[i]).trim();
+    var body = (h === 'Product link' && /^https?:\/\//i.test(raw))
+      ? '<a class="reg-ext" href="' + escapeHtml_(raw) + '" target="_blank" rel="noopener">Open product page</a>'
+      : regCell_(r[i]);
+    return '<div class="reg-fact"><span class="reg-detail-l">' + escapeHtml_(nice[h] || h) + '</span><span class="reg-detail-v">' + body + '</span></div>';
+  };
+  const seen = {};
+  let primary = '';
+  primaryNames.forEach(function (h) { seen[h] = 1; primary += kv(h); });
+  let extra = '';
+  moreNames.forEach(function (h) { seen[h] = 1; extra += kv(h); });
+  H.forEach(function (h) {
+    if (seen[h] || skip[h]) return;
+    extra += kv(h);
+  });
+  let facts = '';
+  if (primary || extra) {
+    facts = '<div class="reg-facts">' + primary
+      + (extra ? '<details class="reg-facts-more"><summary>More details</summary><div class="reg-facts">' + extra + '</div></details>' : '')
+      + '</div>';
   }
 
   let actions = '';
@@ -546,20 +857,37 @@ function regItemPage_(which, id, admin) {
       + '</div>';
   }
 
-  let inner = '<div id="reg-root">' + head + '<div class="page-title">' + escapeHtml_(name) + '</div><div class="page-rule"></div></div>'
-    + '<div class="reg-detail">' + media + '<div class="reg-detail-main">' + panel + fieldsHtml + actions + '</div></div>'
-    + '<p style="margin-top:18px"><a class="btn btn-ghost" href="' + escapeHtml_(backHref) + '">Back to ' + escapeHtml_(spec.tab.toLowerCase()) + '</a></p>';
+  let html = '<div class="reg-item">' + back
+    + '<div class="reg-detail">'
+    +   media
+    +   '<div class="reg-detail-main">'
+    +     '<div class="reg-detail-kicker">' + (inv ? 'Shop catalog' : 'Equipment') + '</div>'
+    +     '<h1 class="reg-detail-title">' + escapeHtml_(name) + '</h1>'
+    +     '<div class="reg-detail-rule" aria-hidden="true"></div>'
+    +     sub + stock + panel + facts + actions
+    +   '</div>'
+    + '</div></div>';
+  if (admin) html += regFormOverlay_(which);
 
-  inner += regStyles_();
-  if (admin) {
-    const one = {}; one[String(found.row)] = (function () { const o = {}; H.forEach(function (h, i) { o[h] = regRawVal_(r[i]); }); return o; })();
-    inner += regFormOverlay_(which)
-      + '<script>var REG_WHICH=' + JSON.stringify(spec.which) + ';var REG_ADMIN=true;var REG_BASE=' + JSON.stringify(regBase) + ';var REG_KEY=' + JSON.stringify(spec.key)
-      + ';var REG_ROWS=' + JSON.stringify(one).replace(/<\//g, '<\\/') + ';var REG_ITEM=1;</script>'
-      + regEditJs_();
-  }
-  inner += '</div>';
-  return swissShell_(inner, name, true, false);
+  const vals = {};
+  H.forEach(function (h, i) { vals[h] = regRawVal_(r[i]); });
+  return { ok: true, html: html, name: name, row: found.row, vals: vals, key: spec.key };
+}
+
+function regItemPage_(which, id, admin) {
+  const spec = regFields_(which);
+  const inv = spec.tab === 'Inventory';
+  const regBase = regWebUrl_();
+  let inner = '<div id="reg-root" class="reg-page">'
+    + regWaitHtml_('Opening item…', 'Fetching the catalog record', true)
+    + '<div id="reg-swap"></div>'
+    + regStyles_() + regWaitJs_()
+    + '<script>var REG_WHICH=' + JSON.stringify(spec.which) + ';var REG_ADMIN=' + (admin ? 'true' : 'false')
+    + ';var REG_BASE=' + JSON.stringify(regBase) + ';var REG_KEY=' + JSON.stringify(spec.key)
+    + ';var REG_ROWS={};var REG_SAVED="";var REG_ITEM=1;</script>';
+  if (admin) inner += regEditJs_();
+  inner += '<script>regBootItem(' + JSON.stringify(spec.which) + ',' + JSON.stringify(String(id)) + ',' + (admin ? 'true' : 'false') + ');</script></div>';
+  return swissShell_(inner, inv ? 'Inventory' : 'Equipment', true, false, '1040px');
 }
 
 // Printable QR labels. Each label deep-links to its item page; scan with any phone camera.
@@ -569,8 +897,7 @@ function regLabelsPage_(which) {
   const H = data.headers;
   const ki = H.map(function (h) { return norm_(h); }).indexOf(norm_(spec.key));
   const ni = H.map(function (h) { return norm_(h); }).indexOf(norm_(spec.tab === 'Inventory' ? 'Item' : 'Name'));
-  let base = '';
-  try { base = ScriptApp.getService().getUrl(); } catch (e) { base = ''; }
+  let base = regWebUrl_();
 
   let cards = '';
   data.rows.forEach(function (rr) {
@@ -609,80 +936,192 @@ function regLabelsPage_(which) {
 
 // ---- registry admin: shared styles, filter, unlock, form overlay, edit JS ----
 
+function regWaitHtml_(title, hint, show) {
+  return '<div class="reg-topbar' + (show ? ' on' : '') + '" id="reg-top" aria-hidden="true"></div>'
+    + '<div class="reg-wait" id="reg-wait"' + (show ? '' : ' hidden') + ' role="status" aria-live="polite">'
+    + '<div class="reg-wait-card"><span class="reg-wait-spin" aria-hidden="true"></span>'
+    + '<p class="reg-wait-t" id="reg-wait-t">' + escapeHtml_(title || 'Loading…') + '</p>'
+    + '<p class="reg-wait-h" id="reg-wait-h">' + escapeHtml_(hint || '') + '</p></div></div>';
+}
+
+function regWaitJs_() {
+  return '<script>'
+    + 'var REG_BUSY=0,REG_WAIT_IV=null,REG_ITEM_REQ=0;'
+    + 'function regTop(on){var b=document.getElementById("reg-top");if(!b)return;'
+    + 'REG_BUSY=Math.max(0,REG_BUSY+(on?1:-1));'
+    + 'if(REG_BUSY>0)b.className="reg-topbar on";else{b.className="reg-topbar done";setTimeout(function(){if(REG_BUSY<=0)b.className="reg-topbar";},600);}}'
+    + 'function regWait(on,title,hint){var w=document.getElementById("reg-wait");if(REG_WAIT_IV){clearInterval(REG_WAIT_IV);REG_WAIT_IV=null;}'
+    + 'if(on){regTop(true);regWaitSay(title||"Loading\\u2026",hint||"");if(w)w.hidden=false;'
+    + 'var n=0;REG_WAIT_IV=setInterval(function(){n++;var h=document.getElementById("reg-wait-h");if(!h)return;'
+    + 'h.textContent=n>=2?"Almost there\\u2026":"Still working\\u2026 this can take a few seconds";},1800);}'
+    + 'else{regTop(false);if(w)w.hidden=true;}}'
+    + 'function regWaitSay(title,hint){var t=document.getElementById("reg-wait-t");var h=document.getElementById("reg-wait-h");if(t&&title)t.textContent=title;if(h&&hint!=null)h.textContent=hint;}'
+    + 'function regImgFb(el){el.classList.remove("reg-img","is-in");var f=el.getAttribute("data-fb");if(f){el.removeAttribute("data-fb");el.src=f;return;}'
+    + 'var m=el.getAttribute("data-mono")||"\\u00b7";el.outerHTML=\'<span class="reg-card-mono" aria-hidden="true">\'+m+\'</span>\';}'
+    + 'function regOpenSlide(){var slide=document.getElementById("reg-slide");if(!slide)return;slide.hidden=false;requestAnimationFrame(function(){slide.classList.add("is-open");});}'
+    + 'function regCloseItem(){REG_ITEM_REQ++;REG_ITEM=undefined;var slide=document.getElementById("reg-slide");var pane=document.getElementById("reg-itempane");'
+    + 'if(!slide)return;slide.classList.remove("is-open");setTimeout(function(){if(!slide.classList.contains("is-open")){slide.hidden=true;if(pane)pane.innerHTML="";}},360);}'
+    + 'function regBack(ev,a){var slide=document.getElementById("reg-slide");if(slide&&(slide.classList.contains("is-open")||!slide.hidden)){if(ev)ev.preventDefault();regCloseItem();return false;}'
+    + 'if(typeof REG_SAVED==="string"&&REG_SAVED){if(ev)ev.preventDefault();document.getElementById("reg-swap").innerHTML=REG_SAVED;REG_SAVED="";REG_ITEM=undefined;try{window.scrollTo(0,0);}catch(e){}if(typeof flt==="function")flt();return false;}'
+    + 'regWait(true,"Loading the catalog\\u2026","Taking you back");return true;}'
+    + 'document.addEventListener("keydown",function(e){if(e.key==="Escape"){var slide=document.getElementById("reg-slide");if(slide&&slide.classList.contains("is-open")){e.preventDefault();regCloseItem();}}});'
+    + 'function regBootItem(which,id,admin){regWait(true,"Opening item\\u2026","Fetching the catalog record");google.script.run.withSuccessHandler(function(r){var sw=document.getElementById("reg-swap");'
+    + 'if(!sw||!r||!r.html){regWaitSay("Could not load","Refresh the page and try again.");return;}'
+    + 'sw.innerHTML=r.html;if(r.ok){REG_ITEM=1;if(typeof REG_ROWS!=="object"||!REG_ROWS)REG_ROWS={};if(r.row!=null&&r.vals)REG_ROWS[String(r.row)]=r.vals;if(r.key)REG_KEY=r.key;if(r.name)try{document.title=r.name;}catch(e){}}'
+    + 'regWait(false);}).withFailureHandler(function(){regWaitSay("Could not load","Refresh the page and try again.");}).regItemHtml(which,id,!!admin);}'
+    + '</script>';
+}
+
 function regStyles_() {
   return '<style>'
-    + '.reg-toggle{display:inline-flex;background:#efeee8;border-radius:999px;padding:4px;gap:2px;margin:16px 0 2px}'
-    + '.reg-toggle-btn{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:13px;font-weight:700;color:#8a857c;text-decoration:none;padding:7px 20px;border-radius:999px;border:none;background:transparent;cursor:pointer;transition:background .15s,color .15s}'
-    // in-place tab swap: dim the body + spinner while the other tab loads
+    + '.reg-page .page-rule{width:56px;background:linear-gradient(90deg,#0d9488,#14b8a6,#f0c050)}'
+    + '.reg-head-row{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-top:8px}'
+    + '.reg-head-row .page-title{margin-top:0}'
+    + '.reg-head-stat{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:13px;font-weight:600;color:#8a857c}'
+    + '.reg-head-stat b{font-weight:800}'
+    + '.reg-stat-low{color:#b06a00}.reg-stat-out{color:#b31b1b}'
+    + '.reg-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:18px 0 4px}'
+    + '.reg-toggle{display:inline-flex;background:#efece6;border-radius:999px;padding:3px;gap:2px;margin:0;border:1px solid #e7e2d8}'
+    + '.reg-toggle-btn{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:13px;font-weight:700;color:#8a857c;text-decoration:none;padding:8px 18px;border-radius:999px;border:none;background:transparent;cursor:pointer;transition:background .15s,color .15s,box-shadow .15s}'
+    + '.reg-toggle-btn.on{background:#0d9488;color:#fff;box-shadow:0 2px 8px rgba(13,148,136,.28)}'
+    + '.reg-tools{display:flex;gap:8px;flex-wrap:wrap;margin:0}'
     + '#reg-swap{position:relative}'
     + '#reg-swap.reg-loading{opacity:.45;pointer-events:none}'
-    + '#reg-swap.reg-loading::after{content:"";position:absolute;left:50%;top:130px;width:34px;height:34px;margin-left:-17px;border:3px solid #e6e1d8;border-top-color:#b31b1b;border-radius:50%;animation:regspin .7s linear infinite}'
+    + '#reg-swap.reg-loading::after{content:"";position:absolute;left:50%;top:160px;width:34px;height:34px;margin-left:-17px;border:3px solid #e6e1d8;border-top-color:#0d9488;border-radius:50%;animation:regspin .7s linear infinite;z-index:4}'
     + '@keyframes regspin{to{transform:rotate(360deg)}}'
-    // small inline spinner shown in a button while its action runs (check out, return, save count)
+    + '.reg-topbar{position:fixed;top:0;left:0;height:3px;width:0;z-index:91;background:linear-gradient(90deg,#0d9488,#14b8a6,#f0c050);opacity:0;pointer-events:none}'
+    + '.reg-topbar.on{width:88%;opacity:1;transition:width 8s cubic-bezier(.05,.8,.25,1),opacity .2s}'
+    + '.reg-topbar.done{width:100%;opacity:0;transition:width .2s,opacity .45s .15s}'
+    + '.reg-wait{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(245,244,240,.78);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}'
+    + '.reg-wait[hidden]{display:none}'
+    + '.reg-wait-card{text-align:center;background:#fff;border:1px solid #e8e4dc;border-radius:20px;padding:28px 32px 24px;box-shadow:0 18px 40px rgba(20,17,14,.1);max-width:360px}'
+    + '.reg-wait-spin{display:inline-block;width:28px;height:28px;border:3px solid #e6e1d8;border-top-color:#0d9488;border-radius:50%;animation:regspin .7s linear infinite;margin-bottom:14px}'
+    + '.reg-wait-t{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:17px;font-weight:800;letter-spacing:-.02em;color:#14110e;margin:0 0 6px}'
+    + '.reg-wait-h{font-size:13.5px;font-weight:600;color:#8a857c;margin:0;min-height:1.35em;line-height:1.35}'
+    + '.reg-img{opacity:0;transition:opacity .28s ease}.reg-img.is-in{opacity:1}'
+    + '.reg-slide{position:fixed;inset:0;z-index:45;display:flex;align-items:stretch;justify-content:flex-end;pointer-events:none}'
+    + '.reg-slide[hidden]{display:none}'
+    + '.reg-slide.is-open{pointer-events:auto}'
+    + '.reg-slide-bd{position:absolute;inset:0;background:rgba(14,14,18,.52);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);opacity:0;transition:opacity .32s ease}'
+    + '.reg-slide.is-open .reg-slide-bd{opacity:1}'
+    + '.reg-slide-dialog{position:relative;z-index:1;width:100%;height:100%;background:#f5f4f0;box-shadow:-12px 0 48px rgba(20,20,30,.22);transform:translateX(100%);transition:transform .36s cubic-bezier(.22,1,.36,1);overflow:auto;padding:22px 24px 48px}'
+    + '.reg-slide.is-open .reg-slide-dialog{transform:translateX(0)}'
+    + '.reg-slide-load{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;text-align:center;gap:8px}'
+    + '@media(prefers-reduced-motion:reduce){.reg-slide-bd,.reg-slide-dialog{transition:none}}'
     + '.reg-spin{display:inline-block;width:13px;height:13px;margin-right:7px;vertical-align:-2px;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;animation:regspin .6s linear infinite}'
-    + '.reg-toggle-btn.on{background:#fff;color:#14110e;box-shadow:0 1px 3px rgba(0,0,0,.12)}'
-    + '.reg-tools{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 4px}'
+    + '.reg-bar{position:sticky;top:0;z-index:8;padding:12px 2px 14px;margin:8px -2px 2px;background:rgba(245,244,240,.9);-webkit-backdrop-filter:saturate(1.15) blur(12px);backdrop-filter:saturate(1.15) blur(12px);border-bottom:1px solid rgba(20,17,14,.06)}'
+    + '.reg-page .filters{margin:0;padding:0;background:transparent;border:none;box-shadow:none;gap:8px;align-items:center}'
+    + '.reg-page .filters select{min-width:0;padding:10px 12px;border-radius:11px}'
+    + '.reg-page .search-wrap{min-width:200px}'
+    + '.reg-page .search-wrap input:focus{border-color:#0d9488;box-shadow:0 0 0 4px rgba(13,148,136,.14)}'
+    + '.reg-page .page-kicker{color:#0f766e}'
+    + '.reg-page .filters select:focus{border-color:#0d9488;box-shadow:0 0 0 4px rgba(13,148,136,.14)}'
+    + '.reg-page .empty{background:transparent;border:none;box-shadow:none}'
+    + '.reg-empty{text-align:center;padding:48px 16px;color:#8a857c}'
+    + '.reg-empty-title{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:16px;font-weight:800;color:#14110e;margin-bottom:6px}'
+    + '.reg-page .reg-fchip.on{background:#0d9488;border-color:#0d9488;color:#fff}'
+    + '.reg-page .reg-fchip:hover{border-color:#0d9488;color:#0f766e}'
+    + '.reg-page .reg-fchip.on:hover{color:#fff}'
+    + '.reg-page .reg-detail-media .reg-card-mono{font-size:56px;color:#cbbfa8}'
     + '.reg-chip{display:inline-block;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#b31b1b;background:#fdecec;border:1px solid #f5d0d0;padding:3px 9px;border-radius:999px;align-self:flex-start}'
     + '.reg-chip-low{color:#b06a00;background:#fbf3e1;border-color:#eeddb4}'
-    // ---- product card grid ----
-    + '.reg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:16px;margin-top:18px}'
-    + '.reg-card{position:relative;display:flex;flex-direction:column;background:#fff;border:1px solid #ececea;border-radius:14px;overflow:hidden;transition:box-shadow .18s ease,transform .18s ease,border-color .18s ease}'
-    + '.reg-card:hover{box-shadow:0 12px 30px rgba(20,20,30,.13);transform:translateY(-3px);border-color:#e4dfd6}'
-    + '.reg-card-link{display:flex;flex-direction:column;flex:1;min-height:0;text-decoration:none;color:inherit}'
-    + '.reg-card-img{position:relative;aspect-ratio:1/1;background:#f6f4ef;display:flex;align-items:center;justify-content:center;overflow:hidden}'
-    + '.reg-card-img img{width:100%;height:100%;object-fit:cover;display:block}'
-    // persistent "opens" affordance so touch users (no hover) can tell a card is tappable
-    + '.reg-card-go{position:absolute;right:8px;bottom:8px;width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.94);box-shadow:0 2px 7px rgba(20,20,30,.18);display:flex;align-items:center;justify-content:center;color:#8a857c;transition:color .16s ease,transform .16s ease}'
-    + '.reg-card:hover .reg-card-go{color:#b31b1b;transform:translateX(1px)}'
+    + '.reg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:18px;margin-top:8px}'
+    + '.reg-card{position:relative;display:flex;flex-direction:column;background:#fff;border:1px solid #e8e4dc;border-radius:18px;overflow:hidden;box-shadow:0 1px 2px rgba(20,17,14,.04);transition:box-shadow .2s ease,transform .2s ease,border-color .2s ease;content-visibility:auto;contain-intrinsic-size:400px}'
+    + '.reg-card:hover{box-shadow:0 16px 36px rgba(20,17,14,.12);transform:translateY(-4px);border-color:#ddd6c8}'
+    + '.reg-card[data-stock="out"]{border-color:#f0cfcf}'
+    + '.reg-card[data-stock="low"]{border-color:#eed9a8}'
+    + '.reg-card-link{display:flex;flex-direction:column;flex:1;min-height:0;text-decoration:none;color:inherit;cursor:pointer}'
+    + '.reg-card-img{position:relative;aspect-ratio:1/1;background:linear-gradient(160deg,#f3efe6 0%,#e8e2d6 100%);display:flex;align-items:center;justify-content:center;overflow:hidden}'
+    + '.reg-card-img img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .35s ease}'
+    + '.reg-card:hover .reg-card-img img{transform:scale(1.04)}'
+    + '.reg-card[data-stock="out"] .reg-card-img img{filter:saturate(.35) brightness(.92)}'
+    + '.reg-card-img::after{content:"";position:absolute;left:0;right:0;bottom:0;height:42%;background:linear-gradient(180deg,transparent,rgba(20,17,14,.18));pointer-events:none}'
+    + '.reg-card-mono{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:28px;font-weight:800;letter-spacing:.04em;color:#c4bba8}'
+    + '.reg-card-qty{position:absolute;left:10px;top:10px;z-index:1;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:800;letter-spacing:.02em;color:#14110e;background:rgba(255,255,255,.92);border-radius:999px;padding:4px 9px;box-shadow:0 2px 8px rgba(20,17,14,.12)}'
+    + '.reg-card[data-stock="out"] .reg-card-qty{color:#fff;background:#b31b1b}'
+    + '.reg-card[data-stock="low"] .reg-card-qty{color:#7a4e00;background:#f6e3b0}'
+    + '.reg-card-go{position:absolute;right:10px;bottom:10px;z-index:1;width:30px;height:30px;border-radius:50%;background:#0d9488;box-shadow:0 2px 8px rgba(13,148,136,.28);display:flex;align-items:center;justify-content:center;color:#fff;transition:transform .16s ease,background .16s,box-shadow .16s}'
+    + '.reg-card:hover .reg-card-go{background:#0a6d64;transform:translateX(2px);box-shadow:0 4px 12px rgba(13,148,136,.35)}'
     + '.reg-card-noimg{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:10px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#cbc4b8}'
-    + '.reg-card-b{padding:12px 14px 14px;display:flex;flex-direction:column;gap:5px}'
-    + '.reg-card-title{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:13.5px;font-weight:700;color:#1c1a17;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.5em}'
-    + '.reg-card-tag{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#8a857c}'
+    + '.reg-card-b{padding:13px 14px 15px;display:flex;flex-direction:column;gap:5px}'
+    + '.reg-card-title{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:14.5px;font-weight:800;letter-spacing:-.02em;color:#14110e;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}'
+    + '.reg-card:hover .reg-card-title{color:#0a6d64}'
+    + '.reg-card-tag{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#0d9488}'
     + '.reg-card-primary{display:flex;align-items:baseline;gap:5px;flex-wrap:wrap}'
     + '.reg-card-num{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:19px;font-weight:800;letter-spacing:-.02em;color:#14110e}'
     + '.reg-card-num-sub{font-size:12px;font-weight:600;color:#8a857c}'
     + '.reg-card-meta{font-size:12px;color:#8a857c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
-    + '.reg-card-act{position:absolute;top:8px;right:8px;display:none;gap:6px}.reg-card:hover .reg-card-act{display:flex}'
+    + '.reg-card-act{position:absolute;top:8px;right:8px;display:flex;gap:6px;z-index:2}'
     + '.reg-iconbtn{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;color:#57534e;background:rgba(255,255,255,.96);border:1px solid #e2ddd6;border-radius:8px;padding:5px 10px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.1)}'
-    + '.reg-iconbtn:hover{border-color:#b5b0a8;color:#292524}.reg-iconbtn.reg-del:hover{border-color:#e6b3b3;color:#b31b1b}'
-    // ---- inline stock stepper on inventory cards (adjust + auto-save, no page hop) ----
-    + '.reg-count{display:flex;align-items:center;gap:8px;padding:9px 12px;border-top:1px solid #f0efe9;background:#fcfbf9}'
-    + '.reg-cbtn{flex:0 0 auto;width:34px;height:34px;border-radius:9px;border:1.5px solid #e2ddd6;background:#fff;font-size:20px;font-weight:700;color:#26231f;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .14s,color .14s,background .14s}'
-    + '.reg-cbtn:hover{border-color:#b31b1b;color:#b31b1b}.reg-cbtn:active{background:#f7efef;transform:scale(.96)}'
+    + '.reg-iconbtn:hover{border-color:#0d9488;color:#0a6d64}.reg-iconbtn.reg-del:hover{border-color:#e6b3b3;color:#b31b1b}'
+    + '@media(hover:hover) and (pointer:fine){.reg-card-act{opacity:0;transition:opacity .16s}.reg-card:hover .reg-card-act,.reg-card:focus-within .reg-card-act{opacity:1}}'
+    + '.reg-count{display:flex;align-items:center;gap:8px;padding:9px 12px;border-top:1px solid #f0ebe3;background:#faf8f4}'
+    + '.reg-cbtn{flex:0 0 auto;width:34px;height:34px;border-radius:10px;border:1.5px solid #e2ddd6;background:#fff;font-size:20px;font-weight:700;color:#26231f;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .14s,color .14s,background .14s}'
+    + '.reg-cbtn:hover{border-color:#0d9488;color:#0d9488}.reg-cbtn:active{background:#eef8f6;transform:scale(.96)}'
     + '.reg-cval{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.15;text-align:center}'
     + '.reg-cn{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:18px;font-weight:800;letter-spacing:-.02em;color:#14110e}'
     + '.reg-cu{font-size:10px;font-weight:700;letter-spacing:.04em;color:#a8a29e;text-transform:uppercase}'
     + '.reg-csaved{flex:0 0 auto;width:16px;text-align:center;font-size:13px;font-weight:800;transition:color .14s}'
-    + '.reg-csaved.saving{color:#cbc4b8}.reg-csaved.ok{color:#157a47}.reg-csaved.bad{color:#b31b1b}'
+    + '.reg-csaved.saving{color:#cbc4b8}.reg-csaved.ok{color:#0d9488}.reg-csaved.bad{color:#b31b1b}'
+    + '@media(prefers-reduced-motion:reduce){.reg-card,.reg-card-img img,.reg-card-go,.reg-img{transition:none}.reg-card:hover{transform:none}.reg-card:hover .reg-card-img img{transform:none}.reg-wait-spin,.reg-topbar.on{animation:none;transition:opacity .2s}}'
     // ---- product detail ----
-    + '.reg-detail{display:grid;grid-template-columns:minmax(0,340px) 1fr;gap:28px;align-items:start;margin-top:8px}'
-    + '.reg-detail-media{aspect-ratio:1/1;background:#f6f4ef;border:1px solid #ececea;border-radius:16px;overflow:hidden;display:flex;align-items:center;justify-content:center}'
-    + '.reg-detail-media img{width:100%;height:100%;object-fit:cover}'
-    + '.reg-detail-main{display:flex;flex-direction:column}'
-    + '.reg-detail-kv{display:flex;justify-content:space-between;gap:16px;padding:11px 0;border-bottom:1px solid #f0efe9}.reg-detail-kv:first-child{padding-top:0}'
-    + '.reg-detail-l{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#a8a29e}'
-    + '.reg-detail-v{font-size:14px;font-weight:600;color:#26231f;text-align:right}.reg-detail-v a{color:#b31b1b;text-decoration:none;border-bottom:1px solid #f0c050}'
-    + '.reg-detail-act{display:flex;gap:8px;flex-wrap:wrap;margin-top:20px}'
-    + '@media(max-width:640px){.reg-detail{grid-template-columns:1fr}.reg-detail-media{max-width:300px}}'
+    + '.reg-item{padding-bottom:12px}'
+    + '.reg-back{display:inline-flex;align-items:center;gap:8px;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:13px;font-weight:800;letter-spacing:-.01em;color:#0f766e;text-decoration:none;padding:9px 14px 9px 12px;border-radius:10px;background:#fff;border:1.5px solid #cde8e4;box-shadow:0 1px 2px rgba(20,17,14,.05);transition:color .15s,background .15s,border-color .15s,box-shadow .15s,transform .15s}'
+    + '.reg-back:hover{color:#fff;background:#0d9488;border-color:#0d9488;box-shadow:0 6px 16px rgba(13,148,136,.22);transform:translateY(-1px)}'
+    + '.reg-detail{display:grid;grid-template-columns:minmax(0,420px) minmax(0,1fr);gap:40px;align-items:start;margin-top:22px}'
+    + '.reg-detail-media{position:relative;aspect-ratio:1/1;background:linear-gradient(165deg,#f7f4ee 0%,#efe8da 100%);border:1px solid #e8e4dc;border-radius:22px;overflow:hidden;display:flex;align-items:center;justify-content:center;box-shadow:0 18px 40px rgba(20,17,14,.08)}'
+    + '.reg-detail-media:not(:has(img.is-in)):not(:has(.reg-card-mono))::before{content:"";position:absolute;width:28px;height:28px;border:3px solid #e6e1d8;border-top-color:#0d9488;border-radius:50%;animation:regspin .7s linear infinite}'
+    + '.reg-detail-media img{width:100%;height:100%;object-fit:contain;padding:16px}'
+    + '.reg-detail-main{display:flex;flex-direction:column;min-width:0;padding-top:4px}'
+    + '.reg-detail-kicker{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#0f766e}'
+    + '.reg-detail-title{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:34px;font-weight:800;letter-spacing:-.04em;line-height:1.08;margin:8px 0 0;color:#14110e}'
+    + '.reg-detail-rule{width:48px;height:3px;border-radius:99px;background:linear-gradient(90deg,#0d9488,#14b8a6,#f0c050);margin:14px 0 12px}'
+    + '.reg-detail-sub{font-size:14px;font-weight:600;color:#8a857c;line-height:1.45}'
+    + '.reg-dotsep{display:inline-block;width:4px;height:4px;margin:0 9px 2px;border-radius:50%;background:#14b8a6;vertical-align:middle;opacity:.75}'
+    + '.reg-stock{display:flex;align-items:baseline;flex-wrap:wrap;gap:8px 10px;margin:18px 0 0}'
+    + '.reg-stock-n{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:48px;font-weight:800;letter-spacing:-.05em;line-height:1;color:#14110e}'
+    + '.reg-stock.is-out .reg-stock-n{color:#b31b1b}.reg-stock.is-low .reg-stock-n{color:#b06a00}'
+    + '.reg-stock-u{font-size:14px;font-weight:700;color:#8a857c}'
+    + '.reg-item .reg-chip{font-size:10.5px;padding:5px 11px;align-self:center}'
+    + '.reg-stock-re{font-size:12.5px;font-weight:600;color:#8a857c;margin:6px 0 0}'
+    + '.reg-facts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:22px}'
+    + '.reg-fact{background:#fff;border:1px solid #ece8e0;border-radius:14px;padding:13px 15px;display:flex;flex-direction:column;gap:5px}'
+    + '.reg-detail-l{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#a8a29e}'
+    + '.reg-detail-v{font-size:14.5px;font-weight:700;color:#26231f;line-height:1.35;word-break:break-word}'
+    + '.reg-facts > .reg-fact:only-of-type,.reg-fact:has(.reg-ext){grid-column:1/-1}'
+    + '.reg-detail-v a{color:#0d9488;text-decoration:none;border-bottom:1px solid #99f6e4}'
+    + '.reg-detail-v a:hover{color:#0a6d64;border-bottom-color:#0d9488}'
+    + '.reg-ext{display:inline-flex;align-items:center;color:#0f766e;background:#e6f7f5;border:1px solid #cde8e4;border-radius:999px;padding:7px 12px;font-size:13px;font-weight:800;text-decoration:none}'
+    + '.reg-ext:hover{color:#fff;background:#0d9488;border-color:#0d9488}'
+    + '.reg-facts-more{grid-column:1/-1;margin-top:2px}'
+    + '.reg-facts-more summary{list-style:none;cursor:pointer;user-select:none;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12.5px;font-weight:800;color:#0f766e;padding:8px 2px}'
+    + '.reg-facts-more summary::-webkit-details-marker{display:none}'
+    + '.reg-facts-more summary::after{content:" +";font-weight:700}'
+    + '.reg-facts-more[open] summary::after{content:" \\2212"}'
+    + '.reg-facts-more .reg-facts{margin-top:8px}'
+    + '.reg-detail-act{display:flex;gap:8px;flex-wrap:wrap;margin-top:22px}'
+    + '.reg-item .btn-primary{background:linear-gradient(180deg,#14b8a6 0%,#0d9488 55%,#0f766e 100%);box-shadow:0 4px 14px rgba(13,148,136,.28)}'
+    + '.reg-item .btn-primary:hover{box-shadow:0 8px 20px rgba(13,148,136,.36)}'
+    + '@media(max-width:760px){.reg-detail{grid-template-columns:1fr;gap:22px}.reg-detail-media{max-width:420px;margin:0 auto}.reg-detail-title{font-size:28px}.reg-stock-n{font-size:40px}.reg-facts{grid-template-columns:1fr}}'
     // quick-filter chips
     + '.reg-chips{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 2px}'
     + '.reg-fchip{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12px;font-weight:700;color:#57534e;background:#fff;border:1.5px solid #e2ddd6;border-radius:999px;padding:7px 14px;cursor:pointer}'
     + '.reg-fchip:hover{border-color:#b5b0a8}.reg-fchip.on{background:#b31b1b;border-color:#b31b1b;color:#fff}'
     // check-out / count panel
-    + '.reg-co{background:#faf9f6;border:1.5px solid #ececea;border-radius:14px;padding:16px 18px;margin-bottom:16px}'
-    + '.reg-co.is-over{background:#fdecec;border-color:#f5d0d0}'
-    + '.reg-co-h{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#8a857c;margin-bottom:9px}'
+    + '.reg-co{background:#fff;border:1.5px solid #d7ebe7;border-radius:16px;padding:16px 18px;margin:18px 0 0;box-shadow:0 1px 2px rgba(13,148,136,.06)}'
+    + '.reg-co.is-over{background:#fdecec;border-color:#f5d0d0;box-shadow:none}'
+    + '.reg-co-h{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#0f766e;margin-bottom:10px}'
     + '.reg-co.is-over .reg-co-h{color:#b31b1b}'
     + '.reg-co-who{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:18px;font-weight:800;color:#14110e}'
     + '.reg-co-sub{font-size:13px;color:#8a857c;margin-top:3px;margin-bottom:12px}'
     + '.reg-co-form{display:flex;gap:8px;flex-wrap:wrap;align-items:center}'
     + '.reg-co-form input{font:inherit;font-size:14px;padding:11px 13px;border:1.5px solid #e0e0dc;border-radius:10px;outline:none;flex:1;min-width:150px}'
-    + '.reg-co-form input:focus{border-color:#b31b1b;box-shadow:0 0 0 3px rgba(179,27,27,.1)}'
+    + '.reg-co-form input:focus{border-color:#0d9488;box-shadow:0 0 0 3px rgba(13,148,136,.14)}'
     + '.reg-step{display:flex;align-items:center;gap:10px;flex-wrap:wrap}'
-    + '.reg-stepbtn{width:46px;height:46px;border-radius:12px;border:1.5px solid #e0e0dc;background:#fff;font-size:22px;font-weight:700;color:#26231f;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center;flex:0 0 auto}'
-    + '.reg-stepbtn:hover{border-color:#b5b0a8}.reg-stepbtn:active{background:#f0efe9}'
+    + '.reg-stepbtn{width:46px;height:46px;border-radius:12px;border:1.5px solid #e2ddd6;background:#fff;font-size:22px;font-weight:700;color:#26231f;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center;flex:0 0 auto}'
+    + '.reg-stepbtn:hover{border-color:#0d9488;color:#0d9488}.reg-stepbtn:active{background:#eef8f6;transform:scale(.96)}'
     + '.reg-step input{width:86px;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:22px;font-weight:800;text-align:center;padding:9px;border:1.5px solid #e0e0dc;border-radius:12px;outline:none}'
-    + '.reg-step input:focus{border-color:#b31b1b}'
+    + '.reg-step input:focus{border-color:#0d9488;box-shadow:0 0 0 3px rgba(13,148,136,.14)}'
     // ---- modal form ----
     + '.reg-msg{font-size:12.5px;color:#8a857c;font-weight:600}'
     + '.reg-ov{position:fixed;inset:0;z-index:80;display:flex;align-items:flex-start;justify-content:center;padding:5vh 16px}.reg-ov[hidden]{display:none}'
@@ -725,7 +1164,9 @@ function regFilterJs_() {
     + 'document.querySelectorAll(".reg-row").forEach(function(r){var fp=true;'
     + 'if(REG_FILTER==="stock")fp=r.dataset.stock!=="";else if(REG_FILTER==="out")fp=(r.dataset.co==="out"||r.dataset.co==="overdue");else if(REG_FILTER==="overdue")fp=r.dataset.co==="overdue";'
     + 'var ok=fp&&(!q||r.dataset.hay.indexOf(q)>=0)&&(!cv||r.dataset.cat===cv)&&(!ov||r.dataset.owner===ov);r.style.display=ok?"":"none";if(ok)n++;});'
-    + 'var e=document.getElementById("empty");if(e)e.style.display=n?"none":"block";}'
+    + 'var e=document.getElementById("empty");if(e)e.style.display=n?"none":"block";'
+    + 'var tot=document.querySelectorAll(".reg-row").length;var st=document.getElementById("reg-count");'
+    + 'if(st){var filtering=!!(q||cv||ov||REG_FILTER);st.innerHTML=filtering?("Showing <b>"+n+"</b> of "+tot):(st.getAttribute("data-base")||st.innerHTML);}}'
     + '</script>';
 }
 
@@ -734,8 +1175,12 @@ function regFormOverlay_(which) {
   // Owning team is a dropdown of the project teams (+ "Shared"); regFill keeps any
   // existing value that is not in the list when editing.
   let teamOpts = [];
-  try { teamOpts = icTeamNames_(); } catch (e) { teamOpts = []; }
-  ['Shared', 'Program', 'Facilities'].forEach(function (x) { if (teamOpts.indexOf(x) < 0) teamOpts = teamOpts.concat([x]); });
+  if (REG_MEMO.teams) teamOpts = REG_MEMO.teams;
+  else {
+    try { teamOpts = icTeamNames_(); } catch (e) { teamOpts = []; }
+    ['Shared', 'Program', 'Facilities'].forEach(function (x) { if (teamOpts.indexOf(x) < 0) teamOpts = teamOpts.concat([x]); });
+    REG_MEMO.teams = teamOpts;
+  }
   const renderField = function (f) {
     if (f.auto) return '';
     if (f.type === 'image') {
@@ -783,7 +1228,7 @@ function regEditJs_() {
     // links do. A relative "location.href=?registry=..." resolves against the sandbox
     // iframe and lands on a blank page (this was the check-out / return / count white
     // screen). window.top is cross-origin but navigation (setting location) is allowed.
-    + 'function regNav(qs){var b=(typeof REG_BASE!=="undefined"&&REG_BASE)?REG_BASE:"";var u=b+(b.indexOf("?")>=0?"&":"?")+qs;try{window.top.location.href=u;}catch(e){location.href=u;}}'
+    + 'function regNav(qs){regWait(true,"Opening\\u2026","Loading the next page");var b=(typeof REG_BASE!=="undefined"&&REG_BASE)?REG_BASE:"";var u=b+(b.indexOf("?")>=0?"&":"?")+qs;if(typeof REG_EMBED!=="undefined"&&REG_EMBED){location.href=u;return;}try{window.top.location.href=u;}catch(e){location.href=u;}}'
     + 'function regInputs(){return [].slice.call(document.querySelectorAll("#reg-ov .reg-form input[data-h], #reg-ov .reg-form select[data-h]"));}'
     + 'function regFill(v){regInputs().forEach(function(i){var val=(v&&v[i.dataset.h]!=null)?v[i.dataset.h]:"";if(i.tagName==="SELECT"&&val){var found=false;[].forEach.call(i.options,function(o){if(o.value===val)found=true;});if(!found){var o=document.createElement("option");o.value=val;o.textContent=val;i.appendChild(o);}}i.value=val;});var g=document.getElementById("reg-past");if(g)g.hidden=true;regPreview();regToggleBattery();}'
     + 'function regToggleBattery(){var cat="";regInputs().forEach(function(i){if(i.dataset.h==="Category")cat=i.value;});var show=cat==="Batteries";[].slice.call(document.querySelectorAll("#reg-ov .reg-form [data-group=\\"battery\\"]")).forEach(function(el){el.style.display=show?"":"none";});if(show){var d=document.querySelector("#reg-ov .reg-more");if(d)d.open=true;}}'
@@ -798,15 +1243,22 @@ function regEditJs_() {
     + 'function regClose(){document.getElementById("reg-ov").hidden=true;}'
     + 'function regMsg(m,err){var e=document.getElementById("reg-msg");if(e){e.textContent=m||"";e.style.color=err?"#b31b1b":"#8a857c";}}'
     + 'function regOpenAdd(){REG_EROW=null;REG_EKEY=null;document.getElementById("reg-ov-title").textContent="Add";regFill({});regMsg("");regShow();var f=document.querySelector("#reg-ov .reg-form input[data-h]");if(f)f.focus();}'
-    + 'function regOpenEdit(row){REG_EROW=row;var v=REG_ROWS[row]||{};REG_EKEY=v[REG_KEY];document.getElementById("reg-ov-title").textContent="Edit";regFill(v);regMsg("");regShow();}'
+    + 'function regOpenEdit(row){function go(){REG_EROW=row;var v=REG_ROWS[row]||{};REG_EKEY=v[REG_KEY];document.getElementById("reg-ov-title").textContent="Edit";regFill(v);regMsg("");regShow();}if(REG_ROWS[row]){go();return;}'
+    + 'regWait(true,"Loading item\\u2026","Fetching the full record");google.script.run.withSuccessHandler(function(j){regWait(false);try{REG_ROWS=JSON.parse(j||"{}");}catch(e){}go();}).withFailureHandler(function(){regWait(false);go();}).regRowsMap(REG_WHICH);}'
     + 'function regAfter(res){var s=document.getElementById("reg-save");if(s)s.disabled=false;if(res&&res.ok){regClose();regRefresh();}else{regMsg((res&&res.error)||"Could not save.",true);}}'
     + 'function regSave(){var vals=regCollect();REG_REDIRKEY=vals[REG_KEY]||REG_EKEY;var s=document.getElementById("reg-save");if(s)s.disabled=true;regMsg("Saving...");'
     + 'var fail=function(e){if(s)s.disabled=false;regMsg(String(e&&e.message||e),true);};'
     + 'if(REG_EROW==null){google.script.run.withSuccessHandler(regAfter).withFailureHandler(fail).regAdd(REG_WHICH,vals);}'
     + 'else{google.script.run.withSuccessHandler(regAfter).withFailureHandler(fail).regUpdateRow(REG_WHICH,REG_EROW,REG_EKEY,vals);}}'
-    + 'function regDeleteRow(row,btn){var v=REG_ROWS[row]||{};var key=v[REG_KEY]||"";if(!confirm("Delete \\""+key+"\\"? This cannot be undone."))return;if(btn)btn.disabled=true;'
-    + 'google.script.run.withSuccessHandler(function(res){if(res&&res.ok){if(typeof REG_ITEM!=="undefined"){regNav("registry="+REG_WHICH+"&admin=1");}else{var c=btn&&btn.closest?btn.closest(".reg-row"):null;if(c)c.remove();delete REG_ROWS[row];}}else{if(btn)btn.disabled=false;alert((res&&res.error)||"Could not delete.");}}).withFailureHandler(function(e){if(btn)btn.disabled=false;alert(String(e));}).regDelete(REG_WHICH,row,key);}'
-    + 'function regReloadItem(key){regNav("registry=item&which="+REG_WHICH+"&id="+encodeURIComponent(key)+"&admin=1");}'
+    + 'function regDeleteRow(row,btn){var card=btn&&btn.closest?btn.closest(".reg-row"):null;var v=REG_ROWS[row]||{};var key=v[REG_KEY]||(card&&card.getAttribute("data-key"))||"";if(!confirm("Delete \\""+key+"\\"? This cannot be undone."))return;if(btn)btn.disabled=true;'
+    + 'if(typeof REG_ITEM!=="undefined"&&REG_ITEM)regWait(true,"Deleting\\u2026","Removing this item");'
+    + 'google.script.run.withSuccessHandler(function(res){if(res&&res.ok){if(typeof REG_ITEM!=="undefined"&&REG_ITEM){var slide=document.getElementById("reg-slide");if(slide){document.querySelectorAll(".reg-card").forEach(function(c){if(c.getAttribute("data-key")===key)c.remove();});delete REG_ROWS[row];regWait(false);regCloseItem();}else{REG_SAVED="";regNav("registry="+REG_WHICH+"&admin=1");}}else{var c=btn&&btn.closest?btn.closest(".reg-row"):null;if(c)c.remove();delete REG_ROWS[row];}}else{if(btn)btn.disabled=false;regWait(false);alert((res&&res.error)||"Could not delete.");}}).withFailureHandler(function(e){if(btn)btn.disabled=false;regWait(false);alert(String(e));}).regDelete(REG_WHICH,row,key);}'
+    + 'function regReloadItem(key){REG_SAVED="";regWait(true,"Updating\\u2026","Refreshing this item");'
+    + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.html){regNav("registry=item&which="+REG_WHICH+"&id="+encodeURIComponent(key)+"&admin=1");return;}'
+    + 'var slide=document.getElementById("reg-slide");var pane=document.getElementById("reg-itempane");'
+    + 'var target=(slide&&slide.classList.contains("is-open")&&pane)?pane:document.getElementById("reg-swap");'
+    + 'if(target)target.innerHTML=r.html;REG_ITEM=1;if(r.row!=null&&r.vals)REG_ROWS[String(r.row)]=r.vals;regWait(false);})'
+    + '.withFailureHandler(function(){regNav("registry=item&which="+REG_WHICH+"&id="+encodeURIComponent(key)+"&admin=1");}).regItemHtml(REG_WHICH,key,true);}'
     + 'function regBtnBusy(btn,label){if(!btn)return;btn.disabled=true;if(btn.getAttribute("data-txt")==null)btn.setAttribute("data-txt",btn.innerHTML);btn.innerHTML="<span class=\\"reg-spin\\"></span>"+(label||"Working\\u2026");}'
     + 'function regBtnReset(btn){if(!btn)return;btn.disabled=false;var t=btn.getAttribute("data-txt");if(t!=null){btn.innerHTML=t;btn.removeAttribute("data-txt");}}'
     + 'function regCheckoutOne(row,btn){var v=REG_ROWS[row]||{};var key=v[REG_KEY]||"";var person=(document.getElementById("co-person")||{}).value||"";var due=(document.getElementById("co-due")||{}).value||"";if(!person.trim()){alert("Enter who is taking it.");return;}regBtnBusy(btn,"Checking out\\u2026");google.script.run.withSuccessHandler(function(res){if(res&&res.ok){regReloadItem(key);}else{regBtnReset(btn);alert((res&&res.error)||"Could not check out.");}}).withFailureHandler(function(e){regBtnReset(btn);alert(String(e));}).regCheckout(REG_WHICH,row,key,person,due);}'
@@ -816,17 +1268,19 @@ function regEditJs_() {
     // (debounced per row) so counting a shelf never opens the item page.
     + 'var REG_QT={};'
     + 'function regQadj(row,btn,delta){var card=btn.closest(".reg-card");if(!card)return;var span=card.querySelector(".reg-cn");var n=Math.max(0,(parseInt(span.textContent,10)||0)+delta);span.textContent=n;'
-    + 'var v=REG_ROWS[row]||{};var key=v[REG_KEY]||"";if(v)v["On hand"]=String(n);'
-    // keep the Out/Low chip and the filter state in sync as the count changes
-    + 'var rp=parseInt((v["Reorder point"]||"0"),10)||0;var st=n<=0?"out":(rp>0&&n<=rp?"low":"");card.dataset.stock=st;'
+    + 'var v=REG_ROWS[row]||{};var key=v[REG_KEY]||card.getAttribute("data-key")||"";if(v)v["On hand"]=String(n);'
+    + 'var rp=parseInt((v["Reorder point"]||card.getAttribute("data-rp")||"0"),10)||0;var st=n<=0?"out":(rp>0&&n<=rp?"low":"");card.dataset.stock=st;'
+    + 'var qb=card.querySelector(".reg-card-qty");if(qb){var u=card.getAttribute("data-unit")||"";qb.textContent=n+(u?" "+u:"");}'
     + 'var chip=card.querySelector(".reg-chip");if(chip){if(!st){chip.parentNode.removeChild(chip);}else{chip.className="reg-chip"+(st==="low"?" reg-chip-low":"");chip.textContent=st==="out"?"Out of stock":"Low stock";}}else if(st){var b=card.querySelector(".reg-card-b");if(b){var sp=document.createElement("span");sp.className="reg-chip"+(st==="low"?" reg-chip-low":"");sp.textContent=st==="out"?"Out of stock":"Low stock";var mt=b.querySelector(".reg-card-meta");if(mt)b.insertBefore(sp,mt);else b.appendChild(sp);}}'
     + 'var sv=card.querySelector(".reg-csaved");if(sv){sv.textContent="\\u2026";sv.className="reg-csaved saving";}'
     + 'clearTimeout(REG_QT[row]);REG_QT[row]=setTimeout(function(){'
     + 'google.script.run.withSuccessHandler(function(res){if(sv){if(res&&res.ok){sv.textContent="\\u2713";sv.className="reg-csaved ok";setTimeout(function(){if(sv&&sv.className.indexOf("ok")>=0)sv.textContent="";},1400);}else{sv.textContent="!";sv.className="reg-csaved bad";}}})'
     + '.withFailureHandler(function(){if(sv){sv.textContent="!";sv.className="reg-csaved bad";}}).regCount(row,key,n);},600);}'
     + 'function regCountSave(row,btn){var v=REG_ROWS[row]||{};var key=v[REG_KEY]||"";var el=document.getElementById("co-count");var n=el?el.value:"";regBtnBusy(btn,"Saving\\u2026");google.script.run.withSuccessHandler(function(res){if(res&&res.ok){regReloadItem(key);}else{regBtnReset(btn);alert((res&&res.error)||"Could not save.");}}).withFailureHandler(function(e){regBtnReset(btn);alert(String(e));}).regCount(row,key,n);}'
-    + 'function regRefresh(){if(typeof REG_ITEM!=="undefined"){regNav("registry=item&which="+REG_WHICH+"&id="+encodeURIComponent(REG_REDIRKEY||REG_EKEY||"")+"&admin=1");return;}'
-    + 'google.script.run.withSuccessHandler(function(res){if(res&&res.ok){document.getElementById("reg-cards").innerHTML=res.html;REG_ROWS=JSON.parse(res.mapJson);if(typeof flt==="function")flt();}}).regRowsHtml(REG_WHICH);}'
+    + 'function regRefresh(){if(typeof REG_ITEM!=="undefined"&&REG_ITEM){regReloadItem(REG_REDIRKEY||REG_EKEY||"");return;}'
+    + 'regWait(true,"Refreshing the catalog\\u2026","Updating items and stock");'
+    + 'google.script.run.withSuccessHandler(function(res){if(res&&res.ok){var el=document.getElementById("reg-cards");if(el)el.innerHTML=res.html;REG_ROWS=JSON.parse(res.mapJson);if(typeof flt==="function")flt();}regWait(false);})'
+    + '.withFailureHandler(function(){regWait(false);}).regRowsHtml(REG_WHICH);}'
     + 'function regScan(){if(!("BarcodeDetector" in window)){alert("Live scanning is not available in this browser. Use Print labels and scan them with your phone camera instead.");return;}'
     + 'navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}}).then(function(stream){regRunScan(stream);}).catch(function(){alert("Camera is blocked here (common in this app). Use Print labels and scan with your phone camera instead.");});}'
     + 'function regRunScan(stream){var ov=document.createElement("div");ov.style.cssText="position:fixed;inset:0;z-index:90;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center";'
@@ -842,7 +1296,7 @@ function regEditJs_() {
 
 function regSheet_(which) {
   const name = String(which).toLowerCase() === 'inventory' ? 'Inventory' : 'Equipment';
-  const sh = registrySs_().getSheetByName(name);
+  const sh = regSs_().getSheetByName(name);
   if (!sh) throw new Error('No "' + name + '" tab. Run the registry setup first.');
   return sh;
 }
@@ -876,6 +1330,7 @@ function regAdd(which, vals) {
   const row = hm.headers.map(function (h) { return vals[h] != null ? vals[h] : ''; });
   if (spec.idPrefix) { const ki = hm.map[spec.key]; if (ki != null && !String(row[ki]).trim()) row[ki] = regNextId_(sh, hm, spec.key, spec.idPrefix); }
   sh.appendRow(row);
+  regInvalidate_();
   return { ok: true };
 }
 
@@ -890,6 +1345,7 @@ function regUpdateRow(which, rowNum, expectedKey, vals) {
   if (ki != null && String(cur[ki]).trim() !== String(expectedKey).trim()) return { ok: false, error: 'This item moved. Refresh and try again.' };
   hm.headers.forEach(function (h, i) { if (vals[h] != null && !(spec.idPrefix && i === ki)) cur[i] = vals[h]; });
   sh.getRange(rowNum, 1, 1, hm.headers.length).setValues([cur]);
+  regInvalidate_();
   return { ok: true };
 }
 
@@ -903,6 +1359,7 @@ function regDelete(which, rowNum, expectedKey) {
   const cur = sh.getRange(rowNum, 1, 1, hm.headers.length).getValues()[0];
   if (ki != null && String(cur[ki]).trim() !== String(expectedKey).trim()) return { ok: false, error: 'This item moved. Refresh and try again.' };
   sh.deleteRow(rowNum);
+  regInvalidate_();
   return { ok: true };
 }
 
@@ -919,6 +1376,7 @@ function regRestock(rowNum, expectedItem) {
   if (oni != null) cur[oni] = (Number(cur[oni]) || 0) + qty;
   if (lri != null) cur[lri] = new Date();
   sh.getRange(rowNum, 1, 1, hm.headers.length).setValues([cur]);
+  regInvalidate_();
   return { ok: true };
 }
 
@@ -948,6 +1406,7 @@ function regCheckout(which, rowNum, expectedKey, person, due) {
   g.sh.getRange(g.rowNum, 1, 1, g.hm.headers.length).setValues([g.cur]);
   const nameI = g.hm.map[g.spec.tab === 'Inventory' ? 'Item' : 'Name'];
   regLogCheckout_(nameI != null ? g.cur[nameI] : '', expectedKey, person, now, dueDate);
+  regInvalidate_();
   return { ok: true };
 }
 
@@ -957,6 +1416,7 @@ function regReturn(which, rowNum, expectedKey) {
   ['Checked out to', 'Out since', 'Due back'].forEach(function (h) { if (g.hm.map[h] != null) g.cur[g.hm.map[h]] = ''; });
   g.sh.getRange(g.rowNum, 1, 1, g.hm.headers.length).setValues([g.cur]);
   regCloseCheckoutLog_(expectedKey);
+  regInvalidate_();
   return { ok: true };
 }
 
@@ -968,11 +1428,12 @@ function regCount(rowNum, expectedItem, onHand) {
   if (g.hm.map['On hand'] != null) g.cur[g.hm.map['On hand']] = n;
   if (g.hm.map['Last counted'] != null) g.cur[g.hm.map['Last counted']] = new Date();
   g.sh.getRange(g.rowNum, 1, 1, g.hm.headers.length).setValues([g.cur]);
+  regInvalidate_();
   return { ok: true, onHand: n };
 }
 
 function regLogCheckout_(name, assetId, person, out, due) {
-  const sh = registrySs_().getSheetByName('Checkouts');
+  const sh = regSs_().getSheetByName('Checkouts');
   if (!sh) return;
   const hm = regHeaderMap_(sh);
   const row = hm.headers.map(function () { return ''; });
@@ -983,7 +1444,7 @@ function regLogCheckout_(name, assetId, person, out, due) {
 }
 
 function regCloseCheckoutLog_(assetId) {
-  const sh = registrySs_().getSheetByName('Checkouts');
+  const sh = regSs_().getSheetByName('Checkouts');
   if (!sh) return;
   const v = sh.getDataRange().getValues();
   if (v.length < 2) return;
@@ -1003,7 +1464,7 @@ function regCloseCheckoutLog_(assetId) {
 function regUploadImage(dataUrl, filename) {
   try {
     const id = tpSaveUpload_(dataUrl, filename || ('item_' + Date.now() + '.jpg'));
-    return { ok: true, url: 'https://drive.google.com/thumbnail?id=' + id + '&sz=w600' };
+    return { ok: true, url: 'https://lh3.googleusercontent.com/d/' + id + '=w600' };
   } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
 }
 
@@ -1011,16 +1472,13 @@ function regUploadImage(dataUrl, filename) {
 function regPastImages() {
   const out = [], seen = {};
   ['Equipment', 'Inventory'].forEach(function (tab) {
-    const sh = registrySs_().getSheetByName(tab);
-    if (!sh) return;
-    const v = sh.getDataRange().getValues();
-    if (!v.length) return;
-    let ci = -1; v[0].forEach(function (h, i) { if (norm_(h) === 'image') ci = i; });
+    const data = readTabRows_(tab);
+    let ci = -1; data.headers.forEach(function (h, i) { if (norm_(h) === 'image') ci = i; });
     if (ci < 0) return;
-    for (let i = 1; i < v.length; i++) {
-      const u = String(v[i][ci] || '').trim();
-      if (/^https?:\/\//i.test(u) && !seen[u]) { seen[u] = 1; out.push(u); }
-    }
+    data.rows.forEach(function (rr) {
+      const u = String(rr.cells[ci] || '').trim();
+      if (/^https?:\/\//i.test(u) && !seen[u]) { seen[u] = 1; out.push(regThumb_(u, 200) || u); }
+    });
   });
   return { ok: true, images: out.slice(0, 60) };
 }
@@ -1035,15 +1493,6 @@ function regCell_(v) {
 function isNum_(v) { return v !== '' && v != null && !isNaN(Number(v)); }
 
 function readTab_(name) {
-  const sh = registrySs_().getSheetByName(name);
-  if (!sh) return { headers: [], rows: [] };
-  const v = sh.getDataRange().getValues();
-  if (!v.length) return { headers: [], rows: [] };
-  const headers = v[0].map(function (h) { return String(h).trim(); });
-  const rows = [];
-  for (let i = 1; i < v.length; i++) {
-    if (v[i].every(function (c) { return String(c).trim() === ''; })) continue;
-    rows.push(v[i]);
-  }
-  return { headers: headers, rows: rows };
+  var data = readTabRows_(name);
+  return { headers: data.headers, rows: data.rows.map(function (rr) { return rr.cells; }) };
 }

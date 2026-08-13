@@ -1176,6 +1176,7 @@ body.issues-panel-open { overflow: hidden; }
 
 #space-admin .action-dashboard,
 #projects-admin .action-dashboard,
+#inventory .action-dashboard,
 #staff .action-dashboard {
   padding: 1.35rem 3.75rem 1.4rem 1.35rem;
   border-radius: var(--radius-lg);
@@ -1195,6 +1196,7 @@ body.issues-panel-open { overflow: hidden; }
 
 #space-admin .action-dashboard::before,
 #projects-admin .action-dashboard::before,
+#inventory .action-dashboard::before,
 #staff .action-dashboard::before {
   content: '';
   position: absolute;
@@ -1205,6 +1207,7 @@ body.issues-panel-open { overflow: hidden; }
 
 #space-admin .action-dashboard .action-title,
 #projects-admin .action-dashboard .action-title,
+#inventory .action-dashboard .action-title,
 #staff .action-dashboard .action-title {
   font-size: 1.25rem;
   letter-spacing: -0.035em;
@@ -1212,6 +1215,7 @@ body.issues-panel-open { overflow: hidden; }
 
 #space-admin .action-dashboard .action-sub,
 #projects-admin .action-dashboard .action-sub,
+#inventory .action-dashboard .action-sub,
 #staff .action-dashboard .action-sub {
   font-size: .875rem;
   margin-top: .15rem;
@@ -1220,6 +1224,7 @@ body.issues-panel-open { overflow: hidden; }
 
 #space-admin .action-dashboard::after,
 #projects-admin .action-dashboard::after,
+#inventory .action-dashboard::after,
 #staff .action-dashboard::after {
   content: '';
   width: 2.5rem;
@@ -1232,6 +1237,7 @@ body.issues-panel-open { overflow: hidden; }
 
 #space-admin .action-dashboard:hover::after,
 #projects-admin .action-dashboard:hover::after,
+#inventory .action-dashboard:hover::after,
 #staff .action-dashboard:hover::after {
   background-color: rgba(255, 255, 255, 0.32);
   transform: translateY(-50%) translateX(3px);

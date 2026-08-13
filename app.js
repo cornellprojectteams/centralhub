@@ -371,6 +371,23 @@
     ],
   });
 
+  // Inventory catalog. Staff and admin both carry data-admin so stock counts can be
+  // updated from the hub (same as the old new-tab link). embed=1 drops the Apps Script
+  // chrome so the panel header is the only frame.
+  const invOpen = document.getElementById('inventory-open');
+  const invAdmin = (invOpen && invOpen.hasAttribute('data-admin')) || document.getElementById('admin') ? '&admin=1' : '';
+  const invBase = SPACE_STATUS_URL ? SPACE_STATUS_URL + sep + 'registry=inventory' : '';
+  createSlideOver({
+    panelId: 'inventory-panel',
+    openBtnId: 'inventory-open',
+    url: invBase ? invBase + '&embed=1' + invAdmin : '',
+    fullUrl: invBase ? invBase + invAdmin : '',
+    steps: [
+      ['Loading the shop catalog…', 'This can take a few seconds on first open', 2800],
+      ['Almost ready…', 'Fetching items and stock counts', 7000],
+    ],
+  });
+
   // Scroll-spy: highlight the sidebar link for the section currently in view.
   if (adminNav && 'IntersectionObserver' in window) {
     const navLinks = [...adminNav.querySelectorAll('a')];
