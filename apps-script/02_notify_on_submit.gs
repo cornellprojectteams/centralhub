@@ -397,9 +397,12 @@ function doGet(e) {
   return pickerPage_();
 }
 
+// The webfonts are pulled in by prFontLinks_ in the document head, NOT by an @import
+// here. An @import inside a <style> is only discovered after this whole sheet parses,
+// and it blocks rendering while it resolves, so it serialised two round trips in front
+// of first paint on every page.
 function portalStyles_() {
   return ''
-    + '@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap");'
     + '*,*::before,*::after{box-sizing:border-box}'
     + 'body{margin:0;font-family:Inter,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}'
     + '.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:13px;font-weight:700;line-height:1;padding:11px 20px;border-radius:10px;border:none;cursor:pointer;text-decoration:none;white-space:nowrap;transition:transform .16s ease,box-shadow .16s ease,background .16s ease,border-color .16s ease}'
@@ -435,12 +438,35 @@ function portalStyles_() {
     + '.toggle:hover{border-color:#ccc;box-shadow:0 2px 6px rgba(20,20,30,.06)}'
     + '.toggle.is-on,.toggle:has(input:checked){border-color:#b31b1b;background:#fff8f8;color:#8f1515;box-shadow:0 0 0 3px rgba(179,27,27,.1)}'
     + '.toggle input{width:16px;height:16px;accent-color:#b31b1b;cursor:pointer;margin:0}'
-    + '.section-head{display:flex;align-items:center;gap:11px;margin:26px 0 14px}'
-    + '.section-label{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}'
+    + '.section-head{display:flex;align-items:center;gap:12px;margin:0}'
+    + '.section-label{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:16px;font-weight:700;letter-spacing:-.02em;color:#14110e;flex:1;min-width:0}'
     + '.section-label--late{color:#b31b1b}'
-    + '.section-label--open{color:#8a857c}'
-    + '.section-count{font-size:12px;color:#bbb;font-weight:700}'
-    + '.section-rule{flex:1;height:1.5px;background:linear-gradient(90deg,#e8e8e8,transparent)}'
+    + '.section-label--open{color:#14110e}'
+    + '.section-count{flex:none;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:14px;font-weight:800;font-variant-numeric:tabular-nums;min-width:1.75rem;height:1.75rem;padding:0 8px;border-radius:999px;background:#efece6;color:#14110e;display:inline-flex;align-items:center;justify-content:center}'
+    + '.section[data-sec-id="overdue"] .section-count{background:#fdecec;color:#b31b1b}'
+    + '.section[data-sec-id="pending"] .section-count{background:#fdf2df;color:#9a5a00}'
+    + '.section[data-sec-id="done"] .section-count{background:#e7f6ee;color:#157a47}'
+    + '.section[data-sec-id="active"] .section-count{background:#fdf3e3;color:#c56a10}'
+    // iOS-style grouped accordion. One tappable row per group: title, count badge,
+    // chevron that points down (expands) not right (navigates). 52px hit target.
+    + '.sec-list{margin-top:14px;background:#fff;border:1.5px solid #e2ddd6;border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(20,20,30,.05)}'
+    + '.section{margin:0;border-bottom:1px solid #efece6}'
+    + '.section:last-child{border-bottom:0}'
+    + '.section > .section-head{cursor:pointer;list-style:none;display:flex;align-items:center;width:100%;box-sizing:border-box;min-height:52px;margin:0;padding:12px 16px;background:#fff;border:0;border-radius:0;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation}'
+    + '.section > .section-head::-webkit-details-marker{display:none}'
+    + '.section > .section-head::marker{content:none}'
+    + '.section > .section-head:active{background:#f3f0ea}'
+    + '@media(hover:hover) and (pointer:fine){.section > .section-head:hover{background:#faf9f6}}'
+    + '.section[open] > .section-head{background:#faf8f4}'
+    + '.section-chev{flex:none;width:28px;height:28px;border-radius:50%;background:#efece6;position:relative}'
+    + '.section-chev::before{content:"";position:absolute;top:9px;left:8px;width:8px;height:8px;border-right:2.5px solid #5c574f;border-bottom:2.5px solid #5c574f;transform:rotate(45deg);transition:transform .2s cubic-bezier(.2,.8,.3,1),top .2s}'
+    + '.section[open] > .section-head .section-chev,.pr-card[open] > .pr-sum .section-chev{background:#f3e4e4}'
+    + '.section[open] > .section-head .section-chev::before,.pr-card[open] > .pr-sum .section-chev::before{top:11px;border-color:#8f1515;transform:rotate(-135deg)}'
+    + '.section-body{padding:8px 10px 12px;background:#f6f4ef;border:0;border-radius:0;animation:secOpen .22s cubic-bezier(.2,.8,.3,1) both}'
+    + '.sec-empty{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:14px;font-weight:600;color:#8a857c;text-align:center;padding:18px 12px}'
+    + '.ic-toolbar{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin:12px 0 0}'
+    + '@keyframes secOpen{from{opacity:0}to{opacity:1}}'
+    + '@media(prefers-reduced-motion:reduce){.section-body{animation:none}.section-chev::before{transition:none}}'
     + '.card{background:#fff;border-radius:14px;border:1.5px solid #ececea;box-shadow:0 2px 8px rgba(20,20,30,.06),0 1px 3px rgba(20,20,30,.04);overflow:hidden;margin-bottom:12px;transition:opacity .25s ease,transform .25s ease,box-shadow .25s ease}'
     + '@keyframes cardApprove{0%{box-shadow:0 0 0 0 rgba(21,122,71,0)}22%{box-shadow:0 0 0 3px rgba(21,122,71,.5),0 6px 18px rgba(21,122,71,.22)}100%{box-shadow:0 0 0 0 rgba(21,122,71,0)}}'
     + '.card--approved{animation:cardApprove .85s ease-out}'
@@ -471,12 +497,24 @@ function portalStyles_() {
     + '@media(max-width:600px){.card-foot{flex-direction:column;align-items:stretch}.btn-row{width:100%;justify-content:stretch}.btn{flex:1;justify-content:center;white-space:normal}.search-wrap{flex:1 1 100%}.filters select{width:100%;flex-basis:100%}.stat-val{font-size:24px}.card-body{padding:15px 14px}.card-foot{padding:12px 14px}.swh{font-size:26px!important}}';
 }
 
+// Fonts, fetched without blocking first paint: warm the connections up front, then load
+// the stylesheet at print media so it is non-render-blocking and flip it to all once it
+// arrives. Inter/Jakarta already carry display=swap, so text paints immediately in the
+// fallback and swaps in place rather than sitting invisible.
+function fontLinks_() {
+  var href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap';
+  return '<link rel="preconnect" href="https://fonts.googleapis.com">'
+    + '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
+    + '<link rel="stylesheet" href="' + href + '" media="print" onload="this.media=\'all\';this.onload=null">'
+    + '<noscript><link rel="stylesheet" href="' + href + '"></noscript>';
+}
+
 function swissShell_(innerHtml, pageTitle, wide, embedded, maxWidth) {
   const maxW = maxWidth || (wide ? '960px' : '600px');
   const pad = embedded ? '14px 12px 28px' : '40px 28px 64px';
   const padSm = embedded ? '10px 10px 24px' : '24px 14px 40px';
   const topBar = embedded ? '' : '<div style="height:5px;background:linear-gradient(90deg,#8f1515,#b31b1b,#8f1515)"></div>';
-  const enh = '<style>' + portalStyles_()
+  const enh = fontLinks_() + '<style>' + portalStyles_()
     + '.swiss-inner{max-width:' + maxW + ';width:100%;margin:0 auto;padding:' + pad + ';min-width:0;box-sizing:border-box}'
     + '@media(max-width:600px){.page-title{font-size:24px !important}.swiss-inner{padding:' + padSm + ' !important}}'
     + '</style>';
@@ -566,11 +604,10 @@ function confirmPage_(id) {
   return swissShell_(tpStyles_() + inner + tpSharedJs_(), 'Space Status');
 }
 
-// A collapsed "Recently completed" list so finished items are still visible instead
-// of just vanishing. Plain styled divs (not .card) so page filters skip them.
-function icDoneSection_(doneList, showTeam) {
+// Completed-item cards. Used as the body of the Done accordion row.
+function icDoneCards_(doneList, showTeam) {
   if (!doneList || !doneList.length) return '';
-  let s = '<details style="margin-top:28px"><summary style="cursor:pointer;font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#157a47">Recently completed (' + doneList.length + ')</summary><div style="margin-top:16px">';
+  let s = '';
   doneList.forEach(function (d) {
     // Show the completion photo(s); if the task was finished without one (one-tap /
     // photo-optional / admin close), fall back to the originally reported photo so the
@@ -592,28 +629,41 @@ function icDoneSection_(doneList, showTeam) {
       + '<div style="font-size:13px;font-weight:700;color:#157a47;margin-top:12px">&#10003; Completed ' + escapeHtml_(fmtShort_(d.addressed)) + '</div>'
       + '</div>';
   });
-  return s + '</div></details>';
+  return s;
 }
 
 // A "Refresh" button for the open-issues pages. Re-renders the list in place via
 // icRefresh() (a full reload would blank the sandboxed iframe).
 function icRefreshBtn_() {
-  return '<span style="margin-left:auto;display:inline-flex;align-items:center;gap:10px">'
-    + '<span id="ic-refreshed" class="ic-refreshed"></span>'
+  return '<span id="ic-refreshed" class="ic-refreshed"></span>'
     + '<button type="button" id="ic-refresh" class="ic-refresh" onclick="icRefresh()" title="Load the latest">'
     +   '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"></path><path d="M21 3v6h-6"></path></svg>'
-    +   '<span>Refresh</span></button></span>';
+    +   '<span>Refresh</span></button>';
+}
+
+// One accordion row: title, count badge, down-chevron. body is the cards (or empty).
+function secRow_(id, countId, label, count, body) {
+  const n = Number(count) || 0;
+  const inner = body || '<div class="sec-empty">None right now</div>';
+  return '<details class="section" data-sec-id="' + id + '"><summary class="section-head">'
+    + '<span class="section-label">' + label + '</span>'
+    + '<span class="section-count"' + (countId ? ' id="' + countId + '"' : '') + '>' + n + '</span>'
+    + '<span class="section-chev" aria-hidden="true"></span></summary>'
+    + '<div class="section-body">' + inner + '</div></details>';
+}
+function secList_(html) {
+  return '<div class="sec-list">' + html + '</div>';
 }
 
 // Client logic for the Refresh button, shared by both open-issues pages. Reads the
 // page-level IC_SCOPE ("*" for all teams, else the team name) and IC_READONLY.
 function icRefreshJs_() {
   return '<script>'
-    + 'function icSetNum(id,n){var e=document.getElementById(id);if(e)e.textContent=n;}'
+    + 'function icSetNum(id,n){if(n==null)return;var e=document.getElementById(id);if(e)e.textContent=n;}'
     + 'function icRefresh(){var b=document.getElementById("ic-refresh");if(b){b.disabled=true;b.classList.add("is-spin");}'
     + 'google.script.run.withSuccessHandler(function(r){if(b){b.disabled=false;b.classList.remove("is-spin");}if(!r||!r.ok)return;'
-    + 'var el=document.getElementById("ic-list");if(el)el.innerHTML=r.html;'
-    + 'icSetNum("sum-open",r.open);icSetNum("sum-pending",r.pending);icSetNum("sum-over",r.overdue);'
+    + 'var el=document.getElementById("ic-list");if(el)el.innerHTML=r.html;secRestore();'
+    + 'icSetNum("sum-open",r.open);icSetNum("sum-pending",r.pending);icSetNum("sum-over",r.overdue);icSetNum("sum-done",r.done);'
     + 'if(typeof ADMIN_PASS!=="undefined"&&ADMIN_PASS)document.querySelectorAll(".tp-admin").forEach(function(e){e.hidden=false;});'
     + 'if(typeof flt==="function")flt();'
     + 'var t=document.getElementById("ic-refreshed");if(t){t.textContent="Updated just now";clearTimeout(window.__icrt);window.__icrt=setTimeout(function(){if(t)t.textContent="";},4000);}'
@@ -627,35 +677,23 @@ function icRefreshData(scope, readOnly) {
     const data = listAllIssues_();
     const pend = data.open.filter(function (x) { return x.pending; }).length;
     const over = data.open.filter(function (x) { return !x.pending && x.overdue; }).length;
-    return { ok: true, html: icAllSectionsHtml_(data), open: data.open.length - pend, pending: pend, overdue: over };
+    return { ok: true, html: icAllSectionsHtml_(data), open: data.open.length - pend, pending: pend, overdue: over, done: data.resolved };
   }
   const d = listTeamIssues_(String(scope));
   const pend2 = d.open.filter(function (x) { return x.pending; }).length;
   const over2 = d.open.filter(function (x) { return x.overdue; }).length;
-  return { ok: true, html: icTeamSectionsHtml_(d, !!readOnly), open: d.open.length - pend2, pending: pend2, overdue: over2 };
+  return { ok: true, html: icTeamSectionsHtml_(d, !!readOnly), open: d.open.length - pend2, pending: pend2, overdue: over2, done: d.resolved };
 }
 
 function teamPortal_(team, readOnly, embedded) {
   if (!team) return htmlPage_('Invalid link', 'This team link is not recognized.');
   const data = listTeamIssues_(team);
-  const issues = data.open;
-  const pendingCount = issues.filter(function (x) { return x.pending; }).length;
-  const activeCount = issues.length - pendingCount;
-  const overdue = issues.filter(function (x) { return x.overdue; }).length;
 
   let inner = '<div style="font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#9a958c">Project Teams Ops Hub</div>'
     + '<div class="swh" style="font-size:34px;font-weight:800;letter-spacing:-.035em;line-height:1;margin-top:10px">' + escapeHtml_(team) + '</div>'
     + '<div style="width:46px;height:3px;background:#b31b1b;margin-top:12px"></div>';
 
-  inner += '<div class="ic-summary" style="margin-top:18px">'
-    + '<span class="ic-sum"><b id="sum-open">' + activeCount + '</b> open</span>'
-    + '<span class="ic-dot"></span>'
-    + '<span class="ic-sum"><b id="sum-pending">' + pendingCount + '</b> pending</span>'
-    + '<span class="ic-dot"></span>'
-    + '<span class="ic-sum ic-sum--danger"><b id="sum-over">' + overdue + '</b> overdue</span>'
-    + (data.resolved ? '<span class="ic-dot"></span><span class="ic-sum"><b>' + data.resolved + '</b> done</span>' : '')
-    + icRefreshBtn_()
-    + '</div>';
+  inner += '<div class="ic-toolbar">' + icRefreshBtn_() + '</div>';
 
   inner += prTasksStripHtml_();   // new-project / awaiting-ratings strip (07_proposals.gs)
   inner += '<div id="ic-list">' + icTeamSectionsHtml_(data, readOnly) + '</div>';
@@ -668,10 +706,7 @@ function teamPortal_(team, readOnly, embedded) {
 // The grouped Overdue / Open / Pending sections + "recently completed" for a team
 // portal. Extracted so a Refresh re-renders the list identically, in place.
 function icTeamSectionsHtml_(data, readOnly) {
-  const issues = data.open;
-  if (!issues.length) {
-    return '<div style="font-size:16px;line-height:1.7;color:#555;margin-top:30px">No open issues. Everything is in good shape.</div>' + icDoneSection_(data.done, false);
-  }
+  const issues = data.open || [];
   let idx = 0;
   const renderCard = function (it) {
     const rid = 'iss' + (idx++);
@@ -690,7 +725,7 @@ function icTeamSectionsHtml_(data, readOnly) {
     const accent = COLOR_HEX[it.color] || '#d6d3ce';
     let foot = '';
     if (!readOnly) foot = isPending ? icPendingFoot_(rid, it.token) : icOpenFoot_(rid, it.token, it.photoOptional);
-    return '<div class="card" id="' + rid + '" data-state="' + (isPending ? 'pending' : 'open') + '" data-po="' + (it.photoOptional ? '1' : '0') + '">'
+    return '<div class="card" id="' + rid + '" data-tok="' + it.token + '" data-state="' + (isPending ? 'pending' : 'open') + '" data-over="' + (it.overdue ? '1' : '0') + '" data-po="' + (it.photoOptional ? '1' : '0') + '">'
       + '<div class="card-accent" id="' + rid + '-accent" style="background:' + accent + '"></div>'
       + '<div class="card-body">'
       +   '<div class="card-head"><div>'
@@ -714,20 +749,12 @@ function icTeamSectionsHtml_(data, readOnly) {
   const pendingList = issues.filter(function (x) { return x.pending; });
   const activeList = issues.filter(function (x) { return !x.pending; });
   const overdueList = activeList.filter(function (x) { return x.overdue; });
-  const openList = activeList.filter(function (x) { return !x.overdue; });
-  const sectionHeader = function (label, count, color) {
-    return '<div style="display:flex;align-items:center;gap:11px;margin:28px 0 14px">'
-      + '<span style="font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:' + color + '">' + label + '</span>'
-      + '<span style="font-size:12px;color:#bbb;font-weight:600">' + count + '</span>'
-      + '<span style="flex:1;height:1px;background:#e8e8e8"></span></div>';
-  };
-
-  let out = '';
-  if (overdueList.length) { out += sectionHeader('Overdue', overdueList.length, '#b31b1b'); overdueList.forEach(function (it) { out += renderCard(it); }); }
-  if (openList.length) { out += sectionHeader('Open', openList.length, '#8a857c'); openList.forEach(function (it) { out += renderCard(it); }); }
-  if (pendingList.length) { out += sectionHeader('Pending approval', pendingList.length, '#b06a00'); pendingList.forEach(function (it) { out += renderCard(it); }); }
-  out += icDoneSection_(data.done, false);
-  return out;
+  return secList_(
+    secRow_('overdue', 'sum-over', 'Overdue', overdueList.length, overdueList.map(renderCard).join(''))
+    + secRow_('open', 'sum-open', 'Open', activeList.length, activeList.map(renderCard).join(''))
+    + secRow_('pending', 'sum-pending', 'Pending', pendingList.length, pendingList.map(renderCard).join(''))
+    + secRow_('done', 'sum-done', 'Recently completed', data.resolved || 0, icDoneCards_(data.done, false))
+  );
 }
 
 function pickerPage_() {
@@ -885,11 +912,6 @@ function listAllIssues_() {
 function allIssuesPage_(embedded, admin) {
   const data = listAllIssues_();
   const issues = data.open;
-  const pendingList = issues.filter(function (x) { return x.pending; });
-  const active = issues.filter(function (x) { return !x.pending; });   // not yet submitted
-  const overdueList = active.filter(function (x) { return x.overdue; });
-  const openList = active.filter(function (x) { return !x.overdue; });
-  const overdue = overdueList.length;
   const teamSet = {};
   issues.forEach(function (it) { if (it.team) teamSet[it.team] = 1; });
   const teamOpts = Object.keys(teamSet).sort().map(function (t) { return '<option value="' + escapeHtml_(t) + '">' + escapeHtml_(t) + '</option>'; }).join('');
@@ -904,14 +926,7 @@ function allIssuesPage_(embedded, admin) {
   }
 
 
-  inner += '<div class="ic-summary">'
-    + '<span class="ic-sum"><b id="sum-open">' + active.length + '</b> open</span>'
-    + '<span class="ic-dot"></span>'
-    + '<span class="ic-sum"><b id="sum-pending">' + pendingList.length + '</b> pending</span>'
-    + '<span class="ic-dot"></span>'
-    + '<span class="ic-sum ic-sum--danger"><b id="sum-over">' + overdue + '</b> overdue</span>'
-    + icRefreshBtn_()
-    + '</div>';
+  inner += '<div class="ic-toolbar">' + icRefreshBtn_() + '</div>';
 
   inner += '<div class="filters">'
     + '<div class="search-wrap"><input id="q" type="search" placeholder="Search team, issue, details…" oninput="flt()"></div>'
@@ -933,20 +948,10 @@ function allIssuesPage_(embedded, admin) {
 // The Pending / Overdue / Open sections + filter-empty note + "recently completed"
 // for the all-teams dashboard. Extracted so a Refresh re-renders identically, in place.
 function icAllSectionsHtml_(data) {
-  const issues = data.open;
+  const issues = data.open || [];
   const pendingList = issues.filter(function (x) { return x.pending; });
   const active = issues.filter(function (x) { return !x.pending; });
   const overdueList = active.filter(function (x) { return x.overdue; });
-  const openList = active.filter(function (x) { return !x.overdue; });
-  if (!issues.length) {
-    return '<div class="empty">No open issues. Everything is in good shape.</div>' + icDoneSection_(data.done, true);
-  }
-  const sectionHead = function (label, count, cls) {
-    return '<div class="section-head">'
-      + '<span class="section-label ' + cls + '">' + label + '</span>'
-      + '<span class="section-count">' + count + '</span>'
-      + '<span class="section-rule"></span></div>';
-  };
   let idx = 0;
   const teams = icTeamNames_();
   const fieldOpts = icFieldOptions_();
@@ -967,7 +972,7 @@ function icAllSectionsHtml_(data) {
     const accent = COLOR_HEX[it.color] || '#d6d3ce';
     const statusTxt = isPending ? 'Submitted, awaiting approval' : (isSentBack ? 'Sent back' : ('Due ' + escapeHtml_(dl)));
     const foot = isPending ? icPendingFoot_(rid, it.token) : icOpenFoot_(rid, it.token, it.photoOptional);
-    return '<div class="card" id="' + rid + '" data-team="' + escapeHtml_(it.team) + '" data-over="' + (it.overdue ? '1' : '0') + '" data-state="' + (isPending ? 'pending' : 'open') + '" data-po="' + (it.photoOptional ? '1' : '0') + '" data-hay="' + escapeHtml_(hay) + '">'
+    return '<div class="card" id="' + rid + '" data-tok="' + it.token + '" data-team="' + escapeHtml_(it.team) + '" data-over="' + (it.overdue ? '1' : '0') + '" data-state="' + (isPending ? 'pending' : 'open') + '" data-po="' + (it.photoOptional ? '1' : '0') + '" data-hay="' + escapeHtml_(hay) + '">'
       + '<div class="card-accent" id="' + rid + '-accent" style="background:' + accent + '"></div>'
       + '<div class="card-body">'
       +   '<div id="' + rid + '-view">'
@@ -993,13 +998,12 @@ function icAllSectionsHtml_(data) {
       + '</div>'
       + '</div>';
   };
-  let out = '';
-  if (pendingList.length) { out += sectionHead('Pending approval', pendingList.length, 'section-label--late'); pendingList.forEach(function (it) { out += renderCard(it); }); }
-  if (overdueList.length) { out += sectionHead('Overdue', overdueList.length, 'section-label--late'); overdueList.forEach(function (it) { out += renderCard(it); }); }
-  if (openList.length) { out += sectionHead('Open', openList.length, 'section-label--open'); openList.forEach(function (it) { out += renderCard(it); }); }
-  out += '<div id="empty" class="empty" style="display:none">No issues match those filters.</div>';
-  out += icDoneSection_(data.done, true);
-  return out;
+  return secList_(
+    secRow_('overdue', 'sum-over', 'Overdue', overdueList.length, overdueList.map(renderCard).join(''))
+    + secRow_('open', 'sum-open', 'Open', active.length, active.map(renderCard).join(''))
+    + secRow_('pending', 'sum-pending', 'Pending', pendingList.length, pendingList.map(renderCard).join(''))
+    + secRow_('done', 'sum-done', 'Recently completed', data.resolved || 0, icDoneCards_(data.done, true))
+  ) + '<div id="empty" class="empty" style="display:none">No issues match those filters.</div>';
 }
 
 

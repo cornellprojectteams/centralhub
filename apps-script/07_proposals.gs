@@ -400,9 +400,14 @@ function prVote(proposalId, netid, impact, effort, comment) {
 
 // ---- page ----
 
-function prSection_(label, count, cls) {
-  return '<div class="section-head"><span class="section-label ' + (cls || 'section-label--open') + '">' + label + '</span>'
-    + '<span class="section-count">' + count + '</span><span class="section-rule"></span></div>';
+// A collapsible group: header + its cards. Native <details>, so it folds away with no
+// JS, and secRestore remembers the choice per section.
+function prSection_(label, count, cls, body, isOpen) {
+  return '<details class="section"' + (isOpen ? ' open' : '') + '><summary class="section-head">'
+    + '<span class="section-label ' + (cls || '') + '">' + label + '</span>'
+    + '<span class="section-count">' + count + '</span>'
+    + '<span class="section-chev" aria-hidden="true"></span></summary>'
+    + '<div class="section-body">' + (body || '') + '</div></details>';
 }
 
 // The line under the quorum meter. Its whole job is to name the SMALLEST remaining step,
@@ -440,7 +445,7 @@ function prMeterHtml_(p, rid) {
 
 // One proposal card. votable => provisional (shows the rating control); else it's an
 // approved (Real) card.
-function prCardHtml_(p, rid, votable) {
+function prCardHtml_(p, rid, votable, openByDefault) {
   var scale = function (k, val) {
     var out = '<span class="pr-scale" data-k="' + k + '" data-val="' + (val || '') + '">';
     for (var n = 1; n <= 5; n++) {
@@ -490,13 +495,29 @@ function prCardHtml_(p, rid, votable) {
     : '<div class="pr-promoted"><span class="pr-promoted-mark" aria-hidden="true">&#10003;</span>Promoted ' + (p.promotedAt ? escapeHtml_(fmtShort_(p.promotedAt)) : '') + ' with '
       + (p.countedVotes ? p.avgImpact.toFixed(1) : '&ndash;') + ' impact from ' + (p.countedVotes || 0) + ' reviews</div>';
 
-  return '<div class="card pr-card" id="' + rid + '" data-id="' + p.id + '" data-owner="' + escapeHtml_(p.netid) + '" data-status="' + (votable ? 'review' : 'real') + '">'
+  // Collapsed, a card is one scannable row: title, where it is, how far along, and how
+  // it is scoring. Everything that takes vertical space (description, photos, the rating
+  // control) lives in the body, so a board of dozens stays navigable.
+  var summary = '<summary class="pr-sum">'
+    + '<span class="pr-sum-main">'
+    +   '<span class="pr-sum-title" id="' + rid + '-title">' + escapeHtml_(p.title) + '</span>'
+    +   '<span class="pr-sum-sub">'
+    +     '<span class="pr-area" id="' + rid + '-area"' + (p.area ? '' : ' hidden') + '>' + escapeHtml_(p.area || '') + '</span>'
+    +     (photoIds.length ? '<span class="pr-sum-ph" title="' + photoIds.length + ' photo' + (photoIds.length === 1 ? '' : 's') + '">&#9634; ' + photoIds.length + '</span>' : '')
+    +     '<span class="pr-mine" id="' + rid + '-mine"' + (my ? '' : ' hidden') + '>you rated this</span>'
+    +   '</span>'
+    + '</span>'
+    + '<span class="pr-sum-stat">' + prSumStatHtml_(p, rid, votable) + '</span>'
+    + '<span class="section-chev" aria-hidden="true"></span>'
+    + '</summary>';
+
+  return '<details class="card pr-card" id="' + rid + '" data-id="' + p.id + '" data-owner="' + escapeHtml_(p.netid) + '" data-status="' + (votable ? 'review' : 'real') + '"'
+    + (openByDefault ? ' open' : '') + ' ontoggle="prCardToggled(this)">'
+    + summary
     + '<div class="card-body">'
     +   '<div id="' + rid + '-view">'
-    +   '<h3 class="pr-title" id="' + rid + '-title">' + escapeHtml_(p.title) + '</h3>'
     +   '<p class="pr-desc" id="' + rid + '-desc"' + (p.description ? '' : ' hidden') + '>' + escapeHtml_(p.description) + '</p>'
-    +   '<div class="pr-meta" id="' + rid + '-meta"' + (p.area || p.proposedBy ? '' : ' hidden') + '>'
-    +     '<span class="pr-area" id="' + rid + '-area"' + (p.area ? '' : ' hidden') + '>' + escapeHtml_(p.area || '') + '</span>'
+    +   '<div class="pr-meta" id="' + rid + '-meta"' + (p.proposedBy ? '' : ' hidden') + '>'
     +     '<span class="pr-by" id="' + rid + '-by"' + (p.proposedBy ? '' : ' hidden') + '>' + escapeHtml_(p.proposedBy || '') + '</span>'
     +   '</div>'
     +   photos
@@ -505,7 +526,24 @@ function prCardHtml_(p, rid, votable) {
     +   '</div>'
     +   edit
     +   adminBar
-    + '</div></div>';
+    + '</div></details>';
+}
+
+// The compact right-hand stat on a collapsed card: the same quorum segments used in the
+// open meter, plus the review count and average impact. Mirrors prMeterHtml_'s numbers so
+// a folded board still shows at a glance which ideas have traction.
+function prSumStatHtml_(p, rid, votable) {
+  var counted = p.countedVotes || 0;
+  if (!votable) {
+    return '<span class="pr-sum-real"><span aria-hidden="true">&#10003;</span> In Projects</span>';
+  }
+  var need = PR.quorumMinVotes, segs = '';
+  for (var i = 0; i < need; i++) segs += '<i class="pr-seg' + (i < counted ? ' on' : '') + '"></i>';
+  var good = counted && p.avgImpact >= PR.quorumMinImpact;
+  return '<span class="pr-sum-segs" id="' + rid + '-ssegs" title="' + counted + ' of ' + need + ' counted reviews">' + segs + '</span>'
+    + '<span class="pr-sum-n" id="' + rid + '-sn">' + counted + '/' + need + '</span>'
+    + '<span class="pr-sum-imp' + (good ? ' good' : '') + '" id="' + rid + '-si" title="Average impact">'
+    +   (counted ? p.avgImpact.toFixed(1) : '&ndash;') + '</span>';
 }
 
 function prListSectionsHtml_(data) {
@@ -516,15 +554,24 @@ function prListSectionsHtml_(data) {
   });
   provisional.sort(function (a, b) { return (b.avgImpact - a.avgImpact) || (b.countedVotes - a.countedVotes) || (new Date(b.createdAt || 0) - new Date(a.createdAt || 0)); });
   real.sort(function (a, b) { return new Date(b.promotedAt || 0) - new Date(a.promotedAt || 0); });
+  // Every idea starts as a summary row. Open one to rate it; the rest stay a list.
   var idx = 0, out = '';
-  out += prSection_('Up for review', provisional.length, 'section-label--review');
-  if (!provisional.length) out += '<div class="empty pr-empty"><span class="pr-empty-bee" aria-hidden="true">&#128029;</span>Nothing up for review yet. Scout an improvement and post it above.</div>';
-  else provisional.forEach(function (p) { out += prCardHtml_(p, 'pr' + (idx++), true); });
-  if (real.length) {
-    out += prSection_('Now in Projects', real.length, 'section-label--real');
-    real.forEach(function (p) { out += prMovedHtml_(p); });
+  var body = provisional.length
+    ? provisional.map(function (p) { return prCardHtml_(p, 'pr' + (idx++), true, false); }).join('')
+    : '<div class="empty pr-empty"><span class="pr-empty-bee" aria-hidden="true">&#128029;</span>Nothing up for review yet. Scout an improvement and post it above.</div>';
+  if (provisional.length > 1) {
+    body = '<div class="pr-expandbar">'
+      + '<button type="button" class="pr-expand" id="pr-expand" onclick="prExpandAll()">Expand all</button>'
+      + '<span class="pr-expandhint">' + provisional.length + ' ideas, folded so you can scan them</span></div>' + body;
   }
-  return out;
+  // The review group is open so you can scan summary rows. Each card stays folded
+  // until tapped. "Now in Projects" stays shut.
+  out += prSection_('Up for review', provisional.length, 'section-label--review', body, true);
+  if (real.length) {
+    out += prSection_('Now in Projects', real.length, 'section-label--real',
+      real.map(function (p) { return prMovedHtml_(p); }).join(''), false);
+  }
+  return secList_(out);
 }
 
 function prMovedHtml_(p) {
@@ -831,7 +878,6 @@ function prStyles_() {
     + '.pr-sync::after{content:"";position:absolute;inset:0;width:38%;border-radius:99px;background:linear-gradient(90deg,transparent,#c08a1e,transparent);animation:prSweep 1.15s linear infinite}'
     + '@keyframes prSweep{0%{transform:translateX(-110%)}100%{transform:translateX(320%)}}'
     + '#pr-list.is-syncing{opacity:.55;transition:opacity .2s}'
-    + '.pr-page .section-head{margin:28px 0 14px}'
     + '.pr-page .section-label--review{color:#c08a1e}'
     + '.pr-page .section-label--real{color:#157a47}'
     + '.pr-page .section-rule{background:linear-gradient(90deg,#efe6d2,transparent)}'
@@ -842,12 +888,40 @@ function prStyles_() {
     +   'box-shadow:0 1px 2px rgba(20,17,14,.04),0 10px 28px -16px rgba(20,17,14,.18);animation:prCardIn .42s cubic-bezier(.2,.85,.3,1.05) both}'
     + '.pr-page .pr-card[data-status="real"]{border-left-color:#157a47}'
     + '.pr-page .pr-card:hover{transform:translateY(-2px);box-shadow:0 14px 36px -14px rgba(20,17,14,.2)}'
-    + '.pr-page .pr-card .card-body{padding:18px 20px 16px}'
+    + '.pr-page .pr-card .card-body{padding:2px 20px 16px}'
     + '@keyframes prCardIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}'
-    + '.pr-title{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:clamp(17px,2.4vw,20px);font-weight:800;letter-spacing:-.03em;line-height:1.25;color:#14110e;margin:0;overflow-wrap:anywhere}'
-    + '.pr-desc{font-size:14.5px;line-height:1.55;color:#57534e;margin:8px 0 0;overflow-wrap:anywhere}'
+    // ---- collapsed card: the summary row ----
+    // The whole row is the hit target. Title left, progress right, so a folded column of
+    // dozens can be scanned down either edge.
+    + '.pr-sum{display:flex;align-items:center;gap:12px;padding:12px 14px;min-height:52px;cursor:pointer;list-style:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:background .15s}'
+    + '.pr-sum::-webkit-details-marker{display:none}'
+    + '.pr-sum::marker{content:""}'
+    + '.pr-sum:hover{background:rgba(201,134,12,.05)}'
+    + '.pr-card[open] > .pr-sum{padding-bottom:6px}'
+    + '.pr-sum-main{flex:1;min-width:0}'
+    + '.pr-sum-title{display:block;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:clamp(15px,2.1vw,17px);font-weight:800;letter-spacing:-.025em;line-height:1.3;color:#14110e;overflow-wrap:anywhere}'
+    + '.pr-sum-sub{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:3px;font-size:12px;font-weight:600;color:#8a857c;line-height:1.4}'
+    + '.pr-sum-sub:empty{display:none}'
+    + '.pr-sum-ph{color:#a8a29e}'
+    + '.pr-mine{color:#157a47;font-weight:700}'
+    + '.pr-sum-stat{display:flex;align-items:center;gap:9px;flex:none}'
+    + '.pr-sum-segs{display:inline-flex;gap:3px}'
+    + '.pr-sum-segs .pr-seg{width:14px;height:6px;animation:none}'
+    + '.pr-sum-n{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12px;font-weight:800;color:#8a857c;font-variant-numeric:tabular-nums}'
+    + '.pr-sum-imp{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:13px;font-weight:800;color:#a8a29e;min-width:24px;text-align:right;font-variant-numeric:tabular-nums}'
+    + '.pr-sum-imp.good{color:#157a47}'
+    + '.pr-sum-real{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12px;font-weight:800;color:#157a47;white-space:nowrap}'
+    + '.pr-sum:active{background:#f3f0ea}'
+    // Folded cards sit tighter together than open ones so a long list stays compact.
+    + '.pr-page .pr-card:not([open]){margin-bottom:8px}'
+    + '.pr-expandbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 12px}'
+    + '.pr-expand{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12px;font-weight:700;color:#57534e;background:#fff;'
+    +   'border:1.5px solid #e2ddd6;border-radius:9px;padding:7px 13px;cursor:pointer;transition:border-color .15s,color .15s}'
+    + '.pr-expand:hover{border-color:#c9c2b8;color:#14110e}'
+    + '.pr-expandhint{font-size:12px;color:#a8a29e}'
+    + '@media(max-width:560px){.pr-sum{padding:13px 14px;gap:9px}.pr-sum-n{display:none}}'
+    + '.pr-desc{font-size:14.5px;line-height:1.55;color:#57534e;margin:0;overflow-wrap:anywhere}'
     + '.pr-meta{display:flex;align-items:center;flex-wrap:wrap;gap:0;margin-top:8px;font-size:12.5px;font-weight:600;color:#8a857c}'
-    + '.pr-area:not([hidden])+.pr-by:not([hidden])::before{content:"\\00b7";margin:0 8px;color:#d6d3ce;font-weight:800}'
     + '.pr-photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,92px),1fr));gap:8px;margin-top:12px}'
     + '.pr-photos a{display:block;aspect-ratio:1;border-radius:12px;overflow:hidden;line-height:0;box-shadow:0 2px 8px rgba(20,17,14,.08);transition:transform .16s}'
     + '.pr-photos a:hover{transform:scale(1.04)}'
@@ -1064,7 +1138,23 @@ function prClientJs_() {
     + 'var w=document.getElementById(rid+"-w-"+pair[0]);if(w){w.textContent=prWord(pair[0],pair[1]);w.classList.add("show");}});'
     + 'var v=document.getElementById(rid+"-verdict");if(v&&mine.impact&&mine.effort){v.innerHTML=prVerdict(mine.impact,mine.effort);v.hidden=false;}'
     + 'var go=document.getElementById(rid+"-go");if(go)go.textContent="Update rating";'
+    // Flag it on the folded summary too, so a scan down the list shows what is left to do.
+    + 'var mk=document.getElementById(rid+"-mine");if(mk)mk.hidden=false;'
     + '});}).withFailureHandler(function(){prTop(false);}).prViewerState(nid);}'
+
+    // ---------- folded cards ----------
+    // A card the reader opened stays open across a re-render. Kept in memory rather than
+    // localStorage: it is about not losing your place mid-session, not a lasting setting.
+    + 'var PR_OPEN={};'
+    + 'function prCardToggled(el){var id=el.getAttribute("data-id");if(!id)return;'
+    + 'if(el.open)PR_OPEN[id]=1;else delete PR_OPEN[id];}'
+    + 'function prCardsRestore(){[].slice.call(document.querySelectorAll(".pr-card")).forEach(function(c){'
+    + 'if(PR_OPEN[c.getAttribute("data-id")])c.open=true;});}'
+    + 'function prExpandAll(){var btn=document.getElementById("pr-expand");'
+    + 'var cards=[].slice.call(document.querySelectorAll(".pr-card"));'
+    + 'var anyClosed=cards.some(function(c){return !c.open;});'
+    + 'cards.forEach(function(c){c.open=anyClosed;});'
+    + 'if(btn)btn.textContent=anyClosed?"Collapse all":"Expand all";}'
 
     // ---------- quorum meter updates ----------
     + 'function prSay(counted,need,avg,hasVotes){if(!hasVotes)return "be the first to weigh in";'
@@ -1082,7 +1172,15 @@ function prClientJs_() {
     + 'if(ve)ve.textContent=avgE?avgE.toFixed(1):"\\u2013";'
     + 'var say=document.getElementById(rid+"-say");'
     + 'if(say){say.textContent=prSay(counted,PR_NEED,avgI,true);'
-    + 'say.className="pr-qsay"+(PR_NEED-counted===1?" pr-qsay--close":"")+(counted>=PR_NEED&&avgI>=PR_BAR?" pr-qsay--good":"");}}'
+    + 'say.className="pr-qsay"+(PR_NEED-counted===1?" pr-qsay--close":"")+(counted>=PR_NEED&&avgI>=PR_BAR?" pr-qsay--good":"");}'
+    // Keep the collapsed summary in step with the open meter, so folding the card back up
+    // does not show stale numbers.
+    + 'var ss=document.getElementById(rid+"-ssegs");'
+    + 'if(ss){ss.title=counted+" of "+PR_NEED+" counted reviews";'
+    + '[].slice.call(ss.children).forEach(function(el,i){el.classList.toggle("on",i<counted);});}'
+    + 'var sn=document.getElementById(rid+"-sn");if(sn)sn.textContent=counted+"/"+PR_NEED;'
+    + 'var si=document.getElementById(rid+"-si");'
+    + 'if(si){si.textContent=avgI?avgI.toFixed(1):"\\u2013";si.classList.toggle("good",!!counted&&avgI>=PR_BAR);}}'
 
     // ---------- submitting a rating ----------
     // The wait is real (a write, a recount and a quorum check), so it is narrated rather
@@ -1229,7 +1327,7 @@ function prClientJs_() {
     + 'if(!list)return;if(sync)sync.hidden=false;list.classList.add("is-syncing");if(!quiet)prTop(true);'
     + 'google.script.run.withSuccessHandler(function(r){'
     + 'if(sync)sync.hidden=true;list.classList.remove("is-syncing");if(!quiet)prTop(false);'
-    + 'if(!r||!r.ok)return;list.innerHTML=r.html;'
+    + 'if(!r||!r.ok)return;list.innerHTML=r.html;secRestore();prCardsRestore();'
     + '[].slice.call(list.querySelectorAll(".pr-card")).forEach(function(c,i){c.style.animationDelay=(i*45)+"ms";});'
     + 'if(typeof ADMIN_PASS!=="undefined"&&ADMIN_PASS)document.querySelectorAll(".tp-admin").forEach(function(e){e.hidden=false;});'
     + 'prLoadViewer();'

@@ -570,9 +570,19 @@ function tpDeleteProject(projectId, pass) {
 function tpStyles_() {
   return '<style>'
     + '[hidden]{display:none!important}'   // hidden attr must beat class display rules (.btn-row/.ic-admin-fields) so admin controls stay hidden until unlock
-    + '.ic-summary{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:12px 0 2px;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:13.5px;font-weight:600;color:#8a857c}'
+    + '.ic-summary{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:12px 0 2px}'
+    + '.ic-sum{-webkit-appearance:none;appearance:none;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:13.5px;font-weight:600;color:#8a857c;background:#fff;border:1.5px solid #e2ddd6;border-radius:10px;padding:7px 12px 7px 11px;cursor:pointer;display:inline-flex;align-items:baseline;line-height:1.2;flex:0 0 auto;white-space:nowrap;-webkit-user-select:none;user-select:none;transition:border-color .15s,color .15s,background .15s,box-shadow .15s}'
+    + '.ic-sum:hover:not(:disabled){border-color:#b5b0a8;color:#444;box-shadow:0 2px 6px rgba(20,20,30,.06)}'
+    + '.ic-sum:focus-visible{outline:none;border-color:#b31b1b;box-shadow:0 0 0 4px rgba(179,27,27,.12)}'
+    + '.ic-sum.is-on{border-color:#b31b1b;background:#fff8f8;color:#8f1515;box-shadow:0 0 0 3px rgba(179,27,27,.1)}'
+    + '.ic-sum:disabled{opacity:.55;cursor:default}'
     + '.ic-sum b{font-weight:800;color:#111;font-size:16px;margin-right:5px}'
+    + '.ic-sum.is-on b{color:#8f1515}'
     + '.ic-sum--danger b{color:#b31b1b}'
+    + '.ic-sum--danger.is-on{border-color:#b31b1b;background:#fff8f8;color:#8f1515}'
+    + '.ic-sum--danger.is-on b{color:#b31b1b}'
+    + '.ic-sum--done.is-on{border-color:#157a47;background:#f3faf6;color:#0f6a3c;box-shadow:0 0 0 3px rgba(21,122,71,.12)}'
+    + '.ic-sum--done.is-on b{color:#157a47}'
     + '.ic-dot{width:4px;height:4px;border-radius:50%;background:#d6d3ce}'
     + '.ic-adminbar{display:flex;align-items:center;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin:2px 0}'
     + '.ic-admin-toggle{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#b5b0a8;background:none;border:none;cursor:pointer;padding:4px 2px}'
@@ -705,11 +715,7 @@ function tpStyles_() {
     + '.tp-skel-line--title{height:18px;width:58%;margin-top:0}'
     + '.tp-skel-line--short{width:38%}'
     + '@keyframes tpSkel{to{background-position:-200% 0}}'
-    + '.tp-done-pack{margin-top:8px}'
-    + '.tp-done-sum{cursor:pointer;list-style:none;user-select:none}'
-    + '.tp-done-sum::-webkit-details-marker{display:none}'
-    + '.tp-done-sum::marker{content:""}'
-    + '.tp-done-pack>summary.section-head{margin-top:22px}'
+    + '.section > .section-head::marker{content:""}'
     + '.tp-create{border-radius:16px;box-shadow:0 6px 20px rgba(20,20,30,.06)}'
     + '.tp-create h3{font-size:14px;letter-spacing:-.01em;text-transform:none}'
     + '.tp-c-photo{max-width:none;width:100%}'
@@ -727,7 +733,6 @@ function tpStyles_() {
     +   '.tp-photos{gap:10px}.tp-photo img{max-height:150px}'
     +   '.card-foot{gap:8px}.card-foot .btn-row{width:100%;flex-wrap:wrap}.card-foot .btn-row>.btn{flex:1 1 auto}'
     +   '.tp-cheer,#tp-cheer{font-size:15px;padding:12px 16px;max-width:92vw}'
-    +   '.ic-summary{gap:7px 12px;font-size:12.5px}.ic-sum b{font-size:15px}'
     + '}'
     + '@media(max-width:400px){.tp-photos{flex-direction:column}.tp-photo img{max-height:none;width:100%}}'
     + '@media(prefers-reduced-motion:reduce){.tp-skel-line{animation:none}#tp-proj-list .card:hover{transform:none}}'
@@ -739,6 +744,13 @@ function tpStyles_() {
 function tpSharedJs_() {
   return '<script>'
     + 'var ADMIN_PASS="";'
+    // Groups start closed. One open at a time. Chevron on the row is the affordance.
+    + 'var SEC_LOCK=false;'
+    + 'function secRestore(){[].slice.call(document.querySelectorAll("details.section")).forEach(function(d){'
+    + 'if(d.getAttribute("data-wired"))return;d.setAttribute("data-wired","1");'
+    + 'd.addEventListener("toggle",function(){if(SEC_LOCK||!d.open)return;SEC_LOCK=true;'
+    + '[].slice.call(document.querySelectorAll("details.section")).forEach(function(o){if(o!==d)o.open=false;});SEC_LOCK=false;});});}'
+    + 'window.addEventListener("DOMContentLoaded",secRestore);'
     + 'function tpUnlock(){var p=(document.getElementById("tp-pass")||{}).value||"";var m=document.getElementById("tp-lock-msg");'
     + 'if(m){m.textContent="Checking\\u2026";m.className="tp-lock-msg";}'
     + 'google.script.run.withSuccessHandler(function(ok){'
@@ -891,13 +903,14 @@ function icClientJs_() {
   return '<script>'
     + 'function icSetPill(rid,cls,txt){var p=document.getElementById(rid+"-pill");if(p)p.innerHTML="<span class=\\"tp-pill "+cls+"\\">"+txt+"</span>";}'
     + 'function icBump(id,d){var e=document.getElementById(id);if(e)e.textContent=Math.max(0,(parseInt(e.textContent,10)||0)+d);}'
+    + 'function icDropOther(rid,token){if(!token)return;document.querySelectorAll(".card[data-tok=\\""+token+"\\"]").forEach(function(c){if(c.id!==rid&&c.parentNode)c.parentNode.removeChild(c);});}'
     + 'function icOpenFootJs(rid,token){var c=document.getElementById(rid);var po=c&&c.dataset.po==="1";var input="<input type=\\"file\\" accept=\\"image/*\\" multiple id=\\""+rid+"-file\\" style=\\"display:none\\" onchange=\\"icPick(this,\'"+rid+"\')\\">";var addBtn="<button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"document.getElementById(\'"+rid+"-file\').click()\\">Add photos</button>";var doneBtn="<button type=\\"button\\" class=\\"btn btn-primary\\" id=\\""+rid+"-done\\" onclick=\\"icComplete(\'"+rid+"\',\'"+token+"\',"+(po?"true":"false")+")\\">"+(po?"Mark done":"Complete")+"</button>";var hint="<span id=\\""+rid+"-stagehint\\" class=\\"tp-hint\\"></span>";var admin=(ADMIN_PASS&&!po)?"<span id=\\""+rid+"-skipwrap\\" class=\\"btn-row\\">"+icSkipHtml(rid,token)+"</span>":"";return input+addBtn+doneBtn+hint+admin;}'
     + 'function icSkipHtml(rid,token){return "<button type=\\"button\\" class=\\"btn btn-ghost btn-skip\\" title=\\"Admin: close this now without a photo or review\\" onclick=\\"icResolveAsk(\'"+rid+"\',\'"+token+"\')\\"><svg viewBox=\\"0 0 24 24\\" width=\\"14\\" height=\\"14\\" fill=\\"none\\" stroke=\\"currentColor\\" stroke-width=\\"2.3\\" stroke-linecap=\\"round\\" stroke-linejoin=\\"round\\"><path d=\\"M13 2 4 14h6l-1 8 9-12h-6l1-8z\\"></path></svg>Close it out</button>";}'
     + 'function icResolveAsk(rid,token){var w=document.getElementById(rid+"-skipwrap");if(!w)return;w.innerHTML="<span class=\\"tp-hint\\" style=\\"margin-right:4px\\">Close out with no photo?</span><button type=\\"button\\" class=\\"btn btn-skip\\" onclick=\\"icResolve(\'"+rid+"\',\'"+token+"\')\\">Yes, close it</button><button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"icResolveCancel(\'"+rid+"\',\'"+token+"\')\\">Cancel</button>";}'
     + 'function icResolveCancel(rid,token){var w=document.getElementById(rid+"-skipwrap");if(w)w.innerHTML=icSkipHtml(rid,token);}'
     + 'function icResolve(rid,token){var act=document.getElementById(rid+"-act");act.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed. Retry.")+"</span>";return;}'
-    + 'icSetPill(rid,"tp-pill--done","Completed");act.innerHTML="";var s=document.getElementById(rid+"-status");if(s){s.innerHTML="\\u2713 Completed";s.className="due due--done";}tpApproveFx(rid);tpAdvance(rid,"#157a47","#e7f3ec",2);var c=document.getElementById(rid);if(c){c.style.opacity="0.72";icBump("sum-open",-1);if(c.dataset.over==="1")icBump("sum-over",-1);}'
+    + 'icSetPill(rid,"tp-pill--done","Completed");act.innerHTML="";var s=document.getElementById(rid+"-status");if(s){s.innerHTML="\\u2713 Completed";s.className="due due--done";}tpApproveFx(rid);tpAdvance(rid,"#157a47","#e7f3ec",2);var c=document.getElementById(rid);if(c){c.style.opacity="0.72";icBump("sum-open",-1);if(c.dataset.over==="1")icBump("sum-over",-1);}icBump("sum-done",1);icDropOther(rid,token);'
     + '}).withFailureHandler(function(){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).resolveIssueComplete(token);}'
     + 'function icNoteInner(){return "<div class=\\"ic-note\\">Finished? Add a photo of the completed work and an admin gives it a quick review.</div>";}'
     + 'function icAdminFootJs(rid,token){return ADMIN_PASS?"<span class=\\"tp-admin btn-row\\"><button type=\\"button\\" class=\\"btn btn-confirm\\" onclick=\\"icApprove(\'"+rid+"\',\'"+token+"\')\\">Approve</button><button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"icRejectOpen(\'"+rid+"\',\'"+token+"\')\\">Send back</button></span>":"";}'
@@ -908,8 +921,8 @@ function icClientJs_() {
     + 'function icAfterSubmit(rid,token,photoIds,note){tpConfetti();icSetPill(rid,"tp-pill--pending","Pending approval");tpAdvance(rid,"#b06a00","#f7edd8",1);var ids=Array.isArray(photoIds)?photoIds:(photoIds?[photoIds]:[]);var ph=document.getElementById(rid+"-photo");if(ph)ph.innerHTML=tpThumbs(ids);'
     + 'var s=document.getElementById(rid+"-status");if(s){s.textContent="Submitted, awaiting approval";s.className="due";}'
     + 'var nt=document.getElementById(rid+"-note");if(nt)nt.innerHTML="";icShowReply(rid,note);'
-    + 'var act=document.getElementById(rid+"-act");if(act)act.innerHTML=icAdminFootJs(rid,token);var c=document.getElementById(rid);if(c){if(c.dataset.over==="1"){icBump("sum-over",-1);c.dataset.over="0";}c.dataset.state="pending";}'
-    + 'icBump("sum-open",-1);icBump("sum-pending",1);}'
+    + 'var act=document.getElementById(rid+"-act");if(act)act.innerHTML=icAdminFootJs(rid,token);var c=document.getElementById(rid);if(c){icBump("sum-open",-1);if(c.dataset.over==="1"){icBump("sum-over",-1);c.dataset.over="0";}c.dataset.state="pending";}'
+    + 'icBump("sum-pending",1);icDropOther(rid,token);}'
     + 'var ICBUF={};'
     + 'function icPick(input,rid){ICBUF[rid]=ICBUF[rid]||[];tpStageRead(input,ICBUF[rid],function(){icRenderStage(rid);});}'
     + 'function icRenderStage(rid){var buf=ICBUF[rid]||[];var ph=document.getElementById(rid+"-photo");if(ph)ph.innerHTML=tpStagePreview(buf,"icUnstage(\'"+rid+"\',","document.getElementById(\'"+rid+"-file\').click()");var h=document.getElementById(rid+"-stagehint");if(h){h.style.color="";h.textContent="";}var c=document.getElementById(rid);var po=c&&c.dataset.po==="1";var db=document.getElementById(rid+"-done");if(db)db.textContent=buf.length?((po?"Submit":"Complete")+" \\u00b7 "+buf.length+" photo"+(buf.length===1?"":"s")):(po?"Mark done":"Complete");}'
@@ -934,11 +947,11 @@ function icClientJs_() {
     + 'function icDelCancel(rid,token){document.getElementById(rid+"-delwrap").innerHTML="<button type=\\"button\\" class=\\"btn btn-ghost tp-del\\" onclick=\\"icDelOpen(\'"+rid+"\',\'"+token+"\')\\">Delete</button>";}'
     + 'function icDelDo(rid,token){var w=document.getElementById(rid+"-delwrap");w.innerHTML="<span class=\\"tp-hint\\">Deleting\\u2026</span>";'
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){w.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed")+"</span>";return;}'
-    + 'var c=document.getElementById(rid);if(c){if(c.dataset.state==="pending")icBump("sum-pending",-1);else{icBump("sum-open",-1);if(c.dataset.over==="1")icBump("sum-over",-1);}c.parentNode.removeChild(c);}'
+    + 'var c=document.getElementById(rid);if(c){if(c.dataset.state==="pending")icBump("sum-pending",-1);else{icBump("sum-open",-1);if(c.dataset.over==="1")icBump("sum-over",-1);}icDropOther(rid,token);c.parentNode.removeChild(c);}'
     + '}).withFailureHandler(function(){w.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).deleteIssue(token);}'
     + 'function icApprove(rid,token){var act=document.getElementById(rid+"-act");act.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed")+"</span>";return;}'
-    + 'icSetPill(rid,"tp-pill--done","Completed");act.innerHTML="";var s=document.getElementById(rid+"-status");if(s){s.innerHTML="\\u2713 Completed";s.className="due due--done";}tpApproveFx(rid);tpAdvance(rid,"#157a47","#e7f3ec",2);var c=document.getElementById(rid);if(c)c.style.opacity="0.72";icBump("sum-pending",-1);'
+    + 'icSetPill(rid,"tp-pill--done","Completed");act.innerHTML="";var s=document.getElementById(rid+"-status");if(s){s.innerHTML="\\u2713 Completed";s.className="due due--done";}tpApproveFx(rid);tpAdvance(rid,"#157a47","#e7f3ec",2);var c=document.getElementById(rid);if(c)c.style.opacity="0.72";icBump("sum-pending",-1);icBump("sum-done",1);icDropOther(rid,token);'
     + '}).withFailureHandler(function(){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).approveIssueCompletion(token,ADMIN_PASS);}'
     + 'function icRejectOpen(rid,token){var act=document.getElementById(rid+"-act");act.innerHTML="<input id=\\""+rid+"-reason\\" class=\\"ic-reason\\" placeholder=\\"Reason (optional)\\" onkeydown=\\"if(event.key===\'Enter\')icRejectDo(\'"+rid+"\',\'"+token+"\')\\"><button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"icRejectDo(\'"+rid+"\',\'"+token+"\')\\">Send back</button><button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"icRejectCancel(\'"+rid+"\',\'"+token+"\')\\">Cancel</button>";var i=document.getElementById(rid+"-reason");if(i)i.focus();}'
     + 'function icRejectCancel(rid,token){document.getElementById(rid+"-act").innerHTML=icAdminFootJs(rid,token);}'
@@ -1088,28 +1101,14 @@ function tpProjectsSectionsHtml_(projects) {
   var pending = projects.filter(function (p) { return norm_(p.status) === norm_(TP.projectStatus.pending); });
   var done = projects.filter(function (p) { return norm_(p.status) === norm_(TP.projectStatus.done); });
   assigned.sort(function (a, b) { return tpTime_(b.createdAt) - tpTime_(a.createdAt); });
-  if (!projects.length) {
-    return '<div class="empty">No projects yet. When a proposal hits quorum it lands here, ready to pick up.</div>';
-  }
-  var sectionHead = function (label, count, cls) {
-    return '<div class="section-head"><span class="section-label ' + cls + '">' + label + '</span>'
-      + '<span class="section-count">' + count + '</span><span class="section-rule"></span></div>';
-  };
   var idx = 0;
   var render = function (p) { return tpRenderProjectCard_(p, 'pj' + (idx++)); };
-  var out = '';
-  if (pending.length) { out += sectionHead('Pending approval', pending.length, 'section-label--late'); pending.forEach(function (p) { out += render(p); }); }
-  if (active.length) { out += sectionHead('In progress', active.length, 'section-label--late'); active.forEach(function (p) { out += render(p); }); }
-  if (assigned.length) { out += sectionHead('Open', assigned.length, 'section-label--open'); assigned.forEach(function (p) { out += render(p); }); }
-  if (done.length) {
-    var openDone = !(pending.length || active.length || assigned.length);
-    out += '<details class="tp-done-pack"' + (openDone ? ' open' : '') + '>'
-      + '<summary class="section-head tp-done-sum"><span class="section-label section-label--open">Completed</span>'
-      + '<span class="section-count">' + done.length + '</span><span class="section-rule"></span></summary>';
-    done.forEach(function (p) { out += render(p); });
-    out += '</details>';
-  }
-  return out;
+  return secList_(
+    secRow_('open', 'tp-n-assigned', 'Open', assigned.length, assigned.map(render).join(''))
+    + secRow_('active', 'tp-n-active', 'In progress', active.length, active.map(render).join(''))
+    + secRow_('pending', 'tp-n-pending', 'Pending', pending.length, pending.map(render).join(''))
+    + secRow_('done', 'tp-n-done', 'Completed', done.length, done.map(render).join(''))
+  );
 }
 
 function tpSkelHtml_() {
@@ -1355,21 +1354,13 @@ function projectsPage_(embedded, admin) {
     + '</form>'
     + '</details>';
 
-  inner += '<div class="ic-summary">'
-    + '<span class="ic-sum"><b id="tp-n-assigned">\u2013</b> open</span>'
-    + '<span class="ic-dot"></span>'
-    + '<span class="ic-sum"><b id="tp-n-active">\u2013</b> in progress</span>'
-    + '<span class="ic-dot"></span>'
-    + '<span class="ic-sum"><b id="tp-n-pending">\u2013</b> pending</span>'
-    + '<span class="ic-dot"></span>'
-    + '<span class="ic-sum"><b id="tp-n-done">\u2013</b> completed</span>'
-    + '</div>';
-
   inner += '<div id="tp-proj-list">' + tpSkelHtml_() + '</div>';
 
   inner += '<script>'
     + 'var TPUP={};var TPCB=null;var TPCF=null;'
-    + 'function tpReveal(){if(ADMIN_PASS)document.querySelectorAll(".tp-admin").forEach(function(e){e.hidden=false;});}'
+    // Called after every list re-paint: re-show admin controls and re-wire the
+    // collapsible groups, both of which the innerHTML swap just threw away.
+    + 'function tpReveal(){if(ADMIN_PASS)document.querySelectorAll(".tp-admin").forEach(function(e){e.hidden=false;});secRestore();}'
     + 'function tpSetCounts(c){if(!c)return;var set=function(id,n){if(n==null)return;var e=document.getElementById(id);if(e)e.textContent=n;};'
     + 'set("tp-n-assigned",c.assigned);set("tp-n-active",c.active);set("tp-n-pending",c.pending);set("tp-n-done",c.done);}'
     + 'function tpPaint(r){var list=document.getElementById("tp-proj-list");if(!list)return;'

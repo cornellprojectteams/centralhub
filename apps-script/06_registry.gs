@@ -693,9 +693,15 @@ function regBodyMarkup_(which, b, admin, embedded) {
     ? '<div class="reg-chips"><button type="button" class="reg-fchip" data-f="stock" onclick="regChip(this)">Low or out</button></div>'
     : '<div class="reg-chips"><button type="button" class="reg-fchip" data-f="out" onclick="regChip(this)">Checked out</button><button type="button" class="reg-fchip" data-f="overdue" onclick="regChip(this)">Overdue</button></div>';
 
+  // Search always stays out; the rest of the filters fold away behind a toggle so the
+  // sticky bar does not eat half a phone screen. The choice is remembered.
   let out = head + '<div class="reg-toolbar">' + toggle + toolbar + '</div>'
-    + '<div class="reg-bar"><div class="filters"><div class="search-wrap"><input id="q" type="search" placeholder="Search name, location, or team" oninput="flt()" autocomplete="off"></div>' + controls + '</div>'
-    + chipsHtml + '</div>'
+    + '<div class="reg-bar">'
+    +   '<div class="reg-bar-top"><div class="search-wrap"><input id="q" type="search" placeholder="Search name, location, or team" oninput="flt()" autocomplete="off"></div>'
+    +     '<button type="button" class="reg-filt-btn" id="reg-filt-btn" onclick="regToggleFilters()" aria-expanded="false" aria-controls="reg-filt-body">'
+    +       'Filters<span class="reg-filt-n" id="reg-filt-n" hidden></span><span class="reg-filt-caret" aria-hidden="true">&#9662;</span></button></div>'
+    +   '<div class="reg-filt-body" id="reg-filt-body" hidden><div class="filters">' + controls + '</div>' + chipsHtml + '</div>'
+    + '</div>'
     + '<div class="reg-grid" id="reg-cards">' + b.html + '</div>'
     + '<div id="empty" class="empty reg-empty" style="display:none"><div class="reg-empty-title">No matching items</div>Try a different search, or clear the filters.</div>';
   if (!b.html) out += '<div class="empty">Nothing here yet.' + (admin ? ' Add the first ' + escapeHtml_(spec.noun) + '.' : '') + '</div>';
@@ -726,7 +732,10 @@ function regSwitchJs_() {
   return '<script>'
     + 'function regFillBody(r){var sw=document.getElementById("reg-swap");if(!sw||!r||!r.ok)return false;'
     + 'sw.innerHTML=r.html;REG_WHICH=r.which;if(typeof REG_ADMIN!=="undefined"&&REG_ADMIN){REG_KEY=r.key;try{REG_ROWS=JSON.parse(r.rowsJson);}catch(e){REG_ROWS={};}}'
-    + 'if(typeof REG_FILTER!=="undefined")REG_FILTER="";if(typeof flt==="function")flt();return true;}'
+    + 'if(typeof REG_FILTER!=="undefined")REG_FILTER="";'
+    // The swap replaces the whole bar, so re-apply the remembered filter-panel state.
+    + 'if(typeof regFiltRestore==="function")regFiltRestore();'
+    + 'if(typeof flt==="function")flt();return true;}'
     + 'function regBoot(which,other){var ad=!!(typeof REG_ADMIN!=="undefined"&&REG_ADMIN);var em=!!(typeof REG_EMBED!=="undefined"&&REG_EMBED);'
     + 'regWait(true,which==="inventory"?"Loading inventory":"Loading equipment","");'
     + 'google.script.run.withSuccessHandler(function(r){if(!regFillBody(r)){regWaitSay("Could not load","Refresh the page and try again.");return;}'
@@ -1137,6 +1146,18 @@ function regStyles_() {
     + '.reg-item .btn-primary:hover{box-shadow:0 8px 20px rgba(13,148,136,.36)}'
     + '@media(max-width:760px){.reg-detail{grid-template-columns:1fr;gap:18px}.reg-detail-media{max-width:min(420px,100%);width:100%;margin:0 auto}.reg-detail-title{font-size:26px}.reg-stock-n{font-size:36px}.reg-facts{grid-template-columns:1fr}.reg-slide-dialog{padding:14px 12px 36px}.reg-toggle-btn{padding:8px 12px}.reg-tools{width:100%}.reg-page .search-wrap{flex:1 1 100%}.reg-co-form input{min-width:0;width:100%}.reg-ov{padding:3vh 10px}.reg-ov-h{padding:20px 18px 8px}.reg-form{padding:14px 18px}.reg-more{margin:2px 18px 4px}.reg-ov-foot{flex-wrap:wrap;padding:14px 18px 18px}.reg-imgblock{flex-direction:column}}'
     // quick-filter chips
+    // Collapsible filter panel. Search stays on the top row; the selects and chips fold.
+    + '.reg-bar-top{display:flex;gap:8px;align-items:center;min-width:0}'
+    + '.reg-filt-btn{display:inline-flex;align-items:center;gap:6px;flex:none;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12.5px;font-weight:700;'
+    +   'color:#57534e;background:#fff;border:1.5px solid #e2ddd6;border-radius:10px;padding:9px 13px;cursor:pointer;transition:border-color .15s,color .15s,background .15s}'
+    + '.reg-filt-btn:hover{border-color:#c9c2b8;color:#14110e}'
+    + '.reg-filt-btn[aria-expanded="false"]{background:#faf9f6}'
+    + '.reg-filt-n{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#b31b1b;color:#fff;font-size:10.5px;font-weight:800}'
+    + '.reg-filt-caret{font-size:9px;color:#a8a29e;transition:transform .22s cubic-bezier(.2,.8,.3,1)}'
+    + '.reg-filt-btn[aria-expanded="false"] .reg-filt-caret{transform:rotate(-90deg)}'
+    + '.reg-filt-body{overflow:hidden;transition:max-height .28s cubic-bezier(.2,.8,.3,1),opacity .2s ease,margin .28s ease;max-height:400px;opacity:1}'
+    + '.reg-filt-body[hidden]{display:block!important;max-height:0;opacity:0;margin:0}'
+    + '@media(prefers-reduced-motion:reduce){.reg-filt-body{transition:none}.reg-filt-caret{transition:none}}'
     + '.reg-chips{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 2px}'
     + '.reg-fchip{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12px;font-weight:700;color:#57534e;background:#fff;border:1.5px solid #e2ddd6;border-radius:999px;padding:7px 14px;cursor:pointer}'
     + '.reg-fchip:hover{border-color:#b5b0a8}.reg-fchip.on{background:#b31b1b;border-color:#b31b1b;color:#fff}'
@@ -1199,7 +1220,19 @@ function regFilterJs_() {
     + 'var ok=fp&&(!q||r.dataset.hay.indexOf(q)>=0)&&(!cv||r.dataset.cat===cv)&&(!ov||r.dataset.owner===ov);r.style.display=ok?"":"none";if(ok)n++;});'
     + 'var e=document.getElementById("empty");if(e)e.style.display=n?"none":"block";'
     + 'var tot=document.querySelectorAll(".reg-row").length;var st=document.getElementById("reg-count");'
-    + 'if(st){var filtering=!!(q||cv||ov||REG_FILTER);st.innerHTML=filtering?("Showing <b>"+n+"</b> of "+tot):(st.getAttribute("data-base")||st.innerHTML);}}'
+    + 'if(st){var filtering=!!(q||cv||ov||REG_FILTER);st.innerHTML=filtering?("Showing <b>"+n+"</b> of "+tot):(st.getAttribute("data-base")||st.innerHTML);}'
+    + 'regFiltCount(cv,ov);}'
+    // Badge the collapsed Filters button with how many are active, so a filter that is
+    // folded out of sight can never quietly skew what the list is showing.
+    + 'function regFiltCount(cv,ov){var b=document.getElementById("reg-filt-n");if(!b)return;'
+    + 'var n=(cv?1:0)+(ov?1:0)+(REG_FILTER?1:0);b.textContent=n;b.hidden=!n;}'
+    + 'function regToggleFilters(){var body=document.getElementById("reg-filt-body"),btn=document.getElementById("reg-filt-btn");'
+    + 'if(!body||!btn)return;var open=btn.getAttribute("aria-expanded")!=="false";'
+    + 'btn.setAttribute("aria-expanded",open?"false":"true");body.hidden=open;'
+    + 'try{localStorage.setItem("regFilters",open?"0":"1");}catch(e){}}'
+    + 'function regFiltRestore(){var body=document.getElementById("reg-filt-body"),btn=document.getElementById("reg-filt-btn");'
+    + 'if(!body||!btn)return;'
+    + 'btn.setAttribute("aria-expanded","false");body.hidden=true;}'
     + '</script>';
 }
 

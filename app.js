@@ -268,7 +268,10 @@
     if (issuesOpenBtn) issuesOpenBtn.focus();
   }
 
-  if (issuesOpenBtn) issuesOpenBtn.addEventListener('click', openIssuesPanel);
+  if (issuesOpenBtn) {
+    issuesOpenBtn.addEventListener('click', openIssuesPanel);
+    prefetchOnIntent(issuesOpenBtn, loadIssuesFrame);   // absorb the Apps Script cold start
+  }
   if (issuesCloseBtn) issuesCloseBtn.addEventListener('click', closeIssuesPanel);
   if (issuesBackdrop) issuesBackdrop.addEventListener('click', closeIssuesPanel);
 
@@ -283,6 +286,25 @@
   const bootHash = location.hash.slice(1);
   if (bootHash === 'issues') openIssuesPanel();
   if (bootHash === 'projects') openIssuesPanel('projects');
+
+  /**
+   * Warm an embedded module before it is asked for: begin loading once the pointer has
+   * rested on its button, or as soon as it takes keyboard focus. Only fires once, and a
+   * pointer that leaves before the dwell elapses cancels it.
+   * @param {Element} el
+   * @param {Function} start
+   */
+  function prefetchOnIntent(el, start) {
+    let timer = null;
+    let done = false;
+    const go = () => { if (done) return; done = true; start(); };
+    const arm = () => { if (!done && timer === null) timer = window.setTimeout(go, 120); };
+    const disarm = () => { if (timer !== null) { clearTimeout(timer); timer = null; } };
+    el.addEventListener('mouseenter', arm);
+    el.addEventListener('mouseleave', disarm);
+    el.addEventListener('focus', go);
+    el.addEventListener('touchstart', go, { passive: true });
+  }
 
   /**
    * Generic slide-over panel: same shell and behaviour as the tasks panel above, but
@@ -363,6 +385,11 @@
     }
 
     openBtn.addEventListener('click', open);
+    // Start fetching on intent rather than on click. An embedded Apps Script page costs
+    // a cold start of a couple of seconds, and the hover before the click is enough to
+    // absorb most of it. Guarded by a short dwell so sweeping the mouse across the list
+    // does not fetch every module.
+    prefetchOnIntent(openBtn, load);
     if (closeBtn) closeBtn.addEventListener('click', close);
     if (backdrop) backdrop.addEventListener('click', close);
     document.addEventListener('keydown', e => {
