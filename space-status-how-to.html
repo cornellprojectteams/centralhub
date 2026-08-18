@@ -72,58 +72,38 @@
     }
     .ht-hero {
       position: relative;
-      margin-bottom: 2.1rem;
-      padding: .85rem .2rem 1.1rem;
-      overflow: hidden;
-    }
-    .ht-hero::before {
-      content: "";
-      position: absolute;
-      width: 22rem;
-      height: 22rem;
-      left: -7rem;
-      top: -8rem;
-      background: radial-gradient(circle, rgba(240, 192, 80, .32), rgba(179, 27, 27, .08) 42%, transparent 70%);
-      pointer-events: none;
-      z-index: 0;
+      margin: 0 0 .9rem;
+      padding: .15rem 0 0;
     }
     .ht-hero h1 {
-      position: relative;
       font-family: var(--font-display);
-      font-size: clamp(1.45rem, 3vw, 1.7rem);
+      font-size: .75rem;
       font-weight: 800;
-      letter-spacing: -.04em;
-      line-height: 1.1;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      line-height: 1.2;
       margin: 0;
-      color: #5c574f;
+      color: #b31b1b;
     }
     .ht-hero h1 span {
       display: block;
-      margin-top: .25rem;
-      padding: .08em .08em .12em 0;
-      font-size: clamp(2.05rem, 5.5vw, 2.75rem);
-      letter-spacing: -.05em;
+      margin-top: .45rem;
+      padding: 0;
+      font-size: clamp(1.85rem, 4.5vw, 2.35rem);
+      font-weight: 800;
+      letter-spacing: -.045em;
+      text-transform: none;
       line-height: 1.08;
-      background: linear-gradient(135deg, #6e1010 0%, #b31b1b 42%, #d62b2b 62%, #c56a10 100%);
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: #b31b1b;
-      -webkit-text-fill-color: transparent;
+      color: #14110e;
+      background: none;
+      -webkit-text-fill-color: currentColor;
     }
     .ht-rule {
-      position: relative;
-      width: 88px;
-      height: 5px;
+      width: 46px;
+      height: 3px;
       border-radius: 99px;
-      margin: 1.35rem 0 0;
-      background: linear-gradient(90deg, #8f1515, #b31b1b, #f0c050, #b31b1b, #8f1515);
-      background-size: 220% 100%;
-      animation: htRule 5s ease-in-out infinite;
-      box-shadow: 0 6px 16px rgba(179, 27, 27, .28);
-    }
-    @keyframes htRule {
-      0%, 100% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
+      margin: 1rem 0 0;
+      background: #b31b1b;
     }
 
     .ht-nav-group {
@@ -259,6 +239,12 @@
     #find-project a:hover,
     #project a:hover { color: #6e4a0c; }
 
+    .ht-keys {
+      list-style: none;
+      margin: 0 0 1.1rem;
+      padding: 0;
+      max-width: 34rem;
+    }
     .ht-keys + .ht-keys {
       margin-top: 1.1rem;
       padding-top: .15rem;
@@ -328,6 +314,7 @@
     }
     .ht-photo { aspect-ratio: 4 / 3; }
     .pic figcaption,
+    .shot > figcaption,
     .ht-note {
       font-family: var(--font-display);
       font-size: .75rem;
@@ -335,6 +322,8 @@
       color: #8a857c;
       margin-top: .45rem;
     }
+    .shot { margin: 0 0 1rem; }
+    .shot .ht-board { margin-bottom: 0; }
 
     .ui {
       background: #fff;
@@ -342,6 +331,7 @@
       border-radius: 16px;
       overflow: hidden;
       box-shadow: 0 16px 36px rgba(20, 17, 14, .07);
+      margin: 0 0 1rem;
     }
     .ui-pad { padding: 1rem 1.05rem 1.1rem; }
     .ui-tabs {
@@ -894,14 +884,6 @@
       .ht-board .card-sum-stat { display: none; }
     }
 
-    .shot { margin: 0 0 1rem; }
-    .shot > figcaption {
-      font-family: var(--font-display);
-      font-size: .75rem;
-      font-weight: 700;
-      color: #8a857c;
-      margin-top: .4rem;
-    }
     .mock-head {
       display: flex;
       align-items: center;
@@ -1179,7 +1161,6 @@
     }
 
     @media (prefers-reduced-motion: reduce) {
-      .ht-rule { animation: none; }
       .ht-in, .ht-in.is-in {
         opacity: 1;
         transform: none;
@@ -1349,6 +1330,10 @@
         <div class="ht-rule"></div>
       </header>
 
+      <header class="ht-chapter" id="tasks">
+        <h2>Tasks</h2>
+      </header>
+
       <section class="ht-part" id="open">
         <p>Click <b>Your work</b> to access the tasks assigned to your team.</p>
         <div id="staff">
@@ -1359,48 +1344,8 @@
         </div>
       </section>
 
-      <header class="ht-chapter" id="tasks">
-        <h2>Tasks</h2>
-      </header>
-
       <section class="ht-part" id="find">
         <h3>Find your task</h3>
-        <div class="ht-board" aria-hidden="true">
-          <div class="ic-summary">
-            <div class="ic-seg">
-              <span class="ic-sum is-on"><b>4</b> open</span>
-              <span class="ic-sum"><b>1</b> pending</span>
-              <span class="ic-sum"><b>2</b> recently completed</span>
-            </div>
-            <div class="ic-tools">
-              <span class="ui-spot"><span class="ic-unlock">Expand all</span></span>
-            </div>
-          </div>
-          <div class="card">
-            <div class="card-sum">
-              <span class="card-accent" style="background:#b31b1b"></span>
-              <span class="card-sum-main">
-                <span class="card-sum-title">Hand tools missing from the wall</span>
-                <span class="card-sum-action"><span class="card-sum-alabel">Required action</span>Put tools back on the shadow board</span>
-                <span class="card-sum-sub">Overdue</span>
-              </span>
-              <span class="card-sum-stat"><span class="chip chip--overdue">Overdue</span></span>
-              <span class="section-chev"></span>
-            </div>
-          </div>
-          <div class="card">
-            <div class="card-sum">
-              <span class="card-accent" style="background:#e08a1e"></span>
-              <span class="card-sum-main">
-                <span class="card-sum-title">Baja cubby overflowing</span>
-                <span class="card-sum-action"><span class="card-sum-alabel">Required action</span>Sort and label the bins</span>
-                <span class="card-sum-sub">Due today</span>
-              </span>
-              <span class="card-sum-stat"><span class="chip chip--due">Due today</span></span>
-              <span class="section-chev"></span>
-            </div>
-          </div>
-        </div>
         <p>The tasks fall in one of three categories:</p>
         <ul class="ht-keys">
           <li>
@@ -1422,12 +1367,51 @@
             <span>Opens every card in the list you are looking at. Click on it. Click again to fold them.</span>
           </li>
         </ul>
+        <figure class="shot">
+          <div class="ht-board" aria-hidden="true">
+            <div class="ic-summary">
+              <div class="ic-seg">
+                <span class="ic-sum is-on"><b>4</b> open</span>
+                <span class="ic-sum"><b>1</b> pending</span>
+                <span class="ic-sum"><b>2</b> recently completed</span>
+              </div>
+              <div class="ic-tools">
+                <span class="ui-spot"><span class="ic-unlock">Expand all</span></span>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-sum">
+                <span class="card-accent" style="background:#b31b1b"></span>
+                <span class="card-sum-main">
+                  <span class="card-sum-title">Hand tools missing from the wall</span>
+                  <span class="card-sum-action"><span class="card-sum-alabel">Required action</span>Put tools back on the shadow board</span>
+                  <span class="card-sum-sub">Overdue</span>
+                </span>
+                <span class="card-sum-stat"><span class="chip chip--overdue">Overdue</span></span>
+                <span class="section-chev"></span>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-sum">
+                <span class="card-accent" style="background:#e08a1e"></span>
+                <span class="card-sum-main">
+                  <span class="card-sum-title">Baja cubby overflowing</span>
+                  <span class="card-sum-action"><span class="card-sum-alabel">Required action</span>Sort and label the bins</span>
+                  <span class="card-sum-sub">Due today</span>
+                </span>
+                <span class="card-sum-stat"><span class="chip chip--due">Due today</span></span>
+                <span class="section-chev"></span>
+              </div>
+            </div>
+          </div>
+          <figcaption>When you click Open, this is what you get.</figcaption>
+        </figure>
       </section>
 
       <section class="ht-part" id="complete">
         <h3>Complete a task</h3>
         <p>To complete a task, click on it to expand it.</p>
-        <figure class="shot">
+        
           <div class="ui">
             <div class="ui-pad">
               <div class="mock-head">
@@ -1450,10 +1434,11 @@
               </div>
             </div>
           </div>
-        </figure>
+        
         <p>Click <b>Add photos</b> and pick a picture of how it looks now. You can also add an optional note for the admin.</p>
         <p>Then click <b>Complete</b>.</p>
-        <div class="ht-board" aria-hidden="true">
+        
+          <div class="ht-board" aria-hidden="true">
           <div class="card is-open">
             <div class="card-sum">
               <span class="card-accent" style="background:#b31b1b"></span>
@@ -1479,16 +1464,19 @@
               <span class="ui-spot"><span class="ui-btn">Complete · 1 photo</span></span>
             </div>
           </div>
-        </div>
+          </div>
+        
         <p>If the button says <b>Mark done</b>, then it does not require a photo when marking it as complete.</p>
-        <div class="ht-board" aria-hidden="true">
+        
+          <div class="ht-board" aria-hidden="true">
           <div class="card is-foot">
             <div class="card-foot">
               <span class="ui-btn-ghost">Add photos</span>
               <span class="ui-spot"><span class="ui-btn">Mark done</span></span>
             </div>
           </div>
-        </div>
+          </div>
+        
       </section>
 
       <section class="ht-part" id="after">
@@ -1498,6 +1486,7 @@
           <article class="ht-end ht-end--back">
             <h3>They can send it back</h3>
             <p>The task will reappear on your Open tasks with a note explaining why.</p>
+            
             <div class="ht-board" aria-hidden="true">
               <div class="ic-summary">
                 <div class="ic-seg">
@@ -1531,10 +1520,12 @@
                 </div>
               </div>
             </div>
+            
           </article>
           <article class="ht-end ht-end--ok">
             <h3>They can approve its completion</h3>
             <p>It moves to Recently completed and is closed.</p>
+            
             <div class="ht-board" aria-hidden="true">
               <div class="ic-summary">
                 <div class="ic-seg">
@@ -1561,6 +1552,7 @@
                 </div>
               </div>
             </div>
+            
           </article>
         </div>
       </section>
@@ -1571,6 +1563,7 @@
 
       <section class="ht-part" id="find-project">
         <h3>Find your project</h3>
+        
         <div class="ht-board" aria-hidden="true">
           <div class="ht-tabs">
             <span>Tasks</span>
@@ -1610,12 +1603,14 @@
             </div>
           </div>
         </div>
+        
         <p>Projects is extra work you can jump in on. Switch to the <b>Projects</b> tab to find it. The categories and Expand all work like they do in <a href="#find">tasks</a>, plus <b>In progress</b> when someone has joined.</p>
       </section>
 
       <section class="ht-part" id="project">
         <h3>Join a project</h3>
         <p>To join a project, click on it to expand it.</p>
+        
         <div class="ht-board" aria-hidden="true">
           <div class="ht-tabs">
             <span>Tasks</span>
@@ -1654,7 +1649,9 @@
             </div>
           </div>
         </div>
+        
         <p>Click <b>Join project</b> to put your name in.</p>
+        
         <div class="ht-board" aria-hidden="true">
           <div class="ht-tabs">
             <span>Tasks</span>
@@ -1693,7 +1690,9 @@
             </div>
           </div>
         </div>
+        
         <p>Then when you and your team has completed the task, one person can mark it as complete by adding how many <b>hours</b> it took, then adding an <b>after photo</b>.</p>
+        
         <div class="ht-board" aria-hidden="true">
           <div class="ht-tabs">
             <span>Tasks</span>
@@ -1741,11 +1740,13 @@
             </div>
           </div>
         </div>
+        
         <p>From here the approval step is just like <a href="#after">tasks</a>. Two things can happen from here.</p>
         <div class="ht-fork">
           <article class="ht-end ht-end--back">
             <h3>They can send it back</h3>
             <p>The project will reappear on <b>In progress</b> with a note explaining why.</p>
+            
             <div class="ht-board" aria-hidden="true">
               <div class="ht-tabs">
                 <span>Tasks</span>
@@ -1787,10 +1788,12 @@
                 </div>
               </div>
             </div>
+            
           </article>
           <article class="ht-end ht-end--ok">
             <h3>They can approve its completion</h3>
             <p>It moves to <b>Completed</b> and is closed.</p>
+            
             <div class="ht-board" aria-hidden="true">
               <div class="ht-tabs">
                 <span>Tasks</span>
@@ -1831,6 +1834,7 @@
                 </div>
               </div>
             </div>
+            
           </article>
         </div>
       </section>
