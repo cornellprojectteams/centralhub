@@ -1,0 +1,1940 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+  Staff how-to for Space Status (Your work).
+  Linked from the hub under Your work.
+-->
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>How to use Space Status | Project Teams Ops Hub</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" media="print" onload="this.media='all';this.onload=null">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap"></noscript>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .ht-layout {
+      flex: 1;
+      width: 100%;
+      max-width: 70rem;
+      margin: 0 auto;
+      padding: 2.5rem 1.5rem 5.5rem;
+      display: grid;
+      grid-template-columns: 14rem minmax(0, 38rem);
+      gap: 3.5rem 4.5rem;
+      align-items: start;
+    }
+
+    .ht-nav {
+      position: sticky;
+      top: calc(var(--header-h) + 1.25rem);
+      padding: 1rem .85rem 1.15rem;
+      background: rgba(255, 255, 255, .62);
+      border: 1px solid rgba(231, 228, 220, .95);
+      border-radius: 18px;
+      box-shadow: 0 12px 32px rgba(20, 17, 14, .05);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    .ht-nav-kicker {
+      font-family: var(--font-display);
+      font-size: .6875rem;
+      font-weight: 800;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      color: #b31b1b;
+      margin: 0 .15rem 1rem;
+    }
+    .ht-nav a {
+      display: block;
+      font-family: var(--font-display);
+      font-size: .9375rem;
+      font-weight: 700;
+      letter-spacing: -.02em;
+      color: #8a857c;
+      text-decoration: none;
+      padding: .5rem .75rem;
+      border-radius: 10px;
+      transition: color .18s, background .18s, box-shadow .18s;
+    }
+    .ht-nav a:hover { color: #14110e; background: rgba(255,255,255,.7); }
+    .ht-nav a.is-on {
+      color: #8f1515;
+      background: #fff;
+      box-shadow: 0 1px 3px rgba(20, 20, 30, .08), 0 0 0 1px rgba(179, 27, 27, .14);
+    }
+
+    .ht-col {
+      position: relative;
+      min-width: 0;
+    }
+    .ht-hero {
+      position: relative;
+      margin-bottom: 2.1rem;
+      padding: .35rem 0 .2rem;
+      overflow: hidden;
+    }
+    .ht-hero::before {
+      content: "";
+      position: absolute;
+      width: 22rem;
+      height: 22rem;
+      left: -7rem;
+      top: -8rem;
+      background: radial-gradient(circle, rgba(240, 192, 80, .32), rgba(179, 27, 27, .08) 42%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .ht-hero h1 {
+      position: relative;
+      font-family: var(--font-display);
+      font-size: clamp(1.45rem, 3vw, 1.7rem);
+      font-weight: 800;
+      letter-spacing: -.04em;
+      line-height: 1.1;
+      margin: 0;
+      color: #5c574f;
+    }
+    .ht-hero h1 span {
+      display: block;
+      margin-top: .08rem;
+      font-size: clamp(2.05rem, 5.5vw, 2.75rem);
+      letter-spacing: -.05em;
+      line-height: .95;
+      background: linear-gradient(135deg, #6e1010 0%, #b31b1b 42%, #d62b2b 62%, #c56a10 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: #b31b1b;
+      -webkit-text-fill-color: transparent;
+    }
+    .ht-rule {
+      position: relative;
+      width: 88px;
+      height: 5px;
+      border-radius: 99px;
+      margin: 1.35rem 0 0;
+      background: linear-gradient(90deg, #8f1515, #b31b1b, #f0c050, #b31b1b, #8f1515);
+      background-size: 220% 100%;
+      animation: htRule 5s ease-in-out infinite;
+      box-shadow: 0 6px 16px rgba(179, 27, 27, .28);
+    }
+    @keyframes htRule {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+
+    .ht-nav-group {
+      font-family: var(--font-display);
+      font-size: .6875rem;
+      font-weight: 800;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: #9a958c;
+      margin: 1.15rem .15rem .35rem;
+      padding: 0;
+    }
+
+    .ht-chapter {
+      margin: 0 0 1.35rem;
+      scroll-margin-top: calc(var(--header-h) + 1.25rem);
+    }
+    .ht-chapter.ht-break {
+      margin-top: 2.25rem;
+      padding-top: 2.25rem;
+      border-top: 1px solid #ece9e2;
+    }
+    .ht-chapter h2 {
+      font-family: var(--font-display);
+      font-size: clamp(1.55rem, 4vw, 1.95rem);
+      font-weight: 800;
+      letter-spacing: -.04em;
+      line-height: 1;
+      margin: 0;
+      color: #8f1515;
+      text-shadow: 0 10px 28px rgba(179, 27, 27, .12);
+    }
+    .ht-chapter h2::after {
+      content: "";
+      display: block;
+      width: 52px;
+      height: 4px;
+      margin-top: .75rem;
+      border-radius: 99px;
+      background: linear-gradient(90deg, #b31b1b, #f0c050);
+      box-shadow: 0 4px 12px rgba(240, 192, 80, .35);
+    }
+    .ht-chapter#projects h2 { color: #9a5a00; }
+    .ht-chapter#projects h2::after {
+      background: linear-gradient(90deg, #c56a10, #f0c050);
+    }
+
+    .ht-part {
+      padding: 0;
+      margin: 0 0 1.75rem;
+      min-width: 0;
+      scroll-margin-top: calc(var(--header-h) + 1.25rem);
+    }
+    .ht-part h2,
+    .ht-part > h3 {
+      font-family: var(--font-display);
+      font-size: 1.2rem;
+      font-weight: 800;
+      letter-spacing: -.03em;
+      line-height: 1.2;
+      margin: 0 0 .7rem;
+      display: flex;
+      align-items: center;
+      gap: .7rem;
+      color: #14110e;
+    }
+    .ht-part > h3::before {
+      content: "";
+      flex: none;
+      width: 4px;
+      height: 1.05em;
+      border-radius: 99px;
+      background: linear-gradient(180deg, #b31b1b, #f0c050);
+      box-shadow: 0 4px 10px rgba(179, 27, 27, .25);
+    }
+    .ht-part p {
+      font-size: 1.0625rem;
+      line-height: 1.55;
+      color: #1a1613;
+      font-weight: 500;
+      margin: 0 0 .7rem;
+      max-width: 34rem;
+    }
+    .ht-part > p:first-of-type {
+      font-size: 1.0625rem;
+      line-height: 1.55;
+      color: #1a1613;
+      font-weight: 500;
+    }
+    .ht-part > p b {
+      font-family: var(--font-display);
+      font-weight: 800;
+      color: #8f1515;
+      background: #fff6f4;
+      box-shadow: inset 0 0 0 1px #efd4d0;
+      border-radius: 7px;
+      padding: .07em .42em .1em;
+      white-space: nowrap;
+    }
+    .ht-part a {
+      color: #8f1515;
+      font-weight: 800;
+      text-decoration: none;
+      background-image: linear-gradient(90deg, #f0c050, #e0a020);
+      background-size: 100% 2px;
+      background-position: 0 92%;
+      background-repeat: no-repeat;
+    }
+    .ht-part a:hover { color: #6e1010; }
+
+    #find-project > h3::before,
+    #project > h3::before {
+      background: linear-gradient(180deg, #c56a10, #f0c050);
+      box-shadow: 0 4px 10px rgba(197, 106, 16, .25);
+    }
+    #find-project > p b,
+    #project > p b,
+    #project .ht-end p b {
+      font-family: var(--font-display);
+      font-weight: 800;
+      color: #8a5f0f;
+      background: #fff8ea;
+      box-shadow: inset 0 0 0 1px #f0e0b0;
+      border-radius: 7px;
+      padding: .07em .42em .1em;
+      white-space: nowrap;
+    }
+    #find-project a,
+    #project a {
+      color: #8a5f0f;
+      background-image: linear-gradient(90deg, #f0c050, #c56a10);
+    }
+    #find-project a:hover,
+    #project a:hover { color: #6e4a0c; }
+
+    .ht-keys + .ht-keys {
+      margin-top: 1.1rem;
+      padding-top: .15rem;
+    }
+    .ht-keys li {
+      display: grid;
+      grid-template-columns: minmax(9.5rem, auto) minmax(0, 1fr);
+      gap: 4px 14px;
+      align-items: start;
+      padding: .4rem .55rem;
+      margin: 0 -.55rem;
+      border-radius: 12px;
+      font-size: .9375rem;
+      line-height: 1.45;
+      color: #2a2622;
+    }
+    .ht-keys .ui-chip,
+    .ht-keys .ui-expand,
+    .ht-keys .ui-btn {
+      justify-self: start;
+      margin-left: 0;
+    }
+    .ui-chip--pending { color: #9a5a00; background: #fdf2df; }
+    .ui-chip--done { color: #157a47; background: #e7f6ee; }
+    .ui-chip--active { color: #c56a10; background: #fdf3e3; }
+    .ht-steps {
+      list-style: none;
+      margin: 0 0 1.35rem;
+      padding: 0;
+      max-width: 34rem;
+    }
+    .ht-steps li {
+      position: relative;
+      padding: .5rem 0 .5rem 1.15rem;
+      font-size: 1.0625rem;
+      line-height: 1.5;
+      color: #3f3a34;
+      border-bottom: 1px solid #ece9e2;
+    }
+    .ht-steps li:first-child { border-top: 1px solid #ece9e2; }
+    .ht-steps li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: .95rem;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #b31b1b;
+    }
+    .ht-steps b { color: #14110e; }
+
+    .pic {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 0 0 1rem;
+    }
+    .pic figure { margin: 0; }
+    .pic img, .ht-photo {
+      width: 100%;
+      display: block;
+      border-radius: 16px;
+      aspect-ratio: 4 / 3;
+      object-fit: cover;
+      background: #efece6;
+    }
+    .ht-photo { aspect-ratio: 4 / 3; }
+    .pic figcaption,
+    .ht-note {
+      font-family: var(--font-display);
+      font-size: .75rem;
+      font-weight: 700;
+      color: #8a857c;
+      margin-top: .45rem;
+    }
+
+    .ui {
+      background: #fff;
+      border: 1px solid #ece9e2;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 16px 36px rgba(20, 17, 14, .07);
+    }
+    .ui-pad { padding: 1rem 1.05rem 1.1rem; }
+    .ui-tabs {
+      display: flex;
+      gap: 4px;
+      padding: 0 .25rem .85rem;
+      margin-bottom: .85rem;
+      border-bottom: 1px solid #f0eee8;
+    }
+    .ui-tabs span {
+      font-family: var(--font-display);
+      font-size: .8125rem;
+      font-weight: 700;
+      color: #8a857c;
+      padding: .2rem .35rem .55rem;
+    }
+    .ui-tabs .on {
+      color: #14110e;
+      box-shadow: inset 0 -2px 0 #b31b1b;
+    }
+    .ui-filters {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: .9rem;
+    }
+    .ui-chip {
+      font-family: var(--font-display);
+      font-size: .75rem;
+      font-weight: 600;
+      color: #6b665e;
+      background: #f4f2ec;
+      border-radius: 999px;
+      padding: .35rem .7rem;
+    }
+    .ui-chip.on { background: #fff; color: #8f1515; box-shadow: 0 0 0 1.5px #ead0d0; }
+    .ui-chip b { font-weight: 800; margin-right: 3px; }
+    .ui-expand {
+      margin-left: auto;
+      font-family: var(--font-display);
+      font-size: .75rem;
+      font-weight: 700;
+      color: #57534e;
+      background: #fff;
+      border: 1.5px solid #e2ddd6;
+      border-radius: 10px;
+      padding: .35rem .7rem;
+    }
+    .ui-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: .7rem 0;
+      border-top: 1px solid #f3f0ea;
+    }
+    .ui-row:first-of-type { border-top: 0; padding-top: .15rem; }
+    .ui-thumb {
+      flex: none;
+      width: 56px;
+      height: 56px;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .ui-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .ui-name {
+      font-family: var(--font-display);
+      font-size: .9rem;
+      font-weight: 800;
+      letter-spacing: -.02em;
+      line-height: 1.25;
+    }
+    .ui-sub { font-size: .78rem; font-weight: 600; color: #8a857c; margin-top: 2px; }
+    .ui-due { margin-left: auto; font-size: .75rem; font-weight: 700; color: #b31b1b; white-space: nowrap; }
+
+    .ui-hit {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .ui-hit > div { min-width: 0; flex: 1; }
+    .ui-hit .ui-name, .ui-hit .ui-sub {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .ui-hit .ui-due { margin-left: 0; }
+    .ui-chev-hit {
+      flex: none;
+      position: relative;
+      padding: 7px;
+      border-radius: 50%;
+      background: rgba(179, 27, 27, .08);
+      box-shadow: 0 0 0 3px rgba(179, 27, 27, .28), 0 0 0 8px rgba(179, 27, 27, .1);
+    }
+    .ui-chev {
+      display: block;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #efece6;
+      position: relative;
+    }
+    .ui-chev::before {
+      content: "";
+      position: absolute;
+      top: 9px;
+      left: 8px;
+      width: 8px;
+      height: 8px;
+      border-right: 2.5px solid #5c574f;
+      border-bottom: 2.5px solid #5c574f;
+      transform: rotate(45deg);
+    }
+
+    .ui-btn,
+    .ui-btn-ghost {
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+    .ui-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-display);
+      font-size: .8125rem;
+      font-weight: 700;
+      line-height: 1;
+      color: #fff;
+      background: linear-gradient(180deg, #d62b2b, #b31b1b 55%, #8f1515);
+      border: 0;
+      border-radius: 9px;
+      padding: .55rem .9rem;
+      box-shadow: 0 4px 14px rgba(179, 27, 27, .28);
+    }
+    .ui-btn-ghost {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-display);
+      font-size: .8125rem;
+      font-weight: 700;
+      line-height: 1;
+      color: #57534e;
+      background: #faf9f6;
+      border: 1.5px solid #e2ddd6;
+      border-radius: 9px;
+      padding: .5rem .85rem;
+    }
+    .ui-spot {
+      border-radius: 12px;
+      padding: 5px;
+      background: rgba(179, 27, 27, .08);
+      box-shadow: 0 0 0 3px rgba(179, 27, 27, .28), 0 0 0 8px rgba(179, 27, 27, .1);
+    }
+
+    .ht-board {
+      margin: 0 0 1rem;
+      padding: 14px;
+      min-width: 0;
+      max-width: 100%;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.45), transparent 28%),
+        #f5f4f0;
+      border-radius: 18px;
+      border: 1px solid #e4e0d6;
+      box-shadow:
+        0 1px 0 rgba(255,255,255,.75) inset,
+        0 18px 40px rgba(20, 17, 14, .08);
+      pointer-events: none;
+      user-select: none;
+    }
+    .ht-board .ht-tabs {
+      display: flex;
+      gap: .25rem;
+      width: fit-content;
+      max-width: 100%;
+      margin: 0 0 12px;
+      padding: .25rem;
+      background: #efeee9;
+      border-radius: 11px;
+    }
+    .ht-board .ht-tabs span {
+      font-family: var(--font-display);
+      font-size: .8125rem;
+      font-weight: 700;
+      letter-spacing: -.01em;
+      color: #8a857c;
+      padding: .5rem 1.2rem;
+      border-radius: 8px;
+    }
+    .ht-board .ht-tabs .on {
+      color: #b31b1b;
+      background: #fff;
+      box-shadow: 0 1px 3px rgba(20, 20, 30, .12);
+    }
+    .ht-board .ht-tabs .ui-spot {
+      border-radius: 10px;
+      padding: 3px;
+    }
+    .ht-board .ic-summary {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px 12px;
+      margin: 0 0 12px;
+    }
+    .ht-board .ic-seg {
+      display: inline-flex;
+      flex-wrap: wrap;
+      align-items: stretch;
+      gap: 2px;
+      padding: 3px;
+      max-width: 100%;
+      background: #efece6;
+      border: 1.5px solid #e2ddd6;
+      border-radius: 12px;
+    }
+    .ht-board .ic-tools { margin-left: auto; padding: 6px; width: auto; max-width: 100%; }
+    .ht-board .ic-tools .ui-spot { display: inline-block; max-width: 100%; }
+    .ht-board .ic-sum {
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 600;
+      color: #6b665e;
+      background: transparent;
+      border-radius: 9px;
+      padding: 8px 12px;
+      display: inline-flex;
+      align-items: baseline;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+    .ht-board .ic-sum b {
+      font-weight: 800;
+      color: #14110e;
+      font-size: 15px;
+      margin-right: 5px;
+    }
+    .ht-board .ic-sum.is-on {
+      background: #fff;
+      color: #8f1515;
+      box-shadow: 0 1px 2px rgba(20,20,30,.08), 0 0 0 1px rgba(179,27,27,.12);
+    }
+    .ht-board .ic-sum.is-on b { color: #8f1515; }
+    .ht-board .ic-sum--done.is-on {
+      color: #0f6a3c;
+      box-shadow: 0 1px 2px rgba(20,20,30,.08), 0 0 0 1px rgba(21,122,71,.16);
+    }
+    .ht-board .ic-sum--done.is-on b { color: #157a47; }
+    .ht-board .ic-sum--active.is-on {
+      color: #c56a10;
+      box-shadow: 0 1px 2px rgba(20,20,30,.08), 0 0 0 1px rgba(224,138,30,.18);
+    }
+    .ht-board .ic-sum--active.is-on b { color: #c56a10; }
+    .ht-board .ic-unlock {
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 700;
+      color: #57534e;
+      background: #fff;
+      border: 1.5px solid #e2ddd6;
+      border-radius: 10px;
+      padding: 8px 14px;
+      line-height: 1.2;
+      white-space: nowrap;
+      display: inline-block;
+    }
+    .ht-board .card {
+      background: #fff;
+      border-radius: 14px;
+      border: 1.5px solid #ececea;
+      box-shadow: 0 2px 8px rgba(20,20,30,.06), 0 1px 3px rgba(20,20,30,.04);
+      overflow: visible;
+      margin-bottom: 8px;
+    }
+    .ht-board .card:last-child { margin-bottom: 0; }
+    .ht-board .card-sum {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 52px;
+      padding: 13px 14px 10px;
+      position: relative;
+      overflow: hidden;
+      border-radius: 12.5px 12.5px 0 0;
+    }
+    .ht-board .card:not(.is-open):not(.is-foot) .card-sum {
+      border-radius: 12.5px;
+    }
+    .ht-board .card-accent {
+      position: absolute;
+      left: 0; right: 0; top: 0;
+      height: 3px;
+    }
+    .ht-board .card-sum-main { flex: 1; min-width: 0; }
+    .ht-board .card-sum-title {
+      display: block;
+      font-family: var(--font-display);
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -.02em;
+      line-height: 1.25;
+      color: #14110e;
+    }
+    .ht-board .card-sum-action {
+      display: block;
+      margin-top: 3px;
+      font-size: 13.5px;
+      font-weight: 600;
+      color: #26231f;
+      line-height: 1.35;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .ht-board .card-sum-alabel {
+      display: block;
+      font-family: var(--font-display);
+      font-size: 9.5px;
+      font-weight: 800;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+      color: #a8a29e;
+      margin-bottom: 1px;
+    }
+    .ht-board .card-sum-sub {
+      display: block;
+      margin-top: 2px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: #8a857c;
+    }
+    .ht-board .card-sum-stat { flex: none; }
+    .ht-board .card.is-open .card-sum { border-bottom: 1px solid #f0eee8; }
+    .ht-board .card.is-open .card-sum-action { white-space: normal; }
+    .ht-board .card.is-open .section-chev { background: #f3e4e4; }
+    .ht-board .card.is-open .section-chev::before {
+      top: 11px;
+      border-color: #8f1515;
+      transform: rotate(-135deg);
+    }
+    .ht-board .card.is-foot {
+      overflow: hidden;
+    }
+    .ht-board .card.is-foot .card-foot {
+      border-top: 0;
+      border-radius: 14px;
+    }
+    .ht-board .card.is-foot .ui-btn-ghost { margin-left: auto; }
+    .ht-board .card-body { padding: 12px 14px 4px; }
+    .ht-board .card-body img {
+      display: block;
+      width: 100%;
+      max-height: 240px;
+      object-fit: cover;
+      border-radius: 10px;
+      border: 1px solid #ececec;
+      background: #efece6;
+      margin-top: 12px;
+    }
+    .ht-board .card-body img.is-done { max-height: 120px; width: auto; }
+    .ht-board .tp-slot-btn img {
+      width: 100%;
+      height: 76px;
+      max-height: 76px;
+      margin: 0;
+      object-fit: cover;
+      border: 0;
+      border-radius: 0;
+    }
+    .ht-board .card-foot {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      border-top: 1.5px solid #f1f1f1;
+      padding: 18px 16px;
+      background: linear-gradient(180deg, #fcfcfb, #f8f8f6);
+      border-radius: 0 0 12.5px 12.5px;
+    }
+    .ht-board .card-foot .due { margin-right: auto; font-size: 13px; font-weight: 600; color: #777; }
+    .ht-board .card-foot .due--done { color: #157a47; font-weight: 700; }
+    .ht-board .card-foot .ui-spot {
+      border-radius: 12px;
+      padding: 4px;
+    }
+    .ht-board .tp-uploader {
+      margin: 12px 0 10px;
+      padding: 14px;
+      background: #fbfbf9;
+      border: 1.5px dashed #ddd;
+      border-radius: 12px;
+    }
+    .ht-board .tp-drop {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .ht-board .tp-slot,
+    .ht-board .tp-hours-field {
+      flex: 1;
+      min-width: 8rem;
+    }
+    .ht-board .tp-hours-label {
+      display: block;
+      font-family: var(--font-display);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: #8a857c;
+      margin-bottom: 5px;
+    }
+    .ht-board .tp-hours-input {
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      color: #14110e;
+      padding: 12px;
+      border: 1.5px solid #e0e0dc;
+      border-radius: 10px;
+      background: #fff;
+    }
+    .ht-board .tp-slot-btn {
+      display: block;
+      border: 1.5px solid #157a47;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #f2fbf6;
+    }
+    .ht-board .tp-slot-btn img {
+      display: block;
+      width: 100%;
+      height: 76px;
+      max-height: 76px;
+      margin: 0;
+      object-fit: cover;
+      border: 0;
+      border-radius: 0;
+    }
+    .ht-board .tp-uploader .ui-btn { margin-top: 12px; }
+    .ht-board .tp-drop .ui-spot {
+      flex: 1;
+      min-width: 8rem;
+      border-radius: 14px;
+      padding: 4px;
+    }
+    .ht-board .tp-pill {
+      display: inline-block;
+      font-family: var(--font-display);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      padding: 5px 11px;
+      border-radius: 999px;
+    }
+    .ht-board .tp-pill--sent { color: #b31b1b; background: #fdecec; border: 1px solid #f5d0d0; }
+    .ht-board .tp-pill--done { color: #157a47; background: #e7f6ee; border: 1px solid #c7e9d5; }
+    .ht-board .tp-pill--assigned { color: #2563c9; background: #eaf1fd; border: 1px solid #cfe0fb; }
+    .ht-board .tp-pill--active { color: #e08a1e; background: #fdf3e3; border: 1px solid #f6e2bf; }
+    .ht-board .card-field { margin-top: 12px; }
+    .ht-board .card-flabel {
+      display: block;
+      font-family: var(--font-display);
+      font-size: 9.5px;
+      font-weight: 800;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+      color: #a8a29e;
+      margin-bottom: 4px;
+    }
+    .ht-board .card-details {
+      font-size: 13.5px;
+      color: #57534e;
+      line-height: 1.55;
+    }
+    .ht-board .tp-assignees { display: flex; flex-wrap: wrap; gap: 6px; }
+    .ht-board .tp-chip {
+      font-family: var(--font-display);
+      font-size: 11px;
+      font-weight: 700;
+      color: #3f3a34;
+      background: #f0efe9;
+      border: 1px solid #e5e4de;
+      border-radius: 999px;
+      padding: 4px 11px;
+    }
+    .ht-board .tp-chip--empty {
+      color: #a8a29e;
+      background: transparent;
+      border-style: dashed;
+    }
+    .ht-board .tp-photos {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-top: 14px;
+    }
+    .ht-board .tp-photo { margin: 0; }
+    .ht-board .tp-photo figcaption {
+      font-family: var(--font-display);
+      font-size: 9.5px;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: #a8a29e;
+      margin-bottom: 5px;
+    }
+    .ht-board .tp-photos img {
+      width: auto;
+      max-height: 120px;
+      margin-top: 0;
+    }
+    .ht-board .chip {
+      display: inline-block;
+      font-family: var(--font-display);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      padding: 5px 11px;
+      border-radius: 999px;
+    }
+    .ht-board .chip--overdue { color: #b31b1b; background: #fdecec; border: 1px solid #f5d0d0; }
+    .ht-board .chip--due { color: #6b665e; background: #f0efe9; border: 1px solid #e5e4de; }
+    .ht-board .section-chev {
+      flex: none;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #efece6;
+      position: relative;
+    }
+    .ht-board .section-chev::before {
+      content: "";
+      position: absolute;
+      top: 9px;
+      left: 8px;
+      width: 8px;
+      height: 8px;
+      border-right: 2.5px solid #5c574f;
+      border-bottom: 2.5px solid #5c574f;
+      transform: rotate(45deg);
+    }
+    @media (max-width: 560px) {
+      .ht-board .ic-tools { margin-left: 0; width: auto; }
+      .ht-board .ic-unlock { display: inline-block; text-align: center; }
+      .ht-board .card-sum-stat { display: none; }
+    }
+
+    .shot { margin: 0 0 1rem; }
+    .shot > figcaption {
+      font-family: var(--font-display);
+      font-size: .75rem;
+      font-weight: 700;
+      color: #8a857c;
+      margin-top: .4rem;
+    }
+    .mock-head {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: .15rem 0 .85rem;
+      border-bottom: 1px solid #f0eee8;
+    }
+    .mock-head .ui-due { margin-left: auto; }
+    .mock-head > div { min-width: 0; flex: 1; }
+    .ui-chev.is-open { background: #f3e4e4; }
+    .ui-chev.is-open::before {
+      top: 11px;
+      border-color: #8f1515;
+      transform: rotate(-135deg);
+    }
+    .mock-body { padding: .9rem 0 .2rem; }
+    .mock-note {
+      font-size: .78rem;
+      font-weight: 600;
+      line-height: 1.5;
+      color: #6b665e;
+      background: #f7f6f2;
+      border: 1px solid #ece9e2;
+      border-radius: 10px;
+      padding: .65rem .8rem;
+      margin: 12px 0 .85rem;
+    }
+    .mock-note b { color: #8f1515; }
+    .mock-reply { margin: 12px 0 .85rem; }
+    .mock-reply label {
+      display: block;
+      font-family: var(--font-display);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: #8a857c;
+      margin-bottom: 5px;
+    }
+    .mock-reply label span {
+      font-size: 9px;
+      letter-spacing: .06em;
+      color: #a8a29e;
+      margin-left: 5px;
+    }
+    .mock-reply-box {
+      padding: 10px 12px;
+      border: 1.5px solid #e2ddd6;
+      border-radius: 10px;
+      font-size: 14px;
+      line-height: 1.5;
+      color: #a8a29e;
+      background: #fafaf8;
+      min-height: 64px;
+    }
+    .mock-warn {
+      font-size: .78rem;
+      font-weight: 600;
+      line-height: 1.5;
+      color: #8a4b00;
+      background: #fdf2df;
+      border: 1px solid #f4dfb0;
+      border-radius: 10px;
+      padding: .65rem .8rem;
+      margin-top: 12px;
+    }
+    .mock-warn b { color: #8a4b00; }
+    .mock-warn span { display: block; margin-top: .3rem; opacity: .82; }
+    .mock-foot {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: .85rem -1.05rem -1.1rem;
+      padding: .8rem 1.05rem;
+      border-top: 1.5px solid #f1f1f1;
+      background: linear-gradient(180deg, #fcfcfb, #f8f8f6);
+      border-radius: 0 0 16px 16px;
+    }
+    .mock-photo-cap {
+      font-family: var(--font-display);
+      font-size: 9.5px;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: #a8a29e;
+      margin: 12px 0 5px;
+    }
+    .mock-photo {
+      display: block;
+      width: 100%;
+      max-height: 240px;
+      object-fit: cover;
+      border-radius: 10px;
+      border: 1px solid #ececec;
+      background: #efece6;
+      margin-top: 12px;
+    }
+    .ht-stage {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 120px;
+      gap: 11px;
+      margin-top: 14px;
+      align-items: stretch;
+    }
+    .ht-stage-item {
+      position: relative;
+      min-height: 160px;
+      max-height: 200px;
+      border-radius: 14px;
+      overflow: hidden;
+      background: #efeee9;
+      border: 1px solid #e6e3db;
+    }
+    .ht-stage-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .ht-stage-item::before {
+      content: "";
+      position: absolute;
+      left: 0; right: 0; top: 0;
+      height: 52%;
+      background: linear-gradient(180deg, rgba(20,17,14,.34), transparent);
+      pointer-events: none;
+    }
+    .ht-stage-idx {
+      position: absolute;
+      left: 9px; top: 7px;
+      font-family: var(--font-display);
+      font-size: 10px;
+      font-weight: 800;
+      color: #fff;
+      text-shadow: 0 1px 3px rgba(0,0,0,.45);
+      z-index: 1;
+    }
+    .ht-stage-rm {
+      position: absolute;
+      top: 6px; right: 6px;
+      width: 26px; height: 26px;
+      border: 0;
+      border-radius: 50%;
+      background: rgba(20,17,14,.62);
+      color: #fff;
+      font-size: 16px;
+      line-height: 26px;
+      text-align: center;
+      z-index: 1;
+    }
+    .ht-stage-add {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      min-height: 160px;
+      border-radius: 14px;
+      border: 1.6px dashed #d3cdc2;
+      background: #faf9f6;
+      color: #9a948a;
+      font-family: var(--font-display);
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .ht-stage-add b { font-size: 26px; font-weight: 300; line-height: 1; }
+    .ht-pill {
+      flex: none;
+      font-family: var(--font-display);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      padding: 5px 11px;
+      border-radius: 999px;
+    }
+    .ht-pill--pending { color: #b06a00; background: #fdf2df; border: 1px solid #f4dfb0; }
+    .ht-pill--done { color: #157a47; background: #e7f6ee; border: 1px solid #c7e9d5; }
+
+    .shot--fx { position: relative; overflow: hidden; padding-top: 3.6rem; }
+    .ht-cheer {
+      position: absolute;
+      left: 50%;
+      top: 0;
+      transform: translateX(-50%);
+      z-index: 3;
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: .95rem;
+      color: #fff;
+      background: linear-gradient(180deg, #1d9d5b, #157a47);
+      padding: .7rem 1.1rem;
+      border-radius: 14px;
+      box-shadow: 0 14px 34px rgba(21,122,71,.34);
+      white-space: nowrap;
+    }
+    .ht-cf { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+    .ht-cf i {
+      position: absolute;
+      display: block;
+      width: 9px;
+      height: 6px;
+      border-radius: 1px;
+    }
+    .shot--ok .ui {
+      box-shadow: 0 0 0 3px rgba(21,122,71,.42), 0 8px 22px rgba(21,122,71,.18);
+    }
+
+    .ht-fork {
+      display: grid;
+      gap: 12px;
+      margin: .1rem 0 0;
+    }
+    .ht-end {
+      border-radius: 18px;
+      padding: 1.15rem 1.15rem 0;
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 14px 32px rgba(20, 17, 14, .06);
+    }
+    .ht-end::before {
+      content: "";
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 4px;
+    }
+    .ht-end h3 {
+      font-family: var(--font-display);
+      font-size: 1.05rem;
+      font-weight: 800;
+      letter-spacing: -.025em;
+      margin: 0 0 .35rem;
+    }
+    .ht-end p {
+      margin: 0 0 .85rem !important;
+      font-size: .9375rem !important;
+      line-height: 1.5 !important;
+      font-weight: 500;
+      max-width: none !important;
+    }
+    .ht-end .ht-board {
+      margin: 0 -1.15rem 0;
+      border-radius: 0 0 17px 17px;
+      border: 0;
+      border-top: 1px solid rgba(20, 17, 14, .06);
+      box-shadow: none;
+    }
+    .ht-end--ok {
+      background: linear-gradient(180deg, #f6fdf8, #eef8f2);
+      border: 1.5px solid #c7e9d5;
+    }
+    .ht-end--ok::before { background: linear-gradient(180deg, #1d9d5b, #157a47); }
+    .ht-end--ok h3 { color: #157a47; }
+    .ht-end--ok p { color: #1f5c3a !important; }
+    .ht-end--back {
+      background: linear-gradient(180deg, #fffdf6, #fff6e4);
+      border: 1.5px solid #f0e0b0;
+    }
+    .ht-end--back::before { background: linear-gradient(180deg, #f0c050, #c56a10); }
+    .ht-end--back h3 { color: #8a5f0f; }
+    .ht-end--back p { color: #5c4a1f !important; }
+
+    #staff .ht-hub {
+      width: 100%;
+      text-align: left;
+      cursor: default;
+      box-shadow: 0 16px 36px rgba(179, 27, 27, .16);
+    }
+    #staff .ht-hub:hover { transform: none; }
+
+    .ht-in {
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity .6s ease, transform .6s cubic-bezier(.2, .8, .3, 1);
+    }
+    .ht-in.is-in {
+      opacity: 1;
+      transform: none;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .ht-rule { animation: none; }
+      .ht-in, .ht-in.is-in {
+        opacity: 1;
+        transform: none;
+        transition: none;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .ht-split { grid-template-columns: 1fr; }
+      .ui-hit .ui-due { display: none; }
+      .ht-cheer { font-size: .8rem; white-space: normal; text-align: center; width: calc(100% - 24px); }
+      .ht-stage { grid-template-columns: minmax(0, 1fr) 88px; }
+      .ht-keys li {
+        grid-template-columns: 1fr;
+        gap: 6px;
+        align-items: start;
+      }
+      .ht-part > p b,
+      #find-project > p b,
+      #project > p b,
+      #project .ht-end p b {
+        white-space: normal;
+      }
+      .ui-spot {
+        padding: 3px;
+        box-shadow: 0 0 0 2px rgba(179, 27, 27, .32);
+      }
+      .ht-board .ht-tabs span {
+        padding: .4rem .7rem;
+        font-size: .75rem;
+      }
+      .ht-board .ic-sum {
+        padding: 6px 9px;
+        font-size: 12px;
+      }
+      .ht-board .ic-sum b { font-size: 13px; }
+      .ht-board .ic-unlock {
+        padding: 7px 12px;
+        font-size: 12px;
+      }
+      .ht-board .card-foot,
+      .mock-foot {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        padding: 12px;
+      }
+      .mock-foot { margin-left: -1.05rem; margin-right: -1.05rem; }
+      .ht-board .card-foot .due,
+      .ht-board .card.is-foot .ui-btn-ghost {
+        margin-right: 0;
+        margin-left: 0;
+      }
+      .ht-board .card-foot .ui-btn,
+      .ht-board .card-foot .ui-btn-ghost,
+      .ht-board .card-foot .ui-spot,
+      .mock-foot .ui-btn,
+      .mock-foot .ui-btn-ghost,
+      .mock-foot .ui-spot {
+        width: 100%;
+        justify-content: center;
+        white-space: normal;
+        line-height: 1.25;
+        text-align: center;
+      }
+      .ht-board .card-foot .ui-spot .ui-btn,
+      .ht-board .card-foot .ui-spot .ui-btn-ghost,
+      .mock-foot .ui-spot .ui-btn,
+      .mock-foot .ui-spot .ui-btn-ghost {
+        width: 100%;
+      }
+      .ht-board .tp-drop {
+        flex-direction: column;
+      }
+      .ht-board .tp-drop .ui-spot,
+      .ht-board .tp-slot,
+      .ht-board .tp-hours-field {
+        width: 100%;
+        min-width: 0;
+      }
+      .ht-board .tp-uploader .ui-btn {
+        width: 100%;
+        white-space: normal;
+        line-height: 1.25;
+      }
+      .ht-end { padding-left: .9rem; padding-right: .9rem; }
+      .ht-end .ht-board { margin-left: -.9rem; margin-right: -.9rem; }
+    }
+
+    @media (max-width: 860px) {
+      .ht-layout {
+        grid-template-columns: 1fr;
+        gap: 0;
+        padding: 1.5rem 1.15rem 4.5rem;
+      }
+      .ht-nav {
+        position: sticky;
+        top: var(--header-h);
+        z-index: 5;
+        display: flex;
+        flex-wrap: nowrap;
+        gap: .35rem;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        background: rgba(251, 250, 247, .92);
+        -webkit-backdrop-filter: blur(10px);
+        backdrop-filter: blur(10px);
+        margin: 0 -1.15rem 1.5rem;
+        padding: .65rem 1.15rem;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+        border-bottom: 1px solid #ece9e2;
+      }
+      .ht-nav::-webkit-scrollbar { display: none; }
+      .ht-nav a { white-space: nowrap; }
+      .ht-nav-kicker,
+      .ht-nav-group { display: none; }
+      .ht-nav a {
+        flex: none;
+        border: 0;
+        padding: .4rem .7rem;
+        border-radius: 999px;
+        background: #fff;
+        font-size: .8125rem;
+        box-shadow: 0 0 0 1px #ece9e2;
+      }
+      .ht-nav a.is-on {
+        color: #fff;
+        background: #b31b1b;
+        box-shadow: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-shell">
+  <header class="app-header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">
+        <img src="assets/cornell-seal.svg" alt="Cornell University" class="logo-seal">
+        <div class="logo-text-block">
+          <div class="logo-text">Project Teams Ops Hub</div>
+          <div class="logo-sub">Safety &amp; Operations</div>
+        </div>
+      </a>
+    </div>
+  </header>
+
+  <div class="ht-layout">
+    <nav class="ht-nav" aria-label="On this page">
+      <p class="ht-nav-kicker">On this page</p>
+      <p class="ht-nav-group">Tasks</p>
+      <a href="#find" class="is-on">Find your task</a>
+      <a href="#complete">Complete a task</a>
+      <a href="#after">What happens next</a>
+      <p class="ht-nav-group">Projects</p>
+      <a href="#find-project">Find your project</a>
+      <a href="#project">Join a project</a>
+    </nav>
+
+    <div class="ht-col">
+      <header class="ht-hero">
+        <h1>How to use <span>Space Status</span></h1>
+        <div class="ht-rule"></div>
+      </header>
+
+      <section class="ht-part" id="open">
+        <p>Click <b>Your work</b> to access the tasks assigned to your team.</p>
+        <div id="staff">
+          <button type="button" class="action category action-dashboard ht-hub" tabindex="-1">
+            <span class="action-title">Your work</span>
+            <span class="action-sub">Your team&rsquo;s tasks and projects in one place. Finish a job by adding a photo.</span>
+          </button>
+        </div>
+      </section>
+
+      <header class="ht-chapter" id="tasks">
+        <h2>Tasks</h2>
+      </header>
+
+      <section class="ht-part" id="find">
+        <h3>Find your task</h3>
+        <div class="ht-board" aria-hidden="true">
+          <div class="ic-summary">
+            <div class="ic-seg">
+              <span class="ic-sum is-on"><b>4</b> open</span>
+              <span class="ic-sum"><b>1</b> pending</span>
+              <span class="ic-sum"><b>2</b> recently completed</span>
+            </div>
+            <div class="ic-tools">
+              <span class="ui-spot"><span class="ic-unlock">Expand all</span></span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-sum">
+              <span class="card-accent" style="background:#b31b1b"></span>
+              <span class="card-sum-main">
+                <span class="card-sum-title">Hand tools missing from the wall</span>
+                <span class="card-sum-action"><span class="card-sum-alabel">Required action</span>Put tools back on the shadow board</span>
+                <span class="card-sum-sub">Overdue</span>
+              </span>
+              <span class="card-sum-stat"><span class="chip chip--overdue">Overdue</span></span>
+              <span class="section-chev"></span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-sum">
+              <span class="card-accent" style="background:#e08a1e"></span>
+              <span class="card-sum-main">
+                <span class="card-sum-title">Baja cubby overflowing</span>
+                <span class="card-sum-action"><span class="card-sum-alabel">Required action</span>Sort and label the bins</span>
+                <span class="card-sum-sub">Due today</span>
+              </span>
+              <span class="card-sum-stat"><span class="chip chip--due">Due today</span></span>
+              <span class="section-chev"></span>
+            </div>
+          </div>
+        </div>
+        <p>The tasks fall in one of three categories:</p>
+        <ul class="ht-keys">
+          <li>
+            <span class="ui-chip on">Open</span>
+            <span>Work still waiting on your team.</span>
+          </li>
+          <li>
+            <span class="ui-chip ui-chip--pending">Pending</span>
+            <span>Work you have sent in. An admin still needs to look at your photo and confirm the job is done.</span>
+          </li>
+          <li>
+            <span class="ui-chip ui-chip--done">Recently completed</span>
+            <span>Work an admin has already checked and closed.</span>
+          </li>
+        </ul>
+        <ul class="ht-keys">
+          <li>
+            <span class="ui-expand">Expand all</span>
+            <span>Opens every card in the list you are looking at. Click on it. Click again to fold them.</span>
+          </li>
+        </ul>
+      </section>
+
+      <section class="ht-part" id="complete">
+        <h3>Complete a task</h3>
+        <p>To complete a task, click on it to expand it.</p>
+        <figure class="shot">
+          <div class="ui">
+            <div class="ui-pad">
+              <div class="mock-head">
+                <div>
+                  <div class="ui-name">Hand tools missing from the wall</div>
+                  <div class="ui-sub">Put tools back on the shadow board</div>
+                </div>
+                <span class="ui-chev is-open" aria-hidden="true"></span>
+              </div>
+              <div class="mock-body">
+                <img class="mock-photo" src="assets/howto/space-howto-issue.jpg" alt="Shadow board with empty tool outlines">
+                <div class="mock-reply">
+                  <label>Note <span>optional</span></label>
+                  <div class="mock-reply-box">What you did, or anything the reviewer should know</div>
+                </div>
+              </div>
+              <div class="mock-foot">
+                <span class="ui-btn-ghost">Add photos</span>
+                <span class="ui-btn">Complete</span>
+              </div>
+            </div>
+          </div>
+        </figure>
+        <p>Click <b>Add photos</b> and pick a picture of how it looks now. You can also add an optional note for the admin.</p>
+        <p>Then click <b>Complete</b>.</p>
+        <div class="ht-board" aria-hidden="true">
+          <div class="card is-open">
+            <div class="card-sum">
+              <span class="card-accent" style="background:#b31b1b"></span>
+              <span class="card-sum-main">
+                <span class="card-sum-title">Hand tools missing from the wall</span>
+                <span class="card-sum-action"><span class="card-sum-alabel">Required action</span>Put tools back on the shadow board</span>
+                <span class="card-sum-sub">Overdue</span>
+              </span>
+              <span class="card-sum-stat"><span class="chip chip--overdue">Overdue</span></span>
+              <span class="section-chev"></span>
+            </div>
+            <div class="card-body">
+              <img src="assets/howto/space-howto-issue.jpg" alt="">
+              <img class="is-done" src="assets/howto/space-howto-done.jpg" alt="">
+              <div class="mock-reply">
+                <label>Note <span>optional</span></label>
+                <div class="mock-reply-box">What you did, or anything the reviewer should know</div>
+              </div>
+            </div>
+            <div class="card-foot">
+              <span class="due">Overdue</span>
+              <span class="ui-btn-ghost">Add photos</span>
+              <span class="ui-spot"><span class="ui-btn">Complete · 1 photo</span></span>
+            </div>
+          </div>
+        </div>
+        <p>If the button says <b>Mark done</b>, then it does not require a photo when marking it as complete.</p>
+        <div class="ht-board" aria-hidden="true">
+          <div class="card is-foot">
+            <div class="card-foot">
+              <span class="ui-btn-ghost">Add photos</span>
+              <span class="ui-spot"><span class="ui-btn">Mark done</span></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="ht-part" id="after">
+        <h3>What happens next</h3>
+        <p>The photos you uploaded, and any note you added, get routed to the admin. Two things can happen from here.</p>
+        <div class="ht-fork">
+          <article class="ht-end ht-end--back">
+            <h3>They can send it back</h3>
+            <p>The task will reappear on your Open tasks with a note explaining why.</p>
+            <div class="ht-board" aria-hidden="true">
+              <div class="ic-summary">
+                <div class="ic-seg">
+                  <span class="ic-sum is-on"><b>4</b> open</span>
+                  <span class="ic-sum"><b>1</b> pending</span>
+                  <span class="ic-sum"><b>2</b> recently completed</span>
+                </div>
+              </div>
+              <div class="card is-open">
+                <div class="card-sum">
+                  <span class="card-accent" style="background:#b31b1b"></span>
+                  <span class="card-sum-main">
+                    <span class="card-sum-title">Hand tools missing from the wall</span>
+                    <span class="card-sum-action"><span class="card-sum-alabel">Required action</span>Put tools back on the shadow board</span>
+                    <span class="card-sum-sub">Sent back</span>
+                  </span>
+                  <span class="card-sum-stat"><span class="tp-pill tp-pill--sent">Sent back</span></span>
+                  <span class="section-chev"></span>
+                </div>
+                <div class="card-body">
+                  <img src="assets/howto/space-howto-issue.jpg" alt="">
+                  <div class="mock-warn">
+                    <b>Sent back:</b> Tools are still missing from the board.
+                    <span>Make the fix, then send it in again.</span>
+                  </div>
+                </div>
+                <div class="card-foot">
+                  <span class="due">Sent back</span>
+                  <span class="ui-btn-ghost">Add photos</span>
+                  <span class="ui-btn">Complete</span>
+                </div>
+              </div>
+            </div>
+          </article>
+          <article class="ht-end ht-end--ok">
+            <h3>They can approve its completion</h3>
+            <p>It moves to Recently completed and is closed.</p>
+            <div class="ht-board" aria-hidden="true">
+              <div class="ic-summary">
+                <div class="ic-seg">
+                  <span class="ic-sum"><b>3</b> open</span>
+                  <span class="ic-sum"><b>1</b> pending</span>
+                  <span class="ic-sum ic-sum--done is-on"><b>3</b> recently completed</span>
+                </div>
+              </div>
+              <div class="card is-open">
+                <div class="card-sum">
+                  <span class="card-accent" style="background:#157a47"></span>
+                  <span class="card-sum-main">
+                    <span class="card-sum-title">Hand tools missing from the wall</span>
+                    <span class="card-sum-sub">Completed August 12, 2026</span>
+                  </span>
+                  <span class="card-sum-stat"><span class="tp-pill tp-pill--done">Completed</span></span>
+                  <span class="section-chev"></span>
+                </div>
+                <div class="card-body">
+                  <img class="is-done" src="assets/howto/space-howto-done.jpg" alt="">
+                </div>
+                <div class="card-foot">
+                  <span class="due due--done">Completed August 12, 2026</span>
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <header class="ht-chapter ht-break" id="projects">
+        <h2>Projects</h2>
+      </header>
+
+      <section class="ht-part" id="find-project">
+        <h3>Find your project</h3>
+        <div class="ht-board" aria-hidden="true">
+          <div class="ht-tabs">
+            <span>Tasks</span>
+            <span class="ui-spot"><span class="on">Projects</span></span>
+          </div>
+          <div class="ic-summary">
+            <div class="ic-seg">
+              <span class="ic-sum is-on"><b>3</b> open</span>
+              <span class="ic-sum"><b>1</b> in progress</span>
+              <span class="ic-sum"><b>1</b> pending</span>
+              <span class="ic-sum"><b>2</b> completed</span>
+            </div>
+            <div class="ic-tools">
+              <span class="ui-spot"><span class="ic-unlock">Expand all</span></span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-sum">
+              <span class="card-accent" style="background:#2563c9"></span>
+              <span class="card-sum-main">
+                <span class="card-sum-title">Baja cubby overflowing</span>
+                <span class="card-sum-sub">Waiting to be picked up</span>
+              </span>
+              <span class="card-sum-stat"><span class="tp-pill tp-pill--assigned">Open</span></span>
+              <span class="section-chev"></span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-sum">
+              <span class="card-accent" style="background:#2563c9"></span>
+              <span class="card-sum-main">
+                <span class="card-sum-title">Shadow board rebuild</span>
+                <span class="card-sum-sub">Waiting to be picked up</span>
+              </span>
+              <span class="card-sum-stat"><span class="tp-pill tp-pill--assigned">Open</span></span>
+              <span class="section-chev"></span>
+            </div>
+          </div>
+        </div>
+        <p>Projects is extra work you can jump in on. Switch to the <b>Projects</b> tab to find it. The categories and Expand all work like they do in <a href="#find">tasks</a>, plus <b>In progress</b> when someone has joined.</p>
+      </section>
+
+      <section class="ht-part" id="project">
+        <h3>Join a project</h3>
+        <p>To join a project, click on it to expand it.</p>
+        <div class="ht-board" aria-hidden="true">
+          <div class="ht-tabs">
+            <span>Tasks</span>
+            <span class="on">Projects</span>
+          </div>
+          <div class="card is-open">
+            <div class="card-sum">
+              <span class="card-accent" style="background:#2563c9"></span>
+              <span class="card-sum-main">
+                <span class="card-sum-title">Baja cubby overflowing</span>
+                <span class="card-sum-sub">Waiting to be picked up</span>
+              </span>
+              <span class="card-sum-stat"><span class="tp-pill tp-pill--assigned">Open</span></span>
+              <span class="section-chev"></span>
+            </div>
+            <div class="card-body">
+              <div class="card-field">
+                <span class="card-flabel">Scope</span>
+                <div class="card-details">Sort and label the bins</div>
+              </div>
+              <div class="card-field">
+                <span class="card-flabel">Assignees</span>
+                <div class="tp-assignees"><span class="tp-chip tp-chip--empty">No one yet</span></div>
+              </div>
+              <div class="tp-photos">
+                <figure class="tp-photo">
+                  <figcaption>Before</figcaption>
+                  <img src="assets/howto/space-howto-before.jpg" alt="">
+                </figure>
+              </div>
+            </div>
+            <div class="card-foot">
+              <span class="due">Waiting to be picked up</span>
+              <span class="ui-btn-ghost">Join project</span>
+              <span class="ui-btn">Complete</span>
+            </div>
+          </div>
+        </div>
+        <p>Click <b>Join project</b> to put your name in.</p>
+        <div class="ht-board" aria-hidden="true">
+          <div class="ht-tabs">
+            <span>Tasks</span>
+            <span class="on">Projects</span>
+          </div>
+          <div class="card is-open">
+            <div class="card-sum">
+              <span class="card-accent" style="background:#2563c9"></span>
+              <span class="card-sum-main">
+                <span class="card-sum-title">Baja cubby overflowing</span>
+                <span class="card-sum-sub">Waiting to be picked up</span>
+              </span>
+              <span class="card-sum-stat"><span class="tp-pill tp-pill--assigned">Open</span></span>
+              <span class="section-chev"></span>
+            </div>
+            <div class="card-body">
+              <div class="card-field">
+                <span class="card-flabel">Scope</span>
+                <div class="card-details">Sort and label the bins</div>
+              </div>
+              <div class="card-field">
+                <span class="card-flabel">Assignees</span>
+                <div class="tp-assignees"><span class="tp-chip tp-chip--empty">No one yet</span></div>
+              </div>
+              <div class="tp-photos">
+                <figure class="tp-photo">
+                  <figcaption>Before</figcaption>
+                  <img src="assets/howto/space-howto-before.jpg" alt="">
+                </figure>
+              </div>
+            </div>
+            <div class="card-foot">
+              <span class="due">Waiting to be picked up</span>
+              <span class="ui-spot"><span class="ui-btn-ghost">Join project</span></span>
+              <span class="ui-btn">Complete</span>
+            </div>
+          </div>
+        </div>
+        <p>Then when you and your team has completed the task, one person can mark it as complete by adding how many <b>hours</b> it took, then adding an <b>after photo</b>.</p>
+        <div class="ht-board" aria-hidden="true">
+          <div class="ht-tabs">
+            <span>Tasks</span>
+            <span class="on">Projects</span>
+          </div>
+          <div class="card is-open">
+            <div class="card-sum">
+              <span class="card-accent" style="background:#d97a12"></span>
+              <span class="card-sum-main">
+                <span class="card-sum-title">Baja cubby overflowing</span>
+                <span class="card-sum-sub">In progress</span>
+              </span>
+              <span class="card-sum-stat"><span class="tp-pill tp-pill--active">In progress</span></span>
+              <span class="section-chev"></span>
+            </div>
+            <div class="card-body">
+              <div class="card-field">
+                <span class="card-flabel">Scope</span>
+                <div class="card-details">Sort and label the bins</div>
+              </div>
+              <div class="tp-photos">
+                <figure class="tp-photo">
+                  <figcaption>Before</figcaption>
+                  <img src="assets/howto/space-howto-before.jpg" alt="">
+                </figure>
+              </div>
+              <div class="tp-uploader">
+                <div class="tp-drop">
+                  <div class="ui-spot">
+                    <div class="tp-hours-field">
+                      <span class="tp-hours-label">Hours it took</span>
+                      <div class="tp-hours-input">4</div>
+                    </div>
+                  </div>
+                  <div class="ui-spot">
+                    <div class="tp-slot">
+                      <div class="tp-slot-btn">
+                        <img src="assets/howto/space-howto-after.jpg" alt="">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <span class="ui-btn">Submit for approval</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p>From here the approval step is just like <a href="#after">tasks</a>. Two things can happen from here.</p>
+        <div class="ht-fork">
+          <article class="ht-end ht-end--back">
+            <h3>They can send it back</h3>
+            <p>The project will reappear on <b>In progress</b> with a note explaining why.</p>
+            <div class="ht-board" aria-hidden="true">
+              <div class="ht-tabs">
+                <span>Tasks</span>
+                <span class="on">Projects</span>
+              </div>
+              <div class="ic-summary">
+                <div class="ic-seg">
+                  <span class="ic-sum"><b>2</b> open</span>
+                  <span class="ic-sum ic-sum--active is-on"><b>2</b> in progress</span>
+                  <span class="ic-sum"><b>1</b> pending</span>
+                  <span class="ic-sum"><b>2</b> completed</span>
+                </div>
+              </div>
+              <div class="card is-open">
+                <div class="card-sum">
+                  <span class="card-accent" style="background:#d97a12"></span>
+                  <span class="card-sum-main">
+                    <span class="card-sum-title">Baja cubby overflowing</span>
+                    <span class="card-sum-sub">Sent back</span>
+                  </span>
+                  <span class="card-sum-stat"><span class="tp-pill tp-pill--sent">Sent back</span></span>
+                  <span class="section-chev"></span>
+                </div>
+                <div class="card-body">
+                  <div class="tp-photos">
+                    <figure class="tp-photo">
+                      <figcaption>Before</figcaption>
+                      <img src="assets/howto/space-howto-before.jpg" alt="">
+                    </figure>
+                  </div>
+                  <div class="mock-warn">
+                    <b>Sent back:</b> Bins are still unlabeled.
+                    <span>Make the fix, then send it in again.</span>
+                  </div>
+                </div>
+                <div class="card-foot">
+                  <span class="due">Sent back</span>
+                  <span class="ui-btn">Complete</span>
+                </div>
+              </div>
+            </div>
+          </article>
+          <article class="ht-end ht-end--ok">
+            <h3>They can approve its completion</h3>
+            <p>It moves to <b>Completed</b> and is closed.</p>
+            <div class="ht-board" aria-hidden="true">
+              <div class="ht-tabs">
+                <span>Tasks</span>
+                <span class="on">Projects</span>
+              </div>
+              <div class="ic-summary">
+                <div class="ic-seg">
+                  <span class="ic-sum"><b>2</b> open</span>
+                  <span class="ic-sum"><b>1</b> in progress</span>
+                  <span class="ic-sum"><b>1</b> pending</span>
+                  <span class="ic-sum ic-sum--done is-on"><b>3</b> completed</span>
+                </div>
+              </div>
+              <div class="card is-open">
+                <div class="card-sum">
+                  <span class="card-accent" style="background:#157a47"></span>
+                  <span class="card-sum-main">
+                    <span class="card-sum-title">Baja cubby overflowing</span>
+                    <span class="card-sum-sub">Completed · 4 hours</span>
+                  </span>
+                  <span class="card-sum-stat"><span class="tp-pill tp-pill--done">Completed</span></span>
+                  <span class="section-chev"></span>
+                </div>
+                <div class="card-body">
+                  <div class="tp-photos">
+                    <figure class="tp-photo">
+                      <figcaption>Before</figcaption>
+                      <img src="assets/howto/space-howto-before.jpg" alt="">
+                    </figure>
+                    <figure class="tp-photo">
+                      <figcaption>After</figcaption>
+                      <img src="assets/howto/space-howto-after.jpg" alt="">
+                    </figure>
+                  </div>
+                </div>
+                <div class="card-foot">
+                  <span class="due due--done">Completed · 4 hours</span>
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <footer class="app-footer">
+    <div class="footer-bottom">
+      <span>&copy; 2026 Cornell University &middot; Student Project Team Program</span>
+      <a href="index.html" style="color:rgba(255,255,255,.82);text-decoration:none">Back to the hub</a>
+    </div>
+  </footer>
+</div>
+
+<script>
+(function () {
+  var nav = document.querySelector('.ht-nav');
+  var links = [].slice.call(document.querySelectorAll('.ht-nav a'));
+  var points = links.map(function (a) {
+    var id = a.getAttribute('href').slice(1);
+    return { id: id, el: document.getElementById(id), link: a };
+  }).filter(function (p) { return p.el; });
+
+  var projectsHead = document.getElementById('projects');
+  var firstProj = points.filter(function (p) { return p.id === 'find-project'; })[0];
+  if (projectsHead && firstProj) {
+    points.push({ id: 'find-project', el: projectsHead, link: firstProj.link });
+  }
+  points.sort(function (a, b) {
+    var pos = a.el.compareDocumentPosition(b.el);
+    if (pos & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
+    if (pos & Node.DOCUMENT_POSITION_PRECEDING) return 1;
+    return 0;
+  });
+
+  function offset() {
+    var y = 10;
+    var banner = document.querySelector('.proto-banner');
+    var header = document.querySelector('.app-header');
+    if (banner) y += banner.offsetHeight;
+    if (header) y += header.offsetHeight;
+    if (window.matchMedia('(max-width: 860px)').matches && nav) y += nav.offsetHeight;
+    return y;
+  }
+
+  function reveal(link) {
+    if (!nav || !link) return;
+    if (nav.scrollWidth <= nav.clientWidth + 8) return;
+    var left = link.offsetLeft - (nav.clientWidth - link.offsetWidth) / 2;
+    nav.scrollTo({ left: Math.max(0, left), behavior: 'smooth' });
+  }
+
+  var last = '';
+  function spy() {
+    var y = offset();
+    var chosen = points[0] && points[0].id;
+    points.forEach(function (p) {
+      if (p.el.getBoundingClientRect().top <= y) chosen = p.id;
+    });
+    if (!chosen || chosen === last) return;
+    last = chosen;
+    links.forEach(function (a) {
+      a.classList.toggle('is-on', a.getAttribute('href') === '#' + chosen);
+    });
+    reveal(nav.querySelector('a.is-on'));
+  }
+
+  var ticking = false;
+  function onScroll() {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(function () {
+      ticking = false;
+      spy();
+    });
+  }
+
+  links.forEach(function (a) {
+    a.addEventListener('click', function () {
+      last = a.getAttribute('href').slice(1);
+      links.forEach(function (x) { x.classList.toggle('is-on', x === a); });
+      reveal(a);
+    });
+  });
+
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onScroll);
+  spy();
+
+  var motion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var bits = [].slice.call(document.querySelectorAll('.ht-hero, .ht-part, .ht-chapter'));
+  if (motion || !('IntersectionObserver' in window)) {
+    bits.forEach(function (el) { el.classList.add('is-in'); });
+    return;
+  }
+  bits.forEach(function (el) { el.classList.add('ht-in'); });
+  var show = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (!e.isIntersecting) return;
+      e.target.classList.add('is-in');
+      show.unobserve(e.target);
+    });
+  }, { rootMargin: '0px 0px -8% 0px', threshold: 0.08 });
+  bits.forEach(function (el) { show.observe(el); });
+})();
+</script>
+</body>
+</html>

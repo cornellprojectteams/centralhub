@@ -711,7 +711,7 @@ function icChipBar_(openN, pendingN, doneN) {
 }
 
 function icUnlockBtn_() {
-  return '<button type="button" class="ic-unlock" id="ic-unlock" onclick="icUnlockAll()" aria-pressed="false">Unlock all</button>';
+  return '<button type="button" class="ic-unlock" id="ic-unlock" onclick="icUnlockAll()" aria-pressed="false">Expand all</button>';
 }
 
 function icFiltEmpty_(msg) {

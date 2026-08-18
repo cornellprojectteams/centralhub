@@ -777,7 +777,7 @@ function tpSharedJs_() {
     + 'var e=document.getElementById("empty");if(e){e.style.display=document.querySelector("#tp-proj-list .tp-skel")?"none":(n?"none":"block");}}'
     + 'function icSetBucket(el,bucket){if(!el)return;el.setAttribute("data-bucket",bucket);icApplyFilt();}'
     + 'function icOpenVisible(open){CARD_LOCK=true;document.querySelectorAll("#ic-list details.card,#tp-proj-list details.card").forEach(function(d){if(d.style.display==="none"){d.open=false;return;}d.open=!!open;});CARD_LOCK=false;}'
-    + 'function icSyncUnlock(){var b=document.getElementById("ic-unlock");if(!b)return;b.classList.toggle("is-on",!!CARD_ALL);b.setAttribute("aria-pressed",CARD_ALL?"true":"false");b.textContent=CARD_ALL?"Fold all":"Unlock all";}'
+    + 'function icSyncUnlock(){var b=document.getElementById("ic-unlock");if(!b)return;b.classList.toggle("is-on",!!CARD_ALL);b.setAttribute("aria-pressed",CARD_ALL?"true":"false");b.textContent=CARD_ALL?"Fold all":"Expand all";}'
     + 'function icUnlockAll(){CARD_ALL=!CARD_ALL;if(CARD_ALL)icOpenVisible(true);else icOpenVisible(false);icSyncUnlock();}'
     + 'function secRestore(){document.querySelectorAll("details.card:not(.pr-card)").forEach(function(d){'
     + 'if(d.getAttribute("data-fold"))return;d.setAttribute("data-fold","1");'
