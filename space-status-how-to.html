@@ -1142,6 +1142,25 @@
     .ht-end--back h3 { color: #8a5f0f; }
     .ht-end--back p { color: #5c4a1f !important; }
 
+    .ht-back {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      font-family: var(--font-display);
+      font-size: .8125rem;
+      font-weight: 800;
+      letter-spacing: .02em;
+      color: #8f1515;
+      background: #fff;
+      border-radius: 999px;
+      padding: .55rem 1rem .55rem .85rem;
+      text-decoration: none;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, .25), inset 0 0 0 1.5px rgba(240, 192, 80, .6);
+    }
+    .ht-back:hover { color: #6e1010; }
+    .ht-back span { font-size: 1rem; line-height: 1; }
+
     #staff .ht-hub {
       width: 100%;
       text-align: left;
@@ -1309,6 +1328,7 @@
           <div class="logo-sub">Safety &amp; Operations</div>
         </div>
       </a>
+      <a class="ht-back" href="index.html#issues"><span aria-hidden="true">←</span> Back to status</a>
     </div>
   </header>
 
@@ -1844,7 +1864,7 @@
   <footer class="app-footer">
     <div class="footer-bottom">
       <span>&copy; 2026 Cornell University &middot; Student Project Team Program</span>
-      <a href="index.html" style="color:rgba(255,255,255,.82);text-decoration:none">Back to the hub</a>
+      <a class="footer-back" href="index.html#issues">Back to status</a>
     </div>
   </footer>
 </div>
