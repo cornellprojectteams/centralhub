@@ -421,6 +421,11 @@
     if (d.action === 'projects-news') {
       if (projectsNew) projectsNew.hidden = !(d.count > 0);
     }
+    if (d.action === 'strip-changed') {
+      if (issuesFrame && issuesFrame.contentWindow) {
+        try { issuesFrame.contentWindow.postMessage({ source: 'ops-hub', action: 'refresh-strip' }, '*'); } catch (e) { /* ignore */ }
+      }
+    }
     if (d.action === 'open-projects') {
       const open = issuesPanel && issuesPanel.classList.contains('is-open');
       if (!open) openIssuesPanel('projects');

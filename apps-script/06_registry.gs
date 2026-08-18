@@ -6,9 +6,9 @@
  * Inventory run the same code, branched by regFields_(which).
  *
  * SPEED. Sheet round-trips dominate here, so:
- *  - Catalog paints a skeleton grid + slim top bar, then fetches the body.
- *    Item pages are server-rendered. Opening a card slides the record over
- *    the grid (google.script.run.regGetItem) instead of a centered spinner.
+ *  - The catalog HTML is built in the first doGet (from CacheService when warm).
+ *    That skips a second google.script.run round trip. Skeleton + fetch is the
+ *    fallback if the build throws. Item pages slide over the grid via regGetItem.
  *  - Spreadsheet handle and tab rows are memoized per execution (REG_MEMO).
  *  - Tab rows and the rendered card HTML are cached in CacheService (~5 min),
  *    dropped on every write. A warm catalog load skips the spreadsheet.
@@ -280,7 +280,9 @@ function regInvalidate_() {
   var keys = [];
   ['reg_t_Inventory', 'reg_t_Equipment',
     'reg_c3_inventory_1', 'reg_c3_inventory_0', 'reg_c3_equipment_1', 'reg_c3_equipment_0',
-    'reg_c3_inventory_1_m', 'reg_c3_inventory_0_m', 'reg_c3_equipment_1_m', 'reg_c3_equipment_0_m'
+    'reg_c3_inventory_1_m', 'reg_c3_inventory_0_m', 'reg_c3_equipment_1_m', 'reg_c3_equipment_0_m',
+    'reg_c4_inventory_1', 'reg_c4_inventory_0', 'reg_c4_equipment_1', 'reg_c4_equipment_0',
+    'reg_c4_inventory_1_m', 'reg_c4_inventory_0_m', 'reg_c4_equipment_1_m', 'reg_c4_equipment_0_m'
   ].forEach(function (p) {
     keys.push(p, p + '_n');
     for (var i = 0; i < 6; i++) keys.push(p + '_' + i);
@@ -294,22 +296,25 @@ function regFields_(which) {
     return { tab: 'Inventory', key: 'Item', idPrefix: '', which: 'inventory', noun: 'item',
       fields: [
         { h: 'Item', label: 'Item', req: true },
+        { h: 'On hand', label: 'On hand', type: 'number' },
+        { h: 'Location', label: 'Location' },
         { h: 'Category', label: 'Category', type: 'select', opts: 'category' },
-        { h: 'Owning team', label: 'Owner (team or Program)', type: 'select', opts: 'team' }, { h: 'Location', label: 'Location' },
-        { h: 'On hand', label: 'On hand', type: 'number' }, { h: 'Unit', label: 'Unit' },
+        { h: 'Owning team', label: 'Owner (team or Program)', type: 'select', opts: 'team', adv: true },
+        { h: 'Unit', label: 'Unit', adv: true },
         { h: 'Supplier', label: 'Supplier', adv: true }, { h: 'Product link', label: 'Product link', type: 'url', adv: true },
         { h: 'Battery state', label: 'Battery state', type: 'select', opts: 'battery', group: 'battery', adv: true },
         { h: 'Battery spec', label: 'Battery spec (e.g. 6S 5000mAh)', group: 'battery', adv: true },
-        { h: 'Image', label: 'Image', type: 'image' } ] };
+        { h: 'Image', label: 'Image', type: 'image', adv: true } ] };
   }
   return { tab: 'Equipment', key: 'Asset ID', idPrefix: 'EQ-', which: 'equipment', noun: 'equipment',
     fields: [
       { h: 'Asset ID', label: 'Asset ID', auto: true }, { h: 'Name', label: 'Name', req: true },
+      { h: 'Location', label: 'Location' },
       { h: 'Category', label: 'Category', type: 'select', opts: 'category' },
-      { h: 'Owning team', label: 'Owner (team or Program)', type: 'select', opts: 'team' }, { h: 'Location', label: 'Location' },
+      { h: 'Owning team', label: 'Owner (team or Program)', type: 'select', opts: 'team', adv: true },
       { h: 'Owner', label: 'Owner (person)', adv: true },
       { h: 'Status', label: 'Status', adv: true }, { h: 'Installed', label: 'Installed', adv: true }, { h: 'Notes', label: 'Notes', adv: true },
-      { h: 'Image', label: 'Image', type: 'image' } ] };
+      { h: 'Image', label: 'Image', type: 'image', adv: true } ] };
 }
 
 function readTabRows_(name) {
@@ -474,13 +479,16 @@ function regBuildCards_(which, admin) {
   const spec = regFields_(which);
   admin = !!admin;
   const inv = spec.tab === 'Inventory';
-  var ck = 'reg_c3_' + spec.which + '_' + (admin ? '1' : '0');
+  var ck = 'reg_c4_' + spec.which + '_' + (admin ? '1' : '0');
   var hit = regCacheGet_(ck), mapHit = admin ? regCacheGet_(ck + '_m') : null;
   if (hit) {
     try {
       var cached = JSON.parse(hit);
       if (cached && cached.html != null) {
-        cached.mapJson = admin ? (mapHit || regSlimMap_(spec)) : '{}';
+        // Never block a cache hit on building the admin row map. Edit/count
+        // fetch it after first paint via regRowsMap.
+        cached.mapJson = admin ? (mapHit || '{}') : '{}';
+        cached.locs = cached.locs || [];
         return cached;
       }
     } catch (e) { /* rebuild */ }
@@ -494,7 +502,8 @@ function regBuildCards_(which, admin) {
     cSup = idx('Supplier'), cCat = idx('Category'), cStatus = idx('Status'), cCoTo = idx('Checked out to'), cDue = idx('Due back');
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const base = regWebUrl_();
-  let html = ''; const mapParts = [], owners = {}, cats = {};
+  const mapParts = [], owners = {}, cats = {}, locsMap = {};
+  const buckets = {};
   var nOut = 0, nLow = 0, nCo = 0, nOver = 0;
 
   const keepH = {};
@@ -508,6 +517,7 @@ function regBuildCards_(which, admin) {
     const owner = cTeam >= 0 ? String(r[cTeam]).trim() : ''; if (owner) owners[owner] = 1;
     const cat = cCat >= 0 ? String(r[cCat]).trim() : ''; if (cat) cats[cat] = 1;
     const loc = cLoc >= 0 ? String(r[cLoc]).trim() : '';
+    if (loc) locsMap[loc] = 1;
     const hay = [name, cat, owner, loc, key, inv && cSup >= 0 ? String(r[cSup]).trim() : ''].join(' ').toLowerCase();
     const imgHtml = regImgTag_(cImg >= 0 ? r[cImg] : '', 400, regMonogram_(name));
     let primary = '', chip = '', coState = '', stockState = '', stepper = '', stockBadge = '';
@@ -548,7 +558,7 @@ function regBuildCards_(which, admin) {
     if (inv && cSup >= 0 && String(r[cSup]).trim()) metaBits.push(String(r[cSup]).trim());
     const meta = metaBits.length ? '<div class="reg-card-meta">' + escapeHtml_(metaBits.join(' · ')) + '</div>' : '';
     const href = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'registry=item&which=' + spec.which + '&id=' + encodeURIComponent(key) + (admin ? '&admin=1' : '');
-    html += '<div class="reg-card reg-row" data-hay="' + escapeHtml_(hay) + '" data-cat="' + escapeHtml_(cat) + '" data-owner="' + escapeHtml_(owner) + '" data-co="' + coState + '" data-stock="' + stockState + '" data-key="' + escapeHtml_(key) + '" data-rp="' + escapeHtml_(reVal) + '" data-unit="' + escapeHtml_(unit) + '">'
+    const card = '<div class="reg-card reg-row" data-hay="' + escapeHtml_(hay) + '" data-cat="' + escapeHtml_(cat) + '" data-owner="' + escapeHtml_(owner) + '" data-loc="' + escapeHtml_(loc) + '" data-co="' + coState + '" data-stock="' + stockState + '" data-key="' + escapeHtml_(key) + '" data-rp="' + escapeHtml_(reVal) + '" data-unit="' + escapeHtml_(unit) + '">'
       + '<a class="reg-card-link" href="' + escapeHtml_(href) + '" title="Open ' + escapeHtml_(name || 'item') + '" onclick="return regGoItem(event,this)"><div class="reg-card-img">' + imgHtml
       + (stockBadge ? stockBadge : '')
       + '<span class="reg-card-go" aria-hidden="true"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></span></div>'
@@ -557,6 +567,10 @@ function regBuildCards_(which, admin) {
       + stepper
       + (admin ? '<div class="reg-card-act"><button type="button" class="reg-iconbtn" title="Edit" onclick="regOpenEdit(' + rr.row + ')">Edit</button><button type="button" class="reg-iconbtn reg-del" title="Delete" onclick="regDeleteRow(' + rr.row + ',this)">Delete</button></div>' : '')
       + '</div>';
+    const bucket = cat || 'Uncategorized';
+    if (!buckets[bucket]) buckets[bucket] = { html: '', n: 0 };
+    buckets[bucket].html += card;
+    buckets[bucket].n++;
     const obj = {};
     Object.keys(keepH).forEach(function (h) {
       var i = idx(h);
@@ -565,10 +579,26 @@ function regBuildCards_(which, admin) {
     mapParts.push(JSON.stringify(String(rr.row)) + ':' + JSON.stringify(obj));
   });
 
+  const ordered = [];
+  REG_CATEGORIES.forEach(function (c) { if (buckets[c]) ordered.push(c); });
+  Object.keys(buckets).forEach(function (c) {
+    if (c !== 'Uncategorized' && ordered.indexOf(c) < 0) ordered.push(c);
+  });
+  if (buckets['Uncategorized']) ordered.push('Uncategorized');
+  let html = ordered.map(function (c) {
+    var g = buckets[c];
+    return '<details class="reg-sec" open data-sec="' + escapeHtml_(c) + '">'
+      + '<summary class="reg-sec-h"><span class="reg-sec-title">' + escapeHtml_(c) + '</span>'
+      + '<span class="reg-sec-n">' + g.n + '</span>'
+      + '<span class="section-chev" aria-hidden="true"></span></summary>'
+      + '<div class="reg-grid">' + g.html + '</div></details>';
+  }).join('');
+
   var mapJson = '{' + mapParts.join(',') + '}';
   var out = {
     html: html,
     owners: Object.keys(owners).sort(), cats: Object.keys(cats).sort(),
+    locs: Object.keys(locsMap).sort(),
     key: spec.key, count: rows.length, nOut: nOut, nLow: nLow, nCo: nCo, nOver: nOver
   };
   regCachePut_(ck, JSON.stringify(out), 300);
@@ -584,7 +614,20 @@ function regRowsHtml(which) {
 }
 
 function regRowsMap(which) {
-  return regBuildCards_(which, true).mapJson || '{}';
+  const spec = regFields_(which);
+  var ck = 'reg_c4_' + spec.which + '_1_m';
+  var hit = regCacheGet_(ck);
+  if (hit) return hit;
+  var map = regSlimMap_(spec);
+  regCachePut_(ck, map, 300);
+  return map;
+}
+
+function regTeamNames() {
+  var t = [];
+  try { t = icTeamNames_() || []; } catch (e) { t = []; }
+  ['Shared', 'Program', 'Facilities'].forEach(function (x) { if (t.indexOf(x) < 0) t = t.concat([x]); });
+  return t;
 }
 
 function regSkelGridHtml_() {
@@ -611,18 +654,39 @@ function registryPage_(which, embedded, admin) {
   const title = spec.tab === 'Inventory' ? 'Inventory' : 'Equipment registry';
   const regBase = regWebUrl_();
   const other = spec.which === 'inventory' ? 'equipment' : 'inventory';
+  admin = !!admin;
+  embedded = !!embedded;
+
+  // One Apps Script execution paints the catalog when it can. A second
+  // google.script.run after a skeleton is a second cold start.
+  var b = null;
+  try { b = regBuildCards_(spec.which, admin); } catch (e) { b = null; }
+  var swap = (b && b.html != null) ? regBodyMarkup_(spec.which, b, admin, embedded) : regSkelGridHtml_();
 
   let inner = '<div id="reg-root" class="reg-page">'
     + regWaitHtml_()
-    + '<div id="reg-swap">' + regSkelGridHtml_() + '</div>'
+    + '<div id="reg-swap">' + swap + '</div>'
     + '<div class="reg-slide" id="reg-slide" hidden><div class="reg-slide-bd" onclick="regBack(event)"></div>'
     + '<div class="reg-slide-dialog" id="reg-itempane" role="dialog" aria-modal="true" aria-label="Item"></div></div>'
     + regStyles_() + regWaitJs_() + regFilterJs_() + regSwitchJs_()
     + '<script>var REG_WHICH=' + JSON.stringify(spec.which) + ';var REG_ADMIN=' + (admin ? 'true' : 'false')
     + ';var REG_EMBED=' + (embedded ? 'true' : 'false')
-    + ';var REG_BASE=' + JSON.stringify(regBase) + ';var REG_KEY="";var REG_ROWS={};var REG_SAVED="";</script>';
+    + ';var REG_BASE=' + JSON.stringify(regBase)
+    + ';var REG_KEY=' + JSON.stringify((b && b.key) || '')
+    + ';var REG_ROWS={};var REG_SAVED="";</script>';
   if (admin) inner += regEditJs_();
-  inner += '<script>regBoot(' + JSON.stringify(spec.which) + ',' + JSON.stringify(other) + ');</script></div>';
+  if (b) {
+    inner += '<script>if(typeof regFiltRestore==="function")regFiltRestore();'
+      + 'if(typeof regFoldRestore==="function")regFoldRestore();'
+      + 'if(typeof regQuickRestore==="function")regQuickRestore();'
+      + 'if(typeof flt==="function")flt();'
+      + (admin ? 'try{google.script.run.withSuccessHandler(function(j){try{REG_ROWS=JSON.parse(j||"{}");}catch(e){}}).regRowsMap(REG_WHICH);}catch(e){}' : '')
+      + 'try{google.script.run.regWarm(' + JSON.stringify(other) + ',' + (admin ? 'true' : 'false') + ');}catch(e){}'
+      + '</script>';
+  } else {
+    inner += '<script>regBoot(' + JSON.stringify(spec.which) + ',' + JSON.stringify(other) + ');</script>';
+  }
+  inner += '</div>';
   return swissShell_(inner, title, true, embedded, '1120px');
 }
 
@@ -642,6 +706,7 @@ function regBodyMarkup_(which, b, admin, embedded) {
   const inv = spec.tab === 'Inventory';
   const title = inv ? 'Inventory' : 'Equipment';
   const base = regWebUrl_();
+  b = b || {};
   const n = b.count || 0;
   const stats = inv
     ? (n + ' item' + (n === 1 ? '' : 's')
@@ -670,7 +735,6 @@ function regBodyMarkup_(which, b, admin, embedded) {
   if (admin) {
     const labelsHref = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'registry=labels&which=' + spec.which + '&admin=1';
     toolbar = '<div class="reg-tools" id="reg-tools">'
-      +   '<button type="button" class="btn btn-primary" onclick="regOpenAdd()">+ Add ' + escapeHtml_(spec.noun) + '</button>'
       +   '<button type="button" class="btn btn-ghost" onclick="regScan()">Scan</button>'
       +   '<a class="btn btn-ghost" href="' + escapeHtml_(labelsHref) + '" target="_blank" rel="noopener">Print labels</a>'
       + '</div>';
@@ -680,11 +744,11 @@ function regBodyMarkup_(which, b, admin, embedded) {
   const catList = [], catSeen = {};
   const pushCat = function (cat) { if (cat && !catSeen[cat]) { catSeen[cat] = 1; catList.push(cat); } };
   REG_CATEGORIES.forEach(function (cat) { if (cat !== 'Other') pushCat(cat); });
-  b.cats.forEach(pushCat);
+  (b.cats || []).forEach(pushCat);
   if (REG_CATEGORIES.indexOf('Other') >= 0) pushCat('Other');
   controls += '<select id="cat" onchange="flt()"><option value="">All categories</option>'
     + catList.map(function (t) { return '<option value="' + escapeHtml_(t) + '">' + escapeHtml_(t) + '</option>'; }).join('') + '</select>';
-  if (b.owners.length) {
+  if ((b.owners || []).length) {
     controls += '<select id="owner" onchange="flt()"><option value="">All owners</option>'
       + b.owners.map(function (t) { return '<option value="' + escapeHtml_(t) + '">' + escapeHtml_(t) + '</option>'; }).join('') + '</select>';
   }
@@ -693,18 +757,38 @@ function regBodyMarkup_(which, b, admin, embedded) {
     ? '<div class="reg-chips"><button type="button" class="reg-fchip" data-f="stock" onclick="regChip(this)">Low or out</button></div>'
     : '<div class="reg-chips"><button type="button" class="reg-fchip" data-f="out" onclick="regChip(this)">Checked out</button><button type="button" class="reg-fchip" data-f="overdue" onclick="regChip(this)">Overdue</button></div>';
 
+  const locList = (b.locs || []).map(function (t) {
+    return '<option value="' + escapeHtml_(t) + '"></option>';
+  }).join('');
+  const catOpts = catList.map(function (t) {
+    return '<option value="' + escapeHtml_(t) + '">' + escapeHtml_(t) + '</option>';
+  }).join('');
+  const quick = admin
+    ? '<div class="reg-quick" id="reg-quick" onkeydown="if(event.key===\'Enter\'){event.preventDefault();regQuickAdd();}">'
+      + '<input class="reg-qa-name" id="reg-qa-name" type="text" placeholder="' + (inv ? 'Item name' : 'Equipment name') + '" autocomplete="off" enterkeyhint="go" aria-label="' + (inv ? 'Item name' : 'Equipment name') + '">'
+      + (inv ? '<input class="reg-qa-qty" id="reg-qa-qty" type="number" inputmode="numeric" min="0" step="any" value="1" aria-label="On hand">' : '')
+      + '<input class="reg-qa-loc" id="reg-qa-loc" type="text" placeholder="Location" list="reg-locs" autocomplete="off" aria-label="Location">'
+      + '<select class="reg-qa-cat" id="reg-qa-cat" aria-label="Category"><option value="">Category</option>' + catOpts + '</select>'
+      + '<button type="button" class="btn btn-confirm" id="reg-qa-btn" onclick="regQuickAdd()">Add</button>'
+      + '<button type="button" class="btn btn-ghost" onclick="regOpenAdd()">Full form</button>'
+      + '</div>'
+      + '<p class="reg-quick-hint">Name is enough. Location and category stick for the next item. Press Enter to add.</p>'
+    : '';
+
   // Search always stays out; the rest of the filters fold away behind a toggle so the
   // sticky bar does not eat half a phone screen. The choice is remembered.
   let out = head + '<div class="reg-toolbar">' + toggle + toolbar + '</div>'
     + '<div class="reg-bar">'
     +   '<div class="reg-bar-top"><div class="search-wrap"><input id="q" type="search" placeholder="Search name, location, or team" oninput="flt()" autocomplete="off"></div>'
+    +     '<button type="button" class="reg-filt-btn" id="reg-fold" onclick="regToggleFold()">Fold all</button>'
     +     '<button type="button" class="reg-filt-btn" id="reg-filt-btn" onclick="regToggleFilters()" aria-expanded="false" aria-controls="reg-filt-body">'
     +       'Filters<span class="reg-filt-n" id="reg-filt-n" hidden></span><span class="reg-filt-caret" aria-hidden="true">&#9662;</span></button></div>'
     +   '<div class="reg-filt-body" id="reg-filt-body" hidden><div class="filters">' + controls + '</div>' + chipsHtml + '</div>'
+    +   quick
     + '</div>'
-    + '<div class="reg-grid" id="reg-cards">' + b.html + '</div>'
+    + '<datalist id="reg-locs">' + locList + '</datalist>'
+    + '<div id="reg-cards">' + (b.html || ('<div class="empty">Nothing here yet.' + (admin ? ' Type a name above and press Add.' : '') + '</div>')) + '</div>'
     + '<div id="empty" class="empty reg-empty" style="display:none"><div class="reg-empty-title">No matching items</div>Try a different search, or clear the filters.</div>';
-  if (!b.html) out += '<div class="empty">Nothing here yet.' + (admin ? ' Add the first ' + escapeHtml_(spec.noun) + '.' : '') + '</div>';
   if (admin) out += regFormOverlay_(which);
   return out;
 }
@@ -713,7 +797,7 @@ function regBodyMarkup_(which, b, admin, embedded) {
 function regSwitchHtml(which, admin, embedded) {
   const spec = regFields_(which);
   const b = regBuildCards_(which, !!admin);
-  return { ok: true, html: regBodyMarkup_(which, b, !!admin, !!embedded), which: spec.which, key: b.key, rowsJson: admin ? b.mapJson : '{}' };
+  return { ok: true, html: regBodyMarkup_(which, b, !!admin, !!embedded), which: spec.which, key: b.key, rowsJson: '{}' };
 }
 
 // Client-callable item payload. Named like the other google.script.run functions
@@ -731,13 +815,15 @@ function regItemHtml(which, id, admin) {
 function regSwitchJs_() {
   return '<script>'
     + 'function regFillBody(r){var sw=document.getElementById("reg-swap");if(!sw||!r||!r.ok)return false;'
-    + 'sw.innerHTML=r.html;REG_WHICH=r.which;if(typeof REG_ADMIN!=="undefined"&&REG_ADMIN){REG_KEY=r.key;try{REG_ROWS=JSON.parse(r.rowsJson);}catch(e){REG_ROWS={};}}'
+    + 'sw.innerHTML=r.html;REG_WHICH=r.which;if(typeof REG_ADMIN!=="undefined"&&REG_ADMIN){REG_KEY=r.key;REG_ROWS={};'
+    + 'try{google.script.run.withSuccessHandler(function(j){try{REG_ROWS=JSON.parse(j||"{}");}catch(e){}}).regRowsMap(r.which);}catch(e){}}'
     + 'if(typeof REG_FILTER!=="undefined")REG_FILTER="";'
-    // The swap replaces the whole bar, so re-apply the remembered filter-panel state.
     + 'if(typeof regFiltRestore==="function")regFiltRestore();'
+    + 'if(typeof regFoldRestore==="function")regFoldRestore();'
+    + 'if(typeof regQuickRestore==="function")regQuickRestore();'
     + 'if(typeof flt==="function")flt();return true;}'
     + 'function regBoot(which,other){var ad=!!(typeof REG_ADMIN!=="undefined"&&REG_ADMIN);var em=!!(typeof REG_EMBED!=="undefined"&&REG_EMBED);'
-    + 'regWait(true,which==="inventory"?"Loading inventory":"Loading equipment","");'
+    + 'regWait(true,which==="inventory"?"Loading the shop catalog":"Loading equipment","");'
     + 'google.script.run.withSuccessHandler(function(r){if(!regFillBody(r)){regWaitSay("Could not load","Refresh the page and try again.");return;}'
     + 'regWait(false);try{if(other)google.script.run.regWarm(other,ad);}catch(e){}})'
     + '.withFailureHandler(function(){regWaitSay("Could not load","Refresh the page and try again.");}).regSwitchHtml(which,ad,em);}'
@@ -745,7 +831,7 @@ function regSwitchJs_() {
     + 'if(typeof regCloseItem==="function")regCloseItem();'
     + 'var inv=which==="inventory";var sw=document.getElementById("reg-swap");var prev=sw?sw.innerHTML:"";'
     + 'if(sw&&typeof REG_SKEL_GRID==="string")sw.innerHTML=REG_SKEL_GRID;'
-    + 'regWait(true,inv?"Loading inventory":"Loading equipment","");'
+    + 'regWait(true,inv?"Loading the shop catalog":"Loading equipment","");'
     + 'var ad=!!(typeof REG_ADMIN!=="undefined"&&REG_ADMIN);var em=!!(typeof REG_EMBED!=="undefined"&&REG_EMBED);'
     + 'google.script.run.withSuccessHandler(function(r){if(!regFillBody(r)){if(sw&&prev)sw.innerHTML=prev;regWait(false);return;}regWait(false);})'
     + '.withFailureHandler(function(){if(sw&&prev)sw.innerHTML=prev;regWait(false);alert("Could not switch catalogs. Try again.");}).regSwitchHtml(which,ad,em);}'
@@ -1067,6 +1153,24 @@ function regStyles_() {
     + '.reg-chip{display:inline-block;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#b31b1b;background:#fdecec;border:1px solid #f5d0d0;padding:3px 9px;border-radius:999px;align-self:flex-start}'
     + '.reg-chip-low{color:#b06a00;background:#fbf3e1;border-color:#eeddb4}'
     + '.reg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,176px),1fr));gap:18px;margin-top:8px}'
+    + '.reg-sec{margin:4px 0 16px;border:none;background:transparent}'
+    + '.reg-sec-h{list-style:none;display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;padding:8px 2px 6px}'
+    + '.reg-sec-h::-webkit-details-marker{display:none}'
+    + '.reg-sec-title{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#0f766e;flex:1;min-width:0}'
+    + '.reg-sec-n{font-size:12px;font-weight:700;color:#8a857c}'
+    + '.reg-sec[open] > .reg-sec-h .section-chev{background:#e6f7f5}'
+    + '.reg-sec[open] > .reg-sec-h .section-chev::before{top:11px;border-color:#0f766e;transform:rotate(-135deg)}'
+    + '.reg-sec .reg-grid{margin-top:6px}'
+    + '.reg-quick{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0 0;padding-top:10px;border-top:1px solid rgba(20,17,14,.06)}'
+    + '.reg-quick input,.reg-quick select{font:inherit;font-size:14px;padding:10px 12px;border:1.5px solid #e0e0dc;border-radius:10px;outline:none;background:#fff;min-width:0}'
+    + '.reg-quick input:focus,.reg-quick select:focus{border-color:#0d9488;box-shadow:0 0 0 4px rgba(13,148,136,.14)}'
+    + '.reg-qa-name{flex:2 1 12rem;font-weight:700}'
+    + '.reg-qa-qty{flex:0 0 4.6rem;width:4.6rem;text-align:center;font-weight:800}'
+    + '.reg-qa-loc{flex:1 1 8rem}'
+    + '.reg-qa-cat{flex:1 1 9rem}'
+    + '.reg-quick .btn{flex:none}'
+    + '.reg-quick-hint{font-size:12px;font-weight:600;color:#8a857c;margin:6px 0 0}'
+    + '@media(max-width:520px){.reg-qa-qty{flex:0 0 3.8rem;width:3.8rem}.reg-quick-hint{display:none}}'
     + '.reg-card{position:relative;display:flex;flex-direction:column;min-width:0;max-width:100%;background:#fff;border:1px solid #e8e4dc;border-radius:18px;overflow:hidden;box-shadow:0 1px 2px rgba(20,17,14,.04);transition:box-shadow .2s ease,transform .2s ease,border-color .2s ease;content-visibility:auto;contain-intrinsic-size:0 340px}'
     + '.reg-card:hover{box-shadow:0 16px 36px rgba(20,17,14,.12);transform:translateY(-4px);border-color:#ddd6c8}'
     + '.reg-card[data-stock="out"]{border-color:#f0cfcf}'
@@ -1150,6 +1254,7 @@ function regStyles_() {
     + '.reg-bar-top{display:flex;gap:8px;align-items:center;min-width:0}'
     + '.reg-filt-btn{display:inline-flex;align-items:center;gap:6px;flex:none;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12.5px;font-weight:700;'
     +   'color:#57534e;background:#fff;border:1.5px solid #e2ddd6;border-radius:10px;padding:9px 13px;cursor:pointer;transition:border-color .15s,color .15s,background .15s}'
+    + '#reg-fold{min-width:6.6rem;justify-content:center}'
     + '.reg-filt-btn:hover{border-color:#c9c2b8;color:#14110e}'
     + '.reg-filt-btn[aria-expanded="false"]{background:#faf9f6}'
     + '.reg-filt-n{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#b31b1b;color:#fff;font-size:10.5px;font-weight:800}'
@@ -1218,14 +1323,24 @@ function regFilterJs_() {
     + 'document.querySelectorAll(".reg-row").forEach(function(r){var fp=true;'
     + 'if(REG_FILTER==="stock")fp=r.dataset.stock!=="";else if(REG_FILTER==="out")fp=(r.dataset.co==="out"||r.dataset.co==="overdue");else if(REG_FILTER==="overdue")fp=r.dataset.co==="overdue";'
     + 'var ok=fp&&(!q||r.dataset.hay.indexOf(q)>=0)&&(!cv||r.dataset.cat===cv)&&(!ov||r.dataset.owner===ov);r.style.display=ok?"":"none";if(ok)n++;});'
-    + 'var e=document.getElementById("empty");if(e)e.style.display=n?"none":"block";'
+    + 'document.querySelectorAll(".reg-sec").forEach(function(sec){var vis=0;sec.querySelectorAll(".reg-row").forEach(function(r){if(r.style.display!=="none")vis++;});'
+    + 'sec.style.display=vis?"":"none";var nEl=sec.querySelector(".reg-sec-n");if(nEl)nEl.textContent=vis;'
+    + 'if(cv&&sec.getAttribute("data-sec")===cv)sec.open=true;});'
+    + 'var e=document.getElementById("empty");if(e)e.style.display=(!n&&tot)?"block":"none";'
     + 'var tot=document.querySelectorAll(".reg-row").length;var st=document.getElementById("reg-count");'
     + 'if(st){var filtering=!!(q||cv||ov||REG_FILTER);st.innerHTML=filtering?("Showing <b>"+n+"</b> of "+tot):(st.getAttribute("data-base")||st.innerHTML);}'
-    + 'regFiltCount(cv,ov);}'
-    // Badge the collapsed Filters button with how many are active, so a filter that is
-    // folded out of sight can never quietly skew what the list is showing.
+    + 'regFiltCount(cv,ov);regFoldLabel();}'
     + 'function regFiltCount(cv,ov){var b=document.getElementById("reg-filt-n");if(!b)return;'
     + 'var n=(cv?1:0)+(ov?1:0)+(REG_FILTER?1:0);b.textContent=n;b.hidden=!n;}'
+    + 'function regSecs(){return [].slice.call(document.querySelectorAll(".reg-sec")).filter(function(s){return s.style.display!=="none";});}'
+    + 'function regFoldLabel(){var b=document.getElementById("reg-fold");if(!b)return;var secs=regSecs();'
+    + 'var anyOpen=secs.some(function(s){return s.open;});b.textContent=anyOpen?"Fold all":"Expand all";'
+    + 'b.hidden=!secs.length;}'
+    + 'function regFoldAll(fold){regSecs().forEach(function(s){s.open=!fold;});'
+    + 'try{localStorage.setItem("regFold",fold?"1":"0");}catch(e){}regFoldLabel();}'
+    + 'function regToggleFold(){var secs=regSecs();if(!secs.length)return;regFoldAll(secs.some(function(s){return s.open;}));}'
+    + 'function regFoldRestore(){var fold=false;try{fold=localStorage.getItem("regFold")==="1";}catch(e){}'
+    + 'if(fold)document.querySelectorAll(".reg-sec").forEach(function(s){s.open=false;});regFoldLabel();}'
     + 'function regToggleFilters(){var body=document.getElementById("reg-filt-body"),btn=document.getElementById("reg-filt-btn");'
     + 'if(!body||!btn)return;var open=btn.getAttribute("aria-expanded")!=="false";'
     + 'btn.setAttribute("aria-expanded",open?"false":"true");body.hidden=open;'
@@ -1233,20 +1348,16 @@ function regFilterJs_() {
     + 'function regFiltRestore(){var body=document.getElementById("reg-filt-body"),btn=document.getElementById("reg-filt-btn");'
     + 'if(!body||!btn)return;'
     + 'btn.setAttribute("aria-expanded","false");body.hidden=true;}'
+    + 'document.addEventListener("toggle",function(e){if(e.target&&e.target.classList&&e.target.classList.contains("reg-sec")&&typeof regFoldLabel==="function")regFoldLabel();},true);'
     + '</script>';
 }
 
 function regFormOverlay_(which) {
   const spec = regFields_(which);
-  // Owning team is a dropdown of the project teams (+ "Shared"); regFill keeps any
-  // existing value that is not in the list when editing.
-  let teamOpts = [];
-  if (REG_MEMO.teams) teamOpts = REG_MEMO.teams;
-  else {
-    try { teamOpts = icTeamNames_(); } catch (e) { teamOpts = []; }
-    ['Shared', 'Program', 'Facilities'].forEach(function (x) { if (teamOpts.indexOf(x) < 0) teamOpts = teamOpts.concat([x]); });
-    REG_MEMO.teams = teamOpts;
-  }
+  // Team names come from the contacts sheet. Fetching them here would open a
+  // second spreadsheet on every catalog paint. The form starts with a short
+  // fallback list; regEnsureTeams fills the rest the first time Add/Edit opens.
+  let teamOpts = (REG_MEMO.teams && REG_MEMO.teams.length) ? REG_MEMO.teams : ['Shared', 'Program', 'Facilities'];
   const renderField = function (f) {
     if (f.auto) return '';
     if (f.type === 'image') {
@@ -1271,8 +1382,9 @@ function regFormOverlay_(which) {
     }
     const type = f.type === 'number' ? 'number' : (f.type === 'url' ? 'url' : 'text');
     const wide = (f.h === 'Notes' || f.h === 'eShop info' || f.h === 'Product link' || f.h === 'Battery spec') ? ' wide' : '';
+    const extra = f.h === 'Location' ? ' list="reg-locs" autocomplete="off"' : '';
     return '<label class="reg-f' + wide + '"' + grp + '><span>' + escapeHtml_(f.label) + (f.req ? ' <i>required</i>' : '') + '</span>'
-      + '<input data-h="' + escapeHtml_(f.h) + '" type="' + type + '"' + (type === 'number' ? ' step="any"' : '') + '></label>';
+      + '<input data-h="' + escapeHtml_(f.h) + '" type="' + type + '"' + (type === 'number' ? ' step="any"' : '') + extra + '></label>';
   };
   // Essentials show up front; rarely-touched fields fold into "More details".
   const essential = spec.fields.filter(function (f) { return !f.auto && !f.adv; }).map(renderField).join('');
@@ -1308,14 +1420,43 @@ function regEditJs_() {
     + 'function regShow(){document.getElementById("reg-ov").hidden=false;}'
     + 'function regClose(){document.getElementById("reg-ov").hidden=true;}'
     + 'function regMsg(m,err){var e=document.getElementById("reg-msg");if(e){e.textContent=m||"";e.style.color=err?"#b31b1b":"#8a857c";}}'
-    + 'function regOpenAdd(){REG_EROW=null;REG_EKEY=null;document.getElementById("reg-ov-title").textContent="Add";regFill({});regMsg("");regShow();var f=document.querySelector("#reg-ov .reg-form input[data-h]");if(f)f.focus();}'
-    + 'function regOpenEdit(row){function go(){REG_EROW=row;var v=REG_ROWS[row]||{};REG_EKEY=v[REG_KEY];document.getElementById("reg-ov-title").textContent="Edit";regFill(v);regMsg("");regShow();}if(REG_ROWS[row]){go();return;}'
+    + 'function regRemember(vals){if(!vals)return;try{var last=JSON.parse(localStorage.getItem("regQuick")||"{}");'
+    + 'if(vals.Location)last.loc=vals.Location;if(vals.Category)last.cat=vals.Category;if(vals.Unit)last.unit=vals.Unit;'
+    + 'if(vals["Owning team"])last.owner=vals["Owning team"];localStorage.setItem("regQuick",JSON.stringify(last));}catch(e){}}'
+    + 'function regQuickRestore(){try{var last=JSON.parse(localStorage.getItem("regQuick")||"{}");'
+    + 'var loc=document.getElementById("reg-qa-loc");var cat=document.getElementById("reg-qa-cat");'
+    + 'if(loc&&last.loc)loc.value=last.loc;if(cat&&last.cat)cat.value=last.cat;}catch(e){}}'
+    + 'function regApplyLast(fillOnHand){try{var last=JSON.parse(localStorage.getItem("regQuick")||"{}");'
+    + 'regInputs().forEach(function(i){if(i.value)return;'
+    + 'if(i.dataset.h==="Location"&&last.loc)i.value=last.loc;'
+    + 'if(i.dataset.h==="Category"&&last.cat)i.value=last.cat;'
+    + 'if(i.dataset.h==="Unit"&&last.unit)i.value=last.unit;'
+    + 'if(i.dataset.h==="Owning team"&&last.owner)i.value=last.owner;});}catch(e){}'
+    + 'if(fillOnHand){var on=document.querySelector("#reg-ov [data-h=\\"On hand\\"]");if(on&&!on.value)on.value="1";}}'
+    + 'function regEnsureTeams(cb){var sel=document.querySelector("#reg-ov select[data-h=\\"Owning team\\"]");'
+    + 'if(!sel||sel.getAttribute("data-loaded")){if(cb)cb();return;}'
+    + 'google.script.run.withSuccessHandler(function(teams){if(teams&&teams.length){var cur=sel.value;sel.innerHTML="<option value=\\"\\"></option>";'
+    + 'teams.forEach(function(t){var o=document.createElement("option");o.value=t;o.textContent=t;sel.appendChild(o);});'
+    + 'if(cur){var found=false;[].forEach.call(sel.options,function(o){if(o.value===cur)found=true;});if(!found){var x=document.createElement("option");x.value=cur;x.textContent=cur;sel.appendChild(x);}sel.value=cur;}}'
+    + 'sel.setAttribute("data-loaded","1");if(cb)cb();}).withFailureHandler(function(){if(cb)cb();}).regTeamNames();}'
+    + 'function regOpenAdd(){REG_EROW=null;REG_EKEY=null;document.getElementById("reg-ov-title").textContent="Add";regFill({});regMsg("");regApplyLast(true);regShow();'
+    + 'regEnsureTeams(function(){var f=document.querySelector("#reg-ov .reg-form input[data-h]");if(f)f.focus();});}'
+    + 'function regOpenEdit(row){function go(){REG_EROW=row;var v=REG_ROWS[row]||{};REG_EKEY=v[REG_KEY];document.getElementById("reg-ov-title").textContent="Edit";regFill(v);regMsg("");regShow();regEnsureTeams();}'
+    + 'if(REG_ROWS[row]){go();return;}'
     + 'regWait(true,"Loading item\\u2026","Fetching the full record");google.script.run.withSuccessHandler(function(j){regWait(false);try{REG_ROWS=JSON.parse(j||"{}");}catch(e){}go();}).withFailureHandler(function(){regWait(false);go();}).regRowsMap(REG_WHICH);}'
     + 'function regAfter(res){var s=document.getElementById("reg-save");if(s)s.disabled=false;if(res&&res.ok){regClose();regRefresh();}else{regMsg((res&&res.error)||"Could not save.",true);}}'
-    + 'function regSave(){var vals=regCollect();REG_REDIRKEY=vals[REG_KEY]||REG_EKEY;var s=document.getElementById("reg-save");if(s)s.disabled=true;regMsg("Saving...");'
+    + 'function regSave(){var vals=regCollect();regRemember(vals);REG_REDIRKEY=vals[REG_KEY]||REG_EKEY;var s=document.getElementById("reg-save");if(s)s.disabled=true;regMsg("Saving...");'
     + 'var fail=function(e){if(s)s.disabled=false;regMsg(String(e&&e.message||e),true);};'
     + 'if(REG_EROW==null){google.script.run.withSuccessHandler(regAfter).withFailureHandler(fail).regAdd(REG_WHICH,vals);}'
     + 'else{google.script.run.withSuccessHandler(regAfter).withFailureHandler(fail).regUpdateRow(REG_WHICH,REG_EROW,REG_EKEY,vals);}}'
+    + 'function regQuickAdd(){var nameEl=document.getElementById("reg-qa-name");var name=nameEl?nameEl.value.trim():"";'
+    + 'if(!name){if(nameEl)nameEl.focus();return;}var qtyEl=document.getElementById("reg-qa-qty");var locEl=document.getElementById("reg-qa-loc");var catEl=document.getElementById("reg-qa-cat");'
+    + 'var vals={};if(REG_WHICH==="inventory"){vals.Item=name;vals["On hand"]=(qtyEl&&qtyEl.value!=="")?qtyEl.value:"1";}else{vals.Name=name;}'
+    + 'if(locEl)vals.Location=locEl.value;if(catEl)vals.Category=catEl.value;regRemember(vals);'
+    + 'var btn=document.getElementById("reg-qa-btn");if(btn){btn.disabled=true;btn.textContent="Adding\\u2026";}'
+    + 'google.script.run.withSuccessHandler(function(res){if(btn){btn.disabled=false;btn.textContent="Add";}'
+    + 'if(res&&res.ok){if(nameEl){nameEl.value="";nameEl.focus();}regRefresh();}'
+    + 'else{alert((res&&res.error)||"Could not add.");}}).withFailureHandler(function(e){if(btn){btn.disabled=false;btn.textContent="Add";}alert(String(e&&e.message||e));}).regAdd(REG_WHICH,vals);}'
     + 'function regDeleteRow(row,btn){var card=btn&&btn.closest?btn.closest(".reg-row"):null;var v=REG_ROWS[row]||{};var key=v[REG_KEY]||(card&&card.getAttribute("data-key"))||"";if(!confirm("Delete \\""+key+"\\"? This cannot be undone."))return;if(btn)btn.disabled=true;'
     + 'if(typeof REG_ITEM!=="undefined"&&REG_ITEM)regWait(true,"Deleting\\u2026","Removing this item");'
     + 'google.script.run.withSuccessHandler(function(res){if(res&&res.ok){if(typeof REG_ITEM!=="undefined"&&REG_ITEM){var slide=document.getElementById("reg-slide");if(slide){document.querySelectorAll(".reg-card").forEach(function(c){if(c.getAttribute("data-key")===key)c.remove();});delete REG_ROWS[row];regWait(false);regCloseItem();}else{REG_SAVED="";regNav("registry="+REG_WHICH+"&admin=1");}}else{var c=btn&&btn.closest?btn.closest(".reg-row"):null;if(c)c.remove();delete REG_ROWS[row];}}else{if(btn)btn.disabled=false;regWait(false);alert((res&&res.error)||"Could not delete.");}}).withFailureHandler(function(e){if(btn)btn.disabled=false;regWait(false);alert(String(e));}).regDelete(REG_WHICH,row,key);}'
@@ -1345,7 +1486,8 @@ function regEditJs_() {
     + 'function regCountSave(row,btn){var v=REG_ROWS[row]||{};var key=v[REG_KEY]||"";var el=document.getElementById("co-count");var n=el?el.value:"";regBtnBusy(btn,"Saving\\u2026");google.script.run.withSuccessHandler(function(res){if(res&&res.ok){regReloadItem(key);}else{regBtnReset(btn);alert((res&&res.error)||"Could not save.");}}).withFailureHandler(function(e){regBtnReset(btn);alert(String(e));}).regCount(row,key,n);}'
     + 'function regRefresh(){if(typeof REG_ITEM!=="undefined"&&REG_ITEM){regReloadItem(REG_REDIRKEY||REG_EKEY||"");return;}'
     + 'regWait(true,"Refreshing the catalog\\u2026","Updating items and stock");'
-    + 'google.script.run.withSuccessHandler(function(res){if(res&&res.ok){var el=document.getElementById("reg-cards");if(el)el.innerHTML=res.html;REG_ROWS=JSON.parse(res.mapJson);if(typeof flt==="function")flt();}regWait(false);})'
+    + 'google.script.run.withSuccessHandler(function(res){if(res&&res.ok){var el=document.getElementById("reg-cards");if(el)el.innerHTML=res.html;try{REG_ROWS=JSON.parse(res.mapJson||"{}");}catch(e){REG_ROWS={};}'
+    + 'if(typeof regFoldRestore==="function")regFoldRestore();if(typeof flt==="function")flt();}regWait(false);})'
     + '.withFailureHandler(function(){regWait(false);}).regRowsHtml(REG_WHICH);}'
     + 'function regScan(){if(!("BarcodeDetector" in window)){alert("Live scanning is not available in this browser. Use Print labels and scan them with your phone camera instead.");return;}'
     + 'navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}}).then(function(stream){regRunScan(stream);}).catch(function(){alert("Camera is blocked here (common in this app). Use Print labels and scan with your phone camera instead.");});}'
@@ -1354,6 +1496,9 @@ function regEditJs_() {
     + 'var btn=document.createElement("button");btn.textContent="Close";btn.className="btn btn-ghost";btn.style.margin="16px";btn.onclick=function(){stream.getTracks().forEach(function(t){t.stop();});ov.remove();};'
     + 'ov.appendChild(vid);ov.appendChild(btn);document.body.appendChild(ov);'
     + 'var det=new BarcodeDetector();var loop=function(){if(!ov.isConnected)return;det.detect(vid).then(function(codes){if(codes&&codes.length){var val=codes[0].rawValue||"";stream.getTracks().forEach(function(t){t.stop();});ov.remove();var q=document.getElementById("q");if(q){q.value=val;if(typeof flt==="function")flt();}}else{requestAnimationFrame(loop);}}).catch(function(){requestAnimationFrame(loop);});};requestAnimationFrame(loop);}'
+    + 'document.addEventListener("keydown",function(e){var ov=document.getElementById("reg-ov");if(!ov||ov.hidden)return;'
+    + 'if(e.key==="Escape"){e.preventDefault();regClose();return;}'
+    + 'if(e.key==="Enter"&&e.target&&e.target.tagName!=="TEXTAREA"&&e.target.type!=="button"){e.preventDefault();regSave();}});'
     + '</script>';
 }
 

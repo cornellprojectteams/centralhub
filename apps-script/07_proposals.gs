@@ -54,8 +54,8 @@ var PR = {
   quorumMinImpact: 3.5,    // ...and the average Impact must reach this
   earnedVoiceK: 2,         // rate this many OTHER proposals before your votes count
   earnedVoiceBootstrap: 3, // ...waived while fewer than this many proposals are open
-  cacheKey: 'pr_list_v5',  // rendered list HTML (netid-agnostic)
-  stripKey: 'pr_strip_v5', // one-line banner on the tasks pages
+  cacheKey: 'pr_list_v6',  // rendered list HTML (netid-agnostic)
+  stripKey: 'pr_strip_v6', // one-line banner on the tasks pages
   cacheSeconds: 120,
   freshDays: 14,           // a promotion counts as news on the tasks page for this long
 };
@@ -556,22 +556,19 @@ function prListSectionsHtml_(data) {
   real.sort(function (a, b) { return new Date(b.promotedAt || 0) - new Date(a.promotedAt || 0); });
   // Every idea starts as a summary row. Open one to rate it; the rest stay a list.
   var idx = 0, out = '';
-  var body = provisional.length
+  if (provisional.length > 1) {
+    out += '<div class="pr-expandbar">'
+      + '<button type="button" class="pr-expand" id="pr-expand" onclick="prExpandAll()">Expand all</button>'
+      + '<span class="pr-expandhint">' + provisional.length + ' ideas, folded so you can scan them</span></div>';
+  }
+  out += provisional.length
     ? provisional.map(function (p) { return prCardHtml_(p, 'pr' + (idx++), true, false); }).join('')
     : '<div class="empty pr-empty"><span class="pr-empty-bee" aria-hidden="true">&#128029;</span>Nothing up for review yet. Scout an improvement and post it above.</div>';
-  if (provisional.length > 1) {
-    body = '<div class="pr-expandbar">'
-      + '<button type="button" class="pr-expand" id="pr-expand" onclick="prExpandAll()">Expand all</button>'
-      + '<span class="pr-expandhint">' + provisional.length + ' ideas, folded so you can scan them</span></div>' + body;
-  }
-  // The review group is open so you can scan summary rows. Each card stays folded
-  // until tapped. "Now in Projects" stays shut.
-  out += prSection_('Up for review', provisional.length, 'section-label--review', body, true);
   if (real.length) {
-    out += prSection_('Now in Projects', real.length, 'section-label--real',
-      real.map(function (p) { return prMovedHtml_(p); }).join(''), false);
+    out += '<div class="pr-moved-h">Now in Projects</div>'
+      + real.map(function (p) { return prMovedHtml_(p); }).join('');
   }
-  return secList_(out);
+  return out;
 }
 
 function prMovedHtml_(p) {
@@ -612,21 +609,29 @@ function prTasksStripHtml_() {
   try {
     var proposals = prProposals_();
     var cutoff = new Date().getTime() - PR.freshDays * 86400000;
-    var freshProj = [];
+    var projects = [];
     try {
-      if (typeof tpListProjects_ === 'function') {
-        freshProj = tpListProjects_().filter(function (p) {
-          var st = norm_(p.status);
-          return (st === norm_(TP.projectStatus.assigned) || !p.status) && tpIsFresh_(p);
-        }).sort(function (a, b) { return tpTime_(b.createdAt) - tpTime_(a.createdAt); });
-      }
-    } catch (e2) { freshProj = []; }
+      if (typeof tpListProjects_ === 'function') projects = tpListProjects_();
+    } catch (e2) { projects = []; }
+
+    var pickup = projects.filter(function (p) {
+      var st = norm_(p.status);
+      return st === norm_(TP.projectStatus.assigned) || !p.status;
+    });
+    var freshProj = pickup.filter(function (p) { return tpIsFresh_(p); })
+      .sort(function (a, b) { return tpTime_(b.createdAt) - tpTime_(a.createdAt); });
+
+    var waitingByProposal = {};
+    pickup.forEach(function (p) { if (p.proposalId) waitingByProposal[p.proposalId] = 1; });
     var freshReal = proposals.filter(function (p) {
-      return norm_(p.status) === norm_(PR.status.real) && p.promotedAt && new Date(p.promotedAt).getTime() >= cutoff;
+      return norm_(p.status) === norm_(PR.status.real)
+        && p.promotedAt && new Date(p.promotedAt).getTime() >= cutoff
+        && waitingByProposal[p.id];
     }).sort(function (a, b) { return new Date(b.promotedAt || 0) - new Date(a.promotedAt || 0); });
+
+    var news = freshProj.length ? freshProj : (projects.length ? [] : freshReal);
     var open = proposals.filter(function (p) { return norm_(p.status) === norm_(PR.status.provisional); });
 
-    var news = freshProj.length ? freshProj : freshReal;
     var parts = [];
     if (news.length) {
       var line = '<b>' + escapeHtml_(news[0].title) + '</b>'
@@ -678,11 +683,18 @@ function prStripJs_() {
     + 'function prHubMsg(action,extra){try{var m={source:"ops-hub",action:action};if(extra)for(var k in extra)m[k]=extra[k];'
     + 'if(window.parent&&window.parent!==window)window.parent.postMessage(m,"*");'
     + 'if(window.top&&window.top!==window)window.top.postMessage(m,"*");}catch(e){}}'
+    + 'function prAnnounceStrip(){var n=0,el=document.querySelector("#pr-strip-host [data-pr-news],.pr-strips[data-pr-news]");if(el)n=parseInt(el.getAttribute("data-pr-news"),10)||0;prHubMsg("projects-news",{count:n});}'
     + 'function prStripGo(ev,dest){prHubMsg(dest==="projects"?"open-projects":"open-proposals");'
     + 'if(/[?&]embed=1(?:&|$)/.test(location.search||"")){if(ev)ev.preventDefault();return false;}return true;}'
-    + '(function(){var n=0,el=document.querySelector("[data-pr-news]");if(el)n=parseInt(el.getAttribute("data-pr-news"),10)||0;'
-    + 'if(n>0)prHubMsg("projects-news",{count:n});})();'
+    + 'prAnnounceStrip();'
+    + 'window.addEventListener("message",function(ev){var d=ev.data;if(!d||d.source!=="ops-hub"||d.action!=="refresh-strip")return;'
+    + 'if(typeof google==="undefined"||!google.script||!google.script.run)return;'
+    + 'google.script.run.withSuccessHandler(function(html){var host=document.getElementById("pr-strip-host");if(host)host.innerHTML=html||"";prAnnounceStrip();}).prStripPayload();});'
     + '</script>';
+}
+
+function prStripPayload() {
+  return prTasksStripHtml_() || '';
 }
 
 // ---- the page ----
@@ -946,7 +958,7 @@ function prStyles_() {
     + '@keyframes prPend{to{background-position:20px 0}}'
     + '.pr-promoted{display:flex;align-items:center;gap:9px;margin-top:16px;padding:11px 0 0;border-top:1.5px solid #e4f0e8;background:none;border-radius:0;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12.5px;font-weight:600;color:#157a47}'
     + '.pr-promoted-mark{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#157a47;color:#fff;font-size:11px;font-weight:800;flex:none}'
-    + '.pr-moved{display:flex;align-items:center;gap:12px;margin:0 0 8px;padding:12px 16px;border-radius:14px;text-decoration:none;background:#f4faf6;border:1.5px solid #d7eadf;transition:transform .16s,box-shadow .16s}'
+    + '.pr-moved-h{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#157a47;margin:22px 0 10px}'
     + '.pr-moved:hover{transform:translateY(-1px);box-shadow:0 8px 18px rgba(21,122,71,.12)}'
     + '.pr-moved-mark{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#157a47;color:#fff;font-size:12px;font-weight:800;flex:none}'
     + '.pr-moved-title{flex:1;min-width:0;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:15px;font-weight:800;color:#14110e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
@@ -1149,7 +1161,8 @@ function prClientJs_() {
     + 'function prCardToggled(el){var id=el.getAttribute("data-id");if(!id)return;'
     + 'if(el.open)PR_OPEN[id]=1;else delete PR_OPEN[id];}'
     + 'function prCardsRestore(){[].slice.call(document.querySelectorAll(".pr-card")).forEach(function(c){'
-    + 'if(PR_OPEN[c.getAttribute("data-id")])c.open=true;});}'
+    + 'if((typeof CARD_ALL!=="undefined"&&CARD_ALL)||PR_OPEN[c.getAttribute("data-id")])c.open=true;});'
+    + 'var btn=document.getElementById("pr-expand");if(btn&&typeof CARD_ALL!=="undefined"&&CARD_ALL)btn.textContent="Collapse all";}'
     + 'function prExpandAll(){var btn=document.getElementById("pr-expand");'
     + 'var cards=[].slice.call(document.querySelectorAll(".pr-card"));'
     + 'var anyClosed=cards.some(function(c){return !c.open;});'
@@ -1203,14 +1216,14 @@ function prClientJs_() {
     + 'prMeter(rid,r.counted,r.avgImpact,r.avgEffort);'
     + 'var unlocked=r.voice&&r.voice.counted&&!PR_VOICE_ON;'
     + 'if(r.voice)prVoiceRender(Math.min(r.voice.have,PR_VOICE_NEED),true);'
-    + 'if(r.promoted){done("\\u2713 It is in","ok");prPromoteFx(rid);}'
+    + 'if(r.promoted){done("\\u2713 It is in","ok");prPromoteFx(rid);prHubMsg("strip-changed");}'
     + 'else if(unlocked){done("\\u2713 Counted","ok");'
     + 'tpConfetti("\\uD83D\\uDC1D Your ratings count from here on.");msg.className="pr-vmsg good";msg.textContent="Your ratings now count.";prRefresh(true);}'
     + 'else if(r.voice&&!r.voice.counted){var togo=r.voice.need-r.voice.have;done("\\u2713 Saved","ok");'
     + 'msg.className="pr-vmsg";msg.textContent="Saved. Review "+togo+" more proposal"+(togo===1?"":"s")+" and your ratings start counting.";}'
     + 'else{done("\\u2713 Counted","ok");msg.className="pr-vmsg good";'
     + 'msg.textContent=r.updated?"Rating updated.":(PR_NEED-r.counted===1?"Counted. One more review and this one is in.":"Rating counted.");'
-    + 'if(r.alsoPromoted>0){tpConfetti("\\uD83D\\uDC1D That review carried another proposal over the line.");prRefresh(true);}}'
+    + 'if(r.alsoPromoted>0){tpConfetti("\\uD83D\\uDC1D That review carried another proposal over the line.");prRefresh(true);prHubMsg("strip-changed");}}'
     + '}).withFailureHandler(function(){done();if(segs)[].slice.call(segs.children).forEach(function(el){el.classList.remove("pending");});'
     + 'msg.className="pr-vmsg bad";msg.textContent="Network hiccup. Try again.";}).prVote(pid,nid,imp,eff,"");}'
 
@@ -1301,8 +1314,8 @@ function prClientJs_() {
     + 'var done=prBusy(btn,[dec==="approve"?"Approving":"Declining","Updating the board"]);'
     + 'google.script.run.withSuccessHandler(function(r){done();'
     + 'if(!r||!r.ok){if(msg){msg.className="pr-vmsg bad";msg.textContent=(r&&r.error)||"Failed.";}return;}'
-    + 'if(dec==="approve"){prPromoteFx(rid);}'
-    + 'else{if(card)card.classList.add("is-leaving");setTimeout(function(){prRefresh(true);},420);}'
+    + 'if(dec==="approve"){prPromoteFx(rid);prHubMsg("strip-changed");}'
+    + 'else{if(card)card.classList.add("is-leaving");setTimeout(function(){prRefresh(true);},420);prHubMsg("strip-changed");}'
     + '}).withFailureHandler(function(){done();if(msg){msg.className="pr-vmsg bad";msg.textContent="Network hiccup. Try again.";}}).prAdminSetStatus(pid,dec);}'
     // Delete is destructive and unlike Decline leaves no record, so it always confirms.
     + 'function prDelAsk(rid,pid){var bar=document.getElementById(rid+"-admin");if(!bar)return;'
@@ -1336,6 +1349,7 @@ function prClientJs_() {
     // ---------- boot ----------
     + 'window.addEventListener("DOMContentLoaded",function(){'
     + 'try{var s=localStorage.getItem("prNetid");if(s){var el=document.getElementById("pr-netid");if(el)el.value=s;}}catch(e){}'
+    + 'if(typeof prCardsRestore==="function")prCardsRestore();'
     + 'prLoadViewer();'
     + 'var t=document.getElementById("pr-c-title");if(t)t.addEventListener("keydown",function(e){if(e.key==="Enter"){e.preventDefault();prCreate();}});'
     + '});'

@@ -37,7 +37,7 @@ var TP = {
   projectHeaders: ['Project ID', 'Title', 'Description', 'Status', 'Assignees', 'Before photo', 'After photo', 'Hours', 'Started at', 'Completed at', 'Created at', 'Sent back reason', 'Attachment', 'Link', 'Proposal ID', 'Area'],
   projectStatus: { assigned: 'Assigned', active: 'In Progress', pending: 'Pending', done: 'Completed' },
   uploadsFolderName: 'Ops Hub completion and project uploads',
-  cacheKey: 'tp_list_v2',
+  cacheKey: 'tp_list_v3',
   cacheSeconds: 120,
   freshDays: 14,
 };
@@ -570,19 +570,29 @@ function tpDeleteProject(projectId, pass) {
 function tpStyles_() {
   return '<style>'
     + '[hidden]{display:none!important}'   // hidden attr must beat class display rules (.btn-row/.ic-admin-fields) so admin controls stay hidden until unlock
-    + '.ic-summary{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:12px 0 2px}'
-    + '.ic-sum{-webkit-appearance:none;appearance:none;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:13.5px;font-weight:600;color:#8a857c;background:#fff;border:1.5px solid #e2ddd6;border-radius:10px;padding:7px 12px 7px 11px;cursor:pointer;display:inline-flex;align-items:baseline;line-height:1.2;flex:0 0 auto;white-space:nowrap;-webkit-user-select:none;user-select:none;transition:border-color .15s,color .15s,background .15s,box-shadow .15s}'
-    + '.ic-sum:hover:not(:disabled){border-color:#b5b0a8;color:#444;box-shadow:0 2px 6px rgba(20,20,30,.06)}'
-    + '.ic-sum:focus-visible{outline:none;border-color:#b31b1b;box-shadow:0 0 0 4px rgba(179,27,27,.12)}'
-    + '.ic-sum.is-on{border-color:#b31b1b;background:#fff8f8;color:#8f1515;box-shadow:0 0 0 3px rgba(179,27,27,.1)}'
+    + '.ic-summary{display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px;margin:14px 0 16px}'
+    + '.ic-seg{display:inline-flex;flex-wrap:wrap;align-items:stretch;gap:2px;padding:3px;background:#efece6;border:1.5px solid #e2ddd6;border-radius:12px}'
+    + '.ic-tools{display:inline-flex;align-items:center;gap:8px;margin-left:auto}'
+    + '.ic-sum{-webkit-appearance:none;appearance:none;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:13px;font-weight:600;color:#6b665e;background:transparent;border:0;border-radius:9px;padding:8px 12px;cursor:pointer;display:inline-flex;align-items:baseline;justify-content:center;line-height:1.2;flex:0 0 auto;white-space:nowrap;-webkit-user-select:none;user-select:none;transition:background .15s,color .15s,box-shadow .15s}'
+    + '.ic-sum:hover:not(:disabled):not(.is-on){background:rgba(255,255,255,.55);color:#3f3a34}'
+    + '.ic-sum:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(179,27,27,.16)}'
+    + '.ic-sum.is-on{background:#fff;color:#8f1515;box-shadow:0 1px 2px rgba(20,20,30,.08),0 0 0 1px rgba(179,27,27,.12)}'
     + '.ic-sum:disabled{opacity:.55;cursor:default}'
-    + '.ic-sum b{font-weight:800;color:#111;font-size:16px;margin-right:5px}'
+    + '.ic-sum b{font-weight:800;color:#14110e;font-size:15px;margin-right:5px}'
     + '.ic-sum.is-on b{color:#8f1515}'
     + '.ic-sum--danger b{color:#b31b1b}'
-    + '.ic-sum--danger.is-on{border-color:#b31b1b;background:#fff8f8;color:#8f1515}'
+    + '.ic-sum--danger.is-on{color:#8f1515}'
     + '.ic-sum--danger.is-on b{color:#b31b1b}'
-    + '.ic-sum--done.is-on{border-color:#157a47;background:#f3faf6;color:#0f6a3c;box-shadow:0 0 0 3px rgba(21,122,71,.12)}'
+    + '.ic-sum--pending.is-on{color:#9a5a00;box-shadow:0 1px 2px rgba(20,20,30,.08),0 0 0 1px rgba(176,106,0,.16)}'
+    + '.ic-sum--pending.is-on b{color:#9a5a00}'
+    + '.ic-sum--active.is-on{color:#c56a10;box-shadow:0 1px 2px rgba(20,20,30,.08),0 0 0 1px rgba(224,138,30,.18)}'
+    + '.ic-sum--active.is-on b{color:#c56a10}'
+    + '.ic-sum--done.is-on{color:#0f6a3c;box-shadow:0 1px 2px rgba(20,20,30,.08),0 0 0 1px rgba(21,122,71,.16)}'
     + '.ic-sum--done.is-on b{color:#157a47}'
+    + '.ic-unlock{-webkit-appearance:none;appearance:none;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:13px;font-weight:700;color:#57534e;background:#fff;border:1.5px solid #e2ddd6;border-radius:10px;padding:8px 14px;cursor:pointer;line-height:1.2;white-space:nowrap;-webkit-user-select:none;user-select:none;transition:border-color .15s,color .15s,background .15s,box-shadow .15s}'
+    + '.ic-unlock:hover{border-color:#b5b0a8;color:#292524;box-shadow:0 2px 6px rgba(20,20,30,.06)}'
+    + '.ic-unlock:focus-visible{outline:none;border-color:#b31b1b;box-shadow:0 0 0 4px rgba(179,27,27,.12)}'
+    + '.ic-unlock.is-on{border-color:#8f1515;background:#fff8f8;color:#8f1515;box-shadow:0 0 0 3px rgba(179,27,27,.1)}'
     + '.ic-dot{width:4px;height:4px;border-radius:50%;background:#d6d3ce}'
     + '.ic-adminbar{display:flex;align-items:center;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin:2px 0}'
     + '.ic-admin-toggle{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#b5b0a8;background:none;border:none;cursor:pointer;padding:4px 2px}'
@@ -732,6 +742,8 @@ function tpStyles_() {
     +   '.ic-reason{min-width:0;width:100%}'
     +   '.tp-photos{gap:10px}.tp-photo img{max-height:150px}'
     +   '.card-foot{gap:8px}.card-foot .btn-row{width:100%;flex-wrap:wrap}.card-foot .btn-row>.btn{flex:1 1 auto}'
+    +   '.ic-summary{gap:10px}.ic-seg{width:100%}.ic-sum{flex:1 1 auto}'
+    +   '.ic-tools{width:100%;margin-left:0}.ic-unlock,.ic-tools .ic-refresh{flex:1;justify-content:center}'
     +   '.tp-cheer,#tp-cheer{font-size:15px;padding:12px 16px;max-width:92vw}'
     + '}'
     + '@media(max-width:400px){.tp-photos{flex-direction:column}.tp-photo img{max-height:none;width:100%}}'
@@ -744,12 +756,34 @@ function tpStyles_() {
 function tpSharedJs_() {
   return '<script>'
     + 'var ADMIN_PASS="";'
-    // Groups start closed. One open at a time. Chevron on the row is the affordance.
-    + 'var SEC_LOCK=false;'
-    + 'function secRestore(){[].slice.call(document.querySelectorAll("details.section")).forEach(function(d){'
-    + 'if(d.getAttribute("data-wired"))return;d.setAttribute("data-wired","1");'
-    + 'd.addEventListener("toggle",function(){if(SEC_LOCK||!d.open)return;SEC_LOCK=true;'
-    + '[].slice.call(document.querySelectorAll("details.section")).forEach(function(o){if(o!==d)o.open=false;});SEC_LOCK=false;});});}'
+    + 'var IC_BUCKET="open";var CARD_LOCK=false;var CARD_ALL=false;'
+    + 'function tpHubMsg(action,extra){try{var m={source:"ops-hub",action:action};if(extra)for(var k in extra)m[k]=extra[k];'
+    + 'if(window.parent&&window.parent!==window)window.parent.postMessage(m,"*");'
+    + 'if(window.top&&window.top!==window)window.top.postMessage(m,"*");}catch(e){}}'
+    + 'function icFilt(bucket){if(!bucket)return;IC_BUCKET=bucket;if(!CARD_ALL){CARD_LOCK=true;'
+    + 'document.querySelectorAll("details.card:not(.pr-card)").forEach(function(d){d.open=false;});CARD_LOCK=false;}'
+    + 'icApplyFilt();if(CARD_ALL)icOpenVisible(true);icSyncUnlock();}'
+    + 'function icApplyFilt(){var bucket=IC_BUCKET||"open";'
+    + 'document.querySelectorAll(".ic-sum[data-bucket]").forEach(function(b){var on=b.getAttribute("data-bucket")===bucket;b.classList.toggle("is-on",on);b.setAttribute("aria-pressed",on?"true":"false");});'
+    + 'var qEl=document.getElementById("q");var q=qEl?(qEl.value||"").toLowerCase().trim():"";'
+    + 'var tmEl=document.getElementById("team");var tm=tmEl?tmEl.value:"";'
+    + 'var odEl=document.getElementById("odue");var od=odEl?!!odEl.checked:false;'
+    + 'var n=0;document.querySelectorAll("#ic-list [data-bucket],#tp-proj-list [data-bucket]").forEach(function(c){'
+    + 'var ok=c.getAttribute("data-bucket")===bucket;'
+    + 'if(ok&&q&&(c.getAttribute("data-hay")||"").indexOf(q)<0)ok=false;'
+    + 'if(ok&&tm&&c.getAttribute("data-team")!==tm)ok=false;'
+    + 'if(ok&&od&&c.getAttribute("data-over")!=="1")ok=false;'
+    + 'c.style.display=ok?"":"none";if(ok)n++;});'
+    + 'var e=document.getElementById("empty");if(e){e.style.display=document.querySelector("#tp-proj-list .tp-skel")?"none":(n?"none":"block");}}'
+    + 'function icSetBucket(el,bucket){if(!el)return;el.setAttribute("data-bucket",bucket);icApplyFilt();}'
+    + 'function icOpenVisible(open){CARD_LOCK=true;document.querySelectorAll("#ic-list details.card,#tp-proj-list details.card").forEach(function(d){if(d.style.display==="none"){d.open=false;return;}d.open=!!open;});CARD_LOCK=false;}'
+    + 'function icSyncUnlock(){var b=document.getElementById("ic-unlock");if(!b)return;b.classList.toggle("is-on",!!CARD_ALL);b.setAttribute("aria-pressed",CARD_ALL?"true":"false");b.textContent=CARD_ALL?"Fold all":"Unlock all";}'
+    + 'function icUnlockAll(){CARD_ALL=!CARD_ALL;if(CARD_ALL)icOpenVisible(true);else icOpenVisible(false);icSyncUnlock();}'
+    + 'function secRestore(){document.querySelectorAll("details.card:not(.pr-card)").forEach(function(d){'
+    + 'if(d.getAttribute("data-fold"))return;d.setAttribute("data-fold","1");'
+    + 'd.addEventListener("toggle",function(){if(CARD_LOCK||CARD_ALL||!d.open)return;CARD_LOCK=true;'
+    + 'document.querySelectorAll("details.card:not(.pr-card)").forEach(function(o){if(o!==d)o.open=false;});CARD_LOCK=false;});});'
+    + 'icApplyFilt();if(CARD_ALL)icOpenVisible(true);icSyncUnlock();}'
     + 'window.addEventListener("DOMContentLoaded",secRestore);'
     + 'function tpUnlock(){var p=(document.getElementById("tp-pass")||{}).value||"";var m=document.getElementById("tp-lock-msg");'
     + 'if(m){m.textContent="Checking\\u2026";m.className="tp-lock-msg";}'
@@ -811,7 +845,10 @@ function tpSharedJs_() {
 // include their admin buttons. Renders nothing for regular doers.
 function tpAdminRevealJs_(admin) {
   return admin
-    ? '<script>ADMIN_PASS="admin";document.querySelectorAll(".tp-admin").forEach(function(e){e.hidden=false;});</script>'
+    ? '<script>ADMIN_PASS="admin";CARD_ALL=true;'
+      + 'document.querySelectorAll(".tp-admin").forEach(function(e){e.hidden=false;});'
+      + 'document.querySelectorAll("details.card").forEach(function(d){d.open=true;});'
+      + '</script>'
     : '';
 }
 
@@ -910,7 +947,7 @@ function icClientJs_() {
     + 'function icResolveCancel(rid,token){var w=document.getElementById(rid+"-skipwrap");if(w)w.innerHTML=icSkipHtml(rid,token);}'
     + 'function icResolve(rid,token){var act=document.getElementById(rid+"-act");act.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed. Retry.")+"</span>";return;}'
-    + 'icSetPill(rid,"tp-pill--done","Completed");act.innerHTML="";var s=document.getElementById(rid+"-status");if(s){s.innerHTML="\\u2713 Completed";s.className="due due--done";}tpApproveFx(rid);tpAdvance(rid,"#157a47","#e7f3ec",2);var c=document.getElementById(rid);if(c){c.style.opacity="0.72";icBump("sum-open",-1);if(c.dataset.over==="1")icBump("sum-over",-1);}icBump("sum-done",1);icDropOther(rid,token);'
+    + 'icSetPill(rid,"tp-pill--done","Completed");act.innerHTML="";var s=document.getElementById(rid+"-status");if(s){s.innerHTML="\\u2713 Completed";s.className="due due--done";}tpApproveFx(rid);tpAdvance(rid,"#157a47","#e7f3ec",2);var c=document.getElementById(rid);if(c){c.style.opacity="0.72";icBump("sum-open",-1);icSetBucket(c,"done");}icBump("sum-done",1);icDropOther(rid,token);'
     + '}).withFailureHandler(function(){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).resolveIssueComplete(token);}'
     + 'function icNoteInner(){return "<div class=\\"ic-note\\">Finished? Add a photo of the completed work and an admin gives it a quick review.</div>";}'
     + 'function icAdminFootJs(rid,token){return ADMIN_PASS?"<span class=\\"tp-admin btn-row\\"><button type=\\"button\\" class=\\"btn btn-confirm\\" onclick=\\"icApprove(\'"+rid+"\',\'"+token+"\')\\">Approve</button><button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"icRejectOpen(\'"+rid+"\',\'"+token+"\')\\">Send back</button></span>":"";}'
@@ -921,7 +958,7 @@ function icClientJs_() {
     + 'function icAfterSubmit(rid,token,photoIds,note){tpConfetti();icSetPill(rid,"tp-pill--pending","Pending approval");tpAdvance(rid,"#b06a00","#f7edd8",1);var ids=Array.isArray(photoIds)?photoIds:(photoIds?[photoIds]:[]);var ph=document.getElementById(rid+"-photo");if(ph)ph.innerHTML=tpThumbs(ids);'
     + 'var s=document.getElementById(rid+"-status");if(s){s.textContent="Submitted, awaiting approval";s.className="due";}'
     + 'var nt=document.getElementById(rid+"-note");if(nt)nt.innerHTML="";icShowReply(rid,note);'
-    + 'var act=document.getElementById(rid+"-act");if(act)act.innerHTML=icAdminFootJs(rid,token);var c=document.getElementById(rid);if(c){icBump("sum-open",-1);if(c.dataset.over==="1"){icBump("sum-over",-1);c.dataset.over="0";}c.dataset.state="pending";}'
+    + 'var act=document.getElementById(rid+"-act");if(act)act.innerHTML=icAdminFootJs(rid,token);var c=document.getElementById(rid);if(c){icBump("sum-open",-1);if(c.dataset.over==="1")c.dataset.over="0";c.dataset.state="pending";icSetBucket(c,"pending");}'
     + 'icBump("sum-pending",1);icDropOther(rid,token);}'
     + 'var ICBUF={};'
     + 'function icPick(input,rid){ICBUF[rid]=ICBUF[rid]||[];tpStageRead(input,ICBUF[rid],function(){icRenderStage(rid);});}'
@@ -947,11 +984,11 @@ function icClientJs_() {
     + 'function icDelCancel(rid,token){document.getElementById(rid+"-delwrap").innerHTML="<button type=\\"button\\" class=\\"btn btn-ghost tp-del\\" onclick=\\"icDelOpen(\'"+rid+"\',\'"+token+"\')\\">Delete</button>";}'
     + 'function icDelDo(rid,token){var w=document.getElementById(rid+"-delwrap");w.innerHTML="<span class=\\"tp-hint\\">Deleting\\u2026</span>";'
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){w.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed")+"</span>";return;}'
-    + 'var c=document.getElementById(rid);if(c){if(c.dataset.state==="pending")icBump("sum-pending",-1);else{icBump("sum-open",-1);if(c.dataset.over==="1")icBump("sum-over",-1);}icDropOther(rid,token);c.parentNode.removeChild(c);}'
+    + 'var c=document.getElementById(rid);if(c){if(c.dataset.state==="pending")icBump("sum-pending",-1);else icBump("sum-open",-1);icDropOther(rid,token);c.parentNode.removeChild(c);}if(typeof icApplyFilt==="function")icApplyFilt();'
     + '}).withFailureHandler(function(){w.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).deleteIssue(token);}'
     + 'function icApprove(rid,token){var act=document.getElementById(rid+"-act");act.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed")+"</span>";return;}'
-    + 'icSetPill(rid,"tp-pill--done","Completed");act.innerHTML="";var s=document.getElementById(rid+"-status");if(s){s.innerHTML="\\u2713 Completed";s.className="due due--done";}tpApproveFx(rid);tpAdvance(rid,"#157a47","#e7f3ec",2);var c=document.getElementById(rid);if(c)c.style.opacity="0.72";icBump("sum-pending",-1);icBump("sum-done",1);icDropOther(rid,token);'
+    + 'icSetPill(rid,"tp-pill--done","Completed");act.innerHTML="";var s=document.getElementById(rid+"-status");if(s){s.innerHTML="\\u2713 Completed";s.className="due due--done";}tpApproveFx(rid);tpAdvance(rid,"#157a47","#e7f3ec",2);var c=document.getElementById(rid);if(c){c.style.opacity="0.72";icSetBucket(c,"done");}icBump("sum-pending",-1);icBump("sum-done",1);icDropOther(rid,token);'
     + '}).withFailureHandler(function(){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).approveIssueCompletion(token,ADMIN_PASS);}'
     + 'function icRejectOpen(rid,token){var act=document.getElementById(rid+"-act");act.innerHTML="<input id=\\""+rid+"-reason\\" class=\\"ic-reason\\" placeholder=\\"Reason (optional)\\" onkeydown=\\"if(event.key===\'Enter\')icRejectDo(\'"+rid+"\',\'"+token+"\')\\"><button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"icRejectDo(\'"+rid+"\',\'"+token+"\')\\">Send back</button><button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"icRejectCancel(\'"+rid+"\',\'"+token+"\')\\">Cancel</button>";var i=document.getElementById(rid+"-reason");if(i)i.focus();}'
     + 'function icRejectCancel(rid,token){document.getElementById(rid+"-act").innerHTML=icAdminFootJs(rid,token);}'
@@ -960,7 +997,7 @@ function icClientJs_() {
     + 'icSetPill(rid,"tp-pill--sent","Sent back");var s=document.getElementById(rid+"-status");if(s){s.textContent="Sent back";s.className="due";}'
     + 'var nt=document.getElementById(rid+"-note");if(nt)nt.innerHTML=icSentBackInner(reason);'
     + 'icReplyForm(rid,icReplyValue(rid));'
-    + 'act.innerHTML=icOpenFootJs(rid,token);var c=document.getElementById(rid);if(c)c.dataset.state="open";icBump("sum-pending",-1);icBump("sum-open",1);'
+    + 'act.innerHTML=icOpenFootJs(rid,token);var c=document.getElementById(rid);if(c){c.dataset.state="open";icSetBucket(c,"open");}icBump("sum-pending",-1);icBump("sum-open",1);'
     + '}).withFailureHandler(function(){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).rejectIssueCompletion(token,reason,ADMIN_PASS);}'
     + '</script>';
 }
@@ -1043,9 +1080,7 @@ function tpRenderProjectCard_(p, rid) {
     : '<span class="tp-chip tp-chip--empty">No one yet</span>';
 
   var accentHex = isDone ? '#157a47' : isPending ? '#b06a00' : isActive ? '#d97a12' : '#2563c9';
-  var kicker = p.area
-    ? escapeHtml_(p.area)
-    : (p.proposalId ? '<span class="tp-kicker-bee" aria-hidden="true">&#128029;</span>From the swarm' : 'Project');
+  var where = p.area ? escapeHtml_(p.area) : (p.proposalId ? 'From the swarm' : '');
 
   var photoInner = '';
   if (p.before) photoInner += tpPhotoCells_(p.before, 160, 'Before');
@@ -1057,9 +1092,6 @@ function tpRenderProjectCard_(p, rid) {
 
   var body = '<div class="card-body">'
     + '<div id="' + rid + '-view">'
-    + '<div class="card-head"><div><div class="card-team">' + kicker + '</div>'
-    + '<div class="card-title" id="' + rid + '-vtitle">' + escapeHtml_(p.title) + '</div></div>'
-    + '<span id="' + rid + '-pill">' + pill + '</span></div>'
     + '<div class="card-field" id="' + rid + '-vscope-wrap"' + (p.description ? '' : ' hidden') + '><span class="card-flabel">Scope</span><div class="card-details" id="' + rid + '-vscope">' + escapeHtml_(p.description) + '</div></div>'
     + '<div class="card-field"><span class="card-flabel">Assignees</span><div class="tp-assignees" id="' + rid + '-chips">' + chips + '</div></div>'
     + hoursField
@@ -1090,10 +1122,23 @@ function tpRenderProjectCard_(p, rid) {
   }
 
   var fresh = tpIsFresh_(p) && !isDone ? ' is-fresh' : '';
-  return '<div class="card' + fresh + '" id="' + rid + '" data-status="' + escapeHtml_(p.status) + '" data-id="' + escapeHtml_(p.id) + '"><div class="card-accent" id="' + rid + '-accent" style="background:' + accentHex + '"></div>' + body + foot + '</div>';
+  var bucket = isDone ? 'done' : (isPending ? 'pending' : (isActive ? 'active' : 'open'));
+  var sub = isDone ? ('Completed' + (p.hours ? ' · ' + escapeHtml_(tpHoursLabel_(p.hours)) : ''))
+    : isPending ? 'Awaiting approval'
+    : sentBack ? 'Sent back'
+    : isActive ? 'Work in progress'
+    : (tpIsFresh_(p) ? 'New · waiting to be picked up' : 'Waiting to be picked up');
+  if (where && !isDone) sub = where + ' · ' + sub;
+  var accentHtml = '<span class="card-accent" id="' + rid + '-accent" style="background:' + accentHex + '"></span>';
+  var extra = isDone && p.description ? escapeHtml_(p.description) : '';
+  var extraLabel = isDone ? 'Details' : '';
+  var sum = cardSum_('<span id="' + rid + '-vtitle">' + escapeHtml_(p.title) + '</span>', sub,
+    '<span id="' + rid + '-pill">' + pill + '</span>', accentHtml, extra, extraLabel);
+  return '<details class="card' + fresh + '" id="' + rid + '" data-bucket="' + bucket + '" data-status="' + escapeHtml_(p.status) + '" data-id="' + escapeHtml_(p.id) + '"' + (bucket === 'open' ? '' : ' style="display:none"') + '>'
+    + sum + body + foot + '</details>';
 }
 
-// The grouped Open / In progress / Completed sections for #tp-proj-list.
+// Folded project cards. Chips above the list pick Open / In progress / Pending / Completed.
 function tpProjectsSectionsHtml_(projects) {
   if (!projects) projects = tpListProjects_();
   var assigned = projects.filter(function (p) { return norm_(p.status) === norm_(TP.projectStatus.assigned) || (!p.status); });
@@ -1103,12 +1148,7 @@ function tpProjectsSectionsHtml_(projects) {
   assigned.sort(function (a, b) { return tpTime_(b.createdAt) - tpTime_(a.createdAt); });
   var idx = 0;
   var render = function (p) { return tpRenderProjectCard_(p, 'pj' + (idx++)); };
-  return secList_(
-    secRow_('open', 'tp-n-assigned', 'Open', assigned.length, assigned.map(render).join(''))
-    + secRow_('active', 'tp-n-active', 'In progress', active.length, active.map(render).join(''))
-    + secRow_('pending', 'tp-n-pending', 'Pending', pending.length, pending.map(render).join(''))
-    + secRow_('done', 'tp-n-done', 'Completed', done.length, done.map(render).join(''))
-  );
+  return assigned.map(render).join('') + active.map(render).join('') + pending.map(render).join('') + done.map(render).join('');
 }
 
 function tpSkelHtml_() {
@@ -1354,7 +1394,17 @@ function projectsPage_(embedded, admin) {
     + '</form>'
     + '</details>';
 
+  inner += '<div class="ic-summary">'
+    + '<div class="ic-seg" role="group" aria-label="Filter list">'
+    +   sumBtn_('open', 'tp-n-assigned', 0, 'open')
+    +   sumBtn_('active', 'tp-n-active', 0, 'in progress', 'ic-sum--active')
+    +   sumBtn_('pending', 'tp-n-pending', 0, 'pending', 'ic-sum--pending')
+    +   sumBtn_('done', 'tp-n-done', 0, 'completed', 'ic-sum--done')
+    + '</div>'
+    + '<div class="ic-tools">' + icUnlockBtn_() + '</div>'
+    + '</div>';
   inner += '<div id="tp-proj-list">' + tpSkelHtml_() + '</div>';
+  inner += '<div id="empty" class="empty" style="display:none">Nothing in this view.</div>';
 
   inner += '<script>'
     + 'var TPUP={};var TPCB=null;var TPCF=null;'
@@ -1364,7 +1414,7 @@ function projectsPage_(embedded, admin) {
     + 'function tpSetCounts(c){if(!c)return;var set=function(id,n){if(n==null)return;var e=document.getElementById(id);if(e)e.textContent=n;};'
     + 'set("tp-n-assigned",c.assigned);set("tp-n-active",c.active);set("tp-n-pending",c.pending);set("tp-n-done",c.done);}'
     + 'function tpPaint(r){var list=document.getElementById("tp-proj-list");if(!list)return;'
-    + 'if(!r||!r.ok){list.innerHTML="<div class=\\"empty\\">Could not load projects. Refresh and try again.</div>";return;}'
+    + 'if(!r||!r.ok){list.innerHTML="<div class=\\"empty\\">Could not load projects. Refresh and try again.</div>";var ee=document.getElementById("empty");if(ee)ee.style.display="none";return;}'
     + 'list.innerHTML=r.html||"";tpSetCounts(r.counts);tpReveal();}'
     + 'google.script.run.withSuccessHandler(tpPaint).withFailureHandler(function(){tpPaint(null);}).tpProjectsPayload();'
     + 'function tpCreateSlot(input){tpReadFile(input,function(res){if(!res)return;TPCB=res;var s=document.getElementById("tp-c-slot-b");if(s)s.classList.add("is-set");var l=document.getElementById("tp-c-blabel");if(l)l.textContent="\\u2713 Before: "+res.name;});}'
@@ -1376,8 +1426,8 @@ function projectsPage_(embedded, admin) {
     + 'function tpDelDo(rid,pid){var w=document.getElementById(rid+"-delwrap");w.innerHTML="<span class=\\"tp-hint\\">Deleting\\u2026</span>";'
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){w.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed")+"</span>";return;}'
     + 'var card=document.getElementById(rid);var st=(card.dataset.status||"").toLowerCase();'
-    + 'if(st==="completed")tpBump("tp-n-done",-1);else if(st==="in progress")tpBump("tp-n-active",-1);else tpBump("tp-n-assigned",-1);'
-    + 'card.parentNode.removeChild(card);'
+    + 'if(st==="completed")tpBump("tp-n-done",-1);else if(st==="in progress")tpBump("tp-n-active",-1);else if(st==="pending")tpBump("tp-n-pending",-1);else tpBump("tp-n-assigned",-1);'
+    + 'card.parentNode.removeChild(card);if(typeof icApplyFilt==="function")icApplyFilt();'
     + '}).withFailureHandler(function(){w.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).tpDeleteProject(pid,ADMIN_PASS);}'
     + 'function tpJoinOpen(rid){document.getElementById(rid+"-join").style.display="none";document.getElementById(rid+"-joinbox").style.display="inline-flex";document.getElementById(rid+"-name").focus();}'
     + 'function tpJoin(rid,pid){var nm=document.getElementById(rid+"-name").value.trim();if(!nm){document.getElementById(rid+"-name").focus();return;}'
@@ -1385,7 +1435,7 @@ function projectsPage_(embedded, admin) {
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){box.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed")+"</span>";return;}'
     + 'var chips=document.getElementById(rid+"-chips");if(chips)chips.innerHTML=r.assignees.length?r.assignees.map(function(a){return "<span class=\\"tp-chip\\">"+String(a).replace(/&/g,"&amp;").replace(/</g,"&lt;")+"</span>";}).join(""):"<span class=\\"tp-chip tp-chip--empty\\">No one yet</span>";'
     + 'var card=document.getElementById(rid);var was=card.dataset.status;card.dataset.status=r.status;'
-    + 'if((was||"").toLowerCase()!=="in progress"&&r.status==="In Progress"){tpSetPill(rid,"tp-pill--active","In progress");document.getElementById(rid+"-status").textContent="Work in progress";tpAdvance(rid,"#d97a12","#fdf1e0",1);tpBump("tp-n-assigned",-1);tpBump("tp-n-active",1);if(card)card.classList.remove("is-fresh");}'
+    + 'if((was||"").toLowerCase()!=="in progress"&&r.status==="In Progress"){tpSetPill(rid,"tp-pill--active","In progress");document.getElementById(rid+"-status").textContent="Work in progress";tpAdvance(rid,"#d97a12","#fdf1e0",1);tpBump("tp-n-assigned",-1);tpBump("tp-n-active",1);if(card){card.classList.remove("is-fresh");icSetBucket(card,"active");}}'
     + 'document.getElementById(rid+"-joinbox").style.display="none";document.getElementById(rid+"-join").style.display="inline";'
     + 'document.getElementById(rid+"-join").innerHTML="<span class=\\"tp-hint\\">\\u2713 You\'re on this project</span>";'
     + '}).withFailureHandler(function(){box.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).tpJoinProject(pid,nm);}'
@@ -1415,13 +1465,13 @@ function projectsPage_(embedded, admin) {
     + 'var card=document.getElementById(rid);var was=(card.dataset.status||"").toLowerCase();'
     + 'var up=document.getElementById(rid+"-uploader");if(up)up.parentNode.removeChild(up);'
     + 'var foot=card.querySelector(".card-foot");if(foot)foot.innerHTML="<span id=\\""+rid+"-status\\" class=\\"due\\">Submitted, awaiting approval</span><span id=\\""+rid+"-act\\" class=\\"btn-row\\">"+tpProjAdminFootJs(rid,pid)+"</span><span class=\\"btn-row\\">"+tpDelWrapJs(rid,pid)+"</span>";'
-    + 'if(was==="in progress")tpBump("tp-n-active",-1);else tpBump("tp-n-assigned",-1);tpBump("tp-n-pending",1);card.dataset.status="Pending";'
+    + 'if(was==="in progress")tpBump("tp-n-active",-1);else tpBump("tp-n-assigned",-1);tpBump("tp-n-pending",1);card.dataset.status="Pending";icSetBucket(card,"pending");if(typeof tpHubMsg==="function")tpHubMsg("strip-changed");'
     + '}).withFailureHandler(function(){msg.style.color="#b31b1b";msg.textContent="Upload failed. Please retry.";document.getElementById(rid+"-finish").disabled=false;}).tpCompleteProject(pid,buf.a.dataUrl,buf.a.name,hrs);}'
     + 'function tpProjAdminFootJs(rid,pid){return ADMIN_PASS?"<span class=\\"tp-admin btn-row\\"><button type=\\"button\\" class=\\"btn btn-confirm\\" onclick=\\"tpProjApprove(\'"+rid+"\',\'"+pid+"\')\\">Approve</button><button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"tpProjRejectOpen(\'"+rid+"\',\'"+pid+"\')\\">Send back</button></span>":"";}'
     + 'function tpDelWrapJs(rid,pid){return "<span id=\\""+rid+"-delwrap\\" class=\\"tp-admin\\""+(ADMIN_PASS?"":" hidden")+"><button type=\\"button\\" class=\\"btn btn-ghost tp-del\\" onclick=\\"tpDelOpen(\'"+rid+"\',\'"+pid+"\')\\">Delete</button></span>";}'
     + 'function tpProjApprove(rid,pid){var act=document.getElementById(rid+"-act");act.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed")+"</span>";return;}'
-    + 'tpApproveFx(rid);tpAdvance(rid,"#157a47","#e7f3ec",3);tpSetPill(rid,"tp-pill--done","Completed");act.innerHTML="";var s=document.getElementById(rid+"-status");if(s){s.innerHTML="\\u2713 Completed";s.className="due due--done";}var c=document.getElementById(rid);if(c){c.style.opacity="0.72";c.dataset.status="Completed";}tpBump("tp-n-pending",-1);tpBump("tp-n-done",1);'
+    + 'tpApproveFx(rid);tpAdvance(rid,"#157a47","#e7f3ec",3);tpSetPill(rid,"tp-pill--done","Completed");act.innerHTML="";var s=document.getElementById(rid+"-status");if(s){s.innerHTML="\\u2713 Completed";s.className="due due--done";}var c=document.getElementById(rid);if(c){c.style.opacity="0.72";c.dataset.status="Completed";icSetBucket(c,"done");}tpBump("tp-n-pending",-1);tpBump("tp-n-done",1);if(typeof tpHubMsg==="function")tpHubMsg("strip-changed");'
     + '}).withFailureHandler(function(){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).tpApproveProject(pid,ADMIN_PASS);}'
     + 'function tpProjRejectOpen(rid,pid){var act=document.getElementById(rid+"-act");act.innerHTML="<input id=\\""+rid+"-reason\\" class=\\"ic-reason\\" placeholder=\\"Reason (optional)\\" onkeydown=\\"if(event.key===\'Enter\')tpProjRejectDo(\'"+rid+"\',\'"+pid+"\')\\"><button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"tpProjRejectDo(\'"+rid+"\',\'"+pid+"\')\\">Send back</button><button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"tpProjRejectCancel(\'"+rid+"\',\'"+pid+"\')\\">Cancel</button>";var i=document.getElementById(rid+"-reason");if(i)i.focus();}'
     + 'function tpProjRejectCancel(rid,pid){document.getElementById(rid+"-act").innerHTML=tpProjAdminFootJs(rid,pid);}'

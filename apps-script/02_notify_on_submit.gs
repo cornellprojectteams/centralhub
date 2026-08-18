@@ -465,6 +465,23 @@ function portalStyles_() {
     + '.section-body{padding:8px 10px 12px;background:#f6f4ef;border:0;border-radius:0;animation:secOpen .22s cubic-bezier(.2,.8,.3,1) both}'
     + '.sec-empty{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:14px;font-weight:600;color:#8a857c;text-align:center;padding:18px 12px}'
     + '.ic-toolbar{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin:12px 0 0}'
+    + '.card-sum{display:flex;align-items:center;gap:10px;min-height:52px;padding:13px 14px 10px;cursor:pointer;list-style:none;width:100%;box-sizing:border-box;position:relative;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation}'
+    + '.card-sum .card-accent{position:absolute;left:0;right:0;top:0;height:3px;display:block}'
+    + '.card-sum::-webkit-details-marker{display:none}'
+    + '.card-sum::marker{content:none}'
+    + '.card-sum:active{background:#f3f0ea}'
+    + '@media(hover:hover) and (pointer:fine){.card-sum:hover{background:#faf9f6}}'
+    + '.card-sum-main{flex:1;min-width:0}'
+    + '.card-sum-title{display:block;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:16px;font-weight:700;letter-spacing:-.02em;line-height:1.25;color:#14110e;overflow-wrap:anywhere}'
+    + '.card-sum-action{display:block;margin-top:3px;font-size:13.5px;font-weight:600;color:#26231f;line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
+    + '.card-sum-alabel{display:block;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:9.5px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:#a8a29e;margin-bottom:1px}'
+    + '.card-sum-sub{display:block;margin-top:2px;font-size:12.5px;font-weight:600;color:#8a857c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
+    + '.card-sum-stat{flex:none;max-width:42%}'
+    + 'details.card:not([open]){margin-bottom:8px}'
+    + 'details.card[open]>.card-sum{border-bottom:1px solid #f0eee8}'
+    + 'details.card[open]>.card-sum .card-sum-action{white-space:normal}'
+    + 'details.card[open]>.card-sum .section-chev{background:#f3e4e4}'
+    + 'details.card[open]>.card-sum .section-chev::before{top:11px;border-color:#8f1515;transform:rotate(-135deg)}'
     + '@keyframes secOpen{from{opacity:0}to{opacity:1}}'
     + '@media(prefers-reduced-motion:reduce){.section-body{animation:none}.section-chev::before{transition:none}}'
     + '.card{background:#fff;border-radius:14px;border:1.5px solid #ececea;box-shadow:0 2px 8px rgba(20,20,30,.06),0 1px 3px rgba(20,20,30,.04);overflow:hidden;margin-bottom:12px;transition:opacity .25s ease,transform .25s ease,box-shadow .25s ease}'
@@ -604,8 +621,8 @@ function confirmPage_(id) {
   return swissShell_(tpStyles_() + inner + tpSharedJs_(), 'Space Status');
 }
 
-// Completed-item cards. Used as the body of the Done accordion row.
-function icDoneCards_(doneList, showTeam) {
+// Completed-item cards. Folded like the rest; shown when the "recently completed" chip is on.
+function icDoneCards_(doneList, showTeam, startOpen) {
   if (!doneList || !doneList.length) return '';
   let s = '';
   doneList.forEach(function (d) {
@@ -621,13 +638,19 @@ function icDoneCards_(doneList, showTeam) {
           return '<a href="https://drive.google.com/file/d/' + e + '/view" target="_blank" rel="noopener" style="display:inline-block;line-height:0" title="' + capt + ' photo"><img src="https://drive.google.com/thumbnail?id=' + e + '&sz=w400" loading="lazy" onerror="this.closest(\'a\').style.display=\'none\'" style="max-height:120px;border-radius:10px;border:1px solid #ececec"></a>';
         }).join('') + '</div>'
       : '';
-    s += '<div style="background:#fff;border:1px solid #ececea;border-radius:14px;opacity:.94;margin-bottom:10px;padding:16px 18px;box-shadow:0 2px 8px rgba(20,20,30,.05)">'
-      + '<div style="font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#157a47">' + escapeHtml_((showTeam && d.team ? d.team + ' · ' : '') + (d.issueType ? phrase_(d.issueType) : 'Issue')) + '</div>'
-      + (d.details ? '<div style="font-size:14px;color:#444;line-height:1.6;margin-top:6px;white-space:pre-line">' + escapeHtml_(d.details) + '</div>' : '')
-      + (d.completionNote ? '<div style="font-size:13.5px;color:#57534e;line-height:1.6;margin-top:8px;white-space:pre-line;padding-left:12px;border-left:2px solid #c7e9d5">' + escapeHtml_(d.completionNote) + '</div>' : '')
-      + thumb
-      + '<div style="font-size:13px;font-weight:700;color:#157a47;margin-top:12px">&#10003; Completed ' + escapeHtml_(fmtShort_(d.addressed)) + '</div>'
-      + '</div>';
+    const title = escapeHtml_((showTeam && d.team ? d.team + ' · ' : '') + (d.issueType ? phrase_(d.issueType) : 'Issue'));
+    const when = escapeHtml_(fmtShort_(d.addressed));
+    const hay = ((d.team || '') + ' ' + (d.issueType || '') + ' ' + (d.details || '') + ' ' + (d.completionNote || '')).toLowerCase();
+    const desc = d.details ? escapeHtml_(d.details) : '';
+    s += '<details class="card" data-bucket="done" data-hay="' + escapeHtml_(hay) + '"' + (d.team ? ' data-team="' + escapeHtml_(d.team) + '"' : '') + icOpenAttr_(startOpen) + ' style="display:none">'
+      + cardSum_(title, 'Completed ' + when, '<span class="tp-pill tp-pill--done">Completed</span>',
+          '<span class="card-accent" style="background:#157a47"></span>', desc, 'Details')
+      + '<div class="card-body">'
+      +   (d.completionNote ? '<div class="card-field"><span class="card-flabel">Response</span><div class="card-details">' + escapeHtml_(d.completionNote) + '</div></div>' : '')
+      +   thumb
+      + '</div>'
+      + '<div class="card-foot"><span class="due due--done">&#10003; Completed ' + when + '</span></div>'
+      + '</details>';
   });
   return s;
 }
@@ -641,18 +664,58 @@ function icRefreshBtn_() {
     +   '<span>Refresh</span></button>';
 }
 
-// One accordion row: title, count badge, down-chevron. body is the cards (or empty).
-function secRow_(id, countId, label, count, body) {
-  const n = Number(count) || 0;
-  const inner = body || '<div class="sec-empty">None right now</div>';
-  return '<details class="section" data-sec-id="' + id + '"><summary class="section-head">'
-    + '<span class="section-label">' + label + '</span>'
-    + '<span class="section-count"' + (countId ? ' id="' + countId + '"' : '') + '>' + n + '</span>'
-    + '<span class="section-chev" aria-hidden="true"></span></summary>'
-    + '<div class="section-body">' + inner + '</div></details>';
+// Filter chip at the top of a board. Tapping one shows that bucket of folded cards.
+function sumBtn_(bucket, countId, n, label, extraCls) {
+  const num = Number(n) || 0;
+  const on = bucket === 'open';
+  const cls = 'ic-sum' + (extraCls ? ' ' + extraCls : '') + (on ? ' is-on' : '');
+  return '<button type="button" class="' + cls + '" data-bucket="' + bucket + '" onclick="icFilt(\'' + bucket + '\')"'
+    + ' aria-pressed="' + (on ? 'true' : 'false') + '">'
+    + '<b id="' + countId + '">' + num + '</b> ' + label + '</button>';
 }
-function secList_(html) {
-  return '<div class="sec-list">' + html + '</div>';
+
+function cardSum_(title, sub, chipHtml, accentHtml, extraHtml, extraLabel) {
+  return '<summary class="card-sum">'
+    + (accentHtml || '')
+    + '<span class="card-sum-main">'
+    +   '<span class="card-sum-title">' + title + '</span>'
+    +   (extraHtml ? '<span class="card-sum-action"><span class="card-sum-alabel">' + (extraLabel || 'Required action') + '</span>' + extraHtml + '</span>' : '')
+    +   (sub ? '<span class="card-sum-sub">' + sub + '</span>' : '')
+    + '</span>'
+    + '<span class="card-sum-stat">' + (chipHtml || '') + '</span>'
+    + '<span class="section-chev" aria-hidden="true"></span></summary>';
+}
+
+function icActionSum_(action, id) {
+  if (!action) return '';
+  var txt = escapeHtml_(phrase_(action));
+  return id ? '<span id="' + id + '">' + txt + '</span>' : txt;
+}
+
+function icOpenAttr_(startOpen) {
+  return startOpen ? ' open' : '';
+}
+
+function icChipBar_(openN, pendingN, doneN) {
+  return '<div class="ic-summary">'
+    + '<div class="ic-seg" role="group" aria-label="Filter list">'
+    +   sumBtn_('open', 'sum-open', openN, 'open')
+    +   sumBtn_('pending', 'sum-pending', pendingN, 'pending', 'ic-sum--pending')
+    +   sumBtn_('done', 'sum-done', doneN, 'recently completed', 'ic-sum--done')
+    + '</div>'
+    + '<div class="ic-tools">'
+    +   icUnlockBtn_()
+    +   icRefreshBtn_()
+    + '</div>'
+    + '</div>';
+}
+
+function icUnlockBtn_() {
+  return '<button type="button" class="ic-unlock" id="ic-unlock" onclick="icUnlockAll()" aria-pressed="false">Unlock all</button>';
+}
+
+function icFiltEmpty_(msg) {
+  return '<div id="empty" class="empty" style="display:none">' + (msg || 'Nothing in this view.') + '</div>';
 }
 
 // Client logic for the Refresh button, shared by both open-issues pages. Reads the
@@ -663,26 +726,26 @@ function icRefreshJs_() {
     + 'function icRefresh(){var b=document.getElementById("ic-refresh");if(b){b.disabled=true;b.classList.add("is-spin");}'
     + 'google.script.run.withSuccessHandler(function(r){if(b){b.disabled=false;b.classList.remove("is-spin");}if(!r||!r.ok)return;'
     + 'var el=document.getElementById("ic-list");if(el)el.innerHTML=r.html;secRestore();'
-    + 'icSetNum("sum-open",r.open);icSetNum("sum-pending",r.pending);icSetNum("sum-over",r.overdue);icSetNum("sum-done",r.done);'
+    + 'var sh=document.getElementById("pr-strip-host");if(sh&&r.strip!=null)sh.innerHTML=r.strip;if(typeof prAnnounceStrip==="function")prAnnounceStrip();'
+    + 'icSetNum("sum-open",r.open);icSetNum("sum-pending",r.pending);icSetNum("sum-done",r.done);'
     + 'if(typeof ADMIN_PASS!=="undefined"&&ADMIN_PASS)document.querySelectorAll(".tp-admin").forEach(function(e){e.hidden=false;});'
     + 'if(typeof flt==="function")flt();'
     + 'var t=document.getElementById("ic-refreshed");if(t){t.textContent="Updated just now";clearTimeout(window.__icrt);window.__icrt=setTimeout(function(){if(t)t.textContent="";},4000);}'
-    + '}).withFailureHandler(function(){if(b){b.disabled=false;b.classList.remove("is-spin");}var t=document.getElementById("ic-refreshed");if(t){t.style.color="#b31b1b";t.textContent="Could not refresh";}}).icRefreshData(IC_SCOPE,IC_READONLY);}'
+      + '}).withFailureHandler(function(){if(b){b.disabled=false;b.classList.remove("is-spin");}var t=document.getElementById("ic-refreshed");if(t){t.style.color="#b31b1b";t.textContent="Could not refresh";}}).icRefreshData(IC_SCOPE,IC_READONLY,!!(typeof CARD_ALL!=="undefined"&&CARD_ALL));}'
     + '</script>';
 }
 
 // Client-callable: fresh list HTML + counts for a Refresh. scope "*" = all teams.
-function icRefreshData(scope, readOnly) {
+function icRefreshData(scope, readOnly, startOpen) {
+  const strip = (typeof prTasksStripHtml_ === 'function') ? prTasksStripHtml_() : '';
   if (String(scope) === '*') {
     const data = listAllIssues_();
     const pend = data.open.filter(function (x) { return x.pending; }).length;
-    const over = data.open.filter(function (x) { return !x.pending && x.overdue; }).length;
-    return { ok: true, html: icAllSectionsHtml_(data), open: data.open.length - pend, pending: pend, overdue: over, done: data.resolved };
+    return { ok: true, html: icAllSectionsHtml_(data, !!startOpen), open: data.open.length - pend, pending: pend, done: data.resolved, strip: strip };
   }
   const d = listTeamIssues_(String(scope));
   const pend2 = d.open.filter(function (x) { return x.pending; }).length;
-  const over2 = d.open.filter(function (x) { return x.overdue; }).length;
-  return { ok: true, html: icTeamSectionsHtml_(d, !!readOnly), open: d.open.length - pend2, pending: pend2, overdue: over2, done: d.resolved };
+  return { ok: true, html: icTeamSectionsHtml_(d, !!readOnly, !!startOpen), open: d.open.length - pend2, pending: pend2, done: d.resolved, strip: strip };
 }
 
 function teamPortal_(team, readOnly, embedded) {
@@ -693,9 +756,10 @@ function teamPortal_(team, readOnly, embedded) {
     + '<div class="swh" style="font-size:34px;font-weight:800;letter-spacing:-.035em;line-height:1;margin-top:10px">' + escapeHtml_(team) + '</div>'
     + '<div style="width:46px;height:3px;background:#b31b1b;margin-top:12px"></div>';
 
-  inner += '<div class="ic-toolbar">' + icRefreshBtn_() + '</div>';
+  const pendN = (data.open || []).filter(function (x) { return x.pending; }).length;
+  inner += icChipBar_((data.open || []).length - pendN, pendN, data.resolved || 0);
 
-  inner += prTasksStripHtml_();   // new-project / awaiting-ratings strip (07_proposals.gs)
+  inner += '<div id="pr-strip-host">' + prTasksStripHtml_() + '</div>';
   inner += '<div id="ic-list">' + icTeamSectionsHtml_(data, readOnly) + '</div>';
 
   const scripts = tpSharedJs_() + (readOnly ? '' : icClientJs_()) + icRefreshJs_()
@@ -703,9 +767,9 @@ function teamPortal_(team, readOnly, embedded) {
   return swissShell_(tpStyles_() + prStripStyles_() + inner + scripts + prStripJs_(), 'Space Status - ' + team, true, embedded);
 }
 
-// The grouped Overdue / Open / Pending sections + "recently completed" for a team
-// portal. Extracted so a Refresh re-renders the list identically, in place.
-function icTeamSectionsHtml_(data, readOnly) {
+// Folded issue cards for a team portal. Open includes overdue; chips above the list
+// filter which bucket is visible. Extracted so a Refresh re-renders identically.
+function icTeamSectionsHtml_(data, readOnly, startOpen) {
   const issues = data.open || [];
   let idx = 0;
   const renderCard = function (it) {
@@ -721,18 +785,18 @@ function icTeamSectionsHtml_(data, readOnly) {
         : (it.overdue
           ? '<span class="chip chip--overdue">Overdue</span>'
           : (it.deadline ? '<span class="chip chip--due">' + daysLeftLabel_(it.deadline) + '</span>' : '')));
+    const title = escapeHtml_(it.issueType ? phrase_(it.issueType) : 'Reported issue');
+    const sub = isPending ? 'Awaiting approval' : (isSentBack ? 'Sent back' : (it.overdue ? 'Overdue' : (it.deadline ? 'Due ' + escapeHtml_(dl) : '')));
+    const bucket = isPending ? 'pending' : 'open';
     const statusTxt = isPending ? 'Submitted, awaiting approval' : (isSentBack ? 'Sent back' : ('Due ' + escapeHtml_(dl)));
     const accent = COLOR_HEX[it.color] || '#d6d3ce';
     let foot = '';
     if (!readOnly) foot = isPending ? icPendingFoot_(rid, it.token) : icOpenFoot_(rid, it.token, it.photoOptional);
-    return '<div class="card" id="' + rid + '" data-tok="' + it.token + '" data-state="' + (isPending ? 'pending' : 'open') + '" data-over="' + (it.overdue ? '1' : '0') + '" data-po="' + (it.photoOptional ? '1' : '0') + '">'
-      + '<div class="card-accent" id="' + rid + '-accent" style="background:' + accent + '"></div>'
+    return '<details class="card" id="' + rid + '" data-bucket="' + bucket + '" data-tok="' + it.token + '" data-state="' + (isPending ? 'pending' : 'open') + '" data-over="' + (it.overdue ? '1' : '0') + '" data-po="' + (it.photoOptional ? '1' : '0') + '"' + icOpenAttr_(startOpen) + (bucket === 'open' ? '' : ' style="display:none"') + '>'
+      + cardSum_(title, sub, '<span id="' + rid + '-pill">' + chip + '</span>',
+          '<span class="card-accent" id="' + rid + '-accent" style="background:' + accent + '"></span>',
+          icActionSum_(it.action))
       + '<div class="card-body">'
-      +   '<div class="card-head"><div>'
-      +     '<div class="card-title">' + escapeHtml_(it.issueType ? phrase_(it.issueType) : 'Reported issue') + '</div></div>'
-      +     '<span id="' + rid + '-pill">' + chip + '</span>'
-      +   '</div>'
-      +   (it.action ? '<div class="card-field"><span class="card-flabel">Required action</span><div class="card-action">' + escapeHtml_(phrase_(it.action)) + '</div></div>' : '')
       +   (it.details ? '<div class="card-field"><span class="card-flabel">Details</span><div class="card-details">' + escapeHtml_(it.details) + '</div></div>' : '')
       +   (it.photos && it.photos.length ? photoStrip_(it.photos) : '')
       +   icPhotoBlock_(rid, it.completionPhoto)
@@ -743,18 +807,14 @@ function icTeamSectionsHtml_(data, readOnly) {
       +   '<span id="' + rid + '-status" class="' + (isPending ? 'due' : dueCls) + '">' + statusTxt + '</span>'
       +   (readOnly ? '' : '<span id="' + rid + '-act" class="btn-row">' + foot + '</span>')
       + '</div>'
-      + '</div>';
+      + '</details>';
   };
 
   const pendingList = issues.filter(function (x) { return x.pending; });
   const activeList = issues.filter(function (x) { return !x.pending; });
-  const overdueList = activeList.filter(function (x) { return x.overdue; });
-  return secList_(
-    secRow_('overdue', 'sum-over', 'Overdue', overdueList.length, overdueList.map(renderCard).join(''))
-    + secRow_('open', 'sum-open', 'Open', activeList.length, activeList.map(renderCard).join(''))
-    + secRow_('pending', 'sum-pending', 'Pending', pendingList.length, pendingList.map(renderCard).join(''))
-    + secRow_('done', 'sum-done', 'Recently completed', data.resolved || 0, icDoneCards_(data.done, false))
-  );
+  const out = activeList.map(renderCard).join('') + pendingList.map(renderCard).join('') + icDoneCards_(data.done, false, startOpen);
+  if (!out) return '<div class="empty">No open issues. Everything is in good shape.</div>';
+  return out + icFiltEmpty_('Nothing in this view.');
 }
 
 function pickerPage_() {
@@ -926,7 +986,8 @@ function allIssuesPage_(embedded, admin) {
   }
 
 
-  inner += '<div class="ic-toolbar">' + icRefreshBtn_() + '</div>';
+  const pendN = issues.filter(function (x) { return x.pending; }).length;
+  inner += icChipBar_(issues.length - pendN, pendN, data.resolved || 0);
 
   inner += '<div class="filters">'
     + '<div class="search-wrap"><input id="q" type="search" placeholder="Search team, issue, details…" oninput="flt()"></div>'
@@ -934,24 +995,19 @@ function allIssuesPage_(embedded, admin) {
     + '<label class="toggle"><input id="odue" type="checkbox" onchange="this.closest(\'.toggle\').classList.toggle(\'is-on\', this.checked); flt()"> Overdue only</label>'
     + '</div>';
 
-  inner += prTasksStripHtml_();   // new-project / awaiting-ratings strip (07_proposals.gs)
-  inner += '<div id="ic-list">' + icAllSectionsHtml_(data) + '</div>';
+  inner += '<div id="pr-strip-host">' + prTasksStripHtml_() + '</div>';
+  inner += '<div id="ic-list">' + icAllSectionsHtml_(data, !!admin) + '</div>';
 
-  inner += '<script>var IC_SCOPE="*";var IC_READONLY=false;'
-    + 'function flt(){var qEl=document.getElementById("q");if(!qEl)return;var q=qEl.value.toLowerCase().trim();var tm=document.getElementById("team").value;var od=document.getElementById("odue").checked;var n=0;'
-    +   'document.querySelectorAll(".card").forEach(function(c){var ok=(!q||c.dataset.hay.indexOf(q)>=0)&&(!tm||c.dataset.team===tm)&&(!od||c.dataset.over==="1");c.style.display=ok?"":"none";if(ok)n++;});'
-    +   'var e=document.getElementById("empty");if(e)e.style.display=n?"none":"block";}'
-    + '</script>';
+  inner += '<script>var IC_SCOPE="*";var IC_READONLY=false;function flt(){icApplyFilt();}</script>';
   return swissShell_(tpStyles_() + prStripStyles_() + inner + tpSharedJs_() + icClientJs_() + icRefreshJs_() + tpAdminRevealJs_(admin) + prStripJs_(), 'Open issues', true, embedded);
 }
 
-// The Pending / Overdue / Open sections + filter-empty note + "recently completed"
-// for the all-teams dashboard. Extracted so a Refresh re-renders identically, in place.
-function icAllSectionsHtml_(data) {
+// Folded cards for the all-teams dashboard. Chips above the list pick the bucket;
+// search / team / overdue-only further narrow what is visible.
+function icAllSectionsHtml_(data, startOpen) {
   const issues = data.open || [];
   const pendingList = issues.filter(function (x) { return x.pending; });
   const active = issues.filter(function (x) { return !x.pending; });
-  const overdueList = active.filter(function (x) { return x.overdue; });
   let idx = 0;
   const teams = icTeamNames_();
   const fieldOpts = icFieldOptions_();
@@ -971,17 +1027,17 @@ function icAllSectionsHtml_(data) {
     const hay = ((it.team || '') + ' ' + (it.issueType || '') + ' ' + (it.action || '') + ' ' + (it.details || '') + ' ' + (it.completionNote || '')).toLowerCase();
     const accent = COLOR_HEX[it.color] || '#d6d3ce';
     const statusTxt = isPending ? 'Submitted, awaiting approval' : (isSentBack ? 'Sent back' : ('Due ' + escapeHtml_(dl)));
+    const bucket = isPending ? 'pending' : 'open';
+    const title = '<span id="' + rid + '-vtype">' + escapeHtml_(it.issueType ? phrase_(it.issueType) : 'Reported issue') + '</span>';
+    const sub = '<span id="' + rid + '-vteam">' + escapeHtml_(it.team || 'Unassigned') + '</span>'
+      + (isPending ? ' · Awaiting approval' : (isSentBack ? ' · Sent back' : (it.overdue ? ' · Overdue' : (it.deadline ? ' · Due ' + escapeHtml_(dl) : ''))));
     const foot = isPending ? icPendingFoot_(rid, it.token) : icOpenFoot_(rid, it.token, it.photoOptional);
-    return '<div class="card" id="' + rid + '" data-tok="' + it.token + '" data-team="' + escapeHtml_(it.team) + '" data-over="' + (it.overdue ? '1' : '0') + '" data-state="' + (isPending ? 'pending' : 'open') + '" data-po="' + (it.photoOptional ? '1' : '0') + '" data-hay="' + escapeHtml_(hay) + '">'
-      + '<div class="card-accent" id="' + rid + '-accent" style="background:' + accent + '"></div>'
+    return '<details class="card" id="' + rid + '" data-bucket="' + bucket + '" data-tok="' + it.token + '" data-team="' + escapeHtml_(it.team) + '" data-over="' + (it.overdue ? '1' : '0') + '" data-state="' + (isPending ? 'pending' : 'open') + '" data-po="' + (it.photoOptional ? '1' : '0') + '" data-hay="' + escapeHtml_(hay) + '"' + icOpenAttr_(startOpen) + (bucket === 'open' ? '' : ' style="display:none"') + '>'
+      + cardSum_(title, sub, '<span id="' + rid + '-pill">' + chip + '</span>',
+          '<span class="card-accent" id="' + rid + '-accent" style="background:' + accent + '"></span>',
+          icActionSum_(it.action, rid + '-vaction'))
       + '<div class="card-body">'
       +   '<div id="' + rid + '-view">'
-      +     '<div class="card-head">'
-      +       '<div><div class="card-team" id="' + rid + '-vteam">' + escapeHtml_(it.team || 'Unassigned') + '</div>'
-      +       '<div class="card-title" id="' + rid + '-vtype">' + escapeHtml_(it.issueType ? phrase_(it.issueType) : 'Reported issue') + '</div></div>'
-      +       '<span id="' + rid + '-pill">' + chip + '</span>'
-      +     '</div>'
-      +     '<div class="card-field" id="' + rid + '-vaction-wrap"' + (it.action ? '' : ' hidden') + '><span class="card-flabel">Required action</span><div class="card-action" id="' + rid + '-vaction">' + escapeHtml_(phrase_(it.action)) + '</div></div>'
       +     '<div class="card-field" id="' + rid + '-vdetails-wrap"' + (it.details ? '' : ' hidden') + '><span class="card-flabel">Details</span><div class="card-details" id="' + rid + '-vdetails">' + escapeHtml_(it.details) + '</div></div>'
       +     (it.photos && it.photos.length ? photoStrip_(it.photos) : '')
       +     icPhotoBlock_(rid, it.completionPhoto)
@@ -996,14 +1052,11 @@ function icAllSectionsHtml_(data) {
       +   '<span class="tp-admin btn-row" hidden><button type="button" class="btn btn-ghost" onclick="icEditOpen(\'' + rid + '\')">Edit</button>'
       +     '<span id="' + rid + '-delwrap"><button type="button" class="btn btn-ghost tp-del" onclick="icDelOpen(\'' + rid + '\',\'' + it.token + '\')">Delete</button></span></span>'
       + '</div>'
-      + '</div>';
+      + '</details>';
   };
-  return secList_(
-    secRow_('overdue', 'sum-over', 'Overdue', overdueList.length, overdueList.map(renderCard).join(''))
-    + secRow_('open', 'sum-open', 'Open', active.length, active.map(renderCard).join(''))
-    + secRow_('pending', 'sum-pending', 'Pending', pendingList.length, pendingList.map(renderCard).join(''))
-    + secRow_('done', 'sum-done', 'Recently completed', data.resolved || 0, icDoneCards_(data.done, true))
-  ) + '<div id="empty" class="empty" style="display:none">No issues match those filters.</div>';
+  const out = active.map(renderCard).join('') + pendingList.map(renderCard).join('') + icDoneCards_(data.done, true, startOpen);
+  if (!out) return '<div class="empty">No open issues. Everything is in good shape.</div>';
+  return out + icFiltEmpty_('No issues match those filters.');
 }
 
 
