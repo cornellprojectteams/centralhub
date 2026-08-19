@@ -54,7 +54,7 @@ var PR = {
   quorumMinImpact: 3.5,    // ...and the average Impact must reach this
   earnedVoiceK: 2,         // rate this many OTHER proposals before your votes count
   earnedVoiceBootstrap: 3, // ...waived while fewer than this many proposals are open
-  cacheKey: 'pr_list_v6',  // rendered list HTML (netid-agnostic)
+  cacheKey: 'pr_list_v7',  // rendered list HTML (netid-agnostic)
   stripKey: 'pr_strip_v6', // one-line banner on the tasks pages
   cacheSeconds: 120,
   freshDays: 14,           // a promotion counts as news on the tasks page for this long
@@ -576,7 +576,7 @@ function prMovedHtml_(p) {
   return '<a class="pr-moved" href="' + escapeHtml_(href) + '" target="_blank" rel="noopener" onclick="return prStripGo(event,\'projects\')">'
     + '<span class="pr-moved-mark" aria-hidden="true">&#10003;</span>'
     + '<span class="pr-moved-title">' + escapeHtml_(p.title) + '</span>'
-    + '<span class="pr-moved-go">In Projects &rarr;</span></a>';
+    + '<span class="pr-moved-go" aria-hidden="true">&rarr;</span></a>';
 }
 
 // The list is identical for every viewer (personal state is patched in client-side), so
@@ -959,10 +959,11 @@ function prStyles_() {
     + '.pr-promoted{display:flex;align-items:center;gap:9px;margin-top:16px;padding:11px 0 0;border-top:1.5px solid #e4f0e8;background:none;border-radius:0;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12.5px;font-weight:600;color:#157a47}'
     + '.pr-promoted-mark{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#157a47;color:#fff;font-size:11px;font-weight:800;flex:none}'
     + '.pr-moved-h{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#157a47;margin:22px 0 10px}'
+    + '.pr-moved{display:flex;align-items:flex-start;gap:12px;margin:0 0 8px;padding:12px 16px;border-radius:14px;text-decoration:none;background:#f4faf6;border:1.5px solid #d7eadf;transition:transform .16s,box-shadow .16s}'
     + '.pr-moved:hover{transform:translateY(-1px);box-shadow:0 8px 18px rgba(21,122,71,.12)}'
-    + '.pr-moved-mark{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#157a47;color:#fff;font-size:12px;font-weight:800;flex:none}'
-    + '.pr-moved-title{flex:1;min-width:0;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:15px;font-weight:800;color:#14110e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
-    + '.pr-moved-go{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:12.5px;font-weight:800;color:#157a47;flex:none;white-space:nowrap}'
+    + '.pr-moved-mark{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;margin-top:1px;border-radius:50%;background:#157a47;color:#fff;font-size:12px;font-weight:800;flex:none}'
+    + '.pr-moved-title{flex:1;min-width:0;font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:15px;font-weight:800;color:#14110e;line-height:1.35;overflow-wrap:anywhere}'
+    + '.pr-moved-go{font-size:18px;font-weight:800;color:#157a47;flex:none;line-height:1.2;align-self:center}'
 
     // ---- rating: two scales, two colours, sitting on the card ----
     + '.pr-rate{margin-top:2px;padding:14px 0 0;background:none;border:none;border-radius:0;min-width:0}'
