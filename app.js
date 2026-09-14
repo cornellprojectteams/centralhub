@@ -1,9 +1,10 @@
 /**
  * Project Teams Ops Hub client script (shared by index.html and admin.html)
  *
- * Live search, the Command Center badge, the open-issues dashboard panel, and
- * the admin sidebar scroll-spy. Every feature is guarded by element presence,
- * so the same file runs on the staff page and the admin page unchanged.
+ * Live search, the Command Center badge, the staff people directory, the
+ * open-issues dashboard panel, and the admin sidebar scroll-spy. Every feature
+ * is guarded by element presence, so the same file runs on the staff page and
+ * the admin page unchanged.
  *
  * Markup conventions:
  *   - .hub-zone          The page's single panel (staff on index, admin on admin.html)
@@ -58,6 +59,268 @@
   }
 
   loadCommandBadge();
+  loadPeopleLoop();
+
+  /**
+   * Staff-page people directory. Reads name / NetID / email / resource-for /
+   * Roles from the Contact Info tab (JSONP). Phone numbers and CU IDs stay in
+   * the sheet. Gibran, Kate, Lauren, and Noah are Admin; their duties come
+   * from “Can be a Resource for…”. Role codes (`Ops`, `Apps- dev`, …) are a
+   * stream-plus-focus shorthand. People without an email still appear; their
+   * card is not a mailto.
+   * Fails silently: a missing directory is better than a broken staff page.
+   */
+  let peopleGroupFilter = 'all';
+
+  function loadPeopleLoop() {
+    const section = document.getElementById('people');
+    const directory = document.getElementById('people-directory');
+    const filters = document.getElementById('people-filters');
+    const sheet = window.PEOPLE_SHEET;
+    if (!section || !directory || !sheet || !sheet.id) return;
+
+    const cb = '__people' + Math.random().toString(36).slice(2);
+    const script = document.createElement('script');
+    let settled = false;
+    const cleanup = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      delete window[cb];
+      if (script.parentNode) script.parentNode.removeChild(script);
+    };
+    const fail = () => {
+      cleanup();
+      section.hidden = true;
+    };
+    const timer = setTimeout(fail, 12000);
+
+    window[cb] = payload => {
+      cleanup();
+      const people = parsePeoplePayload(payload);
+      if (!people.length) { section.hidden = true; return; }
+
+      const keywords = ['people', 'roles', 'staff', 'team', 'contact', 'email', 'admin']
+        .concat(people.flatMap(p => [p.name, p.role, p.roleLabel, p.specialty, p.resource, p.email, p.netid]))
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      section.dataset.keywords = keywords;
+      renderPeopleDirectory(people, directory, filters);
+      const countEl = document.getElementById('people-count');
+      if (countEl) {
+        countEl.textContent = String(people.length);
+        countEl.hidden = false;
+      }
+      directory.classList.remove('is-loading');
+    };
+    script.onerror = fail;
+
+    const params = new URLSearchParams({
+      gid: String(sheet.gid || '0'),
+      tq: 'select A, C, E, M, O',
+      tqx: 'out:json;responseHandler:' + cb,
+    });
+    script.src = 'https://docs.google.com/spreadsheets/d/' + encodeURIComponent(sheet.id) + '/gviz/tq?' + params.toString();
+    document.body.appendChild(script);
+  }
+
+  // Sheet shorthand → hub labels. Prefix is the workstream; the rest is the
+  // specialty. Unknown future codes title-case instead of showing the raw cell.
+  const PEOPLE_STREAM = {
+    ops: { id: 'ops', label: 'Operations' },
+    prj: { id: 'projects', label: 'Projects' },
+    apps: { id: 'apps', label: 'Apps' },
+    digi: { id: 'digital', label: 'Digital' },
+    lead: { id: 'lead', label: 'Lead' },
+    coord: { id: 'coord', label: 'Coordinator' },
+    admin: { id: 'admin', label: 'Admin' },
+    staff: { id: 'staff', label: 'Staff' },
+  };
+  const PEOPLE_FOCUS = {
+    dev: 'Development',
+    coms: 'Communications',
+    canvas: 'Canvas',
+    chem: 'Chemistry',
+    composites: 'Composites',
+    fab: 'Fabrication',
+  };
+  const PEOPLE_STREAM_ORDER = ['admin', 'ops', 'projects', 'apps', 'digital', 'lead', 'coord', 'staff'];
+  const PEOPLE_ADMIN = { gae27: 1, kmr87: 1, ls948: 1, nhh5: 1 };
+
+  function parsePeoplePayload(payload) {
+    const rows = payload && payload.table && payload.table.rows;
+    if (!Array.isArray(rows)) return [];
+    const seen = {};
+    const out = [];
+    rows.forEach(row => {
+      const name = peopleCell(row, 0);
+      if (!name || /^email$/i.test(name) || /^roles?$/i.test(name)) return;
+      const key = name.toLowerCase();
+      if (seen[key]) return;
+      seen[key] = true;
+      const netid = peopleCell(row, 1);
+      const email = peopleMailto(peopleCell(row, 2));
+      const resource = peopleCell(row, 3);
+      const rawRole = peopleCell(row, 4);
+      const person = { name: name, netid: netid, email: email, role: rawRole, resource: resource };
+      const resolved = peopleResolveRole(person);
+      out.push({
+        name: name,
+        netid: netid,
+        email: email,
+        resource: resource,
+        role: rawRole,
+        roleId: resolved.id,
+        roleLabel: resolved.label,
+        specialty: resolved.specialty,
+      });
+    });
+    out.sort((a, b) => {
+      const ao = peopleOrder_(a.roleId);
+      const bo = peopleOrder_(b.roleId);
+      if (ao !== bo) return ao - bo;
+      return a.name.localeCompare(b.name);
+    });
+    return out;
+  }
+
+  function peopleOrder_(id) {
+    const i = PEOPLE_STREAM_ORDER.indexOf(id || 'staff');
+    return i < 0 ? PEOPLE_STREAM_ORDER.length : i;
+  }
+
+  function peopleCell(row, i) {
+    const c = row && row.c && row.c[i];
+    if (!c || c.v == null) return '';
+    return String(c.v).trim();
+  }
+
+  function peopleIsAdmin(p) {
+    const net = String(p.netid || '').toLowerCase();
+    if (PEOPLE_ADMIN[net]) return true;
+    const nm = String(p.name || '').toLowerCase();
+    return nm === 'gibran' || nm === 'kate' || nm === 'lauren' || nm === 'noah' || nm.indexOf('noah hamm') === 0;
+  }
+
+  function peopleTitleCase(s) {
+    return String(s || '').split(/\s+/).filter(Boolean).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+  }
+
+  function peopleResolveRole(person) {
+    const raw = String(person.role || '').replace(/\s+/g, ' ').trim();
+    if (peopleIsAdmin(person) || !raw) {
+      return { id: 'admin', label: 'Admin', specialty: String(person.resource || '').replace(/\s+/g, ' ').trim() };
+    }
+    const s = raw.toLowerCase();
+    const parts = s.split(/[\s-]+/).filter(Boolean);
+    const stream = PEOPLE_STREAM[parts[0]] || { id: parts[0], label: peopleTitleCase(parts[0]) };
+    const specialty = PEOPLE_FOCUS[parts[1]] || (parts.length > 1 ? peopleTitleCase(parts.slice(1).join(' ')) : '');
+    return {
+      id: stream.id,
+      label: specialty ? stream.label + ' \u00b7 ' + specialty : stream.label,
+      specialty: specialty,
+    };
+  }
+
+  function peopleGroupLabel(id) {
+    if (PEOPLE_STREAM[id]) return PEOPLE_STREAM[id].label;
+    return peopleTitleCase(id || 'Staff');
+  }
+
+  function peopleInitials(name) {
+    const parts = String(name || '').split(/\s+/).filter(Boolean);
+    if (!parts.length) return '';
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+  }
+
+  function peopleMailto(email) {
+    const e = String(email || '').trim();
+    return /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/.test(e) ? e : '';
+  }
+
+  function renderPeopleDirectory(people, directory, filters) {
+    const groups = [];
+    const byId = {};
+    people.forEach(p => {
+      const id = p.roleId || 'staff';
+      if (!byId[id]) {
+        const g = { id: id, label: peopleGroupLabel(id), people: [] };
+        byId[id] = g;
+        groups.push(g);
+      }
+      byId[id].people.push(p);
+    });
+    groups.sort((a, b) => peopleOrder_(a.id) - peopleOrder_(b.id));
+
+    if (filters) {
+      filters.hidden = false;
+      filters.setAttribute('role', 'group');
+      filters.setAttribute('aria-label', 'Filter by role');
+      filters.innerHTML = '<button type="button" class="people-chip is-active" data-group="all" aria-pressed="true">All</button>'
+        + groups.map(g => '<button type="button" class="people-chip" data-group="' + g.id + '" aria-pressed="false">'
+          + escapePeople(g.label) + ' <span>' + g.people.length + '</span></button>').join('');
+      filters.querySelectorAll('.people-chip').forEach(btn => {
+        btn.addEventListener('click', () => {
+          peopleGroupFilter = btn.dataset.group || 'all';
+          filters.querySelectorAll('.people-chip').forEach(b => {
+            const on = b === btn;
+            b.classList.toggle('is-active', on);
+            b.setAttribute('aria-pressed', on ? 'true' : 'false');
+          });
+          applyPeopleFilter();
+        });
+      });
+    }
+
+    directory.innerHTML = groups.map(g => {
+      return '<section class="people-group" data-group="' + g.id + '">'
+        + '<h4 class="people-group-label">' + escapePeople(g.label)
+        + ' <span>' + g.people.length + '</span></h4>'
+        + '<div class="people-list">' + g.people.map(peopleCardHtml).join('') + '</div>'
+        + '</section>';
+    }).join('');
+  }
+
+  function applyPeopleFilter() {
+    const directory = document.getElementById('people-directory');
+    if (!directory) return;
+    directory.querySelectorAll('.people-group').forEach(g => {
+      const show = peopleGroupFilter === 'all' || g.dataset.group === peopleGroupFilter;
+      g.hidden = !show;
+    });
+  }
+
+  function peopleCardHtml(p) {
+    const tone = p.roleId ? ' people-card--' + p.roleId : '';
+    const detail = p.specialty
+      ? '<span class="people-role">' + escapePeople(p.specialty) + '</span>'
+      : '';
+    const mail = p.email
+      ? '<span class="people-email">' + escapePeople(p.email) + '</span>'
+      : '';
+    const keywords = [p.name, p.role, p.roleLabel, p.specialty, p.resource, p.email, p.netid, peopleGroupLabel(p.roleId)]
+      .filter(Boolean).join(' ').toLowerCase();
+    const inner = '<span class="people-avatar" aria-hidden="true">' + escapePeople(peopleInitials(p.name)) + '</span>'
+      + '<span class="people-body">'
+      + '<span class="people-name">' + escapePeople(p.name) + '</span>'
+      + detail
+      + mail
+      + '</span>';
+    if (p.email) {
+      return '<a class="people-card' + tone + '" href="mailto:' + p.email + '" data-keywords="' + escapePeople(keywords) + '">' + inner + '</a>';
+    }
+    return '<div class="people-card people-card--static' + tone + '" data-keywords="' + escapePeople(keywords) + '">' + inner + '</div>';
+  }
+
+  function escapePeople(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
 
   // Registry links (Equipment / Inventory tables, item detail, labels) point at the
   // web app. On the unlisted admin page, data-admin adds &admin=1 so the page opens
@@ -456,7 +719,7 @@
 
   // Scroll-spy: highlight the sidebar link for the section currently in view.
   if (adminNav && 'IntersectionObserver' in window) {
-    const navLinks = [...adminNav.querySelectorAll('a')];
+    const navLinks = [...adminNav.querySelectorAll('a[href^="#"]')];
     const linkById = {};
     navLinks.forEach(a => { linkById[a.getAttribute('href').slice(1)] = a; });
     const setActive = id => {
@@ -564,7 +827,7 @@
   let activeIdx = -1;
 
   function rebuildResults() {
-    results = [...document.querySelectorAll('.action:not(.hidden), button.action:not(.hidden)')]
+    results = [...document.querySelectorAll('.action:not(.hidden), button.action:not(.hidden), a.people-card:not(.hidden)')]
       .filter(a => a.offsetParent !== null);
   }
 
@@ -634,8 +897,32 @@
         if (tokens.length && matched) matchCount++;
       });
 
-      if (!actions.length && (!tokens.length || fuzzyScore(sectionKeywords, q) >= 0)) {
+      const peopleCards = [...section.querySelectorAll('.people-card')];
+      if (peopleCards.length) {
+        peopleCards.forEach(card => {
+          const hay = (card.dataset.keywords || card.textContent || '').toLowerCase();
+          const matched = !tokens.length || tokens.every(t => hay.indexOf(t) >= 0);
+          card.classList.toggle('hidden', tokens.length && !matched);
+          if (!tokens.length || matched) sectionHasMatch = true;
+          if (tokens.length && matched) matchCount++;
+        });
+        section.querySelectorAll('.people-group').forEach(g => {
+          const vis = [...g.querySelectorAll('.people-card')].some(c => !c.classList.contains('hidden'));
+          g.hidden = tokens.length
+            ? !vis
+            : peopleGroupFilter !== 'all' && g.dataset.group !== peopleGroupFilter;
+        });
+        const peopleFilters = section.querySelector('.people-filters');
+        if (peopleFilters && peopleFilters.id === 'people-filters') {
+          peopleFilters.hidden = tokens.length > 0;
+        }
+        const fold = section.querySelector('.people-fold');
+        if (fold && tokens.length && peopleCards.some(c => !c.classList.contains('hidden'))) {
+          fold.open = true;
+        }
+      } else if (!actions.length && (!tokens.length || fuzzyScore(sectionKeywords, q) >= 0)) {
         sectionHasMatch = true;
+        if (tokens.length) matchCount++;
       }
 
       section.classList.toggle('hidden', tokens.length && !sectionHasMatch);
