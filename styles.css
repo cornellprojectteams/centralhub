@@ -626,17 +626,20 @@ body.is-searching .hub-zone:not(.hidden) ~ .hub-zone:not(.hidden) {
 .people-head::marker { content: none; }
 
 .people-head::after {
-  content: '\25BE';
+  content: '';
+  box-sizing: border-box;
   flex-shrink: 0;
-  margin-top: .15rem;
-  font-size: 1.15rem;
-  line-height: 1;
-  color: #8a847c;
+  width: 0.55rem;
+  height: 0.55rem;
+  margin-top: 0.55rem;
+  border-right: 2px solid #8a847c;
+  border-bottom: 2px solid #8a847c;
+  transform: rotate(45deg);
 }
 
 .people-fold[open] > .people-head::after {
-  content: '\25B4';
-  margin-top: .2rem;
+  margin-top: 0.35rem;
+  transform: rotate(-135deg);
 }
 
 .people-label {
