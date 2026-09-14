@@ -61,6 +61,7 @@
   loadCommandBadge();
   loadPeopleLoop();
   loadScheduleLoop();
+  bindSchedChrome();
 
   /**
    * Staff-page people directory. Reads name / NetID / email / resource-for /
@@ -350,7 +351,10 @@
   ];
   let schedShifts = [];
   let schedFilter = 'all';
+  let schedMode = 'day';
+  let schedFocusDay = '';
   let schedTickTimer = 0;
+  let schedScrollObs = null;
 
   function loadScheduleLoop() {
     const section = document.getElementById('schedule');
@@ -387,6 +391,7 @@
       ].join(' ').toLowerCase();
       renderSchedule(schedShifts, names);
       board.classList.remove('is-loading');
+      bindSchedChrome();
       if (schedTickTimer) clearInterval(schedTickTimer);
       schedTick();
       schedTickTimer = setInterval(schedTick, 30000);
@@ -511,6 +516,14 @@
     return ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][new Date().getDay()];
   }
 
+  function schedPeopleNames() {
+    return Array.from(new Set(schedShifts.flatMap(s => s.people))).sort((a, b) => a.localeCompare(b));
+  }
+
+  function schedDayMeta(id) {
+    return SCHED_DAYS.find(d => d.id === id) || SCHED_DAYS[0];
+  }
+
   function schedTone(name) {
     let h = 0;
     const s = String(name || '').toLowerCase();
@@ -530,11 +543,23 @@
   function renderSchedule(shifts, names) {
     const board = document.getElementById('sched-board');
     const filters = document.getElementById('sched-filters');
+    const lede = document.getElementById('sched-lede');
     if (!board) return;
+    if (!schedFocusDay) schedFocusDay = schedTodayId();
     const range = schedRange(shifts);
     const today = schedTodayId();
     const ticks = [];
     for (let m = range.start; m < range.end; m += 60) ticks.push(m);
+
+    if (lede) {
+      if (schedMode === 'week') {
+        lede.textContent = 'This week’s desk coverage. Tap a day to open it.';
+      } else {
+        const day = schedDayMeta(schedFocusDay);
+        lede.textContent = (day.id === today ? 'Today’s' : (day.full + '’s'))
+          + ' desk coverage. Switch to Week to see the rest of the schedule.';
+      }
+    }
 
     if (filters) {
       const chips = [{ id: 'all', label: 'Everyone' }].concat(names.map(n => ({ id: n, label: n })));
@@ -552,59 +577,209 @@
       };
     }
 
-    const gutter = '<div class="sched-gutter">'
+    board.classList.toggle('is-day', schedMode === 'day');
+    board.classList.toggle('is-week', schedMode === 'week');
+    if (schedMode === 'day') renderSchedDay(board, shifts, range, today, ticks, names);
+    else renderSchedWeek(board, shifts, range, today, ticks, names);
+    updateSchedViewBtns();
+    schedTick();
+  }
+
+  function schedGutterHtml(ticks, range) {
+    return '<div class="sched-gutter">'
       + '<div class="sched-gutter-head" aria-hidden="true"></div>'
       + '<div class="sched-gutter-body">'
       + ticks.map(m => '<span class="sched-tick" style="top:' + (((m - range.start) / (range.end - range.start)) * 100) + '%">' + escapePeople(schedFmtHour(m)) + '</span>').join('')
       + '</div></div>';
+  }
 
-    const cols = SCHED_DAYS.map(day => {
+  function schedShiftArticle(s, day, range, today) {
+    const visible = schedFilter === 'all' || s.people.some(p => p.toLowerCase() === schedFilter);
+    const top = ((s.time.start - range.start) / (range.end - range.start)) * 100;
+    const height = ((s.time.end - s.time.start) / (range.end - range.start)) * 100;
+    const tone = schedTone(s.people[0]);
+    const nowOn = day.id === today && schedNowMin() >= s.time.start && schedNowMin() < s.time.end;
+    const kw = (s.people.join(' ') + ' ' + day.full + ' ' + s.time.raw + ' shift').toLowerCase();
+    const namesHtml = s.people.map(p => '<b>' + escapePeople(p) + '</b>').join('<span class="sched-and">+</span>');
+    return '<article class="sched-shift' + (nowOn ? ' is-now' : '') + (visible ? '' : ' is-dim') + '" data-keywords="' + escapePeople(kw) + '" '
+      + 'style="top:' + top + '%;height:' + height + '%;--shift-bg:' + tone.bg + ';--shift-fg:' + tone.fg + ';--shift-bar:' + tone.bar + '" '
+      + 'aria-label="' + escapePeople(s.people.join(' and ') + ', ' + day.full + ' ' + s.time.label) + '">'
+      + '<span class="sched-shift-time">' + escapePeople(s.time.label) + '</span>'
+      + '<span class="sched-shift-who">' + namesHtml + '</span>'
+      + '</article>';
+  }
+
+  function schedColHtml(day, shifts, range, today, ticks, opts) {
+    const isToday = day.id === today;
+    const isWe = day.id === 'saturday' || day.id === 'sunday';
+    const dayShifts = shifts.filter(s => s.day === day.id);
+    const blocks = dayShifts.map(s => schedShiftArticle(s, day, range, today)).join('');
+    const empty = opts && opts.empty && !dayShifts.length
+      ? '<p class="sched-empty">No one is scheduled</p>'
+      : '';
+    return '<div class="sched-day' + (isToday ? ' is-today' : '') + (isWe ? ' is-weekend' : '') + '" data-day="' + day.id + '">'
+      + '<div class="sched-day-head">'
+      + '<span class="sched-day-name">' + day.short + '</span>'
+      + '<span class="sched-day-full">' + day.full + '</span>'
+      + (isToday ? '<span class="sched-today-pill">Today</span>' : '')
+      + '</div>'
+      + '<div class="sched-day-body">'
+      + ticks.map(m => '<span class="sched-hourline" style="top:' + (((m - range.start) / (range.end - range.start)) * 100) + '%"></span>').join('')
+      + blocks
+      + empty
+      + '</div></div>';
+  }
+
+  function renderSchedDay(board, shifts, range, today, ticks, names) {
+    const focus = schedDayMeta(schedFocusDay);
+    const jumps = SCHED_DAYS.map(day => {
+      const on = day.id === focus.id;
       const isToday = day.id === today;
-      const isWe = day.id === 'saturday' || day.id === 'sunday';
-      const dayShifts = shifts.filter(s => s.day === day.id);
-      const blocks = dayShifts.map(s => {
-        const visible = schedFilter === 'all' || s.people.some(p => p.toLowerCase() === schedFilter);
-        const top = ((s.time.start - range.start) / (range.end - range.start)) * 100;
-        const height = ((s.time.end - s.time.start) / (range.end - range.start)) * 100;
-        const lead = s.people[0];
-        const tone = schedTone(lead);
-        const nowOn = isToday && schedNowMin() >= s.time.start && schedNowMin() < s.time.end;
-        const kw = (s.people.join(' ') + ' ' + day.full + ' ' + s.time.raw + ' shift').toLowerCase();
-        const namesHtml = s.people.map(p => '<b>' + escapePeople(p) + '</b>').join('<span class="sched-and">+</span>');
-        return '<article class="sched-shift' + (nowOn ? ' is-now' : '') + (visible ? '' : ' is-dim') + '" data-keywords="' + escapePeople(kw) + '" '
-          + 'style="top:' + top + '%;height:' + height + '%;--shift-bg:' + tone.bg + ';--shift-fg:' + tone.fg + ';--shift-bar:' + tone.bar + '" '
-          + 'aria-label="' + escapePeople(s.people.join(' and ') + ', ' + day.full + ' ' + s.time.label) + '">'
-          + '<span class="sched-shift-time">' + escapePeople(s.time.label) + '</span>'
-          + '<span class="sched-shift-who">' + namesHtml + '</span>'
-          + '</article>';
-      }).join('');
-      return '<div class="sched-day' + (isToday ? ' is-today' : '') + (isWe ? ' is-weekend' : '') + '" data-day="' + day.id + '">'
-        + '<div class="sched-day-head">'
-        + '<span class="sched-day-name">' + day.short + '</span>'
-        + '<span class="sched-day-full">' + day.full + '</span>'
-        + (isToday ? '<span class="sched-today-pill">Today</span>' : '')
-        + '</div>'
-        + '<div class="sched-day-body">'
-        + ticks.map(m => '<span class="sched-hourline" style="top:' + (((m - range.start) / (range.end - range.start)) * 100) + '%"></span>').join('')
-        + blocks
-        + '</div></div>';
+      return '<button type="button" class="sched-jump' + (on ? ' is-on' : '') + (isToday ? ' is-today' : '') + '" data-day="' + day.id + '" '
+        + 'aria-pressed="' + (on ? 'true' : 'false') + '" aria-label="' + escapePeople(day.full) + (isToday ? ', today' : '') + '">'
+        + escapePeople(day.short)
+        + (isToday ? '<span class="sched-jump-dot" aria-hidden="true"></span>' : '')
+        + '</button>';
     }).join('');
-
-    board.innerHTML = '<div class="sched-scroll"><div class="sched-week" style="--sched-hours:' + range.hours + '">'
-      + gutter + cols + '</div></div>';
-
-    const scroller = board.querySelector('.sched-scroll');
-    const todayCol = board.querySelector('.sched-day.is-today');
-    if (scroller && todayCol) {
-      const left = todayCol.offsetLeft - (scroller.clientWidth / 2) + (todayCol.offsetWidth / 2);
-      scroller.scrollLeft = Math.max(0, left);
+    board.innerHTML = '<div class="sched-daybar">'
+      + '<div class="sched-jumps" role="group" aria-label="Day of week">' + jumps + '</div>'
+      + '<button type="button" class="sched-back-today"' + (focus.id === today ? ' hidden' : '') + '>Today</button>'
+      + '</div>'
+      + '<div class="sched-dayframe">'
+      + '<div class="sched-week is-day" style="--sched-hours:' + range.hours + '">'
+      + schedGutterHtml(ticks, range)
+      + schedColHtml(focus, shifts, range, today, ticks, { empty: true })
+      + '</div></div>';
+    const bar = board.querySelector('.sched-daybar');
+    if (bar) {
+      bar.addEventListener('click', ev => {
+        const jump = ev.target.closest('.sched-jump');
+        if (jump) {
+          schedFocusDay = jump.getAttribute('data-day') || today;
+          renderSchedule(shifts, names);
+          return;
+        }
+        if (ev.target.closest('.sched-back-today')) {
+          schedFocusDay = today;
+          renderSchedule(shifts, names);
+        }
+      });
     }
-    schedTick();
+    board.dataset.mode = 'day';
+  }
+
+  function renderSchedWeek(board, shifts, range, today, ticks, names) {
+    const keepX = board.dataset.mode === 'week' ? (board.querySelector('.sched-scroll') || {}).scrollLeft : null;
+    const cols = SCHED_DAYS.map(day => schedColHtml(day, shifts, range, today, ticks, null)).join('');
+    board.innerHTML = '<div class="sched-hscroll">'
+      + '<div class="sched-scroll" tabindex="0" role="region" aria-label="This week\'s desk coverage. Scroll sideways for other days. Tap a day name to open it.">'
+      + '<div class="sched-week" style="--sched-hours:' + range.hours + '">'
+      + schedGutterHtml(ticks, range) + cols + '</div></div>'
+      + '<button type="button" class="sched-nudge sched-nudge--prev" aria-label="Earlier days">'
+      + '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>'
+      + '</button>'
+      + '<button type="button" class="sched-nudge sched-nudge--next" aria-label="Later days">'
+      + '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>'
+      + '</button></div>';
+    const scroller = board.querySelector('.sched-scroll');
+    if (keepX != null && scroller) scroller.scrollLeft = keepX;
+    else if (scroller) {
+      pinSchedTodayVisible(scroller);
+      requestAnimationFrame(function () { pinSchedTodayVisible(scroller); });
+    }
+    wireSchedScroll(scroller);
+    if (scroller) {
+      scroller.addEventListener('click', ev => {
+        const head = ev.target.closest('.sched-day-head');
+        if (!head) return;
+        const col = head.closest('.sched-day');
+        const id = col && col.getAttribute('data-day');
+        if (!id) return;
+        schedFocusDay = id;
+        schedMode = 'day';
+        renderSchedule(shifts, names);
+      });
+    }
+    board.dataset.mode = 'week';
+  }
+
+  function pinSchedTodayVisible(scroller) {
+    if (!scroller || scroller.scrollWidth <= scroller.clientWidth + 4) return;
+    const todayCol = scroller.querySelector('.sched-day.is-today');
+    const gutter = scroller.querySelector('.sched-gutter');
+    if (!todayCol) return;
+    const s = scroller.getBoundingClientRect();
+    const t = todayCol.getBoundingClientRect();
+    const g = gutter ? gutter.getBoundingClientRect().width : 0;
+    if (t.left >= s.left + g - 2 && t.right <= s.right + 2) return;
+    scroller.scrollLeft += (t.left - s.left) - g;
+  }
+
+  function bindSchedChrome() {
+    const views = document.getElementById('sched-views');
+    if (!views || views.dataset.bound) return;
+    views.dataset.bound = '1';
+    views.addEventListener('click', ev => {
+      const btn = ev.target.closest('[data-view]');
+      if (!btn) return;
+      const next = btn.getAttribute('data-view');
+      if (next !== 'day' && next !== 'week') return;
+      if (next === schedMode) return;
+      schedMode = next;
+      updateSchedViewBtns();
+      if (!schedShifts.length) return;
+      if (schedMode === 'day' && !schedFocusDay) schedFocusDay = schedTodayId();
+      renderSchedule(schedShifts, schedPeopleNames());
+    });
+  }
+
+  function updateSchedViewBtns() {
+    document.querySelectorAll('#sched-views [data-view]').forEach(btn => {
+      const on = btn.getAttribute('data-view') === schedMode;
+      btn.classList.toggle('is-active', on);
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+  }
+
+  function updateSchedScrollCue(scroller) {
+    const wrap = scroller && scroller.parentElement;
+    if (!scroller || !wrap || !wrap.classList.contains('sched-hscroll')) return;
+    const max = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+    const x = scroller.scrollLeft;
+    wrap.classList.toggle('is-scrollable', max > 4);
+    wrap.classList.toggle('has-left', x > 4);
+    wrap.classList.toggle('has-right', x < max - 4);
+  }
+
+  function wireSchedScroll(scroller) {
+    if (!scroller) return;
+    const wrap = scroller.parentElement;
+    const gutter = scroller.querySelector('.sched-gutter');
+    if (gutter) scroller.style.scrollPaddingLeft = gutter.getBoundingClientRect().width + 'px';
+    const nudge = (dir) => {
+      const col = scroller.querySelector('.sched-day');
+      const w = col ? col.getBoundingClientRect().width : 88;
+      const smooth = !window.matchMedia || !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      scroller.scrollBy({ left: dir * w, behavior: smooth ? 'smooth' : 'auto' });
+    };
+    scroller.addEventListener('scroll', () => updateSchedScrollCue(scroller), { passive: true });
+    if (wrap) {
+      wrap.querySelectorAll('.sched-nudge--prev').forEach(btn => btn.addEventListener('click', () => nudge(-1)));
+      wrap.querySelectorAll('.sched-nudge--next').forEach(btn => btn.addEventListener('click', () => nudge(1)));
+    }
+    if (schedScrollObs) schedScrollObs.disconnect();
+    if (window.ResizeObserver) {
+      schedScrollObs = new ResizeObserver(() => updateSchedScrollCue(scroller));
+      schedScrollObs.observe(scroller);
+      const week = scroller.querySelector('.sched-week');
+      if (week) schedScrollObs.observe(week);
+    }
+    updateSchedScrollCue(scroller);
+    requestAnimationFrame(() => updateSchedScrollCue(scroller));
   }
 
   function schedTick() {
     const board = document.getElementById('sched-board');
-    const nowEl = document.getElementById('sched-now');
     if (!board || !schedShifts.length) return;
     const range = schedRange(schedShifts);
     const today = schedTodayId();
@@ -623,37 +798,6 @@
         line.hidden = false;
       } else if (line) {
         line.hidden = true;
-      }
-    }
-    const live = schedShifts.filter(s => s.day === today && now >= s.time.start && now < s.time.end);
-    const dayMeta = SCHED_DAYS.find(d => d.id === today);
-    if (nowEl) {
-      if (live.length) {
-        const people = Array.from(new Set(live.flatMap(s => s.people)));
-        const who = people.length === 1 ? people[0] : people.slice(0, -1).join(', ') + ' and ' + people[people.length - 1];
-        const verb = people.length === 1 ? 'is' : 'are';
-        nowEl.innerHTML = '<span class="sched-now-dot" aria-hidden="true"></span>'
-          + '<span><b>' + escapePeople(who) + '</b> ' + verb + ' on the desk</span>'
-          + '<span class="sched-now-meta">' + escapePeople((dayMeta && dayMeta.full) || '') + ' · ' + escapePeople(live[0].time.label) + '</span>';
-        nowEl.hidden = false;
-        nowEl.classList.add('is-live');
-      } else {
-        const upcoming = schedShifts
-          .filter(s => s.day === today && s.time.start > now)
-          .sort((a, b) => a.time.start - b.time.start)[0];
-        if (upcoming) {
-          nowEl.innerHTML = '<span class="sched-now-dot sched-now-dot--idle" aria-hidden="true"></span>'
-            + '<span>Desk is quiet. Next: <b>' + escapePeople(upcoming.people.join(' + ')) + '</b></span>'
-            + '<span class="sched-now-meta">' + escapePeople(upcoming.time.label) + '</span>';
-          nowEl.hidden = false;
-          nowEl.classList.remove('is-live');
-        } else {
-          nowEl.innerHTML = '<span class="sched-now-dot sched-now-dot--idle" aria-hidden="true"></span>'
-            + '<span>No one is on the desk right now</span>'
-            + '<span class="sched-now-meta">' + escapePeople((dayMeta && dayMeta.full) || '') + '</span>';
-          nowEl.hidden = false;
-          nowEl.classList.remove('is-live');
-        }
       }
     }
     board.querySelectorAll('.sched-shift').forEach(el => {
