@@ -263,9 +263,9 @@ function icIsOpsTeam_(team) {
 }
 
 // Admin bypass: mark an issue complete with no photo and no approval step, stamping
-// Completed at + Addressed at (fully resolved). Used by the admin dashboard Close
-// button and by the Operations Team email (that mail goes to an admin). Student
-// pages never surface it, so staff always submit a photo.
+// Completed at + Addressed at (fully resolved). Used by the admin dashboard
+// "Mark complete" action and by the Operations Team email (that mail goes to an
+// admin). Student pages never surface it, so staff always submit a photo.
 function resolveIssueComplete(token) {
   var loc = icLocate_(token);
   if (!loc) return { ok: false, error: 'That item could not be found.' };
@@ -908,12 +908,21 @@ function icReplyBlock_(rid, note, isPending, canRespond) {
   return '<div id="' + rid + '-reply">' + inner + '</div>';
 }
 
-// Admin dashboard only: close now (no photo), edit, or delete. Student Complete /
-// Add photos / Approve / Send back stay off this foot so the two paths cannot be mixed.
-function icAdminSimpleFoot_(rid, token) {
-  return '<button type="button" class="btn btn-primary" onclick="icAdminClose(\'' + rid + '\',\'' + token + '\')">Close</button>'
-    + '<button type="button" class="btn btn-ghost" onclick="icEditOpen(\'' + rid + '\')">Edit</button>'
+// Admin dashboard only. Open items: mark complete (no photo, with a confirm), edit,
+// or delete. Pending items keep Approve / Send back plus edit / delete. Student
+// Add photos / Complete stay off this foot.
+function icAdminEditDel_(rid, token) {
+  return '<button type="button" class="btn btn-ghost" onclick="icEditOpen(\'' + rid + '\')">Edit</button>'
     + '<span id="' + rid + '-delwrap"><button type="button" class="btn btn-ghost tp-del" onclick="icDelOpen(\'' + rid + '\',\'' + token + '\')">Delete</button></span>';
+}
+function icAdminSimpleFoot_(rid, token, pending) {
+  if (pending) {
+    return '<button type="button" class="btn btn-confirm" onclick="icApprove(\'' + rid + '\',\'' + token + '\')">Approve</button>'
+      + '<button type="button" class="btn btn-ghost" onclick="icRejectOpen(\'' + rid + '\',\'' + token + '\')">Send back</button>'
+      + icAdminEditDel_(rid, token);
+  }
+  return '<span id="' + rid + '-donewrap"><button type="button" class="btn btn-primary" onclick="icAdminCompleteAsk(\'' + rid + '\',\'' + token + '\')">Mark complete</button></span>'
+    + icAdminEditDel_(rid, token);
 }
 
 // Foot action for an OPEN item. Photos are STAGED (added one pick at a time and
@@ -957,13 +966,16 @@ function icClientJs_() {
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed. Retry.")+"</span>";return;}'
     + 'icSetPill(rid,"tp-pill--done","Completed");act.innerHTML="";var s=document.getElementById(rid+"-status");if(s){s.innerHTML="\\u2713 Completed";s.className="due due--done";}tpApproveFx(rid);tpAdvance(rid,"#157a47","#e7f3ec",2);var c=document.getElementById(rid);if(c){c.style.opacity="0.72";icBump("sum-open",-1);icSetBucket(c,"done");}icBump("sum-done",1);icDropOther(rid,token);'
     + '}).withFailureHandler(function(){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).resolveIssueComplete(token);}'
-    + 'function icAdminSimpleFootJs(rid,token){return "<button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"icAdminClose(\'"+rid+"\',\'"+token+"\')\\">Close</button><button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"icEditOpen(\'"+rid+"\')\\">Edit</button><span id=\\""+rid+"-delwrap\\"><button type=\\"button\\" class=\\"btn btn-ghost tp-del\\" onclick=\\"icDelOpen(\'"+rid+"\',\'"+token+"\')\\">Delete</button></span>";}'
-    + 'function icAdminClose(rid,token){var act=document.getElementById(rid+"-act");if(!act)return;act.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";var c=document.getElementById(rid);var pending=c&&c.dataset.state==="pending";'
-    + 'var onOk=function(r){if(!r||!r.ok){act.innerHTML=icAdminSimpleFootJs(rid,token);var h=document.createElement("span");h.className="tp-hint";h.style.color="#b31b1b";h.textContent=(r&&r.error)||"Failed. Retry.";act.appendChild(h);return;}'
-    + 'icSetPill(rid,"tp-pill--done","Completed");act.innerHTML="";var s=document.getElementById(rid+"-status");if(s){s.innerHTML="\\u2713 Completed";s.className="due due--done";}tpApproveFx(rid);tpAdvance(rid,"#157a47","#e7f3ec",2);if(c){c.style.opacity="0.72";if(pending)icBump("sum-pending",-1);else icBump("sum-open",-1);icSetBucket(c,"done");}icBump("sum-done",1);icDropOther(rid,token);};'
-    + 'var onFail=function(){act.innerHTML=icAdminSimpleFootJs(rid,token);};'
-    + 'if(pending)google.script.run.withSuccessHandler(onOk).withFailureHandler(onFail).approveIssueCompletion(token,ADMIN_PASS);'
-    + 'else google.script.run.withSuccessHandler(onOk).withFailureHandler(onFail).resolveIssueComplete(token);}'
+    + 'function icIsAdminUi(){return typeof IC_ADMIN!=="undefined"&&!!IC_ADMIN;}'
+    + 'function icAdminEditDelJs(rid,token){return "<button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"icEditOpen(\'"+rid+"\')\\">Edit</button><span id=\\""+rid+"-delwrap\\"><button type=\\"button\\" class=\\"btn btn-ghost tp-del\\" onclick=\\"icDelOpen(\'"+rid+"\',\'"+token+"\')\\">Delete</button></span>";}'
+    + 'function icAdminOpenFootJs(rid,token){return "<span id=\\""+rid+"-donewrap\\"><button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"icAdminCompleteAsk(\'"+rid+"\',\'"+token+"\')\\">Mark complete</button></span>"+icAdminEditDelJs(rid,token);}'
+    + 'function icAdminPendingFootJs(rid,token){return "<button type=\\"button\\" class=\\"btn btn-confirm\\" onclick=\\"icApprove(\'"+rid+"\',\'"+token+"\')\\">Approve</button><button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"icRejectOpen(\'"+rid+"\',\'"+token+"\')\\">Send back</button>"+icAdminEditDelJs(rid,token);}'
+    + 'function icAdminCompleteAsk(rid,token){var w=document.getElementById(rid+"-donewrap");if(!w)return;w.innerHTML="<span class=\\"tp-hint\\" style=\\"margin-right:6px\\">Mark this complete with no photo?</span><button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"icAdminCompleteDo(\'"+rid+"\',\'"+token+"\')\\">Yes, mark complete</button><button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"icAdminCompleteCancel(\'"+rid+"\',\'"+token+"\')\\">Cancel</button>";}'
+    + 'function icAdminCompleteCancel(rid,token){var w=document.getElementById(rid+"-donewrap");if(w)w.innerHTML="<button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"icAdminCompleteAsk(\'"+rid+"\',\'"+token+"\')\\">Mark complete</button>";}'
+    + 'function icAdminCompleteDo(rid,token){var act=document.getElementById(rid+"-act");if(!act)return;act.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
+    + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){act.innerHTML=icAdminOpenFootJs(rid,token);var h=document.createElement("span");h.className="tp-hint";h.style.color="#b31b1b";h.textContent=(r&&r.error)||"Failed. Retry.";act.appendChild(h);return;}'
+    + 'icSetPill(rid,"tp-pill--done","Completed");act.innerHTML="";var s=document.getElementById(rid+"-status");if(s){s.innerHTML="\\u2713 Completed";s.className="due due--done";}tpApproveFx(rid);tpAdvance(rid,"#157a47","#e7f3ec",2);var c=document.getElementById(rid);if(c){c.style.opacity="0.72";icBump("sum-open",-1);icSetBucket(c,"done");}icBump("sum-done",1);icDropOther(rid,token);'
+    + '}).withFailureHandler(function(){act.innerHTML=icAdminOpenFootJs(rid,token);}).resolveIssueComplete(token);}'
     + 'function icNoteInner(){return "<div class=\\"ic-note\\">Finished? Add a photo of the completed work and an admin gives it a quick review.</div>";}'
     + 'function icAdminFootJs(rid,token){return ADMIN_PASS?"<span class=\\"tp-admin btn-row\\"><button type=\\"button\\" class=\\"btn btn-confirm\\" onclick=\\"icApprove(\'"+rid+"\',\'"+token+"\')\\">Approve</button><button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"icRejectOpen(\'"+rid+"\',\'"+token+"\')\\">Send back</button></span>":"";}'
     + 'function icSentBackInner(reason){var r=(reason||"").trim();var esc=function(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");};var lead=r?"<b>Sent back:</b> "+esc(r):"<b>Sent back.</b>";return "<div class=\\"ic-note ic-note--warn\\">"+lead+"<span class=\\"ic-note-cta\\">Make the fix, then send it in again.</span></div>";}'
@@ -1002,17 +1014,17 @@ function icClientJs_() {
     + 'var c=document.getElementById(rid);if(c){if(c.dataset.state==="pending")icBump("sum-pending",-1);else icBump("sum-open",-1);icDropOther(rid,token);c.parentNode.removeChild(c);}if(typeof icApplyFilt==="function")icApplyFilt();'
     + '}).withFailureHandler(function(){w.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).deleteIssue(token);}'
     + 'function icApprove(rid,token){var act=document.getElementById(rid+"-act");act.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
-    + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed")+"</span>";return;}'
+    + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){act.innerHTML=icIsAdminUi()?icAdminPendingFootJs(rid,token):"<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed")+"</span>";return;}'
     + 'icSetPill(rid,"tp-pill--done","Completed");act.innerHTML="";var s=document.getElementById(rid+"-status");if(s){s.innerHTML="\\u2713 Completed";s.className="due due--done";}tpApproveFx(rid);tpAdvance(rid,"#157a47","#e7f3ec",2);var c=document.getElementById(rid);if(c){c.style.opacity="0.72";icSetBucket(c,"done");}icBump("sum-pending",-1);icBump("sum-done",1);icDropOther(rid,token);'
-    + '}).withFailureHandler(function(){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).approveIssueCompletion(token,ADMIN_PASS);}'
+    + '}).withFailureHandler(function(){act.innerHTML=icIsAdminUi()?icAdminPendingFootJs(rid,token):"<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).approveIssueCompletion(token,ADMIN_PASS);}'
     + 'function icRejectOpen(rid,token){var act=document.getElementById(rid+"-act");act.innerHTML="<input id=\\""+rid+"-reason\\" class=\\"ic-reason\\" placeholder=\\"Reason (optional)\\" onkeydown=\\"if(event.key===\'Enter\')icRejectDo(\'"+rid+"\',\'"+token+"\')\\"><button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"icRejectDo(\'"+rid+"\',\'"+token+"\')\\">Send back</button><button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"icRejectCancel(\'"+rid+"\',\'"+token+"\')\\">Cancel</button>";var i=document.getElementById(rid+"-reason");if(i)i.focus();}'
-    + 'function icRejectCancel(rid,token){document.getElementById(rid+"-act").innerHTML=icAdminFootJs(rid,token);}'
+    + 'function icRejectCancel(rid,token){document.getElementById(rid+"-act").innerHTML=icIsAdminUi()?icAdminPendingFootJs(rid,token):icAdminFootJs(rid,token);}'
     + 'function icRejectDo(rid,token){var act=document.getElementById(rid+"-act");var reason=(document.getElementById(rid+"-reason")||{}).value||"";act.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed")+"</span>";return;}'
     + 'icSetPill(rid,"tp-pill--sent","Sent back");var s=document.getElementById(rid+"-status");if(s){s.textContent="Sent back";s.className="due";}'
     + 'var nt=document.getElementById(rid+"-note");if(nt)nt.innerHTML=icSentBackInner(reason);'
-    + 'icReplyForm(rid,icReplyValue(rid));'
-    + 'act.innerHTML=icOpenFootJs(rid,token);var c=document.getElementById(rid);if(c){c.dataset.state="open";icSetBucket(c,"open");}icBump("sum-pending",-1);icBump("sum-open",1);'
+    + 'if(!icIsAdminUi())icReplyForm(rid,icReplyValue(rid));'
+    + 'act.innerHTML=icIsAdminUi()?icAdminOpenFootJs(rid,token):icOpenFootJs(rid,token);var c=document.getElementById(rid);if(c){c.dataset.state="open";icSetBucket(c,"open");}icBump("sum-pending",-1);icBump("sum-open",1);'
     + '}).withFailureHandler(function(){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).rejectIssueCompletion(token,reason,ADMIN_PASS);}'
     + '</script>';
 }
