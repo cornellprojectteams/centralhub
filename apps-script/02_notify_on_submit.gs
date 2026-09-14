@@ -315,14 +315,15 @@ function daysLeftLabel_(d) {
   return days + ' days left';
 }
 
-function addressedButton_(token) {
+function addressedButton_(token, team) {
   // Must be the published /exec URL from CONFIG.webAppUrl.
   // Do NOT use ScriptApp.getService().getUrl() here: from a trigger it returns the
   // editor-only /dev URL, which recipients cannot open ("unable to open the file").
   if (!CONFIG.webAppUrl || !token) return '';
   const url = CONFIG.webAppUrl + '?id=' + encodeURIComponent(token);
+  const label = (typeof icIsOpsTeam_ === 'function' && icIsOpsTeam_(team)) ? 'Close' : 'Mark complete';
   return '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:20px 0 4px"><tr>'
-    + '<td style="background:#8f1515;border-radius:6px"><a href="' + url + '" style="display:inline-block;padding:12px 24px;color:#fff;font:bold 14px Arial,sans-serif;text-decoration:none;border-radius:6px">Mark complete</a></td>'
+    + '<td style="background:#8f1515;border-radius:6px"><a href="' + url + '" style="display:inline-block;padding:12px 24px;color:#fff;font:bold 14px Arial,sans-serif;text-decoration:none;border-radius:6px">' + label + '</a></td>'
     + '</tr></table>';
 }
 
@@ -344,7 +345,10 @@ function buildEmail_(data, color, photoCid, token) {
   if (pb) out += L(pb + '.');
   if (data.details) out += L('The reporter noted: &ldquo;' + escapeHtml_(data.details) + '&rdquo;');
   out += L(escapeHtml_(sev.ask) + '.' + (dl ? ' The deadline is <b>' + escapeHtml_(fmtDate_(dl)) + '</b>.' : ''));
-  out += addressedButton_(token);
+  if (typeof icIsOpsTeam_ === 'function' && icIsOpsTeam_(team)) {
+    out += L('Tap <b>Close</b> to mark it done. No photo is needed.');
+  }
+  out += addressedButton_(token, team);
   out += L('With thanks,<br>Engineering Student Project Teams');
   if (photoCid) out += '<p style="margin:18px 0 6px;color:#777;font:13px Arial">Reference photo:</p><img src="cid:' + photoCid + '" width="240" style="border-radius:6px">';
   out += '</div>';
@@ -369,7 +373,10 @@ function buildReminder_(data, color, token, deadline) {
   if (pb) out += L(pb + '.');
   if (data.details) out += L('The reporter noted: &ldquo;' + escapeHtml_(data.details) + '&rdquo;');
   out += L('Please resolve it as soon as possible.');
-  out += addressedButton_(token);
+  if (typeof icIsOpsTeam_ === 'function' && icIsOpsTeam_(team)) {
+    out += L('Tap <b>Close</b> to mark it done. No photo is needed.');
+  }
+  out += addressedButton_(token, team);
   out += L('With thanks,<br>Engineering Student Project Teams');
   out += '</div>';
   return out;
@@ -552,32 +559,33 @@ function htmlPage_(title, bodyHtml) {
   return swissShell_(inner, 'Space Status');
 }
 
-// Reached from the "Mark complete" button in the notification email (?id=token).
-// Most tasks need an evidence photo; the photo-optional action types (see
-// icPhotoOptional_) can also be finished with one tap. Either way -> Pending approval.
+// Reached from the action button in the notification email (?id=token).
+// Operations Team mail goes to an admin: one-tap Close, no photo.
+// Other teams need an evidence photo (or a photo-optional Mark done) -> Pending approval.
 function confirmPage_(id) {
   const info = findIssue_(id);
   if (!info) return htmlPage_('Not found', 'We could not find that item. It may have been removed.');
   if (info.addressed) return htmlPage_('Already completed', 'This was approved as complete on ' + escapeHtml_(fmtShort_(info.addressed)) + '.');
-  if (info.completedAt) return htmlPage_('Pending approval', 'This was already submitted on ' + escapeHtml_(fmtShort_(info.completedAt)) + '. It is waiting for an admin to review.');
 
   // The Operations email goes to Noah (an admin), so it closes in one tap, no photo
-  // or approval. Every other team's email requires a photo (handled below).
+  // or approval — even if a student already submitted it for review.
   if (icIsOpsTeam_(info.team)) {
     const opsBanner = info.sentBackReason
       ? '<div style="margin-top:14px;font:600 14px/1.6 Arial,sans-serif;color:#8a4b00;background:#fdf2df;border:1px solid #f4dfb0;border-radius:10px;padding:11px 14px"><b>Sent back:</b> ' + escapeHtml_(info.sentBackReason) + '</div>'
       : '';
-    const opsInner = '<div style="font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#999">Space Status</div>'
-      + '<div class="swh" style="font-size:30px;font-weight:800;letter-spacing:-.025em;line-height:1.1;margin-top:16px">Mark complete</div>'
-      + '<div style="font-size:16px;line-height:1.7;color:#555;margin-top:12px">Operations item. Tap <b>Mark complete</b> to close it out. No photo or approval needed.</div>'
+  const opsInner = '<div style="font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#999">Space Status</div>'
+      + '<div class="swh" style="font-size:30px;font-weight:800;letter-spacing:-.025em;line-height:1.1;margin-top:16px">Close this item</div>'
+      + '<div style="font-size:16px;line-height:1.7;color:#555;margin-top:12px">Tap <b>Close</b> to mark it done. No photo needed.</div>'
       + opsBanner
-      + '<div id="act" style="margin-top:24px"><button type="button" class="btn btn-primary" onclick="cfResolve()">Mark complete</button></div>'
+      + '<div id="act" style="margin-top:24px"><button type="button" class="btn btn-primary" onclick="cfResolve()">Close</button></div>'
       + '<div id="done" style="display:none;font-size:22px;font-weight:800;letter-spacing:-.02em;color:#1d7a46;margin-top:14px"></div>'
       + '<script>function cfResolve(){var a=document.getElementById("act");a.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
-      + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Could not save")+"</span>";return;}tpConfetti();a.style.display="none";var d=document.getElementById("done");d.style.display="block";d.innerHTML="\\u2713 Completed";}'
+      + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Could not save")+"</span>";return;}tpConfetti();a.style.display="none";var d=document.getElementById("done");d.style.display="block";d.innerHTML="\\u2713 Closed";}'
       + '}).withFailureHandler(function(){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Could not save. Please retry.</span>";}).resolveIssueComplete(' + JSON.stringify(id) + ');}</script>';
     return swissShell_(tpStyles_() + opsInner + tpSharedJs_(), 'Space Status');
   }
+
+  if (info.completedAt) return htmlPage_('Pending approval', 'This was already submitted on ' + escapeHtml_(fmtShort_(info.completedAt)) + '. It is waiting for an admin to review.');
 
   const photoOptional = icPhotoOptional_(info.action);
   const sentBackBanner = info.sentBackReason
@@ -731,11 +739,14 @@ function icRefreshJs_() {
     + 'if(typeof ADMIN_PASS!=="undefined"&&ADMIN_PASS)document.querySelectorAll(".tp-admin").forEach(function(e){e.hidden=false;});'
     + 'if(typeof flt==="function")flt();'
     + 'var t=document.getElementById("ic-refreshed");if(t){t.textContent="Updated just now";clearTimeout(window.__icrt);window.__icrt=setTimeout(function(){if(t)t.textContent="";},4000);}'
-      + '}).withFailureHandler(function(){if(b){b.disabled=false;b.classList.remove("is-spin");}var t=document.getElementById("ic-refreshed");if(t){t.style.color="#b31b1b";t.textContent="Could not refresh";}}).icRefreshData(IC_SCOPE,IC_READONLY,!!(typeof CARD_ALL!=="undefined"&&CARD_ALL));}'
+      + '}).withFailureHandler(function(){if(b){b.disabled=false;b.classList.remove("is-spin");}var t=document.getElementById("ic-refreshed");if(t){t.style.color="#b31b1b";t.textContent="Could not refresh";}}).icRefreshData(IC_SCOPE,IC_READONLY,(typeof IC_ADMIN!=="undefined")?!!IC_ADMIN:!!(typeof CARD_ALL!=="undefined"&&CARD_ALL));}'
     + '</script>';
 }
 
 // Client-callable: fresh list HTML + counts for a Refresh. scope "*" = all teams.
+// Third arg: for "*" it is the admin flag (Close/Edit/Delete vs student Complete).
+// For a team portal it is startOpen (keep Expand all after refresh). Never mix them —
+// the client passes IC_ADMIN on the all-issues page and CARD_ALL on team portals.
 function icRefreshData(scope, readOnly, startOpen) {
   const strip = (typeof prTasksStripHtml_ === 'function') ? prTasksStripHtml_() : '';
   if (String(scope) === '*') {
@@ -966,8 +977,8 @@ function listAllIssues_() {
   return { open: open, resolved: resolved, done: done.slice(0, 25) };
 }
 
-// Every open issue across all teams. Completing one now requires an evidence
-// photo -> confetti -> Pending approval, then an admin approves/sends back.
+// Every open issue across all teams. Staff complete from the team portal (photo
+// evidence). The admin hub (?admin=1) is Close / Edit / Delete only, no photo.
 // Embedded in the hub panel when embed=1.
 function allIssuesPage_(embedded, admin) {
   const data = listAllIssues_();
@@ -998,13 +1009,15 @@ function allIssuesPage_(embedded, admin) {
   inner += '<div id="pr-strip-host">' + prTasksStripHtml_() + '</div>';
   inner += '<div id="ic-list">' + icAllSectionsHtml_(data, !!admin) + '</div>';
 
-  inner += '<script>var IC_SCOPE="*";var IC_READONLY=false;function flt(){icApplyFilt();}</script>';
+  inner += '<script>var IC_SCOPE="*";var IC_READONLY=false;var IC_ADMIN=' + (admin ? 'true' : 'false') + ';function flt(){icApplyFilt();}</script>';
   return swissShell_(tpStyles_() + prStripStyles_() + inner + tpSharedJs_() + icClientJs_() + icRefreshJs_() + tpAdminRevealJs_(admin) + prStripJs_(), 'Open issues', true, embedded);
 }
 
-// Folded cards for the all-teams dashboard. Chips above the list pick the bucket;
-// search / team / overdue-only further narrow what is visible.
-function icAllSectionsHtml_(data, startOpen) {
+// Folded cards for the all-teams dashboard. When admin is true (hub ?admin=1),
+// each card is Close / Edit / Delete only — no photo Complete, no Approve/Send back.
+// Chips above the list pick the bucket; search / team / overdue-only further narrow.
+function icAllSectionsHtml_(data, admin) {
+  const startOpen = !!admin;
   const issues = data.open || [];
   const pendingList = issues.filter(function (x) { return x.pending; });
   const active = issues.filter(function (x) { return !x.pending; });
@@ -1031,7 +1044,13 @@ function icAllSectionsHtml_(data, startOpen) {
     const title = '<span id="' + rid + '-vtype">' + escapeHtml_(it.issueType ? phrase_(it.issueType) : 'Reported issue') + '</span>';
     const sub = '<span id="' + rid + '-vteam">' + escapeHtml_(it.team || 'Unassigned') + '</span>'
       + (isPending ? ' · Awaiting approval' : (isSentBack ? ' · Sent back' : (it.overdue ? ' · Overdue' : (it.deadline ? ' · Due ' + escapeHtml_(dl) : ''))));
-    const foot = isPending ? icPendingFoot_(rid, it.token) : icOpenFoot_(rid, it.token, it.photoOptional);
+    const foot = admin
+      ? icAdminSimpleFoot_(rid, it.token)
+      : (isPending ? icPendingFoot_(rid, it.token) : icOpenFoot_(rid, it.token, it.photoOptional));
+    const extraAdmin = admin
+      ? ''
+      : '<span class="tp-admin btn-row" hidden><button type="button" class="btn btn-ghost" onclick="icEditOpen(\'' + rid + '\')">Edit</button>'
+        + '<span id="' + rid + '-delwrap"><button type="button" class="btn btn-ghost tp-del" onclick="icDelOpen(\'' + rid + '\',\'' + it.token + '\')">Delete</button></span></span>';
     return '<details class="card" id="' + rid + '" data-bucket="' + bucket + '" data-tok="' + it.token + '" data-team="' + escapeHtml_(it.team) + '" data-over="' + (it.overdue ? '1' : '0') + '" data-state="' + (isPending ? 'pending' : 'open') + '" data-po="' + (it.photoOptional ? '1' : '0') + '" data-hay="' + escapeHtml_(hay) + '"' + icOpenAttr_(startOpen) + (bucket === 'open' ? '' : ' style="display:none"') + '>'
       + cardSum_(title, sub, '<span id="' + rid + '-pill">' + chip + '</span>',
           '<span class="card-accent" id="' + rid + '-accent" style="background:' + accent + '"></span>',
@@ -1041,16 +1060,15 @@ function icAllSectionsHtml_(data, startOpen) {
       +     '<div class="card-field" id="' + rid + '-vdetails-wrap"' + (it.details ? '' : ' hidden') + '><span class="card-flabel">Details</span><div class="card-details" id="' + rid + '-vdetails">' + escapeHtml_(it.details) + '</div></div>'
       +     (it.photos && it.photos.length ? photoStrip_(it.photos) : '')
       +     icPhotoBlock_(rid, it.completionPhoto)
-      +     icNoteContainer_(rid, isPending, it.sentBackReason, true, it.photoOptional)
-      +     icReplyBlock_(rid, it.completionNote, isPending, true)
+      +     icNoteContainer_(rid, isPending, it.sentBackReason, admin ? !!it.sentBackReason : true, it.photoOptional)
+      +     icReplyBlock_(rid, it.completionNote, isPending, !admin)
       +   '</div>'
       +   icEditForm_(rid, it, teams, fieldOpts.issueTypes)
       + '</div>'
       + '<div class="card-foot">'
       +   '<span id="' + rid + '-status" class="' + (isPending ? 'due' : dueCls) + '">' + statusTxt + '</span>'
       +   '<span id="' + rid + '-act" class="btn-row">' + foot + '</span>'
-      +   '<span class="tp-admin btn-row" hidden><button type="button" class="btn btn-ghost" onclick="icEditOpen(\'' + rid + '\')">Edit</button>'
-      +     '<span id="' + rid + '-delwrap"><button type="button" class="btn btn-ghost tp-del" onclick="icDelOpen(\'' + rid + '\',\'' + it.token + '\')">Delete</button></span></span>'
+      +   extraAdmin
       + '</div>'
       + '</details>';
   };

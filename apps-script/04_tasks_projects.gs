@@ -263,9 +263,9 @@ function icIsOpsTeam_(team) {
 }
 
 // Admin bypass: mark an issue complete with no photo and no approval step, stamping
-// Completed at + Addressed at (fully resolved). This is an admin-side action - the
-// button is only shown on the admin dashboard (revealed by ?admin=1, like approve /
-// send back). Student pages never surface it, so staff always submit a photo.
+// Completed at + Addressed at (fully resolved). Used by the admin dashboard Close
+// button and by the Operations Team email (that mail goes to an admin). Student
+// pages never surface it, so staff always submit a photo.
 function resolveIssueComplete(token) {
   var loc = icLocate_(token);
   if (!loc) return { ok: false, error: 'That item could not be found.' };
@@ -908,6 +908,14 @@ function icReplyBlock_(rid, note, isPending, canRespond) {
   return '<div id="' + rid + '-reply">' + inner + '</div>';
 }
 
+// Admin dashboard only: close now (no photo), edit, or delete. Student Complete /
+// Add photos / Approve / Send back stay off this foot so the two paths cannot be mixed.
+function icAdminSimpleFoot_(rid, token) {
+  return '<button type="button" class="btn btn-primary" onclick="icAdminClose(\'' + rid + '\',\'' + token + '\')">Close</button>'
+    + '<button type="button" class="btn btn-ghost" onclick="icEditOpen(\'' + rid + '\')">Edit</button>'
+    + '<span id="' + rid + '-delwrap"><button type="button" class="btn btn-ghost tp-del" onclick="icDelOpen(\'' + rid + '\',\'' + token + '\')">Delete</button></span>';
+}
+
 // Foot action for an OPEN item. Photos are STAGED (added one pick at a time and
 // previewed) and only uploaded when the doer taps Complete, so several photos can be
 // attached without each one closing the task. Photo-optional tasks can Complete with
@@ -949,6 +957,13 @@ function icClientJs_() {
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed. Retry.")+"</span>";return;}'
     + 'icSetPill(rid,"tp-pill--done","Completed");act.innerHTML="";var s=document.getElementById(rid+"-status");if(s){s.innerHTML="\\u2713 Completed";s.className="due due--done";}tpApproveFx(rid);tpAdvance(rid,"#157a47","#e7f3ec",2);var c=document.getElementById(rid);if(c){c.style.opacity="0.72";icBump("sum-open",-1);icSetBucket(c,"done");}icBump("sum-done",1);icDropOther(rid,token);'
     + '}).withFailureHandler(function(){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).resolveIssueComplete(token);}'
+    + 'function icAdminSimpleFootJs(rid,token){return "<button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"icAdminClose(\'"+rid+"\',\'"+token+"\')\\">Close</button><button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"icEditOpen(\'"+rid+"\')\\">Edit</button><span id=\\""+rid+"-delwrap\\"><button type=\\"button\\" class=\\"btn btn-ghost tp-del\\" onclick=\\"icDelOpen(\'"+rid+"\',\'"+token+"\')\\">Delete</button></span>";}'
+    + 'function icAdminClose(rid,token){var act=document.getElementById(rid+"-act");if(!act)return;act.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";var c=document.getElementById(rid);var pending=c&&c.dataset.state==="pending";'
+    + 'var onOk=function(r){if(!r||!r.ok){act.innerHTML=icAdminSimpleFootJs(rid,token);var h=document.createElement("span");h.className="tp-hint";h.style.color="#b31b1b";h.textContent=(r&&r.error)||"Failed. Retry.";act.appendChild(h);return;}'
+    + 'icSetPill(rid,"tp-pill--done","Completed");act.innerHTML="";var s=document.getElementById(rid+"-status");if(s){s.innerHTML="\\u2713 Completed";s.className="due due--done";}tpApproveFx(rid);tpAdvance(rid,"#157a47","#e7f3ec",2);if(c){c.style.opacity="0.72";if(pending)icBump("sum-pending",-1);else icBump("sum-open",-1);icSetBucket(c,"done");}icBump("sum-done",1);icDropOther(rid,token);};'
+    + 'var onFail=function(){act.innerHTML=icAdminSimpleFootJs(rid,token);};'
+    + 'if(pending)google.script.run.withSuccessHandler(onOk).withFailureHandler(onFail).approveIssueCompletion(token,ADMIN_PASS);'
+    + 'else google.script.run.withSuccessHandler(onOk).withFailureHandler(onFail).resolveIssueComplete(token);}'
     + 'function icNoteInner(){return "<div class=\\"ic-note\\">Finished? Add a photo of the completed work and an admin gives it a quick review.</div>";}'
     + 'function icAdminFootJs(rid,token){return ADMIN_PASS?"<span class=\\"tp-admin btn-row\\"><button type=\\"button\\" class=\\"btn btn-confirm\\" onclick=\\"icApprove(\'"+rid+"\',\'"+token+"\')\\">Approve</button><button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"icRejectOpen(\'"+rid+"\',\'"+token+"\')\\">Send back</button></span>":"";}'
     + 'function icSentBackInner(reason){var r=(reason||"").trim();var esc=function(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");};var lead=r?"<b>Sent back:</b> "+esc(r):"<b>Sent back.</b>";return "<div class=\\"ic-note ic-note--warn\\">"+lead+"<span class=\\"ic-note-cta\\">Make the fix, then send it in again.</span></div>";}'
