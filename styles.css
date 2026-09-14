@@ -925,6 +925,45 @@ a.people-card.is-active-result {
 
 .sched-source:hover { color: var(--red); border-bottom-color: var(--red); }
 
+.sched-refreshed {
+  font-size: .72rem;
+  font-weight: 700;
+  color: #8a847c;
+  min-height: 1em;
+}
+
+.sched-refreshed.is-bad { color: #b31b1b; }
+
+.sched-refresh {
+  -webkit-appearance: none;
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  font-family: var(--font);
+  font-size: .75rem;
+  font-weight: 700;
+  color: #57534e;
+  background: #fff;
+  border: 1.5px solid #e2ddd6;
+  border-radius: 999px;
+  padding: .35rem .75rem .35rem .6rem;
+  cursor: pointer;
+  line-height: 1.2;
+}
+
+.sched-refresh:hover { border-color: #b5b0a8; color: #292524; }
+
+.sched-refresh:disabled { opacity: .65; cursor: default; }
+
+.sched-refresh.is-spin svg { animation: issues-spin .7s linear infinite; }
+
+.sched-refresh:focus-visible {
+  outline: none;
+  border-color: var(--red);
+  box-shadow: 0 0 0 4px rgba(179, 27, 27, .12);
+}
+
 .sched-tools {
   display: flex;
   flex-wrap: wrap;
@@ -2459,6 +2498,7 @@ body.issues-panel-open { overflow: hidden; }
   .people-card { transition: none; }
   .sched-shift { animation: none; transition: none; }
   .sched-hscroll::before, .sched-hscroll::after, .sched-nudge { transition: none; }
+  .sched-refresh.is-spin svg { animation: none; }
 }
 
 /* Guide pages (docs.html, dev-guide.html) */

@@ -60,7 +60,6 @@
 
   loadCommandBadge();
   loadPeopleLoop();
-  loadScheduleLoop();
   bindSchedChrome();
 
   /**
@@ -355,12 +354,20 @@
   let schedFocusDay = '';
   let schedTickTimer = 0;
   let schedScrollObs = null;
+  let schedLoading = false;
+  let schedRefreshNote = 0;
 
-  function loadScheduleLoop() {
+  loadScheduleLoop();
+
+  function loadScheduleLoop(opts) {
+    const manual = !!(opts && opts.manual);
     const section = document.getElementById('schedule');
     const board = document.getElementById('sched-board');
     const sheet = window.SCHEDULE_SHEET || window.PEOPLE_SHEET;
     if (!section || !board || !sheet || !sheet.id) return;
+    if (schedLoading) return;
+    schedLoading = true;
+    setScheduleRefreshing(true);
 
     const cb = '__sched' + Math.random().toString(36).slice(2);
     const script = document.createElement('script');
@@ -368,42 +375,57 @@
     const cleanup = () => {
       if (settled) return;
       settled = true;
+      schedLoading = false;
+      setScheduleRefreshing(false);
       clearTimeout(timer);
       delete window[cb];
       if (script.parentNode) script.parentNode.removeChild(script);
     };
     const fail = () => {
       cleanup();
+      if (manual && schedShifts.length) {
+        showScheduleRefresh('Could not refresh', true);
+        return;
+      }
       section.hidden = true;
     };
     const timer = setTimeout(fail, 12000);
 
     window[cb] = payload => {
+      const next = parseSchedulePayload(payload);
       cleanup();
-      schedShifts = parseSchedulePayload(payload);
-      if (!schedShifts.length) { section.hidden = true; return; }
+      if (!next.length) {
+        if (manual && schedShifts.length) {
+          showScheduleRefresh('Could not refresh', true);
+          return;
+        }
+        section.hidden = true;
+        return;
+      }
+      schedShifts = next;
+      section.hidden = false;
       const names = Array.from(new Set(schedShifts.flatMap(s => s.people))).sort((a, b) => a.localeCompare(b));
       section.dataset.keywords = [
         section.dataset.keywords || '',
-        'schedule', 'calendar', 'shift', 'hours', 'desk',
+        'schedule', 'calendar', 'shift', 'hours', 'desk', 'refresh',
         names.join(' '),
         SCHED_DAYS.map(d => d.full).join(' '),
       ].join(' ').toLowerCase();
       renderSchedule(schedShifts, names);
       board.classList.remove('is-loading');
-      bindSchedChrome();
       if (schedTickTimer) clearInterval(schedTickTimer);
       schedTick();
       schedTickTimer = setInterval(schedTick, 30000);
+      if (manual) showScheduleRefresh('Updated just now');
     };
     script.onerror = fail;
 
     const params = new URLSearchParams({
       gid: String(sheet.gid || '0'),
       tq: 'select A, B, C',
-      tqx: 'out:json;responseHandler:' + cb,
+      tqx: 'out:json;responseHandler:' + cb + ';reqId:' + Date.now(),
     });
-    script.src = 'https://docs.google.com/spreadsheets/d/' + encodeURIComponent(sheet.id) + '/gviz/tq?' + params.toString();
+    script.src = 'https://docs.google.com/spreadsheets/d/' + encodeURIComponent(sheet.id) + '/gviz/tq?' + params.toString() + '&_=' + Date.now();
     document.body.appendChild(script);
   }
 
@@ -717,20 +739,48 @@
 
   function bindSchedChrome() {
     const views = document.getElementById('sched-views');
-    if (!views || views.dataset.bound) return;
-    views.dataset.bound = '1';
-    views.addEventListener('click', ev => {
-      const btn = ev.target.closest('[data-view]');
-      if (!btn) return;
-      const next = btn.getAttribute('data-view');
-      if (next !== 'day' && next !== 'week') return;
-      if (next === schedMode) return;
-      schedMode = next;
-      updateSchedViewBtns();
-      if (!schedShifts.length) return;
-      if (schedMode === 'day' && !schedFocusDay) schedFocusDay = schedTodayId();
-      renderSchedule(schedShifts, schedPeopleNames());
-    });
+    if (views && !views.dataset.bound) {
+      views.dataset.bound = '1';
+      views.addEventListener('click', ev => {
+        const btn = ev.target.closest('[data-view]');
+        if (!btn) return;
+        const next = btn.getAttribute('data-view');
+        if (next !== 'day' && next !== 'week') return;
+        if (next === schedMode) return;
+        schedMode = next;
+        updateSchedViewBtns();
+        if (!schedShifts.length) return;
+        if (schedMode === 'day' && !schedFocusDay) schedFocusDay = schedTodayId();
+        renderSchedule(schedShifts, schedPeopleNames());
+      });
+    }
+    const refresh = document.getElementById('sched-refresh');
+    if (refresh && !refresh.dataset.bound) {
+      refresh.dataset.bound = '1';
+      refresh.addEventListener('click', function () {
+        loadScheduleLoop({ manual: true });
+      });
+    }
+  }
+
+  function setScheduleRefreshing(on) {
+    const btn = document.getElementById('sched-refresh');
+    if (!btn) return;
+    btn.disabled = !!on;
+    btn.classList.toggle('is-spin', !!on);
+    btn.setAttribute('aria-busy', on ? 'true' : 'false');
+  }
+
+  function showScheduleRefresh(msg, bad) {
+    const el = document.getElementById('sched-refreshed');
+    if (!el) return;
+    el.textContent = msg || '';
+    el.classList.toggle('is-bad', !!bad);
+    clearTimeout(schedRefreshNote);
+    if (!msg) return;
+    schedRefreshNote = setTimeout(function () {
+      if (el) el.textContent = '';
+    }, 4000);
   }
 
   function updateSchedViewBtns() {
