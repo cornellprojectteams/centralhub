@@ -368,11 +368,13 @@ function approveIssueCompletion(token, pass) {
   return { ok: true, status: 'Completed' };
 }
 
-// Admin sends back -> Uncompleted, with an optional reason. The doer's photo and
-// note are KEPT (not cleared) so they can see what they submitted and what to fix.
+// Admin sends back a pending submission -> Uncompleted, with an optional reason.
+// The doer's photo and note are KEPT (not cleared) so they can see what they
+// submitted and what to fix. Open (not-yet-submitted) items cannot be sent back.
 function rejectIssueCompletion(token, reason, pass) {
   var loc = icLocate_(token);
   if (!loc) return { ok: false, error: 'That item could not be found.' };
+  if (!loc.completedAt) return { ok: false, error: 'Send back is only for items pending approval.' };
   loc.sh.getRange(loc.row, loc.col(CONFIG.completedAtHeader)).setValue('');   // no longer pending
   loc.sh.getRange(loc.row, loc.col(CONFIG.addressedHeader)).setValue('');
   loc.sh.getRange(loc.row, loc.col(CONFIG.sentBackHeader)).setValue(String(reason || '').trim());
@@ -936,9 +938,8 @@ function icReplyBlock_(rid, note, isPending, canRespond) {
 }
 
 // Admin dashboard only. Open items: mark complete (no photo, with a confirm),
-// send back with an optional reason, edit, or delete. Pending items keep
-// Approve / Send back plus edit / delete. Student Add photos / Complete stay
-// off this foot.
+// edit, or delete. Pending items keep Approve / Send back plus edit / delete.
+// Student Add photos / Complete stay off this foot.
 function icAdminEditDel_(rid, token) {
   return '<button type="button" class="btn btn-ghost" onclick="icEditOpen(\'' + rid + '\')">Edit</button>'
     + '<span id="' + rid + '-delwrap"><button type="button" class="btn btn-ghost tp-del" onclick="icDelOpen(\'' + rid + '\',\'' + token + '\')">Delete</button></span>';
@@ -953,7 +954,6 @@ function icAdminSimpleFoot_(rid, token, pending) {
       + icAdminEditDel_(rid, token);
   }
   return '<span id="' + rid + '-donewrap"><button type="button" class="btn btn-primary" onclick="icAdminCompleteAsk(\'' + rid + '\',\'' + token + '\')">Mark complete</button></span>'
-    + icAdminSendBack_(rid, token)
     + icAdminEditDel_(rid, token);
 }
 
@@ -1001,7 +1001,7 @@ function icClientJs_() {
     + 'function icIsAdminUi(){return typeof IC_ADMIN!=="undefined"&&!!IC_ADMIN;}'
     + 'function icAdminEditDelJs(rid,token){return "<button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"icEditOpen(\'"+rid+"\')\\">Edit</button><span id=\\""+rid+"-delwrap\\"><button type=\\"button\\" class=\\"btn btn-ghost tp-del\\" onclick=\\"icDelOpen(\'"+rid+"\',\'"+token+"\')\\">Delete</button></span>";}'
     + 'function icAdminSendBackJs(rid,token){return "<button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"icRejectOpen(\'"+rid+"\',\'"+token+"\')\\">Send back</button>";}'
-    + 'function icAdminOpenFootJs(rid,token){return "<span id=\\""+rid+"-donewrap\\"><button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"icAdminCompleteAsk(\'"+rid+"\',\'"+token+"\')\\">Mark complete</button></span>"+icAdminSendBackJs(rid,token)+icAdminEditDelJs(rid,token);}'
+    + 'function icAdminOpenFootJs(rid,token){return "<span id=\\""+rid+"-donewrap\\"><button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"icAdminCompleteAsk(\'"+rid+"\',\'"+token+"\')\\">Mark complete</button></span>"+icAdminEditDelJs(rid,token);}'
     + 'function icAdminPendingFootJs(rid,token){return "<button type=\\"button\\" class=\\"btn btn-confirm\\" onclick=\\"icApprove(\'"+rid+"\',\'"+token+"\')\\">Approve</button>"+icAdminSendBackJs(rid,token)+icAdminEditDelJs(rid,token);}'
     + 'function icAdminRestoreFootJs(rid,token){var c=document.getElementById(rid);return (c&&c.dataset.state==="pending")?icAdminPendingFootJs(rid,token):icAdminOpenFootJs(rid,token);}'
     + 'function icAdminCompleteAsk(rid,token){var w=document.getElementById(rid+"-donewrap");if(!w)return;w.innerHTML="<span class=\\"tp-hint\\" style=\\"margin-right:6px\\">Mark this complete with no photo?</span><button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"icAdminCompleteDo(\'"+rid+"\',\'"+token+"\')\\">Yes, mark complete</button><button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"icAdminCompleteCancel(\'"+rid+"\',\'"+token+"\')\\">Cancel</button>";}'
