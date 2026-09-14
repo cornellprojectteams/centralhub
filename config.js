@@ -9,3 +9,9 @@ window.PEOPLE_SHEET = {
   id: '1Kfffs0B0U3NZhS3YwFmRbXH3GP2pUZrCu_fylGm10CM',
   gid: '983316085',
 };
+
+// Same Student Employee Log workbook, FA25 schedule tab (weekly desk coverage).
+window.SCHEDULE_SHEET = {
+  id: '1Kfffs0B0U3NZhS3YwFmRbXH3GP2pUZrCu_fylGm10CM',
+  gid: '1799869087',
+};

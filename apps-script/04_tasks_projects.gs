@@ -315,14 +315,41 @@ function submitIssueCompletion(token, dataUrl, filename, append, note) {
 
 // Admin edits an issue's fields in place. Team drives reminder routing, so the
 // dashboard offers it as a picklist. Required action is fixed at submission.
+// A team change emails the new team with the same assignment letter as a new report.
 function updateIssueFields(token, team, issueType, details) {
   var loc = icLocate_(token);
   if (!loc) return { ok: false, error: 'That item could not be found.' };
   var t = String(team || '').trim(), iss = String(issueType || '').trim(), det = String(details || '').trim();
+  var prevTeam = String(loc.sh.getRange(loc.row, loc.col(CONFIG.headers.team)).getValue() || '').trim();
   loc.sh.getRange(loc.row, loc.col(CONFIG.headers.team)).setValue(t);
   loc.sh.getRange(loc.row, loc.col(CONFIG.headers.issueType)).setValue(iss);
   loc.sh.getRange(loc.row, loc.col(CONFIG.headers.details)).setValue(det);
-  return { ok: true, team: t, issueType: phrase_(iss), details: det };
+
+  var notified = false;
+  var teamChanged = t && norm_(t) !== norm_(prevTeam);
+  if (teamChanged && !loc.addressed && typeof sendNotification_ === 'function') {
+    var cell = function (h) { return String(loc.sh.getRange(loc.row, loc.col(h)).getValue() || '').trim(); };
+    var data = {
+      timestamp: loc.sh.getRange(loc.row, loc.col(CONFIG.headers.timestamp)).getValue() || new Date().toLocaleString(),
+      email: cell(CONFIG.headers.email),
+      netid: cell(CONFIG.headers.netid),
+      team: t,
+      issueType: iss,
+      action: cell(CONFIG.headers.action),
+      details: det,
+      status: cell(CONFIG.headers.status),
+      photo: cell(CONFIG.headers.photo)
+    };
+    try {
+      sendNotification_(data, token);
+      loc.sh.getRange(loc.row, loc.col(CONFIG.notifiedHeader)).setValue(new Date());
+      loc.sh.getRange(loc.row, loc.col(CONFIG.lastReminderHeader)).setValue('');
+      notified = true;
+    } catch (err) {
+      Logger.log('Reassign notify failed for ' + token + ': ' + err);
+    }
+  }
+  return { ok: true, team: t, issueType: phrase_(iss), details: det, notified: notified };
 }
 
 // Admin deletes an issue -> the row is removed for good.
@@ -1005,7 +1032,7 @@ function icClientJs_() {
     + 'var st=function(s,t){var el=document.getElementById(rid+s);if(el)el.textContent=t;};st("-vteam",r.team||"Unassigned");st("-vtype",r.issueType||"Reported issue");'
     + 'var dw=document.getElementById(rid+"-vdetails-wrap");if(dw){if(r.details){dw.hidden=false;st("-vdetails",r.details);}else dw.hidden=true;}'
     + 'var c=document.getElementById(rid);if(c){var ca=(document.getElementById(rid+"-vaction")||{}).textContent||"";c.dataset.team=r.team||"";c.dataset.hay=((r.team||"")+" "+(r.issueType||"")+" "+ca+" "+(r.details||"")).toLowerCase();}'
-    + 'icEditCancel(rid);'
+    + 'if(r.notified){if(m){m.style.color="#157a47";m.textContent="Saved. The new team was emailed.";}setTimeout(function(){icEditCancel(rid);},1400);}else icEditCancel(rid);'
     + '}).withFailureHandler(function(){if(m){m.style.color="#b31b1b";m.textContent="Could not save. Retry.";}}).updateIssueFields(token,team,type,det);}'
     + 'function icDelOpen(rid,token){document.getElementById(rid+"-delwrap").innerHTML="<span class=\\"tp-hint\\" style=\\"margin-right:6px\\">Delete this task?</span><button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"icDelDo(\'"+rid+"\',\'"+token+"\')\\">Yes, delete</button><button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"icDelCancel(\'"+rid+"\',\'"+token+"\')\\">Cancel</button>";}'
     + 'function icDelCancel(rid,token){document.getElementById(rid+"-delwrap").innerHTML="<button type=\\"button\\" class=\\"btn btn-ghost tp-del\\" onclick=\\"icDelOpen(\'"+rid+"\',\'"+token+"\')\\">Delete</button>";}'

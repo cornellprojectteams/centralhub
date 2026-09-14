@@ -2,9 +2,9 @@
  * Project Teams Ops Hub client script (shared by index.html and admin.html)
  *
  * Live search, the Command Center badge, the staff people directory, the
- * open-issues dashboard panel, and the admin sidebar scroll-spy. Every feature
- * is guarded by element presence, so the same file runs on the staff page and
- * the admin page unchanged.
+ * weekly desk calendar, the open-issues dashboard panel, and the admin
+ * sidebar scroll-spy. Every feature is guarded by element presence, so the
+ * same file runs on the staff page and the admin page unchanged.
  *
  * Markup conventions:
  *   - .hub-zone          The page's single panel (staff on index, admin on admin.html)
@@ -60,6 +60,7 @@
 
   loadCommandBadge();
   loadPeopleLoop();
+  loadScheduleLoop();
 
   /**
    * Staff-page people directory. Reads name / NetID / email / resource-for /
@@ -320,6 +321,352 @@
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
+  }
+
+  /**
+   * Staff-page week calendar. Reads the FA25 schedule tab (day, shift, names)
+   * via JSONP and paints a Mon–Sun desk grid. The first sheet row is the
+   * header, which is also Monday’s 4–6pm shift. Fails silently.
+   */
+  const SCHED_DAYS = [
+    { id: 'monday', short: 'Mon', full: 'Monday' },
+    { id: 'tuesday', short: 'Tue', full: 'Tuesday' },
+    { id: 'wednesday', short: 'Wed', full: 'Wednesday' },
+    { id: 'thursday', short: 'Thu', full: 'Thursday' },
+    { id: 'friday', short: 'Fri', full: 'Friday' },
+    { id: 'saturday', short: 'Sat', full: 'Saturday' },
+    { id: 'sunday', short: 'Sun', full: 'Sunday' },
+  ];
+  const SCHED_PALETTE = [
+    { bg: '#fde8e8', fg: '#6e1010', bar: '#b31b1b' },
+    { bg: '#f8edd4', fg: '#6a4a10', bar: '#c4891a' },
+    { bg: '#e7f0e4', fg: '#1d4a32', bar: '#2f6f4e' },
+    { bg: '#e7eef7', fg: '#1e3a5f', bar: '#3d5a80' },
+    { bg: '#f3e8f6', fg: '#4a2c5a', bar: '#7c4d8a' },
+    { bg: '#fdeee4', fg: '#6b3010', bar: '#c45c26' },
+    { bg: '#e6f3f1', fg: '#1a4540', bar: '#2a7a70' },
+    { bg: '#efe8dc', fg: '#5a4630', bar: '#8a6a3a' },
+    { bg: '#f6e4ec', fg: '#6a2040', bar: '#b44a6a' },
+  ];
+  let schedShifts = [];
+  let schedFilter = 'all';
+  let schedTickTimer = 0;
+
+  function loadScheduleLoop() {
+    const section = document.getElementById('schedule');
+    const board = document.getElementById('sched-board');
+    const sheet = window.SCHEDULE_SHEET || window.PEOPLE_SHEET;
+    if (!section || !board || !sheet || !sheet.id) return;
+
+    const cb = '__sched' + Math.random().toString(36).slice(2);
+    const script = document.createElement('script');
+    let settled = false;
+    const cleanup = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      delete window[cb];
+      if (script.parentNode) script.parentNode.removeChild(script);
+    };
+    const fail = () => {
+      cleanup();
+      section.hidden = true;
+    };
+    const timer = setTimeout(fail, 12000);
+
+    window[cb] = payload => {
+      cleanup();
+      schedShifts = parseSchedulePayload(payload);
+      if (!schedShifts.length) { section.hidden = true; return; }
+      const names = Array.from(new Set(schedShifts.flatMap(s => s.people))).sort((a, b) => a.localeCompare(b));
+      section.dataset.keywords = [
+        section.dataset.keywords || '',
+        'schedule', 'calendar', 'shift', 'hours', 'desk',
+        names.join(' '),
+        SCHED_DAYS.map(d => d.full).join(' '),
+      ].join(' ').toLowerCase();
+      renderSchedule(schedShifts, names);
+      board.classList.remove('is-loading');
+      if (schedTickTimer) clearInterval(schedTickTimer);
+      schedTick();
+      schedTickTimer = setInterval(schedTick, 30000);
+    };
+    script.onerror = fail;
+
+    const params = new URLSearchParams({
+      gid: String(sheet.gid || '0'),
+      tq: 'select A, B, C',
+      tqx: 'out:json;responseHandler:' + cb,
+    });
+    script.src = 'https://docs.google.com/spreadsheets/d/' + encodeURIComponent(sheet.id) + '/gviz/tq?' + params.toString();
+    document.body.appendChild(script);
+  }
+
+  function parseSchedulePayload(payload) {
+    const table = payload && payload.table;
+    const cols = (table && table.cols) || [];
+    const rows = (table && table.rows) || [];
+    const out = [];
+    let day = schedDayId(cols[0] && cols[0].label);
+    const headerTime = parseShiftTime(schedTimeLabel(cols[1] && cols[1].label));
+    const headerWho = splitShiftNames(schedWhoLabel(cols[2] && cols[2].label));
+    if (day && headerTime && headerWho.length) {
+      out.push({ day: day, time: headerTime, people: headerWho });
+    }
+    rows.forEach(row => {
+      const d = peopleCell(row, 0);
+      const t = peopleCell(row, 1);
+      const w = peopleCell(row, 2);
+      if (d) day = schedDayId(d) || day;
+      const time = parseShiftTime(t);
+      const who = splitShiftNames(w);
+      if (!day || !time || !who.length) return;
+      out.push({ day: day, time: time, people: who });
+    });
+    return mergeScheduleShifts(out);
+  }
+
+  function mergeScheduleShifts(shifts) {
+    const out = [];
+    SCHED_DAYS.forEach(day => {
+      shifts.filter(s => s.day === day.id)
+        .sort((a, b) => a.time.start - b.time.start)
+        .forEach(s => {
+          const last = out.length ? out[out.length - 1] : null;
+          const same = last && last.day === s.day
+            && last.people.join('|').toLowerCase() === s.people.join('|').toLowerCase()
+            && last.time.end === s.time.start;
+          if (same) {
+            last.time.end = s.time.end;
+            last.time.label = schedHourNum(last.time.start) + '–' + schedFmtHour(last.time.end);
+          } else {
+            out.push({ day: s.day, time: { start: s.time.start, end: s.time.end, label: s.time.label, raw: s.time.raw }, people: s.people.slice() });
+          }
+        });
+    });
+    return out;
+  }
+
+  function schedDayId(s) {
+    const n = String(s || '').trim().toLowerCase();
+    const hit = SCHED_DAYS.find(d => n === d.id || n === d.short.toLowerCase() || n.indexOf(d.id) === 0);
+    return hit ? hit.id : '';
+  }
+
+  function schedTimeLabel(s) {
+    return String(s || '').replace(/^\s*shift\s+/i, '').trim();
+  }
+
+  function schedWhoLabel(s) {
+    return String(s || '').replace(/^\s*employee\s+/i, '').trim();
+  }
+
+  function splitShiftNames(s) {
+    return String(s || '')
+      .split(/\s*\+\s*|\s+and\s+|\s*&\s*|\s*,\s*/i)
+      .map(n => n.trim())
+      .filter(Boolean);
+  }
+
+  function parseShiftTime(raw) {
+    const label = schedTimeLabel(raw);
+    const m = label.match(/(\d{1,2})\s*[-–]\s*(\d{1,2})\s*(am|pm)/i);
+    if (!m) return null;
+    const a = parseInt(m[1], 10);
+    const b = parseInt(m[2], 10);
+    const mer = m[3].toLowerCase();
+    const toMin = (h, pm) => {
+      if (h === 12) return pm ? 12 * 60 : 0;
+      return (pm ? h + 12 : h) * 60;
+    };
+    const endPm = mer === 'pm';
+    const startPm = mer === 'pm' ? !(a === 10 || a === 11) : false;
+    let start = toMin(a, startPm);
+    let end = toMin(b, endPm);
+    if (end <= start) end += 12 * 60;
+    const pretty = schedHourNum(start) + '–' + schedFmtHour(end);
+    return { start: start, end: end, label: pretty, raw: label };
+  }
+
+  function schedHourNum(min) {
+    const h = Math.floor(((min % (24 * 60)) + (24 * 60)) % (24 * 60) / 60);
+    if (h === 0 || h === 12) return 12;
+    return h > 12 ? h - 12 : h;
+  }
+
+  function schedFmtHour(min) {
+    let h = Math.floor(((min % (24 * 60)) + (24 * 60)) % (24 * 60) / 60);
+    if (h === 0) return '12am';
+    if (h === 12) return '12pm';
+    if (h > 12) return (h - 12) + 'pm';
+    return h + 'am';
+  }
+
+  function schedNowMin() {
+    const n = new Date();
+    return n.getHours() * 60 + n.getMinutes();
+  }
+
+  function schedTodayId() {
+    return ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][new Date().getDay()];
+  }
+
+  function schedTone(name) {
+    let h = 0;
+    const s = String(name || '').toLowerCase();
+    for (let i = 0; i < s.length; i++) h = (h * 33 + s.charCodeAt(i)) >>> 0;
+    return SCHED_PALETTE[h % SCHED_PALETTE.length];
+  }
+
+  function schedRange(shifts) {
+    let start = 10 * 60, end = 22 * 60;
+    shifts.forEach(s => {
+      if (s.time.start < start) start = Math.floor(s.time.start / 60) * 60;
+      if (s.time.end > end) end = Math.ceil(s.time.end / 60) * 60;
+    });
+    return { start: start, end: end, hours: (end - start) / 60 };
+  }
+
+  function renderSchedule(shifts, names) {
+    const board = document.getElementById('sched-board');
+    const filters = document.getElementById('sched-filters');
+    if (!board) return;
+    const range = schedRange(shifts);
+    const today = schedTodayId();
+    const ticks = [];
+    for (let m = range.start; m < range.end; m += 60) ticks.push(m);
+
+    if (filters) {
+      const chips = [{ id: 'all', label: 'Everyone' }].concat(names.map(n => ({ id: n, label: n })));
+      filters.innerHTML = chips.map(c => {
+        const on = (c.id === 'all' && schedFilter === 'all') || (c.id !== 'all' && schedFilter === c.id.toLowerCase());
+        return '<button type="button" class="sched-chip' + (on ? ' is-active' : '') + '" data-who="' + escapePeople(c.id) + '">'
+          + escapePeople(c.label) + '</button>';
+      }).join('');
+      filters.hidden = false;
+      filters.onclick = ev => {
+        const btn = ev.target.closest('.sched-chip');
+        if (!btn) return;
+        schedFilter = String(btn.getAttribute('data-who') || 'all').toLowerCase();
+        renderSchedule(schedShifts, names);
+      };
+    }
+
+    const gutter = '<div class="sched-gutter">'
+      + '<div class="sched-gutter-head" aria-hidden="true"></div>'
+      + '<div class="sched-gutter-body">'
+      + ticks.map(m => '<span class="sched-tick" style="top:' + (((m - range.start) / (range.end - range.start)) * 100) + '%">' + escapePeople(schedFmtHour(m)) + '</span>').join('')
+      + '</div></div>';
+
+    const cols = SCHED_DAYS.map(day => {
+      const isToday = day.id === today;
+      const isWe = day.id === 'saturday' || day.id === 'sunday';
+      const dayShifts = shifts.filter(s => s.day === day.id);
+      const blocks = dayShifts.map(s => {
+        const visible = schedFilter === 'all' || s.people.some(p => p.toLowerCase() === schedFilter);
+        const top = ((s.time.start - range.start) / (range.end - range.start)) * 100;
+        const height = ((s.time.end - s.time.start) / (range.end - range.start)) * 100;
+        const lead = s.people[0];
+        const tone = schedTone(lead);
+        const nowOn = isToday && schedNowMin() >= s.time.start && schedNowMin() < s.time.end;
+        const kw = (s.people.join(' ') + ' ' + day.full + ' ' + s.time.raw + ' shift').toLowerCase();
+        const namesHtml = s.people.map(p => '<b>' + escapePeople(p) + '</b>').join('<span class="sched-and">+</span>');
+        return '<article class="sched-shift' + (nowOn ? ' is-now' : '') + (visible ? '' : ' is-dim') + '" data-keywords="' + escapePeople(kw) + '" '
+          + 'style="top:' + top + '%;height:' + height + '%;--shift-bg:' + tone.bg + ';--shift-fg:' + tone.fg + ';--shift-bar:' + tone.bar + '" '
+          + 'aria-label="' + escapePeople(s.people.join(' and ') + ', ' + day.full + ' ' + s.time.label) + '">'
+          + '<span class="sched-shift-time">' + escapePeople(s.time.label) + '</span>'
+          + '<span class="sched-shift-who">' + namesHtml + '</span>'
+          + '</article>';
+      }).join('');
+      return '<div class="sched-day' + (isToday ? ' is-today' : '') + (isWe ? ' is-weekend' : '') + '" data-day="' + day.id + '">'
+        + '<div class="sched-day-head">'
+        + '<span class="sched-day-name">' + day.short + '</span>'
+        + '<span class="sched-day-full">' + day.full + '</span>'
+        + (isToday ? '<span class="sched-today-pill">Today</span>' : '')
+        + '</div>'
+        + '<div class="sched-day-body">'
+        + ticks.map(m => '<span class="sched-hourline" style="top:' + (((m - range.start) / (range.end - range.start)) * 100) + '%"></span>').join('')
+        + blocks
+        + '</div></div>';
+    }).join('');
+
+    board.innerHTML = '<div class="sched-scroll"><div class="sched-week" style="--sched-hours:' + range.hours + '">'
+      + gutter + cols + '</div></div>';
+
+    const scroller = board.querySelector('.sched-scroll');
+    const todayCol = board.querySelector('.sched-day.is-today');
+    if (scroller && todayCol) {
+      const left = todayCol.offsetLeft - (scroller.clientWidth / 2) + (todayCol.offsetWidth / 2);
+      scroller.scrollLeft = Math.max(0, left);
+    }
+    schedTick();
+  }
+
+  function schedTick() {
+    const board = document.getElementById('sched-board');
+    const nowEl = document.getElementById('sched-now');
+    if (!board || !schedShifts.length) return;
+    const range = schedRange(schedShifts);
+    const today = schedTodayId();
+    const now = schedNowMin();
+    const dayCol = board.querySelector('.sched-day.is-today .sched-day-body');
+    if (dayCol) {
+      let line = dayCol.querySelector('.sched-nowline');
+      if (now >= range.start && now <= range.end) {
+        if (!line) {
+          line = document.createElement('div');
+          line.className = 'sched-nowline';
+          line.innerHTML = '<span>Now</span>';
+          dayCol.appendChild(line);
+        }
+        line.style.top = ((now - range.start) / (range.end - range.start) * 100) + '%';
+        line.hidden = false;
+      } else if (line) {
+        line.hidden = true;
+      }
+    }
+    const live = schedShifts.filter(s => s.day === today && now >= s.time.start && now < s.time.end);
+    const dayMeta = SCHED_DAYS.find(d => d.id === today);
+    if (nowEl) {
+      if (live.length) {
+        const people = Array.from(new Set(live.flatMap(s => s.people)));
+        const who = people.length === 1 ? people[0] : people.slice(0, -1).join(', ') + ' and ' + people[people.length - 1];
+        const verb = people.length === 1 ? 'is' : 'are';
+        nowEl.innerHTML = '<span class="sched-now-dot" aria-hidden="true"></span>'
+          + '<span><b>' + escapePeople(who) + '</b> ' + verb + ' on the desk</span>'
+          + '<span class="sched-now-meta">' + escapePeople((dayMeta && dayMeta.full) || '') + ' · ' + escapePeople(live[0].time.label) + '</span>';
+        nowEl.hidden = false;
+        nowEl.classList.add('is-live');
+      } else {
+        const upcoming = schedShifts
+          .filter(s => s.day === today && s.time.start > now)
+          .sort((a, b) => a.time.start - b.time.start)[0];
+        if (upcoming) {
+          nowEl.innerHTML = '<span class="sched-now-dot sched-now-dot--idle" aria-hidden="true"></span>'
+            + '<span>Desk is quiet. Next: <b>' + escapePeople(upcoming.people.join(' + ')) + '</b></span>'
+            + '<span class="sched-now-meta">' + escapePeople(upcoming.time.label) + '</span>';
+          nowEl.hidden = false;
+          nowEl.classList.remove('is-live');
+        } else {
+          nowEl.innerHTML = '<span class="sched-now-dot sched-now-dot--idle" aria-hidden="true"></span>'
+            + '<span>No one is on the desk right now</span>'
+            + '<span class="sched-now-meta">' + escapePeople((dayMeta && dayMeta.full) || '') + '</span>';
+          nowEl.hidden = false;
+          nowEl.classList.remove('is-live');
+        }
+      }
+    }
+    board.querySelectorAll('.sched-shift').forEach(el => {
+      const col = el.closest('.sched-day');
+      if (!col || !col.classList.contains('is-today')) {
+        el.classList.remove('is-now');
+        return;
+      }
+      const top = parseFloat(el.style.top) || 0;
+      const h = parseFloat(el.style.height) || 0;
+      const pct = (now - range.start) / (range.end - range.start) * 100;
+      el.classList.toggle('is-now', pct >= top && pct < top + h);
+    });
   }
 
   // Registry links (Equipment / Inventory tables, item detail, labels) point at the
@@ -920,7 +1267,22 @@
         if (fold && tokens.length && peopleCards.some(c => !c.classList.contains('hidden'))) {
           fold.open = true;
         }
-      } else if (!actions.length && (!tokens.length || fuzzyScore(sectionKeywords, q) >= 0)) {
+      }
+
+      const schedShiftsEl = [...section.querySelectorAll('.sched-shift')];
+      if (schedShiftsEl.length) {
+        let any = !tokens.length;
+        schedShiftsEl.forEach(el => {
+          const hay = (el.dataset.keywords || el.textContent || '').toLowerCase();
+          const matched = !tokens.length || tokens.every(t => hay.indexOf(t) >= 0 || sectionKeywords.indexOf(t) >= 0);
+          el.classList.toggle('is-dim', tokens.length && !matched);
+          if (matched) any = true;
+        });
+        if (any) {
+          sectionHasMatch = true;
+          if (tokens.length) matchCount++;
+        }
+      } else if (!peopleCards.length && !actions.length && (!tokens.length || fuzzyScore(sectionKeywords, q) >= 0)) {
         sectionHasMatch = true;
         if (tokens.length) matchCount++;
       }
