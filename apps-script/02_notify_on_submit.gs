@@ -980,8 +980,8 @@ function listAllIssues_() {
 }
 
 // Every open issue across all teams. Staff complete from the team portal (photo
-// evidence). The admin hub (?admin=1) is Close / Edit / Delete only, no photo.
-// Embedded in the hub panel when embed=1.
+// evidence). The admin hub (?admin=1) is Mark complete / Send back / Edit /
+// Delete, no photo. Embedded in the hub panel when embed=1.
 function allIssuesPage_(embedded, admin) {
   const data = listAllIssues_();
   const issues = data.open;
@@ -1016,8 +1016,9 @@ function allIssuesPage_(embedded, admin) {
 }
 
 // Folded cards for the all-teams dashboard. When admin is true (hub ?admin=1),
-// open cards are Mark complete (no photo, with confirm) / Edit / Delete; pending
-// cards keep Approve / Send back plus Edit / Delete. Student photo Complete is off.
+// open cards are Mark complete (no photo, with confirm) / Send back / Edit /
+// Delete; pending cards keep Approve / Send back plus Edit / Delete. Student
+// photo Complete is off.
 // Chips above the list pick the bucket; search / team / overdue-only further narrow.
 function icAllSectionsHtml_(data, admin) {
   const startOpen = !!admin;

@@ -935,20 +935,25 @@ function icReplyBlock_(rid, note, isPending, canRespond) {
   return '<div id="' + rid + '-reply">' + inner + '</div>';
 }
 
-// Admin dashboard only. Open items: mark complete (no photo, with a confirm), edit,
-// or delete. Pending items keep Approve / Send back plus edit / delete. Student
-// Add photos / Complete stay off this foot.
+// Admin dashboard only. Open items: mark complete (no photo, with a confirm),
+// send back with an optional reason, edit, or delete. Pending items keep
+// Approve / Send back plus edit / delete. Student Add photos / Complete stay
+// off this foot.
 function icAdminEditDel_(rid, token) {
   return '<button type="button" class="btn btn-ghost" onclick="icEditOpen(\'' + rid + '\')">Edit</button>'
     + '<span id="' + rid + '-delwrap"><button type="button" class="btn btn-ghost tp-del" onclick="icDelOpen(\'' + rid + '\',\'' + token + '\')">Delete</button></span>';
 }
+function icAdminSendBack_(rid, token) {
+  return '<button type="button" class="btn btn-ghost" onclick="icRejectOpen(\'' + rid + '\',\'' + token + '\')">Send back</button>';
+}
 function icAdminSimpleFoot_(rid, token, pending) {
   if (pending) {
     return '<button type="button" class="btn btn-confirm" onclick="icApprove(\'' + rid + '\',\'' + token + '\')">Approve</button>'
-      + '<button type="button" class="btn btn-ghost" onclick="icRejectOpen(\'' + rid + '\',\'' + token + '\')">Send back</button>'
+      + icAdminSendBack_(rid, token)
       + icAdminEditDel_(rid, token);
   }
   return '<span id="' + rid + '-donewrap"><button type="button" class="btn btn-primary" onclick="icAdminCompleteAsk(\'' + rid + '\',\'' + token + '\')">Mark complete</button></span>'
+    + icAdminSendBack_(rid, token)
     + icAdminEditDel_(rid, token);
 }
 
@@ -995,8 +1000,10 @@ function icClientJs_() {
     + '}).withFailureHandler(function(){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).resolveIssueComplete(token);}'
     + 'function icIsAdminUi(){return typeof IC_ADMIN!=="undefined"&&!!IC_ADMIN;}'
     + 'function icAdminEditDelJs(rid,token){return "<button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"icEditOpen(\'"+rid+"\')\\">Edit</button><span id=\\""+rid+"-delwrap\\"><button type=\\"button\\" class=\\"btn btn-ghost tp-del\\" onclick=\\"icDelOpen(\'"+rid+"\',\'"+token+"\')\\">Delete</button></span>";}'
-    + 'function icAdminOpenFootJs(rid,token){return "<span id=\\""+rid+"-donewrap\\"><button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"icAdminCompleteAsk(\'"+rid+"\',\'"+token+"\')\\">Mark complete</button></span>"+icAdminEditDelJs(rid,token);}'
-    + 'function icAdminPendingFootJs(rid,token){return "<button type=\\"button\\" class=\\"btn btn-confirm\\" onclick=\\"icApprove(\'"+rid+"\',\'"+token+"\')\\">Approve</button><button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"icRejectOpen(\'"+rid+"\',\'"+token+"\')\\">Send back</button>"+icAdminEditDelJs(rid,token);}'
+    + 'function icAdminSendBackJs(rid,token){return "<button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"icRejectOpen(\'"+rid+"\',\'"+token+"\')\\">Send back</button>";}'
+    + 'function icAdminOpenFootJs(rid,token){return "<span id=\\""+rid+"-donewrap\\"><button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"icAdminCompleteAsk(\'"+rid+"\',\'"+token+"\')\\">Mark complete</button></span>"+icAdminSendBackJs(rid,token)+icAdminEditDelJs(rid,token);}'
+    + 'function icAdminPendingFootJs(rid,token){return "<button type=\\"button\\" class=\\"btn btn-confirm\\" onclick=\\"icApprove(\'"+rid+"\',\'"+token+"\')\\">Approve</button>"+icAdminSendBackJs(rid,token)+icAdminEditDelJs(rid,token);}'
+    + 'function icAdminRestoreFootJs(rid,token){var c=document.getElementById(rid);return (c&&c.dataset.state==="pending")?icAdminPendingFootJs(rid,token):icAdminOpenFootJs(rid,token);}'
     + 'function icAdminCompleteAsk(rid,token){var w=document.getElementById(rid+"-donewrap");if(!w)return;w.innerHTML="<span class=\\"tp-hint\\" style=\\"margin-right:6px\\">Mark this complete with no photo?</span><button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"icAdminCompleteDo(\'"+rid+"\',\'"+token+"\')\\">Yes, mark complete</button><button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"icAdminCompleteCancel(\'"+rid+"\',\'"+token+"\')\\">Cancel</button>";}'
     + 'function icAdminCompleteCancel(rid,token){var w=document.getElementById(rid+"-donewrap");if(w)w.innerHTML="<button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"icAdminCompleteAsk(\'"+rid+"\',\'"+token+"\')\\">Mark complete</button>";}'
     + 'function icAdminCompleteDo(rid,token){var act=document.getElementById(rid+"-act");if(!act)return;act.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
@@ -1045,14 +1052,14 @@ function icClientJs_() {
     + 'icSetPill(rid,"tp-pill--done","Completed");act.innerHTML="";var s=document.getElementById(rid+"-status");if(s){s.innerHTML="\\u2713 Completed";s.className="due due--done";}tpApproveFx(rid);tpAdvance(rid,"#157a47","#e7f3ec",2);var c=document.getElementById(rid);if(c){c.style.opacity="0.72";icSetBucket(c,"done");}icBump("sum-pending",-1);icBump("sum-done",1);icDropOther(rid,token);'
     + '}).withFailureHandler(function(){act.innerHTML=icIsAdminUi()?icAdminPendingFootJs(rid,token):"<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).approveIssueCompletion(token,ADMIN_PASS);}'
     + 'function icRejectOpen(rid,token){var act=document.getElementById(rid+"-act");act.innerHTML="<input id=\\""+rid+"-reason\\" class=\\"ic-reason\\" placeholder=\\"Reason (optional)\\" onkeydown=\\"if(event.key===\'Enter\')icRejectDo(\'"+rid+"\',\'"+token+"\')\\"><button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"icRejectDo(\'"+rid+"\',\'"+token+"\')\\">Send back</button><button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"icRejectCancel(\'"+rid+"\',\'"+token+"\')\\">Cancel</button>";var i=document.getElementById(rid+"-reason");if(i)i.focus();}'
-    + 'function icRejectCancel(rid,token){document.getElementById(rid+"-act").innerHTML=icIsAdminUi()?icAdminPendingFootJs(rid,token):icAdminFootJs(rid,token);}'
-    + 'function icRejectDo(rid,token){var act=document.getElementById(rid+"-act");var reason=(document.getElementById(rid+"-reason")||{}).value||"";act.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
-    + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Failed")+"</span>";return;}'
+    + 'function icRejectCancel(rid,token){document.getElementById(rid+"-act").innerHTML=icIsAdminUi()?icAdminRestoreFootJs(rid,token):icAdminFootJs(rid,token);}'
+    + 'function icRejectDo(rid,token){var act=document.getElementById(rid+"-act");var reason=(document.getElementById(rid+"-reason")||{}).value||"";var card=document.getElementById(rid);var wasPending=card&&card.dataset.state==="pending";act.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
+    + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){act.innerHTML=icIsAdminUi()?icAdminRestoreFootJs(rid,token):icAdminFootJs(rid,token);var h=document.createElement("span");h.className="tp-hint";h.style.color="#b31b1b";h.textContent=(r&&r.error)||"Failed";act.appendChild(h);return;}'
     + 'icSetPill(rid,"tp-pill--sent","Sent back");var s=document.getElementById(rid+"-status");if(s){s.textContent="Sent back";s.className="due";}'
     + 'var nt=document.getElementById(rid+"-note");if(nt)nt.innerHTML=icSentBackInner(reason);'
     + 'if(!icIsAdminUi())icReplyForm(rid,icReplyValue(rid));'
-    + 'act.innerHTML=icIsAdminUi()?icAdminOpenFootJs(rid,token):icOpenFootJs(rid,token);var c=document.getElementById(rid);if(c){c.dataset.state="open";icSetBucket(c,"open");}icBump("sum-pending",-1);icBump("sum-open",1);'
-    + '}).withFailureHandler(function(){act.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Failed. Retry.</span>";}).rejectIssueCompletion(token,reason,ADMIN_PASS);}'
+    + 'act.innerHTML=icIsAdminUi()?icAdminOpenFootJs(rid,token):icOpenFootJs(rid,token);var c=document.getElementById(rid);if(c){c.dataset.state="open";icSetBucket(c,"open");}if(wasPending){icBump("sum-pending",-1);icBump("sum-open",1);}'
+    + '}).withFailureHandler(function(){act.innerHTML=icIsAdminUi()?icAdminRestoreFootJs(rid,token):icAdminFootJs(rid,token);}).rejectIssueCompletion(token,reason,ADMIN_PASS);}'
     + '</script>';
 }
 
