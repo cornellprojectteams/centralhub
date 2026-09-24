@@ -59,11 +59,35 @@ function findHeader_(H, names) {
 }
 
 function firstNamed_(get, names) {
+  var fallback = '';
   for (var i = 0; i < names.length; i++) {
     var v = get(names[i]);
-    if (v) return v;
+    if (!v) continue;
+    if (!fallback) fallback = v;
+    if (parseColor_(v)) return v;
   }
-  return '';
+  return fallback;
+}
+
+// The form rename left two columns titled "Respond within". Old rows keep the
+// color in the first; new answers land in the later one. Use a value this
+// parser understands, preferring the later column when both match.
+function statusFromRow_(row, H) {
+  var names = statusHeaderNames_();
+  var parsed = '';
+  var fallback = '';
+  for (var i = 0; i < H.length; i++) {
+    var hit = false;
+    for (var n = 0; n < names.length; n++) {
+      if (H[i] === norm_(names[n])) { hit = true; break; }
+    }
+    if (!hit) continue;
+    var val = String(row[i] == null ? '' : row[i]).trim();
+    if (!val) continue;
+    fallback = val;
+    if (parseColor_(val)) parsed = val;
+  }
+  return parsed || fallback;
 }
 
 const SLA_DAYS = { red: 0, orange: 3, yellow: 10, ivory: 21, purple: null };
@@ -171,7 +195,7 @@ function sendReminders() {
     if (row[cAddr]) continue;                                   // addressed / closed
     if (cCompleted >= 0 && row[cCompleted]) continue;          // completion submitted, awaiting approval -> pause reminders
     if (cToken < 0 || !row[cToken]) continue;
-    const color = parseColor_(row[cStatus]);
+    const color = parseColor_(statusFromRow_(row, H));
     if (!color || SLA_DAYS[color] == null) continue;            // purple / unknown -> no deadline, no reminders
     const reportDate = new Date(row[cTs]);
     if (isNaN(reportDate.getTime())) continue;
@@ -192,7 +216,7 @@ function sendReminders() {
     const data = {
       timestamp: row[cTs], team: cTeam >= 0 ? String(row[cTeam]).trim() : '',
       issueType: cIssue >= 0 ? String(row[cIssue]).trim() : '', action: cAction >= 0 ? String(row[cAction]).trim() : '',
-      details: cDetails >= 0 ? String(row[cDetails]).trim() : '', status: cStatus >= 0 ? String(row[cStatus]).trim() : '',
+      details: cDetails >= 0 ? String(row[cDetails]).trim() : '', status: statusFromRow_(row, H),
       email: cEmail >= 0 ? String(row[cEmail]).trim() : '',
     };
     const token = String(row[cToken]);
@@ -631,7 +655,7 @@ function confirmPage_(id) {
       + '<script>function cfAsk(){var a=document.getElementById("act");a.innerHTML="<span class=\\"tp-hint\\" style=\\"margin-right:6px\\">Mark this complete with no photo?</span><button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"cfResolve()\\">Yes, mark complete</button><button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"cfCancel()\\">Cancel</button>";}'
       + 'function cfCancel(){document.getElementById("act").innerHTML="<button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"cfAsk()\\">Mark complete</button>";}'
       + 'function cfResolve(){var a=document.getElementById("act");a.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
-      + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Could not save")+"</span>";return;}tpConfetti();a.style.display="none";var d=document.getElementById("done");d.style.display="block";d.innerHTML="\\u2713 Completed";}'
+      + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Could not save")+"</span>";return;}try{tpConfetti();}catch(e){}a.style.display="none";var d=document.getElementById("done");d.style.display="block";d.innerHTML="\\u2713 Completed";}'
       + '}).withFailureHandler(function(){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Could not save. Please retry.</span>";}).resolveIssueComplete(' + JSON.stringify(id) + ');}</script>';
     return swissShell_(tpStyles_() + opsInner + tpSharedJs_(), 'Space Status');
   }
@@ -668,11 +692,11 @@ function confirmPage_(id) {
     + 'function cfPick(input){tpStageRead(input,CFBUF,cfRenderStage);}'
     + 'function cfRenderStage(){document.getElementById("cf-photo").innerHTML=tpStagePreview(CFBUF,"cfUnstage(","document.getElementById(\'cf-file\').click()");var h=document.getElementById("cf-stage");if(h){h.style.color="";h.textContent="";}var db=document.getElementById("cf-done");if(db)db.textContent=CFBUF.length?("' + (photoOptional ? 'Submit' : 'Complete') + ' \\u00b7 "+CFBUF.length+" photo"+(CFBUF.length===1?"":"s")):"' + (photoOptional ? 'Mark done' : 'Complete') + '";}'
     + 'function cfUnstage(idx){CFBUF.splice(idx,1);cfRenderStage();}'
-    + 'function cfDoneUi(ids){tpConfetti();var a=document.getElementById("act");a.style.display="none";ids=Array.isArray(ids)?ids:(ids?[ids]:[]);document.getElementById("cf-photo").innerHTML=tpThumbs(ids);var n=document.getElementById("cf-note");if(n)n.readOnly=true;var d=document.getElementById("done");d.style.display="block";d.innerHTML="\\u2713 Submitted, pending approval";}'
+    + 'function cfDoneUi(ids,closed){try{tpConfetti();}catch(e){}var a=document.getElementById("act");a.style.display="none";ids=Array.isArray(ids)?ids:(ids?[ids]:[]);document.getElementById("cf-photo").innerHTML=tpThumbs(ids);var n=document.getElementById("cf-note");if(n)n.readOnly=true;var d=document.getElementById("done");d.style.display="block";d.innerHTML=closed?"\\u2713 Completed":"\\u2713 Submitted, pending approval";}'
     + 'function cfComplete(){var a=document.getElementById("act");var h=document.getElementById("cf-stage");var note=cfNote();'
     + 'if(' + (photoOptional ? 'false' : '!CFBUF.length') + '){if(h){h.style.color="#b31b1b";h.textContent="Add at least one photo first.";}return;}'
     + 'a.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
-    + 'if(!CFBUF.length){google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Could not save")+"</span>";return;}cfDoneUi([]);}).withFailureHandler(function(){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Could not save. Please retry.</span>";}).submitIssueCompletion(' + JSON.stringify(id) + ',"","",false,note);return;}'
+    + 'if(!CFBUF.length){google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Could not save")+"</span>";return;}cfDoneUi([],r.status==="Completed");}).withFailureHandler(function(){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Could not save. Please retry.</span>";}).submitIssueCompletion(' + JSON.stringify(id) + ',"","",false,note);return;}'
     + 'tpUploadStaged(CFBUF,' + JSON.stringify(id) + ',function(done,total){a.innerHTML="<span class=\\"tp-hint\\">Uploading photo "+(done+1)+" of "+total+"\\u2026</span>";},'
     + 'function(ids){cfDoneUi(ids);},'
     + 'function(msg){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+msg+"</span>";},note);}'
@@ -940,7 +964,7 @@ function listTeamIssues_(teamName) {
       continue;
     }
     const pending = cCompletedAt >= 0 && v[i][cCompletedAt] ? true : false;
-    const color = parseColor_(v[i][cStatus]);
+    const color = parseColor_(statusFromRow_(v[i], H));
     let deadline = null, overdue = false;
     if (color && color !== 'purple') {
       const rd = new Date(v[i][cTs]);
@@ -998,7 +1022,7 @@ function listAllIssues_() {
       continue;
     }
     const pending = cCompletedAt >= 0 && v[i][cCompletedAt] ? true : false;
-    const color = parseColor_(v[i][cStatus]);
+    const color = parseColor_(statusFromRow_(v[i], H));
     let deadline = null, overdue = false;
     if (color && color !== 'purple') {
       const rd = new Date(v[i][cTs]);

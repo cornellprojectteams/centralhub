@@ -312,6 +312,13 @@ function submitIssueCompletion(token, dataUrl, filename, append, note) {
   }
   loc.sh.getRange(loc.row, loc.col(CONFIG.completedAtHeader)).setValue(new Date());
   loc.sh.getRange(loc.row, loc.col(CONFIG.sentBackHeader)).setValue('');   // clear any prior send-back reason
+  // Operations Team mail goes to an admin. Closing it from that email finishes
+  // the item. Other teams stay pending until an admin approves.
+  var teamName = String(loc.sh.getRange(loc.row, loc.col(CONFIG.headers.team)).getValue() || '');
+  if (icIsOpsTeam_(teamName)) {
+    loc.sh.getRange(loc.row, loc.col(CONFIG.addressedHeader)).setValue(new Date());
+    return { ok: true, photoId: id, status: 'Completed' };
+  }
   return { ok: true, photoId: id, status: 'Pending' };
 }
 
