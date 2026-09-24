@@ -173,6 +173,87 @@ function sendNotification_(data, token) {
   return { sent: true };
 }
 
+// Sent-back notice. Same recipients as the assignment email. The completion
+// photo (the after photo) is embedded in the letter.
+function sendSentBack_(data, token, reason) {
+  const team = data.team || 'Unknown / unsure';
+  const rec = recipientsFor_(team);
+  const issue = data.issueType ? phrase_(data.issueType) : '';
+  const subject = 'Sent back — ' + team + (issue ? ': ' + issue : '');
+  const blobs = photoBlobs_(data.completionPhoto);
+  const cids = blobs.map(function (_, i) { return 'afterPhoto' + i; });
+  const inlineImages = {};
+  cids.forEach(function (cid, i) { inlineImages[cid] = blobs[i]; });
+  const opts = {
+    htmlBody: buildSentBack_(data, token, reason, cids),
+    name: 'Engineering Student Project Teams',
+    cc: rec.cc.join(','),
+    replyTo: data.email || CONFIG.fallbackEmail,
+  };
+  if (CONFIG.sender) opts.from = CONFIG.sender;
+  if (!opts.cc) delete opts.cc;
+  // Same pattern as the assignment email: inline photo only. If that throws,
+  // send the letter with a Drive link so the notice still goes out.
+  try {
+    if (cids.length) opts.inlineImages = inlineImages;
+    GmailApp.sendEmail(rec.to.join(','), subject, '', opts);
+  } catch (err) {
+    Logger.log('Send-back with photo failed, retrying without it: ' + err);
+    delete opts.inlineImages;
+    delete opts.from;
+    opts.htmlBody = buildSentBack_(data, token, reason, []);
+    GmailApp.sendEmail(rec.to.join(','), subject, '', opts);
+  }
+  Logger.log('Sent back "' + team + '" to: ' + rec.to.join(',') + ' | photos: ' + cids.length);
+  return { sent: true };
+}
+
+function photoBlobs_(cell) {
+  const blobs = [];
+  extractFileIds_(cell).forEach(function (id, i) {
+    try {
+      const file = DriveApp.getFileById(id);
+      try { file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (err) {}
+      const blob = file.getBlob();
+      const type = String(blob.getContentType() || '');
+      if (type.indexOf('image/') !== 0) return;
+      blob.setName('after-' + (i + 1) + '.jpg');
+      blobs.push(blob);
+    } catch (err) { Logger.log('Photo not attached ' + id + ': ' + err); }
+  });
+  return blobs;
+}
+
+function buildSentBack_(data, token, reason, cids) {
+  const team = data.team || '';
+  const issue = data.issueType ? phrase_(data.issueType) : '';
+  const L = function (html) { return '<p style="margin:12px 0 0;color:#1a1a1a;font:15px/1.7 Georgia,serif">' + html + '</p>'; };
+  let out = '<div style="max-width:600px;margin:0;padding:8px 6px;font-family:Georgia,serif;color:#1a1a1a">';
+  out += '<p style="margin:0;color:#1a1a1a;font:15px/1.7 Georgia,serif">' + (team ? 'Dear ' + escapeHtml_(team) + ' team,' : 'Hello,') + '</p>';
+  out += L('Your completion' + (issue ? ' of the ' + escapeHtml_(lcFirst_(issue)) + ' item' : '') + ' was sent back, so this is open again.');
+  if (data.details) out += L('When this was posted, the reporter noted: &ldquo;' + escapeHtml_(data.details) + '&rdquo;');
+  const why = String(reason || '').trim();
+  if (why) out += L('<b>Reason:</b> ' + escapeHtml_(why));
+  if (data.completionNote) out += L('Your note: &ldquo;' + escapeHtml_(data.completionNote) + '&rdquo;');
+  out += L('Please make the correction, then mark it complete again.');
+  out += addressedButton_(token, team);
+  out += L('With thanks,<br>Engineering Student Project Teams');
+  const ids = extractFileIds_(data.completionPhoto);
+  if (cids && cids.length) {
+    out += '<p style="margin:18px 0 6px;color:#777;font:13px Arial">The photo you submitted:</p>';
+    cids.forEach(function (cid) {
+      out += '<img src="cid:' + cid + '" width="240" style="border-radius:6px;margin:0 8px 8px 0">';
+    });
+  } else if (ids.length) {
+    out += '<p style="margin:18px 0 6px;color:#777;font:13px Arial">The photo you submitted:</p>';
+    ids.forEach(function (id) {
+      out += '<p style="margin:0 0 8px"><a href="https://drive.google.com/file/d/' + encodeURIComponent(id) + '/view">Open the after photo</a></p>';
+    });
+  }
+  out += '</div>';
+  return out;
+}
+
 function sendReminders() {
   const sh = ss_().getSheetByName(CONFIG.responsesSheet);
   const v = sh.getDataRange().getValues();
@@ -500,7 +581,7 @@ function portalStyles_() {
     + '.btn-skip svg{opacity:.85}'
     + '.btn-skip:hover{color:#7a5410;background:#f7edd2;border-color:#e2c882}'
     + '.btn-skip:active{background:#f0e4c4}'
-    + '.btn-row{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}'
+    + '.btn-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}'
     + '.stats{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}'
     + '.stat{flex:1 1 8rem;min-width:0;padding:16px 18px;background:#fff;border:1.5px solid #e7e7e3;border-radius:14px;box-shadow:0 2px 8px rgba(20,20,30,.06);position:relative;overflow:hidden}'
     + '.stat::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#8f1515,#b31b1b,#f0c050)}'
@@ -591,7 +672,7 @@ function portalStyles_() {
     + '.page-kicker{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#9a958c}'
     + '.page-title{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:30px;font-weight:800;letter-spacing:-.035em;line-height:1.05;margin-top:8px;color:#111}'
     + '.page-rule{width:46px;height:3px;background:linear-gradient(90deg,#8f1515,#b31b1b,#f0c050);margin-top:12px;border-radius:99px}'
-    + '@media(max-width:600px){.card-foot{flex-direction:column;align-items:stretch}.btn-row{width:100%;justify-content:stretch}.btn{flex:1;justify-content:center;white-space:normal}.search-wrap{flex:1 1 100%}.filters select{width:100%;flex-basis:100%}.stat-val{font-size:24px}.card-body{padding:15px 14px}.card-foot{padding:12px 14px}.swh{font-size:26px!important}}';
+    + '@media(max-width:600px){.card-foot{flex-direction:column;align-items:stretch}.card-foot>:first-child{margin-right:0}.btn-row{width:100%}.search-wrap{flex:1 1 100%}.filters select{width:100%;flex-basis:100%}.stat-val{font-size:24px}.card-body{padding:15px 14px}.card-foot{padding:12px 14px}.swh{font-size:26px!important}}';
 }
 
 // Fonts, fetched without blocking first paint: warm the connections up front, then load
@@ -655,7 +736,7 @@ function confirmPage_(id) {
       + '<script>function cfAsk(){var a=document.getElementById("act");a.innerHTML="<span class=\\"tp-hint\\" style=\\"margin-right:6px\\">Mark this complete with no photo?</span><button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"cfResolve()\\">Yes, mark complete</button><button type=\\"button\\" class=\\"btn btn-ghost\\" onclick=\\"cfCancel()\\">Cancel</button>";}'
       + 'function cfCancel(){document.getElementById("act").innerHTML="<button type=\\"button\\" class=\\"btn btn-primary\\" onclick=\\"cfAsk()\\">Mark complete</button>";}'
       + 'function cfResolve(){var a=document.getElementById("act");a.innerHTML="<span class=\\"tp-hint\\">Saving\\u2026</span>";'
-      + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Could not save")+"</span>";return;}try{tpConfetti();}catch(e){}a.style.display="none";var d=document.getElementById("done");d.style.display="block";d.innerHTML="\\u2713 Completed";}'
+      + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">"+((r&&r.error)||"Could not save")+"</span>";return;}try{tpConfetti();}catch(e){}a.style.display="none";var d=document.getElementById("done");d.style.display="block";d.innerHTML="\\u2713 Completed";'
       + '}).withFailureHandler(function(){a.innerHTML="<span class=\\"tp-hint\\" style=\\"color:#b31b1b\\">Could not save. Please retry.</span>";}).resolveIssueComplete(' + JSON.stringify(id) + ');}</script>';
     return swissShell_(tpStyles_() + opsInner + tpSharedJs_(), 'Space Status');
   }
@@ -678,7 +759,8 @@ function confirmPage_(id) {
     + sentBackBanner
     + '<div class="ic-reply" style="margin-top:18px">'
     +   '<label class="ic-reply-lbl" for="cf-note">Note <span class="tp-opt">optional</span></label>'
-    +   '<textarea id="cf-note" class="ic-reply-in" rows="2" placeholder="What you did, or anything the reviewer should know">' + escapeHtml_(info.completionNote || '') + '</textarea>'
+    +   '<textarea id="cf-note" class="ic-reply-in" rows="3" placeholder="What you did, or anything the reviewer should know">' + escapeHtml_(info.completionNote || '') + '</textarea>'
+    +   '<span class="ic-reply-help">This is sent with your completion. Leave it blank if the photo is enough.</span>'
     + '</div>'
     + '<div id="act" style="margin-top:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
     +   '<input type="file" accept="image/*" multiple id="cf-file" style="display:none" onchange="cfPick(this)">'
@@ -1126,8 +1208,8 @@ function icAllSectionsHtml_(data, admin) {
       : (isPending ? icPendingFoot_(rid, it.token) : icOpenFoot_(rid, it.token, it.photoOptional));
     const extraAdmin = admin
       ? ''
-      : '<span class="tp-admin btn-row" hidden><button type="button" class="btn btn-ghost" onclick="icEditOpen(\'' + rid + '\')">Edit</button>'
-        + '<span id="' + rid + '-delwrap"><button type="button" class="btn btn-ghost tp-del" onclick="icDelOpen(\'' + rid + '\',\'' + it.token + '\')">Delete</button></span></span>';
+      : '<span class="tp-admin act-tools" hidden><button type="button" class="btn btn-ghost" onclick="icEditOpen(\'' + rid + '\')">Edit</button>'
+        + '<span id="' + rid + '-delwrap"><button type="button" class="btn btn-danger" onclick="icDelOpen(\'' + rid + '\',\'' + it.token + '\')">Delete</button></span></span>';
     return '<details class="card" id="' + rid + '" data-bucket="' + bucket + '" data-tok="' + it.token + '" data-team="' + escapeHtml_(it.team) + '" data-over="' + (it.overdue ? '1' : '0') + '" data-state="' + (isPending ? 'pending' : 'open') + '" data-po="' + (it.photoOptional ? '1' : '0') + '" data-hay="' + escapeHtml_(hay) + '"' + icOpenAttr_(startOpen) + (bucket === 'open' ? '' : ' style="display:none"') + '>'
       + cardSum_(title, sub, '<span id="' + rid + '-pill">' + chip + '</span>',
           '<span class="card-accent" id="' + rid + '-accent" style="background:' + accent + '"></span>',
