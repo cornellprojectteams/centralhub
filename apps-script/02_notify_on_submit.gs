@@ -39,10 +39,32 @@ const CONFIG = {
     issueType: 'Issue Type',
     action: 'Required action',
     details: 'Details / comments',
-    status: 'Current Status',
+    // Form question title. Older rows and the sheet column may still say
+    // "Current Status". statusHeaderNames_() is what the email code reads.
+    status: 'Respond within',
     photo: 'Photo Upload',
   },
 };
+
+// Accepted titles for the response-time question, new name first.
+function statusHeaderNames_() { return ['Respond within', 'Current Status']; }
+
+// Index in an already-normalized header row, or -1. Does not create a column.
+function findHeader_(H, names) {
+  for (var i = 0; i < names.length; i++) {
+    var ix = H.indexOf(norm_(names[i]));
+    if (ix >= 0) return ix;
+  }
+  return -1;
+}
+
+function firstNamed_(get, names) {
+  for (var i = 0; i < names.length; i++) {
+    var v = get(names[i]);
+    if (v) return v;
+  }
+  return '';
+}
 
 const SLA_DAYS = { red: 0, orange: 3, yellow: 10, ivory: 21, purple: null };
 const COLOR_HEX = { red: '#b31b1b', orange: '#e08a1e', yellow: '#caa12a', ivory: '#b8a06a', purple: '#7c3aed' };
@@ -80,7 +102,7 @@ function readData_(get) {
     timestamp: get(h.timestamp) || new Date().toLocaleString(),
     email: get(h.email), netid: get(h.netid), team: get(h.team),
     issueType: get(h.issueType), action: get(h.action), details: get(h.details),
-    status: get(h.status), photo: get(h.photo),
+    status: firstNamed_(get, statusHeaderNames_()), photo: get(h.photo),
   };
 }
 
@@ -97,7 +119,10 @@ function sendNotification_(data, token) {
   const rec = recipientsFor_(team);
   const color = parseColor_(data.status);
   const sev = SEVERITY[color] || SEVERITY_DEFAULT;
-  const subject = sev.subject + ' - ' + team + (data.issueType ? ' (' + phrase_(data.issueType) + ')' : '');
+  const infoOnly = norm_(data.issueType) === 'informational';
+  const subject = infoOnly
+    ? 'For your awareness - ' + team
+    : sev.subject + ' - ' + team + (data.issueType ? ' (' + phrase_(data.issueType) + ')' : '');
   let inlineImages = {}, photoCid = '';
   if (data.photo) {
     const ids = extractFileIds_(data.photo);
@@ -130,7 +155,7 @@ function sendReminders() {
   if (v.length < 2) { Logger.log('No rows.'); return; }
   const H = v[0].map(norm_);
   const ci = function (name) { return H.indexOf(norm_(name)); };
-  const cTs = ci(CONFIG.headers.timestamp), cTeam = ci(CONFIG.headers.team), cStatus = ci(CONFIG.headers.status);
+  const cTs = ci(CONFIG.headers.timestamp), cTeam = ci(CONFIG.headers.team), cStatus = findHeader_(H, statusHeaderNames_());
   const cIssue = ci(CONFIG.headers.issueType), cAction = ci(CONFIG.headers.action), cDetails = ci(CONFIG.headers.details);
   const cEmail = ci(CONFIG.headers.email), cNotified = ci(CONFIG.notifiedHeader), cToken = ci(CONFIG.issueTokenHeader);
   const cAddr = ensureColumn_(sh, CONFIG.addressedHeader) - 1;
@@ -172,7 +197,9 @@ function sendReminders() {
     };
     const token = String(row[cToken]);
     const rec = recipientsFor_(data.team || 'Unknown / unsure');
-    const subject = 'Reminder - ' + (data.team || '') + ' space issue needs attention' + (data.issueType ? ' (' + phrase_(data.issueType) + ')' : '');
+    const subject = norm_(data.issueType) === 'informational'
+      ? 'Reminder - ' + (data.team || '') + ' note is still open'
+      : 'Reminder - ' + (data.team || '') + ' space issue needs attention' + (data.issueType ? ' (' + phrase_(data.issueType) + ')' : '');
     const opts = { htmlBody: buildReminder_(data, color, token, deadline), name: 'Engineering Student Project Teams', cc: rec.cc.join(','), replyTo: data.email || CONFIG.fallbackEmail };
     if (CONFIG.sender) opts.from = CONFIG.sender;
     GmailApp.sendEmail(rec.to.join(','), subject, '', opts);
@@ -291,11 +318,21 @@ function icEditForm_(rid, it, teams, issueTypes) {
     + '</div>';
 }
 
+// Current Status drives the email subject, the deadline, and reminders.
+// Older rows start with a color ("Red - Code Compliance..."). The form now
+// stores a timeframe only. Both wordings must map to the same SLA key.
+// Keep this in sync with parseColor_ in command-center/Code.gs.
 function parseColor_(status) {
-  if (!status) return '';
-  const m = String(status).trim().match(/^[A-Za-z]+/);
-  const c = m ? m[0].toLowerCase() : '';
-  return SLA_DAYS.hasOwnProperty(c) ? c : '';
+  const t = String(status || '').trim().toLowerCase().replace(/-/g, ' ').replace(/\s+/g, ' ');
+  if (!t) return '';
+  const word = t.match(/\b(red|orange|yellow|ivory|purple)\b/);
+  if (word) return word[1];
+  if (t.indexOf('same day') >= 0) return 'red';
+  if (t.indexOf('14 to 21') >= 0) return 'ivory';
+  if (t.indexOf('7 to 10') >= 0) return 'yellow';
+  if (t.indexOf('2 to 3') >= 0) return 'orange';
+  if (t.indexOf('when time allows') >= 0 || t.indexOf('as time permits') >= 0) return 'purple';
+  return '';
 }
 
 function deadlineDate_(color) {
@@ -337,14 +374,19 @@ function buildEmail_(data, color, photoCid, token) {
   const L = function (html) { return '<p style="margin:12px 0 0;color:#1a1a1a;font:15px/1.7 Georgia,serif">' + html + '</p>'; };
 
   let out = '<div style="max-width:600px;margin:0;padding:8px 6px;font-family:Georgia,serif;color:#1a1a1a">';
+  const infoOnly = norm_(data.issueType) === 'informational';
   out += '<p style="margin:0;color:#1a1a1a;font:15px/1.7 Georgia,serif">' + (team ? 'Dear ' + escapeHtml_(team) + ' team,' : 'Hello,') + '</p>';
-  out += L(escapeHtml_(sev.open));
-  let pb = '';
-  if (issue) pb += 'The concern relates to ' + escapeHtml_(lcFirst_(issue));
-  if (action) pb += (pb ? ', and we ask that you ' : 'We ask that you ') + escapeHtml_(lcFirst_(action));
-  if (pb) out += L(pb + '.');
+  if (infoOnly) {
+    out += L('This is for your awareness. No action is requested.');
+  } else {
+    out += L(escapeHtml_(sev.open));
+    let pb = '';
+    if (issue) pb += 'The concern relates to ' + escapeHtml_(lcFirst_(issue));
+    if (action) pb += (pb ? ', and we ask that you ' : 'We ask that you ') + escapeHtml_(lcFirst_(action));
+    if (pb) out += L(pb + '.');
+  }
   if (data.details) out += L('The reporter noted: &ldquo;' + escapeHtml_(data.details) + '&rdquo;');
-  out += L(escapeHtml_(sev.ask) + '.' + (dl ? ' The deadline is <b>' + escapeHtml_(fmtDate_(dl)) + '</b>.' : ''));
+  if (!infoOnly) out += L(escapeHtml_(sev.ask) + '.' + (dl ? ' The deadline is <b>' + escapeHtml_(fmtDate_(dl)) + '</b>.' : ''));
   if (typeof icIsOpsTeam_ === 'function' && icIsOpsTeam_(team)) {
     out += L('Tap <b>Mark complete</b> to mark it done. No photo is needed.');
   }
@@ -364,15 +406,22 @@ function buildReminder_(data, color, token, deadline) {
   let out = '<div style="max-width:600px;margin:0;padding:8px 6px;font-family:Georgia,serif;color:#1a1a1a">';
   out += '<p style="margin:0;color:#1a1a1a;font:15px/1.7 Georgia,serif">' + (team ? 'Dear ' + escapeHtml_(team) + ' team,' : 'Hello,') + '</p>';
   const reportedOn = data.timestamp ? fmtDate_(new Date(data.timestamp)) : '';
-  out += L('This is a follow-up on a space issue in your team\'s space'
-    + (reportedOn ? ', reported on <b>' + escapeHtml_(reportedOn) + '</b>,' : '')
-    + ' that has not yet been marked as addressed. It was due on <b>' + escapeHtml_(fmtDate_(deadline)) + '</b>.');
-  let pb = '';
-  if (issue) pb += 'The concern relates to ' + escapeHtml_(lcFirst_(issue));
-  if (action) pb += (pb ? ', and we ask that you ' : 'We ask that you ') + escapeHtml_(lcFirst_(action));
-  if (pb) out += L(pb + '.');
+  const infoOnly = norm_(data.issueType) === 'informational';
+  if (infoOnly) {
+    out += L('This is a follow-up on a note for your team'
+      + (reportedOn ? ', logged on <b>' + escapeHtml_(reportedOn) + '</b>' : '')
+      + '. No action was requested. It is still open.');
+  } else {
+    out += L('This is a follow-up on a space issue in your team\'s space'
+      + (reportedOn ? ', reported on <b>' + escapeHtml_(reportedOn) + '</b>,' : '')
+      + ' that has not yet been marked as addressed. It was due on <b>' + escapeHtml_(fmtDate_(deadline)) + '</b>.');
+    let pb = '';
+    if (issue) pb += 'The concern relates to ' + escapeHtml_(lcFirst_(issue));
+    if (action) pb += (pb ? ', and we ask that you ' : 'We ask that you ') + escapeHtml_(lcFirst_(action));
+    if (pb) out += L(pb + '.');
+  }
   if (data.details) out += L('The reporter noted: &ldquo;' + escapeHtml_(data.details) + '&rdquo;');
-  out += L('Please resolve it as soon as possible.');
+  if (!infoOnly) out += L('Please resolve it as soon as possible.');
   if (typeof icIsOpsTeam_ === 'function' && icIsOpsTeam_(team)) {
     out += L('Tap <b>Mark complete</b> to mark it done. No photo is needed.');
   }
@@ -589,7 +638,7 @@ function confirmPage_(id) {
 
   if (info.completedAt) return htmlPage_('Pending approval', 'This was already submitted on ' + escapeHtml_(fmtShort_(info.completedAt)) + '. It is waiting for an admin to review.');
 
-  const photoOptional = icPhotoOptional_(info.action);
+  const photoOptional = icPhotoOptional_(info.action, info.issueType);
   const sentBackBanner = info.sentBackReason
     ? '<div style="margin-top:14px;font:600 14px/1.6 Arial,sans-serif;color:#8a4b00;background:#fdf2df;border:1px solid #f4dfb0;border-radius:10px;padding:11px 14px"><b>Sent back:</b> ' + escapeHtml_(info.sentBackReason) + '</div>'
     : '';
@@ -867,7 +916,7 @@ function listTeamIssues_(teamName) {
   const v = sh.getDataRange().getValues();
   const H = v[0].map(norm_);
   const ci = function (n) { return H.indexOf(norm_(n)); };
-  const cTeam = ci(CONFIG.headers.team), cStatus = ci(CONFIG.headers.status), cIssue = ci(CONFIG.headers.issueType),
+  const cTeam = ci(CONFIG.headers.team), cStatus = findHeader_(H, statusHeaderNames_()), cIssue = ci(CONFIG.headers.issueType),
         cAction = ci(CONFIG.headers.action), cDetails = ci(CONFIG.headers.details), cTs = ci(CONFIG.headers.timestamp),
         cTok = ci(CONFIG.issueTokenHeader), cAddr = ci(CONFIG.addressedHeader), cPhoto = ci(CONFIG.headers.photo),
         cCompletedAt = ci(CONFIG.completedAtHeader), cCompletionPhoto = ci(CONFIG.completionPhotoHeader),
@@ -902,7 +951,7 @@ function listTeamIssues_(teamName) {
       token: String(v[i][cTok]),
       issueType: cIssue >= 0 ? String(v[i][cIssue]).trim() : '',
       action: cAction >= 0 ? String(v[i][cAction]).trim() : '',
-      photoOptional: icPhotoOptional_(cAction >= 0 ? v[i][cAction] : ''),
+      photoOptional: icPhotoOptional_(cAction >= 0 ? v[i][cAction] : '', cIssue >= 0 ? v[i][cIssue] : ''),
       details: cDetails >= 0 ? String(v[i][cDetails]).trim() : '',
       photos: cPhoto >= 0 ? extractFileIds_(v[i][cPhoto]) : [],
       color: color, deadline: deadline, overdue: overdue,
@@ -925,7 +974,7 @@ function listAllIssues_() {
   const v = sh.getDataRange().getValues();
   const H = v[0].map(norm_);
   const ci = function (n) { return H.indexOf(norm_(n)); };
-  const cTeam = ci(CONFIG.headers.team), cStatus = ci(CONFIG.headers.status), cIssue = ci(CONFIG.headers.issueType),
+  const cTeam = ci(CONFIG.headers.team), cStatus = findHeader_(H, statusHeaderNames_()), cIssue = ci(CONFIG.headers.issueType),
         cAction = ci(CONFIG.headers.action), cDetails = ci(CONFIG.headers.details), cTs = ci(CONFIG.headers.timestamp),
         cTok = ci(CONFIG.issueTokenHeader), cAddr = ci(CONFIG.addressedHeader), cPhoto = ci(CONFIG.headers.photo),
         cCompletedAt = ci(CONFIG.completedAtHeader), cCompletionPhoto = ci(CONFIG.completionPhotoHeader),
@@ -961,7 +1010,7 @@ function listAllIssues_() {
       token: String(v[i][cTok]),
       issueType: cIssue >= 0 ? String(v[i][cIssue]).trim() : '',
       action: cAction >= 0 ? String(v[i][cAction]).trim() : '',
-      photoOptional: icPhotoOptional_(cAction >= 0 ? v[i][cAction] : ''),
+      photoOptional: icPhotoOptional_(cAction >= 0 ? v[i][cAction] : '', cIssue >= 0 ? v[i][cIssue] : ''),
       details: cDetails >= 0 ? String(v[i][cDetails]).trim() : '',
       photos: cPhoto >= 0 ? extractFileIds_(v[i][cPhoto]) : [],
       color: color, deadline: deadline, overdue: overdue,

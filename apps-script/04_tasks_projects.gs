@@ -244,10 +244,12 @@ function icLocate_(token) {
   return null;
 }
 
-// Which Required-action types can be finished without a photo (they usually have no
-// visible before/after): informational notices, facilities work orders, unsafe-
-// practice corrections, and "Other". Everything else needs evidence.
-function icPhotoOptional_(action) {
+// A photo is required except for the Informational issue type (no work requested)
+// and for older rows whose Required action was already photo-optional: informational
+// notices, facilities work orders, unsafe-practice corrections, and "Other".
+function icPhotoOptional_(action, issueType) {
+  var t = norm_(issueType);
+  if (t === 'informational') return true;
   var a = norm_(action);
   if (!a) return false;
   return a === 'other'
@@ -289,7 +291,7 @@ function submitIssueCompletion(token, dataUrl, filename, append, note) {
   if (loc.addressed) return { ok: false, error: 'This was already approved as complete.' };
   var photoCell = loc.sh.getRange(loc.row, loc.col(CONFIG.completionPhotoHeader));
   var prior = append ? String(photoCell.getValue() || '').trim() : '';
-  if (!dataUrl && !prior && !icPhotoOptional_(loc.sh.getRange(loc.row, loc.col(CONFIG.headers.action)).getValue())) {
+  if (!dataUrl && !prior && !icPhotoOptional_(loc.sh.getRange(loc.row, loc.col(CONFIG.headers.action)).getValue(), loc.sh.getRange(loc.row, loc.col(CONFIG.headers.issueType)).getValue())) {
     return { ok: false, error: 'A photo is required to complete this task.' };
   }
   var id = '';
@@ -337,7 +339,15 @@ function updateIssueFields(token, team, issueType, details) {
       issueType: iss,
       action: cell(CONFIG.headers.action),
       details: det,
-      status: cell(CONFIG.headers.status),
+      status: (function () {
+        var names = (typeof statusHeaderNames_ === 'function') ? statusHeaderNames_() : ['Respond within', 'Current Status'];
+        var headers = loc.sh.getRange(1, 1, 1, loc.sh.getLastColumn()).getValues()[0].map(norm_);
+        for (var i = 0; i < names.length; i++) {
+          var ix = headers.indexOf(norm_(names[i]));
+          if (ix >= 0) return String(loc.sh.getRange(loc.row, ix + 1).getValue() || '').trim();
+        }
+        return '';
+      })(),
       photo: cell(CONFIG.headers.photo)
     };
     try {

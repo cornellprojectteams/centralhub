@@ -121,7 +121,7 @@
     <section class="doc-section" id="components">
       <h2><span class="doc-num">02</span>Components</h2>
       <ul>
-        <li><strong><a href="https://docs.google.com/forms/d/1bVzxR-lGNDtll6wh7wsdZGsVuqMkaRavVcGxykLHMFw/edit" target="_blank" rel="noopener">The form.</a></strong> Collects team, issue type, required action, severity, details, and a photo. The team dropdown must match the Team column in Team Contacts.</li>
+        <li><strong><a href="https://docs.google.com/forms/d/1bVzxR-lGNDtll6wh7wsdZGsVuqMkaRavVcGxykLHMFw/edit" target="_blank" rel="noopener">The form.</a></strong> Collects team, one issue type, how soon a response is needed, details, and a photo. The team dropdown must match the Team column in Team Contacts. Do not rename the question titles; the script finds columns by those names.</li>
         <li><strong><a href="https://docs.google.com/spreadsheets/d/1mZrlnA-GiVKB4_Um21aMH9jsSkf6TUJhauDWivnf7-I/edit#gid=0" target="_blank" rel="noopener">Form Responses tab.</a></strong> One row per submission. The script manages four columns: <code>Notified at</code>, <code>Issue token</code>, <code>Addressed at</code>, <code>Last reminder</code>. Do not edit them by hand.</li>
         <li><strong><a href="https://docs.google.com/spreadsheets/d/1mZrlnA-GiVKB4_Um21aMH9jsSkf6TUJhauDWivnf7-I/edit" target="_blank" rel="noopener">Team Contacts tab.</a></strong> Liaison, team general email, safety lead, extra CC, and a team token per row. The script reads it live; edits apply to the next email.</li>
         <li><strong><a href="https://script.google.com/d/1DpKw0dXIQ5rH6_BQfIQnXpmTbTcPmfH3wq2Dzc6pJUA7lrmeFG7hh5P4/edit" target="_blank" rel="noopener">The script.</a></strong> A standalone Apps Script project. One file: <code>02_notify_on_submit.gs</code>. A copy is kept in this repo under <code>apps-script/</code>.</li>
@@ -149,17 +149,17 @@
 
     <section class="doc-section" id="severity">
       <h2><span class="doc-num">04</span>Severity and deadlines</h2>
-      <p>Severity comes from the Current Status field. Teams never see the color names.</p>
+      <p>The form question is <strong>Respond within</strong>. Older rows, and the sheet column until the question is renamed, still say Current Status. <code>parseColor_</code> maps both the old color labels and the timeframe choices to the same window. Teams never see the color names.</p>
       <table class="sla">
         <thead>
-          <tr><th>Severity</th><th>Window</th><th>What the team reads</th></tr>
+          <tr><th>Form choice</th><th>Window</th><th>What the team reads</th></tr>
         </thead>
         <tbody>
-          <tr><td><span class="dot" style="background:#b31b1b"></span>Red</td><td>Same day</td><td>Urgent: same-day action needed</td></tr>
-          <tr><td><span class="dot" style="background:#e08a1e"></span>Orange</td><td>3 days</td><td>Action needed within 2 to 3 days</td></tr>
-          <tr><td><span class="dot" style="background:#caa12a"></span>Yellow</td><td>10 days</td><td>Please address within 7 to 10 days</td></tr>
-          <tr><td><span class="dot" style="background:#b8a06a"></span>Ivory</td><td>21 days</td><td>For attention within 14 to 21 days</td></tr>
-          <tr><td><span class="dot" style="background:#7c3aed"></span>Purple</td><td>None</td><td>Improvement opportunity. No deadline, no reminders.</td></tr>
+          <tr><td>Same day</td><td>Same day</td><td>Urgent: same-day action needed</td></tr>
+          <tr><td>2 to 3 business days</td><td>3 days</td><td>Action needed within 2 to 3 days</td></tr>
+          <tr><td>7 to 10 days</td><td>10 days</td><td>Please address within 7 to 10 days</td></tr>
+          <tr><td>14 to 21 days</td><td>21 days</td><td>For attention within 14 to 21 days</td></tr>
+          <tr><td>When time allows</td><td>None</td><td>Improvement opportunity. No deadline, no reminders.</td></tr>
         </tbody>
       </table>
       <p>Windows are set in <code>SLA_DAYS</code>, wording in <code>SEVERITY</code>. Both are at the top of the script:</p>
@@ -218,7 +218,7 @@
       </p>
       <ul>
         <li><strong>Complete with a photo.</strong> On a team page or the confirm page, the doer adds a photo of the finished work, and can add an optional note about what they did. The item moves to <em>Pending approval</em> (it stamps <code>Completed at</code> and reminders pause). It is not closed yet. The note is stored in <code>Completion note</code> and shown to the reviewer.</li>
-        <li><strong>Photo-optional tasks.</strong> A photo is required for most tasks, but optional for four Required-action types: informational notices, facilities work orders, unsafe-practice corrections, and &ldquo;Other&rdquo;. Those show a one-tap <em>Mark done</em>. The server enforces this, so a photo cannot be skipped where it is required.</li>
+        <li><strong>Photo-optional tasks.</strong> A photo is required for most tasks. The <em>Informational</em> issue type (no work requested) shows a one-tap <em>Mark done</em>. Older rows whose Required action was informational, a facilities work order, an unsafe-practice correction, or &ldquo;Other&rdquo; stay photo-optional too. The server enforces this, so a photo cannot be skipped where it is required.</li>
         <li><strong>Approve or send back.</strong> In the Open issues dashboard (Admin hub) each pending item shows Approve and Send back. Approve stamps <code>Addressed at</code> = Completed. Send back reopens the item with an optional reason shown to the doer, and keeps the submitted photo and note. Open items do not have Send back.</li>
         <li><strong>Edit in place.</strong> Admins can edit an item without leaving the dashboard: team, issue type, and details on a space issue; title, scope, and assignees on a project. Team and issue type are picklists so values stay valid; Required action is fixed at submission and not editable.</li>
         <li><strong>Delete.</strong> Admins can permanently remove a task or project from the dashboard, behind a confirm step. It deletes the row.</li>

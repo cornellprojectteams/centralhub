@@ -128,7 +128,7 @@ function space_() {
   const v = sh.getDataRange().getValues();
   const H = v[0].map(norm_);
   const col = function (name) { return H.indexOf(norm_(name)); };
-  const cTeam = col('Responsible Team'), cStatus = col('Current Status'), cIssue = col('Issue Type'),
+  const cTeam = col('Responsible Team'), cStatus = col('Respond within') >= 0 ? col('Respond within') : col('Current Status'), cIssue = col('Issue Type'),
         cTs = col('Timestamp'), cTok = col('Issue token'), cAddr = col('Addressed at');
 
   const today = startOfDay_(new Date());
@@ -906,14 +906,18 @@ function addDays_(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); ret
 function dayKey_(d) { return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd'); }
 function fmtDay_(d) { return Utilities.formatDate(d, Session.getScriptTimeZone(), 'MMM d'); }
 
-// "Red (same-day)" / "🟥 Red" / "orange" -> canonical severity key.
+// "Red - Code Compliance..." (older rows) or a timeframe ("7 to 10 days").
+// Whole-word colors only: "Required" contains "red" and must not match.
+// Keep this in sync with parseColor_ in 02_notify_on_submit.gs.
 function parseColor_(s) {
-  const t = norm_(s);
+  const t = norm_(s).replace(/-/g, ' ').replace(/\s+/g, ' ');
   if (!t) return '';
-  if (t.indexOf('red') >= 0) return 'red';
-  if (t.indexOf('orange') >= 0) return 'orange';
-  if (t.indexOf('yellow') >= 0) return 'yellow';
-  if (t.indexOf('ivory') >= 0) return 'ivory';
-  if (t.indexOf('purple') >= 0) return 'purple';
+  const word = t.match(/\b(red|orange|yellow|ivory|purple)\b/);
+  if (word) return word[1];
+  if (t.indexOf('same day') >= 0) return 'red';
+  if (t.indexOf('14 to 21') >= 0) return 'ivory';
+  if (t.indexOf('7 to 10') >= 0) return 'yellow';
+  if (t.indexOf('2 to 3') >= 0) return 'orange';
+  if (t.indexOf('when time allows') >= 0 || t.indexOf('as time permits') >= 0) return 'purple';
   return '';
 }
