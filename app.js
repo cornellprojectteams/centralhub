@@ -863,18 +863,6 @@
     });
   }
 
-  // Registry links (Equipment / Inventory tables, item detail, labels) point at the
-  // web app. On the unlisted admin page, data-admin adds &admin=1 so the page opens
-  // in edit mode (add / edit / delete, still passcode-gated server-side).
-  document.querySelectorAll('a[data-registry]').forEach(a => {
-    if (!SPACE_STATUS_URL) return;
-    const sep = SPACE_STATUS_URL.indexOf('?') >= 0 ? '&' : '?';
-    let href = SPACE_STATUS_URL + sep + 'registry=' + encodeURIComponent(a.dataset.registry);
-    if (a.dataset.which) href += '&which=' + encodeURIComponent(a.dataset.which);
-    if (a.hasAttribute('data-admin')) href += '&admin=1';
-    a.href = href;
-  });
-
   // Module links (Projects, Proposals, …) point at the same web app via ?module=.
   // data-admin links (only on the unlisted admin page) add &admin=1, which unlocks
   // the admin controls without a passcode. Regular staff links never carry it.
@@ -886,6 +874,41 @@
       + (a.hasAttribute('data-admin') ? '&admin=1' : '')
       + '&back=' + encodeURIComponent(location.origin + location.pathname);
   });
+
+  // Tool & equipment inventory (inventory.html, backed by the Google Sheet through its
+  // web app, apps-script/08_inventory.gs). Settings come from window.INVENTORY in config.js.
+  //   data-inventory="app | labels | poster | sheet | script"
+  // Until apiUrl is set, admin buttons show as "not set up yet", and staff blocks marked
+  // data-inventory-hide are removed, so staff never see a dead link and search never
+  // counts one. The app button itself is wired to its slide-over further down.
+  const INV = window.INVENTORY || {};
+  const INV_API = String(INV.apiUrl || '').trim();
+  (function wireInventory() {
+    const sheet = String(INV.sheetUrl || '').replace(/#.*$/, '');
+    const targets = {
+      app: INV_API ? 'inventory.html' : '',
+      labels: INV_API ? 'inventory.html?labels=1' : '',
+      poster: INV_API ? 'inventory-poster.html' : '',
+      sheet: sheet,
+      script: sheet,
+    };
+    const explained = new Set();   // say how to set it up once per section, not on every button
+    document.querySelectorAll('[data-inventory]').forEach(el => {
+      const url = targets[el.dataset.inventory];
+      if (url) { if (el.tagName === 'A') el.href = url; return; }
+      const gone = el.closest('[data-inventory-hide]') || el.closest('.action-note');
+      if (gone) { gone.remove(); return; }
+      el.removeAttribute('href');
+      el.setAttribute('aria-disabled', 'true');
+      el.classList.add('is-pending');
+      const block = el.closest('.admin-block') || document.body;
+      const sub = el.querySelector('.action-sub');
+      if (sub && !explained.has(block)) {
+        explained.add(block);
+        sub.textContent = 'Not connected yet. Deploy the inventory sheet\u2019s script as a web app and put its URL in config.js as apiUrl (see the README).';
+      }
+    });
+  })();
 
   // "New" flags expire on their own: set data-new-until="YYYY-MM-DD" on a tool and its
   // badge (and gold sheen) show until that date passes, so nobody has to remember to
@@ -1219,6 +1242,22 @@
     ],
   });
 
+  // Tool inventory. Same origin, so the panel opens fast; the admin page opens it in
+  // admin mode (add/edit items, maintenance, counts, test data).
+  if (INV_API && document.getElementById('inventory-open')) {
+    const invAdmin = document.getElementById('admin') ? 'admin=1' : '';
+    createSlideOver({
+      panelId: 'inventory-panel',
+      openBtnId: 'inventory-open',
+      url: 'inventory.html?embed=1' + (invAdmin ? '&' + invAdmin : ''),
+      fullUrl: 'inventory.html' + (invAdmin ? '?' + invAdmin : ''),
+      steps: [
+        ['Opening the inventory\u2026', 'Fetching tools and who has them', 2500],
+        ['Almost ready\u2026', 'The inventory sheet can take a few seconds to wake up', 7000],
+      ],
+    });
+  }
+
   window.addEventListener('message', ev => {
     const d = ev.data;
     if (!d || d.source !== 'ops-hub') return;
@@ -1239,23 +1278,6 @@
       closeIssuesPanel();
       if (proposalsSlide) proposalsSlide.open();
     }
-  });
-
-  // Inventory catalog. Staff and admin both carry data-admin so stock counts can be
-  // updated from the hub (same as the old new-tab link). embed=1 drops the Apps Script
-  // chrome so the panel header is the only frame.
-  const invOpen = document.getElementById('inventory-open');
-  const invAdmin = (invOpen && invOpen.hasAttribute('data-admin')) || document.getElementById('admin') ? '&admin=1' : '';
-  const invBase = SPACE_STATUS_URL ? SPACE_STATUS_URL + sep + 'registry=inventory' : '';
-  createSlideOver({
-    panelId: 'inventory-panel',
-    openBtnId: 'inventory-open',
-    url: invBase ? invBase + '&embed=1' + invAdmin : '',
-    fullUrl: invBase ? invBase + invAdmin : '',
-    steps: [
-      ['Loading the shop catalog…', 'This can take a few seconds on first open', 2800],
-      ['Almost ready…', 'Fetching items and stock counts', 7000],
-    ],
   });
 
   // Scroll-spy: highlight the sidebar link for the section currently in view.

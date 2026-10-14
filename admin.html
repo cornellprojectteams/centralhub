@@ -123,17 +123,25 @@
           </div>
         </section>
 
-        <section class="category admin-block" id="inventory" data-keywords="tool inventory purchasing locks mill room equipment facility registry assets location ownership reorder stock consumables cmms maintenance dashboard action items">
+        <section class="category admin-block" id="inventory" data-keywords="tool equipment inventory checkout check out return borrow loan overdue who has what repair maintenance consumables low stock qr labels poster sheet test data">
           <h3 class="admin-label">Equipment &amp; inventory</h3>
           <div class="action-group">
-            <a class="action" data-module="registry-dash" href="#" target="_blank" rel="noopener" data-keywords="equipment inventory dashboard cmms stock low out of stock maintenance due action items metrics overview out on loan">
-              <span class="action-title">Dashboard</span>
-              <span class="action-sub">Stock health, maintenance due, loans, and open action items at a glance.</span>
-            </a>
-            <button type="button" class="action action-dashboard" id="inventory-open" data-admin data-keywords="catalog amazon browse add edit delete restock check out labels scan equipment inventory stock consumables parts photos categories owner">
-              <span class="action-title">Catalog</span>
-              <span class="action-sub">Browse, add, edit, restock, and check out equipment and inventory, like an online shop.</span>
+            <button type="button" class="action action-dashboard" id="inventory-open" data-inventory="app" data-keywords="inventory app check out return add edit items maintenance stock counts test data overdue who has what">
+              <span class="action-title">Inventory</span>
+              <span class="action-sub">Check tools out and back in, add or edit items, log maintenance, update stock counts, and load or clear test data.</span>
             </button>
+            <a class="action" data-inventory="labels" href="#" target="_blank" rel="noopener" data-keywords="qr labels print stickers scan tools">
+              <span class="action-title">Print item labels</span>
+              <span class="action-sub">A QR label for every tool. Scanning one opens that item, ready to check out or return.</span>
+            </a>
+            <a class="action" data-inventory="poster" href="#" target="_blank" rel="noopener" data-keywords="qr code poster print shop wall scan checkout sign">
+              <span class="action-title">Shop wall QR poster</span>
+              <span class="action-sub">Print it and put it up in the shop. Scanning it opens the inventory.</span>
+            </a>
+            <a class="action" data-inventory="sheet" href="#" target="_blank" rel="noopener" data-keywords="spreadsheet backend google sheet data bulk edit dashboard tab">
+              <span class="action-title">Inventory spreadsheet</span>
+              <span class="action-sub">The Google Sheet behind the app. For bulk edits and the Dashboard tab.</span>
+            </a>
           </div>
         </section>
 
@@ -205,7 +213,7 @@
           </div>
         </section>
 
-        <section class="category admin-block" id="scripts" data-keywords="scripts code apps script google gas editor deploy redeploy web app command center registry fabman fleet cleanup github repo source editing guide api reference maintain develop update">
+        <section class="category admin-block" id="scripts" data-keywords="scripts code apps script google gas editor deploy redeploy web app command center inventory fabman fleet cleanup github repo source editing guide api reference maintain develop update">
           <h3 class="admin-label">Scripts &amp; code</h3>
           <div class="action-group">
             <a class="action" href="https://script.google.com/home" target="_blank" rel="noopener" data-keywords="ops hub web app space status tasks projects dashboard files 02 04 exec deploy new version standalone">
@@ -216,9 +224,9 @@
               <span class="action-title">Command Center API</span>
               <span class="action-sub">Standalone project "Ops Command Center API" (Code.gs). Redeploy, then bump CACHE_VERSION.</span>
             </a>
-            <a class="action" href="https://docs.google.com/spreadsheets/d/1QZf3LbKOsuwsxeno3f5aDTACObMRXaRY1yX6_5Aj_lU/edit" target="_blank" rel="noopener" data-keywords="registry equipment inventory maintenance script 03 setup bound extensions apps script">
-              <span class="action-title">Registry script</span>
-              <span class="action-sub">Equipment &amp; inventory (file 03). Open the sheet, then Extensions, Apps Script.</span>
+            <a class="action" data-inventory="script" href="#" target="_blank" rel="noopener" data-keywords="inventory equipment checkout maintenance script 08 setup bound extensions apps script self-test">
+              <span class="action-title">Inventory script</span>
+              <span class="action-sub">Tool &amp; equipment inventory (file 08). Open the sheet, then Extensions, Apps Script.</span>
             </a>
             <a class="action" href="https://docs.google.com/spreadsheets/d/1lDAA4z1YexkjaABSPuXJyEXfSxN2QAsKWVk88TQCRLI/edit" target="_blank" rel="noopener" data-keywords="fabman members graduates lock delete script 05 bound extensions apps script actions">
               <span class="action-title">Fabman script</span>
@@ -356,8 +364,8 @@
         <div class="issues-panel-brand">
           <img src="assets/cornell-seal.svg" alt="" class="issues-panel-seal" aria-hidden="true">
           <div>
-            <p class="issues-panel-eyebrow">Ops registry</p>
-            <h2 class="issues-panel-title" id="inventory-panel-title">Catalog</h2>
+            <p class="issues-panel-eyebrow">Equipment</p>
+            <h2 class="issues-panel-title" id="inventory-panel-title">Inventory</h2>
           </div>
         </div>
         <div class="issues-panel-actions">
@@ -365,7 +373,7 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
             Open full page
           </a>
-          <button type="button" class="issues-panel-btn issues-panel-btn--close" data-panel-close aria-label="Close catalog">
+          <button type="button" class="issues-panel-btn issues-panel-btn--close" data-panel-close aria-label="Close inventory">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
           </button>
         </div>
@@ -373,18 +381,18 @@
       <div class="issues-embed-body is-loading" data-panel-body>
         <div class="issues-loading" role="status" aria-live="polite">
           <div class="issues-loading-mark" aria-hidden="true"></div>
-          <p class="issues-loading-text">Opening the shop catalog…</p>
-          <p class="issues-loading-hint">Fetching items and stock counts</p>
+          <p class="issues-loading-text">Opening the inventory…</p>
+          <p class="issues-loading-hint">Fetching tools and who has them</p>
           <div class="issues-loading-cards" aria-hidden="true">
             <div class="issues-skeleton-card"></div>
             <div class="issues-skeleton-card"></div>
             <div class="issues-skeleton-card issues-skeleton-card--short"></div>
           </div>
         </div>
-        <iframe data-panel-frame class="issues-frame" title="Inventory catalog"></iframe>
+        <iframe data-panel-frame class="issues-frame" title="Inventory"></iframe>
       </div>
       <p class="issues-fallback" data-panel-fallback hidden>
-        Could not load the catalog here.
+        Could not load the inventory here.
         <a class="issues-panel-btn issues-panel-btn--primary issues-panel-btn--inline" data-panel-fallback-link href="#" target="_blank" rel="noopener">Open in a new tab</a>
       </p>
     </div>

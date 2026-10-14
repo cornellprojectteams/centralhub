@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+  Tool & equipment inventory: the hub's app for the inventory Google Sheet.
+  The sheet is the database; its script (apps-script/08_inventory.gs) is the API,
+  reached JSONP-style at INVENTORY.apiUrl in config.js.
+    ?admin=1   admin view: add and edit items, photos, maintenance, counts, test data
+    ?embed=1   no header or footer, for the hub's slide-over panel
+    ?item=ID   open one item (what the printed QR labels link to)
+    ?labels=1  printable QR labels for every tool
+  Logic: inventory.js | Styles: styles.css (shell) + inventory.css (app)
+  Type: Barlow Semi Condensed for headings, tags and numbers; Inter for everything else.
+-->
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inventory | Project Teams Ops Hub</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" media="print" onload="this.media='all';this.onload=null">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap"></noscript>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="inventory.css">
+  <script>if (/[?&]embed=1\b/.test(location.search)) document.documentElement.classList.add('inv-embed');</script>
+  <script src="config.js"></script>
+</head>
+<body>
+
+<div class="app-shell">
+  <header class="app-header inv-chrome">
+    <div class="header-inner">
+      <a href="index.html" class="logo">
+        <img src="assets/cornell-seal.svg" alt="Cornell University" class="logo-seal">
+        <div class="logo-text-block">
+          <div class="logo-text">Project Teams Ops Hub</div>
+          <div class="logo-sub">Safety &amp; Operations</div>
+        </div>
+      </a>
+      <a class="inv-head-back" id="inv-head-back" href="index.html">&larr; Back to the hub</a>
+    </div>
+  </header>
+
+  <main class="inv-main" id="inv-app">
+    <noscript><p class="inv-setup">The inventory needs JavaScript turned on.</p></noscript>
+  </main>
+
+  <footer class="app-footer inv-chrome">
+    <div class="footer-bottom">
+      <span>&copy; 2026 Cornell University &middot; Student Project Team Program</span>
+      <span>Inventory data lives in the Project Teams Google Sheet.</span>
+    </div>
+  </footer>
+</div>
+
+<div class="inv-drawer" id="inv-drawer" hidden>
+  <div class="inv-drawer-backdrop" data-close></div>
+  <section class="inv-drawer-panel" role="dialog" aria-modal="true" aria-labelledby="inv-d-title" tabindex="-1">
+    <div id="inv-drawer-body"></div>
+  </section>
+</div>
+
+<div class="inv-toast" id="inv-toast" role="status" aria-live="polite" hidden></div>
+
+<script src="inventory.js"></script>
+</body>
+</html>

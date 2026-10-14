@@ -10,9 +10,6 @@
 
 const CONFIG = {
   spreadsheetId: '1mZrlnA-GiVKB4_Um21aMH9jsSkf6TUJhauDWivnf7-I',
-  // Equipment / Inventory registry lives in its OWN spreadsheet, not the space-issues one.
-  // Set this to your inventory spreadsheet id (this default is "Tools, purchasing & locks").
-  registrySpreadsheetId: '1QZf3LbKOsuwsxeno3f5aDTACObMRXaRY1yX6_5Aj_lU',
   // Fleet driver-cleanup tool (?tool=drivers). Runs on the reservation sheet.
   fleetSpreadsheetId: '1KwJLTkdhrQ0jD7-75p6IuhYvh3Fq0B13KAXf2Pcvk_M',
   fleetGradYearThrough: 0,   // remove this graduation year and earlier; 0 = current year.
@@ -547,12 +544,11 @@ function doGet(e) {
   if (p.module === 'proposals') return proposalsPage_(embed, admin, p.back);   // Honeybee-swarm improvement voting (07_proposals.gs); ?back= is the hub link for the back button
   if (p.module === 'projects') return projectsPage_(embed, admin);   // Multi-user projects (04_tasks_projects.gs)
   if (p.module === 'projects-dash') return projectsDashboardPage_(embed);   // Projects dashboard (04_tasks_projects.gs)
-  if (p.module === 'registry-dash') return registryDashboardPage_(embed);   // CMMS dashboard: equipment, inventory, maintenance, action items
+  // The old equipment registry was retired. Old links and printed QR labels land here
+  // instead of falling through to the ?id= handler below.
+  if (p.registry || p.module === 'registry-dash') return htmlPage_('Inventory has moved', 'The old equipment registry was retired. To borrow or return a tool, open Tool inventory on the Ops Hub, or scan the QR poster in the shop.');
   if (p.team) { const t = lookupTeamByToken_(p.team); return t ? teamPortal_(t, false) : htmlPage_('Invalid link', 'This team link is not recognized.'); }
   if (p.view === 'all') return allIssuesPage_(embed, admin);
-  if (p.registry === 'labels') return regLabelsPage_(String(p.which || 'equipment'));   // printable QR labels
-  if (p.registry === 'item') return regItemPage_(String(p.which || 'equipment'), String(p.id || ''), admin);   // single item (scan target)
-  if (p.registry) return registryPage_(String(p.registry), embed, admin);   // Equipment / Inventory tables (editable in admin mode)
   if (p.view) return teamPortal_(String(p.view), !(p.act === '1' || p.act === 'true'), p.embed === '1' || p.embed === 'true');   // ?view=<team> read-only; &act=1 markable; &embed=1 no top bar
   if (p.id) return confirmPage_(p.id);
   return pickerPage_();
@@ -1347,7 +1343,6 @@ function fillTeamTokens() {
 }
 
 function ss_() { return SpreadsheetApp.openById(CONFIG.spreadsheetId); }
-function registrySs_() { return SpreadsheetApp.openById(CONFIG.registrySpreadsheetId); }
 function newToken_() { return Utilities.getUuid().replace(/-/g, ''); }
 function norm_(s) { return String(s == null ? '' : s).trim().toLowerCase().replace(/\s+/g, ' '); }
 function lcFirst_(s) { return s ? s.charAt(0).toLowerCase() + s.slice(1) : s; }

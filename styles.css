@@ -2135,6 +2135,13 @@ body.issues-panel-open { overflow: hidden; }
   appearance: none;
 }
 
+/* Inventory links before config.js has the sheet and form (app.js adds .is-pending). */
+.action.is-pending { opacity: .55; cursor: not-allowed; filter: saturate(.6); }
+.action.is-pending::after,
+#inventory .action-dashboard.is-pending::after { display: none; }
+#admin .action.is-pending:hover,
+#staff .action.is-pending:hover { transform: none; box-shadow: none; }
+
 /* Featured dashboard opener, the hero CTA (Space admin, and the Staff panel openers).
    Admin keeps its per-category hue via --cat; staff falls back to the red palette. */
 

@@ -66,7 +66,7 @@ function tpIsFresh_(p) {
   return t > 0 && t >= Date.now() - TP.freshDays * 86400000;
 }
 
-// ---- One-time setup (mirrors setupRegistry). Safe to re-run. ----
+// ---- One-time setup. Safe to re-run. ----
 
 function setupTasksProjects() {
   var ss = ss_();

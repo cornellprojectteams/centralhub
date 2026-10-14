@@ -83,6 +83,10 @@
           <span class="action-title">Log your shift</span>
           <span class="action-sub">Experiential Learning Lab shift summary: hours, activity, and safety notes</span>
         </a>
+        <button type="button" class="action category action-dashboard" id="inventory-open" data-inventory="app" data-inventory-hide data-keywords="inventory tools equipment check out return borrow loan overdue who has what consumables stock">
+          <span class="action-title">Tool inventory</span>
+          <span class="action-sub">Find a tool, check it out, and bring it back. See what&rsquo;s out, who has it, and when it&rsquo;s due.</span>
+        </button>
       </div>
 
       <section class="category sched-section" id="schedule" data-keywords="schedule calendar shift hours who is working desk coverage fa25 monday tuesday wednesday thursday friday saturday sunday shop day week view refresh">
@@ -235,7 +239,7 @@
           <img src="assets/cornell-seal.svg" alt="" class="issues-panel-seal" aria-hidden="true">
           <div>
             <p class="issues-panel-eyebrow">Shop</p>
-            <h2 class="issues-panel-title" id="inventory-panel-title">Inventory</h2>
+            <h2 class="issues-panel-title" id="inventory-panel-title">Tool inventory</h2>
           </div>
         </div>
         <div class="issues-panel-actions">
@@ -251,18 +255,18 @@
       <div class="issues-embed-body is-loading" data-panel-body>
         <div class="issues-loading" role="status" aria-live="polite">
           <div class="issues-loading-mark" aria-hidden="true"></div>
-          <p class="issues-loading-text">Opening the shop catalog…</p>
-          <p class="issues-loading-hint">Fetching items and stock counts</p>
+          <p class="issues-loading-text">Opening the inventory…</p>
+          <p class="issues-loading-hint">Fetching tools and who has them</p>
           <div class="issues-loading-cards" aria-hidden="true">
             <div class="issues-skeleton-card"></div>
             <div class="issues-skeleton-card"></div>
             <div class="issues-skeleton-card issues-skeleton-card--short"></div>
           </div>
         </div>
-        <iframe data-panel-frame class="issues-frame" title="Inventory"></iframe>
+        <iframe data-panel-frame class="issues-frame" title="Tool inventory"></iframe>
       </div>
       <p class="issues-fallback" data-panel-fallback hidden>
-        Could not load inventory here.
+        Could not load the inventory here.
         <a class="issues-panel-btn issues-panel-btn--primary issues-panel-btn--inline" data-panel-fallback-link href="#" target="_blank" rel="noopener">Open in a new tab</a>
       </p>
     </div>
