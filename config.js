@@ -21,7 +21,7 @@ window.SCHEDULE_SHEET = {
 // (apps-script/08_inventory.gs).
 //   apiUrl  the web app's /exec URL (Deploy > New deployment > Web app). Until it is
 //           set, the hub shows the inventory as "not connected yet".
-//   appUrl  the public address of inventory.html; QR labels and the poster use it.
+//   appUrl  the public address of inventory.html; the QR labels use it.
 // The Inventory menu in the sheet (Show links and setup info) prints this block filled in.
 window.INVENTORY = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbxrxidgCHzJL9_bgX1Z_inNzwFGoIhilh8xczHmY6JIDYZZdUhei9AziOqj0yPQO9oXMQ/exec',
@@ -30,5 +30,4 @@ window.INVENTORY = {
   dashboardGid: '1087637400',
   masterGid: '0',
   maintenanceGid: '2133394607',
-  formUrl: 'https://forms.gle/Q2aKnKpLFVjx1My97',   // backup Google Form, in case the app is ever down
 };

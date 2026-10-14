@@ -5,10 +5,12 @@
  * The hub is the app. This spreadsheet is the database, and this script is both
  * its caretaker (tabs, formulas, Item IDs, self-test) and its web API.
  *
+ * Tools stay in the shops; nobody borrows them. The inventory records what there
+ * is, where it lives, what shape it is in, its maintenance, and supply counts.
+ *
  * Tabs it builds
  *   Dashboard         The same numbers the app shows, for anyone in the sheet.
  *   Inventory Master  One row per tool or piece of equipment, plus consumables.
- *   Checkout Log      Every check out and return (from the app or the backup form).
  *   Maintenance Log   Repairs, calibrations and inspections.
  *   Lists             Dropdown options (categories, locations, ...) and links.
  *   Latest            Hidden helper the formulas read. Leave it alone.
@@ -16,8 +18,8 @@
  * SET UP (once)
  *   1. In a new, empty Google Sheet: Extensions > Apps Script, replace the sample
  *      code with this file, Save, then run setupInventory and approve access
- *      (Sheets and Forms, plus Drive for item photos). It builds the tabs and a
- *      backup Google Form, and runs a self-test.
+ *      (Sheets, plus Drive for item photos). It builds the tabs and runs a
+ *      self-test.
  *   2. Deploy > New deployment > type Web app. Execute as: Me. Who has access:
  *      Anyone. Deploy, then copy the Web app URL (it ends in /exec) into the
  *      hub's config.js as INVENTORY.apiUrl. That connects the app to this sheet.
@@ -26,6 +28,13 @@
  *   Running setupInventory again is safe. It repairs formulas, dropdowns and
  *   formatting, and never deletes your rows. On a sheet made before teams
  *   existed it also moves the Team column next to Location.
+ *
+ * SHEETS MADE WHEN THE INVENTORY HAD CHECK OUTS
+ *   An earlier version tracked check outs and returns. Running setupInventory on
+ *   a sheet from then takes that out: the backup Google Form is unlinked and moved
+ *   to the Drive trash, the Checkout Log tab is deleted (or kept as "Old checkout
+ *   log" if it holds rows that are not test data), and the Current Holder and Due
+ *   Date columns go. Checkout Link becomes Item Link. Items and maintenance stay.
  *
  * PHOTOS AND TEAMS
  *   Admins add item photos in the app. They are saved in an "Inventory photos"
@@ -36,46 +45,34 @@
  *
  * TEST DATA
  *   Inventory menu > Add test data (or the button in the app's admin view) loads
- *   about 25 sample items with checkouts and maintenance. Everything it adds is
- *   tagged "[test data]"; Remove test data takes all of it back out.
+ *   about 25 sample items with maintenance. Everything it adds is tagged
+ *   "[test data]"; Remove test data takes all of it back out.
  *
  * Triggers installed by setup (all on this spreadsheet):
- *   onInventoryEdit    fills Item IDs, stamps times on hand-typed log rows,
- *                      keeps the backup form's item list in sync
- *   onInventoryChange  re-syncs that list after rows are deleted
- *   onCheckoutSubmit   copies "Condition on return" from the backup form
+ *   onInventoryEdit    fills Item IDs and Item Links, stamps times on hand-typed
+ *                      Maintenance Log rows
+ *   onInventoryChange  refreshes the app's copy after rows are deleted
  * =============================================================================
  */
 
 var INV = {
-  formTitle: 'Tool & Equipment Checkout',
   tabs: {
     dash: 'Dashboard',
     master: 'Inventory Master',
-    log: 'Checkout Log',
     maint: 'Maintenance Log',
     lists: 'Lists',
     calc: 'Latest'
   },
-  // Form question titles. They become the Checkout Log's column headers.
-  q: {
-    item: 'Item',
-    action: 'Action',
-    netid: 'NetID',
-    notes: 'Notes',
-    due: 'Due back',
-    cond: 'Condition on return'
-  },
-  checkOut: 'Check Out',
-  ret: 'Return',
+  inService: 'In service',    // Status of a tool that is not out of service
   conditions: ['Good', 'Fair', 'Needs Repair'],
   outOfService: ['Maintenance', 'Retired'],
   consumable: 'Consumable',   // formulas look for this category name
-  sep: ' · ',            // form choices read "PT-001 · DeWalt 20V drill"
-  noItems: '(No items yet)',
+  sep: ' · ',            // item choices read "PT-001 · DeWalt 20V drill"
   listRows: 10,               // rows shown per Dashboard list
-  // The hub's inventory page. Item QR labels and the Checkout Link column point here.
+  // The hub's inventory page. Item QR labels and the Item Link column point here.
   appUrl: 'https://cornellprojectteams.github.io/centralhub/inventory.html',
+  // Left over from when the inventory had check outs; setup removes them (retireBorrowing_).
+  old: { log: 'Checkout Log', keptLog: 'Old checkout log', holder: 'Current Holder', due: 'Due Date', link: 'Checkout Link' },
   testTag: '[test data]',     // marks everything Add test data creates
   shared: 'Shared',           // Team value for the program's own tools
   photoFolder: 'Inventory photos',
@@ -91,13 +88,11 @@ var MASTER = [
   { key: 'name', h: 'Item Name', w: 230 },
   { key: 'cat', h: 'Category', w: 115, note: 'Pick from the list. Add categories (and their ID prefix) on the Lists tab.' },
   { key: 'sub', h: 'Subcategory', w: 140 },
-  { key: 'loc', h: 'Location', w: 160, note: 'Where it lives when nobody has it out.' },
-  { key: 'team', h: 'Team', w: 150, note: 'The project team that owns it, or Shared for the program\'s own tools that any team can borrow. The list is on the Lists tab, column E.' },
-  { key: 'status', h: 'Status', w: 110, calc: true, note: 'Calculated. Available / Checked Out comes from the Checkout Log. Maintenance / Retired comes from Out of Service. Consumables show In Stock, Low Stock or Out of Stock.' },
-  { key: 'holder', h: 'Current Holder', w: 120, calc: true, note: 'Calculated: the NetID on the latest check out.' },
-  { key: 'due', h: 'Due Date', w: 105, calc: true, fmt: 'mmm d, yyyy', note: 'Calculated: the due date on the latest check out.' },
-  { key: 'cond', h: 'Condition', w: 110, note: 'Updates by itself when someone returns the item through the form. Set it back to Good after a repair.' },
-  { key: 'oos', h: 'Out of Service', w: 120, note: 'Maintenance or Retired takes the item out of circulation. Leave it blank while the item is in use.' },
+  { key: 'loc', h: 'Location', w: 160, note: 'Where it lives.' },
+  { key: 'team', h: 'Team', w: 150, note: 'The project team that owns it, or Shared for the program\'s own tools that any team can use. The list is on the Lists tab, column E.' },
+  { key: 'status', h: 'Status', w: 110, calc: true, note: 'Calculated. In service, unless Out of Service says Maintenance or Retired. Consumables show In Stock, Low Stock or Out of Stock.' },
+  { key: 'cond', h: 'Condition', w: 110, note: 'Good, Fair or Needs Repair. Set it back to Good after a repair.' },
+  { key: 'oos', h: 'Out of Service', w: 120, note: 'Maintenance or Retired takes the item out of service. Leave it blank while the item is in use.' },
   { key: 'serial', h: 'Serial / Asset Tag', w: 135 },
   { key: 'bought', h: 'Purchase Date', w: 110, fmt: 'mmm d, yyyy' },
   { key: 'qty', h: 'Current Qty', w: 95, fmt: '0', note: 'Consumables only.' },
@@ -105,7 +100,7 @@ var MASTER = [
   { key: 'nextMaint', h: 'Next Maintenance', w: 130, calc: true, fmt: 'mmm d, yyyy', note: 'Calculated: the latest Next Due for this item on the Maintenance Log.' },
   { key: 'notes', h: 'Notes', w: 230 },
   { key: 'photo', h: 'Photo URL', w: 150, note: 'Set by the app when an admin adds a photo (it is saved in the Inventory photos folder in Drive). You can also paste a link to a photo here.' },
-  { key: 'link', h: 'Checkout Link', w: 160, calc: true, note: 'Filled in by the script. Opens this item in the hub\'s inventory app, where it can be checked out or returned. The app prints QR labels from the same link.' }
+  { key: 'link', h: 'Item Link', alias: 'Checkout Link', w: 160, calc: true, note: 'Filled in by the script. Opens this item in the hub\'s inventory app. The app prints QR labels from the same link.' }
 ];
 
 var MAINT = [
@@ -142,23 +137,20 @@ var SEED = {
 // Dashboard layout. Each list block: title row, header row, listRows data rows, then a "+N more" row.
 var DASH = {
   tiles: [
-    { col: 1, label: 'Available', key: 'available' },
-    { col: 2, label: 'Checked out', key: 'out' },
-    { col: 3, label: 'Overdue', key: 'overdue' },
-    { col: 4, label: 'In maintenance', key: 'maint' },
-    { col: 5, label: 'Needs repair', key: 'repair' },
+    { col: 1, label: 'In service', key: 'inService' },
+    { col: 2, label: 'In maintenance', key: 'maint' },
+    { col: 3, label: 'Needs repair', key: 'repair' },
+    { col: 4, label: 'Maintenance due (14 days)', key: 'maintDue' },
     { col: 7, label: 'Low or out of stock', key: 'stock' },
-    { col: 8, label: 'Maintenance due (14 days)', key: 'maintDue' },
-    { col: 9, label: 'Items in service', key: 'total' }
+    { col: 8, label: 'All items (not retired)', key: 'total' }
   ],
   tileRow: 4,
+  shade: [[1, 4], [7, 2]],   // tile groups: [first column, how many]
   blocks: [
-    { key: 'overdue', row: 7, col: 1, title: 'Overdue', heads: ['Item ID', 'Item', 'Who has it', 'Due back', 'Days late'] },
-    { key: 'who', row: 7, col: 7, title: 'Who has what', heads: ['Who', 'Items', 'How many'] },
-    { key: 'out', row: 21, col: 1, title: 'Checked out', heads: ['Item ID', 'Item', 'Who has it', 'Due back', 'Location'] },
-    { key: 'repair', row: 21, col: 7, title: 'Needs repair', heads: ['Item ID', 'Item', 'Location', 'Status'] },
-    { key: 'maint', row: 35, col: 1, title: 'Maintenance due in the next 14 days', heads: ['Item ID', 'Item', 'Location', 'Next due', 'Days left'] },
-    { key: 'stock', row: 35, col: 7, title: 'Low or out of stock', heads: ['Item ID', 'Item', 'On hand', 'Min'] }
+    { key: 'maint', row: 7, col: 1, title: 'Maintenance due in the next 14 days', heads: ['Item ID', 'Item', 'Location', 'Next due', 'Days left'] },
+    { key: 'repair', row: 7, col: 7, title: 'Needs repair', heads: ['Item ID', 'Item', 'Location', 'Status'] },
+    { key: 'oos', row: 21, col: 1, title: 'Out of service for maintenance', heads: ['Item ID', 'Item', 'Location', 'Condition', 'Next due'] },
+    { key: 'stock', row: 21, col: 7, title: 'Low or out of stock', heads: ['Item ID', 'Item', 'On hand', 'Min'] }
   ],
   widths: [90, 210, 120, 110, 110, 24, 110, 220, 120, 100]
 };
@@ -171,7 +163,6 @@ function onOpen() {
   SpreadsheetApp.getUi().createMenu('Inventory')
     .addItem('Show links and setup info', 'showInventoryLinks')
     .addItem('Fill in missing Item IDs', 'fillMissingIds')
-    .addItem('Refresh the backup form\'s item list', 'refreshFormChoices')
     .addSeparator()
     .addItem('Add test data', 'addTestData')
     .addItem('Remove test data', 'removeTestData')
@@ -223,32 +214,30 @@ function setupInventory() {
   props_().setProperty('INV_SS_ID', ss.getId());
   if (/^Untitled spreadsheet$/i.test(ss.getName())) ss.rename('Project Teams Tool & Equipment Inventory');
 
+  var removed = retireBorrowing_(ss);
   var lists = ensureLists_(ss);
   var master = ensureHeaders_(ss, INV.tabs.master, MASTER);
   placeAfter_(master, 'team', 'loc');
   var maint = ensureHeaders_(ss, INV.tabs.maint, MAINT);
-  var form = ensureForm_(ss);
-  var log = ensureLog_(ss, form);
   var mc = masterCols_(master);
-  var lc = logCols_(log);
   var tc = colsBySpec_(maint, MAINT);
 
-  ensureCalc_(ss, lc, tc);
+  ensureCalc_(ss, tc);
   finishMaster_(ss, master, mc, lists);
   finishLists_(lists, mc);
-  finishLog_(log, lc, lists);
   finishMaint_(maint, tc, lists);
   buildDashboard_(ss, mc);
   orderTabs_(ss);
   installTriggers_(ss);
-  refreshFormChoices();
-  writeSettings_(ss, form);
+  writeLinks_(master, mc);
+  writeSettings_(ss);
 
   var report = withLock_(selfTest_);
-  var info = linkInfo_(ss, form);
+  var info = linkInfo_(ss);
   Logger.log(configBlock_(info));
+  if (removed.length) Logger.log('Check outs taken out of this sheet: ' + removed.join('; '));
   Logger.log(report.summary + '\n' + report.lines.join('\n'));
-  showDialog_(linksHtml_(info, report), 'Inventory is set up');
+  showDialog_(linksHtml_(info, report, removed), 'Inventory is set up');
 }
 
 // Refuse to build inside the old "Tool inventory, purchasing and locks" sheet: its
@@ -307,7 +296,7 @@ function ensureHeaders_(ss, name, spec) {
   }
   var next = sh.getLastColumn() + 1;
   spec.forEach(function (s) {
-    if (!have[s.h.toLowerCase()]) {
+    if (!have[s.h.toLowerCase()] && !(s.alias && have[s.alias.toLowerCase()])) {
       if (next > sh.getMaxColumns()) sh.insertColumnsAfter(sh.getMaxColumns(), 1);
       sh.getRange(1, next).setValue(s.h);
       next++;
@@ -317,106 +306,76 @@ function ensureHeaders_(ss, name, spec) {
 }
 
 // =============================================================================
-// The checkout form
+// Sheets from when the inventory had check outs
 // =============================================================================
 
-function ensureForm_(ss) {
-  var form = getForm_();
-  if (form) return form;
-
-  form = FormApp.create(INV.formTitle);
-  form.setDescription('Borrowing or returning a Project Teams tool? Fill this out every time. It takes about 20 seconds.')
-    .setConfirmationMessage('Logged, thanks. If you took something out, please bring it back by the date you picked.')
-    .setShowLinkToRespondAgain(true)
-    .setAllowResponseEdits(false)
-    .setProgressBar(false);
-
-  form.addListItem().setTitle(INV.q.item)
-    .setHelpText('Find the ID on the tool\'s label (like PT-001), or pick it by name.')
-    .setRequired(true)
-    .setChoiceValues([INV.noItems]);
-  var action = form.addMultipleChoiceItem().setTitle(INV.q.action).setRequired(true);
-  form.addTextItem().setTitle(INV.q.netid)
-    .setHelpText('Your Cornell NetID, like abc123')
-    .setRequired(true)
-    .setValidation(FormApp.createTextValidation()
-      .setHelpText('Enter your NetID, like abc123.')
-      .requireTextMatchesPattern('^[A-Za-z]{2,4}[0-9]{1,6}$')
-      .build());
-  form.addParagraphTextItem().setTitle(INV.q.notes).setHelpText('Optional. Anything we should know?');
-
-  var outPage = form.addPageBreakItem().setTitle('Checking out');
-  form.addDateItem().setTitle(INV.q.due).setHelpText('When will you bring it back?').setRequired(true);
-
-  var retPage = form.addPageBreakItem().setTitle('Returning');
-  form.addMultipleChoiceItem().setTitle(INV.q.cond)
-    .setHelpText('What shape is it in?')
-    .setRequired(true)
-    .setChoiceValues(INV.conditions);
-
-  // Finishing "Checking out" reaches this page break, so jump straight to submit.
-  retPage.setGoToPage(FormApp.PageNavigationType.SUBMIT);
-  action.setChoices([
-    action.createChoice(INV.checkOut, outPage),
-    action.createChoice(INV.ret, retPage)
-  ]);
-
-  form.setDestination(FormApp.DestinationType.SPREADSHEET, ss.getId());
-  props_().setProperty('INV_FORM_ID', form.getId());
-  return form;
-}
-
-function getForm_() {
+// The inventory used to log check outs and returns: a backup Google Form wrote to a
+// Checkout Log tab, and Current Holder and Due Date came from it. Nobody borrows the
+// tools, so setup takes all of that out of an older sheet. Items, maintenance and
+// photos are untouched. Returns what it changed (nothing on a current sheet).
+function retireBorrowing_(ss) {
+  var done = [];
   var props = props_();
-  var id = props.getProperty('INV_FORM_ID');
-  if (id) {
-    try { return FormApp.openById(id); } catch (e) { /* deleted or no access */ }
-  }
-  // Script copied to a new project (properties lost): recover the form from the log tab.
-  var log = ss_().getSheetByName(INV.tabs.log);
-  var url = log ? log.getFormUrl() : null;
-  if (url) {
+  var log = ss.getSheetByName(INV.old.log);
+
+  // The backup form: unlink it from this sheet, then move it to the Drive trash.
+  var form = null;
+  var formId = props.getProperty('INV_FORM_ID');
+  if (formId) { try { form = FormApp.openById(formId); } catch (e) { form = null; } }
+  if (!form && log && log.getFormUrl()) { try { form = FormApp.openByUrl(log.getFormUrl()); } catch (e) { form = null; } }
+  if (form) {
+    try { form.removeDestination(); } catch (e) { console.warn('Could not unlink the backup form: ' + e); }
     try {
-      var form = FormApp.openByUrl(url);
-      props.setProperty('INV_FORM_ID', form.getId());
-      return form;
-    } catch (e) { /* fall through */ }
+      DriveApp.getFileById(form.getId()).setTrashed(true);
+      done.push('moved the backup check out form to the Drive trash');
+    } catch (e) {
+      done.push('unlinked the backup check out form (delete it from Drive yourself)');
+    }
   }
-  return null;
-}
+  props.deleteProperty('INV_FORM_ID');
 
-function itemQuestion_(form) {
-  var lists = form.getItems(FormApp.ItemType.LIST);
-  for (var i = 0; i < lists.length; i++) {
-    if (lists[i].getTitle() === INV.q.item) return lists[i].asListItem();
+  // The Checkout Log goes when it holds nothing but test data. Real rows are kept on
+  // a renamed tab, so no record is lost.
+  if (log) {
+    var real = 0;
+    if (log.getLastRow() > 1) {
+      log.getRange(2, 1, log.getLastRow() - 1, log.getLastColumn()).getValues().forEach(function (r) {
+        var text = r.map(function (v) { return String(v == null ? '' : v); }).join(' ').toLowerCase();
+        if (text.trim() && text.indexOf(INV.testTag) < 0) real++;
+      });
+    }
+    var linked = false;
+    try { linked = !!log.getFormUrl(); } catch (e) { linked = false; }
+    if (!real && !linked) {
+      ss.deleteSheet(log);
+      done.push('deleted the Checkout Log tab');
+    } else if (!ss.getSheetByName(INV.old.keptLog)) {
+      log.setName(INV.old.keptLog);
+      done.push('kept the old check out records on a tab named "' + INV.old.keptLog + '" (delete it whenever you like)');
+    }
   }
-  return lists.length ? lists[0].asListItem() : null;
-}
 
-// The response tab appears a moment after the form is linked. Find it, name it.
-function ensureLog_(ss, form) {
-  var sh = null;
-  for (var attempt = 0; attempt < 20 && !sh; attempt++) {
-    if (attempt) Utilities.sleep(1000);
-    SpreadsheetApp.flush();
-    sh = findLogSheet_(SpreadsheetApp.openById(ss.getId()), form);
-    if (sh && sh.getLastColumn() < 3) sh = null;   // headers not written yet
+  // Inventory Master: drop the two columns the log fed, and rename the link column.
+  var master = ss.getSheetByName(INV.tabs.master);
+  if (master) {
+    var have = headerMap_(master);
+    var gone = [INV.old.holder, INV.old.due].filter(function (h) { return have[h.toLowerCase()]; });
+    if (gone.length) {
+      resetProtections_(master);
+      gone.map(function (h) { return have[h.toLowerCase()]; })
+        .sort(function (a, b) { return b - a; })
+        .forEach(function (c) { master.deleteColumn(c); });
+      done.push('removed the ' + gone.join(' and ') + ' columns');
+    }
+    have = headerMap_(master);
+    var linkCol = have[INV.old.link.toLowerCase()];
+    if (linkCol && !have['item link']) {
+      master.getRange(1, linkCol).setValue('Item Link');
+      done.push('renamed Checkout Link to Item Link');
+    }
   }
-  if (!sh) throw new Error('The form exists but its response tab has not appeared yet. Wait a minute and run setupInventory again.');
-  if (sh.getName() !== INV.tabs.log && !ss.getSheetByName(INV.tabs.log)) sh.setName(INV.tabs.log);
-  SpreadsheetApp.flush();
-  return ss.getSheetByName(sh.getName()) || sh;
-}
-
-function findLogSheet_(ss, form) {
-  var id = form.getId();
-  var linked = ss.getSheets().filter(function (s) { return !!s.getFormUrl(); });
-  for (var i = 0; i < linked.length; i++) {
-    if (linked[i].getFormUrl().indexOf(id) >= 0) return linked[i];
-  }
-  var named = ss.getSheetByName(INV.tabs.log);
-  if (named && named.getFormUrl()) return named;
-  return linked.length === 1 ? linked[0] : null;
+  if (done.length) dropCache_();
+  return done;
 }
 
 // =============================================================================
@@ -441,9 +400,10 @@ function headerMap_(sh) {
   return map;
 }
 
+// alias: the header an older version used, found until setup renames it.
 function colsBySpec_(sh, spec) {
   var have = headerMap_(sh), out = {};
-  spec.forEach(function (s) { out[s.key] = have[s.h.toLowerCase()]; });
+  spec.forEach(function (s) { out[s.key] = have[s.h.toLowerCase()] || (s.alias ? have[s.alias.toLowerCase()] : undefined); });
   return out;
 }
 
@@ -478,15 +438,6 @@ function masterCols_(sh) {
   return colsBySpec_(sh, MASTER);
 }
 
-function logCols_(sh) {
-  var have = headerMap_(sh), out = { ts: have['timestamp'] };
-  ['item', 'action', 'netid', 'notes', 'due', 'cond'].forEach(function (k) { out[k] = have[INV.q[k].toLowerCase()]; });
-  var need = { ts: 'Timestamp', item: INV.q.item, action: INV.q.action, netid: INV.q.netid, due: INV.q.due, cond: INV.q.cond };
-  var missing = Object.keys(need).filter(function (k) { return !out[k]; }).map(function (k) { return need[k]; });
-  if (missing.length) throw new Error('The Checkout Log is missing the column(s): ' + missing.join(', ') + '. Keep the form\'s question titles as they were created.');
-  return out;
-}
-
 // The calculated columns spill "" all the way down, which makes getLastRow() report
 // the bottom of the sheet. This finds the last row with something a person typed.
 function lastDataRow_(sh, mc) {
@@ -512,27 +463,21 @@ function sheetRef_(name) { return "'" + name.replace(/'/g, "''") + "'!"; }
 function colRange_(name, col) { var L = letter_(col); return sheetRef_(name) + L + '2:' + L; }
 function lit_(s) { return '"' + String(s).replace(/"/g, '""') + '"'; }
 
-// Hidden "Latest" tab: the newest log row per item, newest first. VLOOKUP into a
-// list sorted newest-first returns the latest entry, which makes Status immune to
-// duplicate or missing submissions (counting check-outs against returns is not).
-function ensureCalc_(ss, lc, tc) {
+// Hidden "Latest" tab: each item's Maintenance Log rows that have a Next Due, newest
+// first. VLOOKUP into a list sorted newest-first returns the latest one, so Next
+// Maintenance follows the most recent entry even when an older row has a later date.
+function ensureCalc_(ss, tc) {
   var sh = ss.getSheetByName(INV.tabs.calc) || ss.insertSheet(INV.tabs.calc);
-  var L = function (k) { return colRange_(INV.tabs.log, lc[k]); };
   var T = function (k) { return colRange_(INV.tabs.maint, tc[k]); };
   var idOf = function (r) { return 'IFERROR(REGEXEXTRACT(TRIM(' + r + '&""),"^\\S+"),"")'; };
 
-  sh.clearContents();
-  sh.getRange('A1').setFormula('={"Item ID","Action","Person","Due back","When";'
-    + 'ARRAYFORMULA(IFERROR(SORT(FILTER({' + idOf(L('item')) + ',' + L('action') + ',' + L('netid') + ','
-    + 'IF(' + L('due') + '="","",' + L('due') + '),' + L('ts') + '},' + L('item') + '<>""),5,FALSE),{"","","","",""}))}');
-  sh.getRange('G1').setFormula('={"Item ID","Next due","When";'
+  sh.clear();
+  sh.getRange('A1').setFormula('={"Item ID","Next due","When";'
     + 'ARRAYFORMULA(IFERROR(SORT(FILTER({' + idOf(T('item')) + ',' + T('next') + ',' + T('ts') + '},'
     + T('item') + '<>"",ISNUMBER(' + T('next') + ')),3,FALSE),{"","",""}))}');
-  sh.getRange('A1:I1').setFontWeight('bold');
-  sh.getRange('D2:D').setNumberFormat('mmm d, yyyy');
-  sh.getRange('E2:E').setNumberFormat('mmm d, yyyy h:mm am/pm');
-  sh.getRange('H2:H').setNumberFormat('mmm d, yyyy');
-  sh.getRange('I2:I').setNumberFormat('mmm d, yyyy h:mm am/pm');
+  sh.getRange('A1:C1').setFontWeight('bold');
+  sh.getRange('B2:B').setNumberFormat('mmm d, yyyy');
+  sh.getRange('C2:C').setNumberFormat('mmm d, yyyy h:mm am/pm');
   resetProtections_(sh);
   sh.protect().setDescription(INV.tag + 'helper tab').setWarningOnly(true);
   if (!sh.isSheetHidden()) sh.hideSheet();
@@ -541,8 +486,7 @@ function ensureCalc_(ss, lc, tc) {
 
 function masterFormulas_(mc) {
   var R = function (k) { var L = letter_(mc[k]); return L + '2:' + L; };
-  var latest = sheetRef_(INV.tabs.calc) + '$A$2:$E';
-  var latestM = sheetRef_(INV.tabs.calc) + '$G$2:$I';
+  var latestM = sheetRef_(INV.tabs.calc) + '$A$2:$C';
   var hdr = {};
   MASTER.forEach(function (s) { hdr[s.key] = s.h; });
   return {
@@ -551,11 +495,7 @@ function masterFormulas_(mc) {
       + 'IF(' + R('cat') + '=' + lit_(INV.consumable) + ','
       + 'IF(' + R('qty') + '="","",IF(' + R('qty') + '<=0,"Out of Stock",'
       + 'IF((' + R('min') + '<>"")*(' + R('qty') + '<' + R('min') + '),"Low Stock","In Stock"))),'
-      + 'IF(IFERROR(VLOOKUP(' + R('id') + ',' + latest + ',2,FALSE),"")=' + lit_(INV.checkOut) + ',"Checked Out","Available")))))}',
-    holder: '={' + lit_(hdr.holder) + ';ARRAYFORMULA(IF(' + R('status') + '="Checked Out",'
-      + 'IFERROR(VLOOKUP(' + R('id') + ',' + latest + ',3,FALSE),""),""))}',
-    due: '={' + lit_(hdr.due) + ';ARRAYFORMULA(IF(' + R('status') + '="Checked Out",'
-      + 'IFERROR(VLOOKUP(' + R('id') + ',' + latest + ',4,FALSE),""),""))}',
+      + lit_(INV.inService) + '))))}',
     nextMaint: '={' + lit_(hdr.nextMaint) + ';ARRAYFORMULA(IF(' + R('id') + '="","",'
       + 'IFERROR(VLOOKUP(' + R('id') + ',' + latestM + ',2,FALSE),"")))}'
   };
@@ -564,12 +504,12 @@ function masterFormulas_(mc) {
 function finishMaster_(ss, sh, mc, lists) {
   var rows = sh.getMaxRows() - 1;
   var f = masterFormulas_(mc);
-  ['status', 'holder', 'due', 'nextMaint'].forEach(function (k) {
+  ['status', 'nextMaint'].forEach(function (k) {
     // The column must be empty below the header or the formula cannot spill.
     sh.getRange(2, mc[k], rows, 1).clearContent();
     sh.getRange(1, mc[k]).setFormula(f[k]);
   });
-  sh.getRange(1, mc.link).setValue('Checkout Link');
+  sh.getRange(1, mc.link).setValue(MASTER.filter(function (s) { return s.key === 'link'; })[0].h);
 
   MASTER.forEach(function (s) {
     var col = mc[s.key];
@@ -608,14 +548,10 @@ function finishMaster_(ss, sh, mc, lists) {
   var L = function (k) { return letter_(mc[k]); };
   var all = sh.getRange(2, 1, rows, sh.getMaxColumns());
   var col = function (k) { return sh.getRange(2, mc[k], rows, 1); };
-  var span = function (a, b) { return sh.getRange(2, Math.min(mc[a], mc[b]), rows, Math.abs(mc[b] - mc[a]) + 1); };
   var R = function () { return SpreadsheetApp.newConditionalFormatRule(); };
-  var st = '$' + L('status') + '2', due = '$' + L('due') + '2';
+  var st = '$' + L('status') + '2';
   var rules = [
-    R().whenFormulaSatisfied('=AND(' + st + '="Checked Out",ISNUMBER(' + due + '),' + due + '<TODAY())')
-      .setBackground('#F4CCCC').setFontColor('#990000').setRanges([span('status', 'due')]).build(),
-    R().whenTextEqualTo('Available').setBackground('#D9EAD3').setFontColor('#274E13').setRanges([col('status')]).build(),
-    R().whenTextEqualTo('Checked Out').setBackground('#CFE2F3').setFontColor('#073763').setRanges([col('status')]).build(),
+    R().whenTextEqualTo(INV.inService).setBackground('#D9EAD3').setFontColor('#274E13').setRanges([col('status')]).build(),
     R().whenTextEqualTo('Maintenance').setBackground('#FCE5CD').setFontColor('#783F04').setRanges([col('status')]).build(),
     R().whenFormulaSatisfied('=OR(' + st + '="Low Stock",' + st + '="Out of Stock")')
       .setBackground('#F4CCCC').setFontColor('#990000').setRanges([col('status')]).build(),
@@ -648,8 +584,8 @@ function finishLists_(sh, mc) {
   sh.getRange('A1').setNote('Add a category and a short ID prefix (2 letters) on the same row. Do not rename "' + INV.consumable + '": the formulas look for it.');
   sh.getRange('C1').setNote('Options for the Subcategory dropdown. Add or remove freely. A new subcategory typed in the app is added here.');
   sh.getRange('D1').setNote('Options for the Location dropdown. Add or remove freely. A new location typed in the app is added here.');
-  sh.getRange('E1').setNote('Options for the Team dropdown. Shared means the program\'s own tools that any team can borrow.');
-  sh.getRange('F1').setNote('Calculated from the Inventory Master. Feeds the Item dropdowns on the logs.');
+  sh.getRange('E1').setNote('Options for the Team dropdown. Shared means the program\'s own tools that any team can use.');
+  sh.getRange('F1').setNote('Calculated from the Inventory Master. Feeds the Item dropdown on the Maintenance Log.');
   sh.getRange('H1').setNote('Filled in by setup. The first link is the one to share.');
   sh.setColumnWidths(1, 4, 150);
   sh.setColumnWidth(2, 80);
@@ -662,29 +598,6 @@ function finishLists_(sh, mc) {
   resetProtections_(sh);
   sh.getRange(1, 6, rows + 1, 1).protect().setDescription(INV.tag + 'item choices are calculated').setWarningOnly(true);
   sh.getRange(1, 8, rows + 1, 2).protect().setDescription(INV.tag + 'settings are filled in by setup').setWarningOnly(true);
-}
-
-function finishLog_(sh, lc, lists) {
-  var rows = sh.getMaxRows() - 1;
-  var head = sh.getRange(1, 1, 1, sh.getLastColumn());
-  head.setFontWeight('bold').setFontColor('#FFFFFF').setBackground(INV.red).setVerticalAlignment('middle');
-  sh.setFrozenRows(1);
-  sh.setRowHeight(1, 32);
-  sh.setTabColor('#1F6FB2');
-  sh.getRange(2, lc.ts, rows, 1).setNumberFormat('mmm d, yyyy h:mm am/pm');
-  sh.getRange(2, lc.due, rows, 1).setNumberFormat('mmm d, yyyy');
-  var widths = { ts: 170, item: 260, action: 100, netid: 90, notes: 220, due: 110, cond: 150 };
-  Object.keys(widths).forEach(function (k) { if (lc[k]) sh.setColumnWidth(lc[k], widths[k]); });
-
-  sh.getRange(1, lc.ts).setNote('The form stamps this. Typing a row by hand? The time fills in by itself when you pick the item.');
-  sh.getRange(1, lc.item).setNote('The form fills this in. By hand, pick from the list so the Item ID at the start is exact.');
-
-  // Warnings only: the form writes here, and old rows must stay valid after an item is renamed.
-  var V = function () { return SpreadsheetApp.newDataValidation(); };
-  sh.getRange(2, lc.item, rows, 1).setDataValidation(V().requireValueInRange(lists.getRange('F2:F'), true).setAllowInvalid(true).build());
-  sh.getRange(2, lc.action, rows, 1).setDataValidation(V().requireValueInList([INV.checkOut, INV.ret], true).setAllowInvalid(true).build());
-  sh.getRange(2, lc.due, rows, 1).setDataValidation(V().requireDate().setAllowInvalid(true).build());
-  sh.getRange(2, lc.cond, rows, 1).setDataValidation(V().requireValueInList(INV.conditions, true).setAllowInvalid(true).build());
 }
 
 function finishMaint_(sh, tc, lists) {
@@ -713,46 +626,34 @@ function finishMaint_(sh, tc, lists) {
 function dashFormulas_(mc) {
   var M = function (k) { return colRange_(INV.tabs.master, mc[k]); };
   var n = INV.listRows;
-  var CO = lit_('Checked Out');
   var tileCell = {};
   DASH.tiles.forEach(function (t) { tileCell[t.key] = letter_(t.col) + (DASH.tileRow + 1); });
   var more = function (cell, words) { return '=IF(' + cell + '>' + n + ',"+"&(' + cell + '-' + n + ')&' + lit_(words) + ',"")'; };
-  var who = 'UNIQUE(FILTER(' + M('holder') + ',' + M('status') + '=' + CO + ',' + M('holder') + '<>""))';
 
   return {
     tiles: {
-      available: '=COUNTIF(' + M('status') + ',"Available")',
-      out: '=COUNTIF(' + M('status') + ',' + CO + ')',
-      overdue: '=COUNTIFS(' + M('status') + ',' + CO + ',' + M('due') + ',"<"&TODAY())',
+      inService: '=COUNTIF(' + M('status') + ',' + lit_(INV.inService) + ')',
       maint: '=COUNTIF(' + M('status') + ',"Maintenance")',
       repair: '=COUNTIFS(' + M('cond') + ',"Needs Repair",' + M('oos') + ',"<>Retired")',
-      stock: '=COUNTIF(' + M('status') + ',"Low Stock")+COUNTIF(' + M('status') + ',"Out of Stock")',
       maintDue: '=COUNTIFS(' + M('nextMaint') + ',"<="&(TODAY()+14),' + M('oos') + ',"<>Retired")',
+      stock: '=COUNTIF(' + M('status') + ',"Low Stock")+COUNTIF(' + M('status') + ',"Out of Stock")',
       total: '=COUNTIFS(' + M('id') + ',"<>",' + M('oos') + ',"<>Retired")'
     },
     lists: {
-      overdue: '=ARRAYFORMULA(IFERROR(ARRAY_CONSTRAIN(SORT(FILTER({' + M('id') + ',' + M('name') + ',' + M('holder') + ',' + M('due') + ','
-        + 'IFERROR(TODAY()-' + M('due') + ',"")},' + M('status') + '=' + CO + ',ISNUMBER(' + M('due') + '),' + M('due') + '<TODAY()),5,FALSE),'
-        + n + ',5),"Nothing overdue"))',
-      who: '=IFERROR(ARRAYFORMULA(LET(p,' + who + ',ARRAY_CONSTRAIN(SORT({p,'
-        + 'BYROW(p,LAMBDA(x,TEXTJOIN(", ",TRUE,FILTER(' + M('name') + ',' + M('holder') + '=x,' + M('status') + '=' + CO + ')))),'
-        + 'COUNTIFS(' + M('holder') + ',p,' + M('status') + ',' + CO + ')},3,FALSE),' + n + ',3))),"Nobody has anything out")',
-      out: '=ARRAYFORMULA(IFERROR(ARRAY_CONSTRAIN(SORT(FILTER({' + M('id') + ',' + M('name') + ',' + M('holder') + ',' + M('due') + ',' + M('loc') + '},'
-        + M('status') + '=' + CO + '),4,TRUE),' + n + ',5),"Nothing checked out"))',
-      repair: '=ARRAYFORMULA(IFERROR(ARRAY_CONSTRAIN(FILTER({' + M('id') + ',' + M('name') + ',' + M('loc') + ',' + M('status') + '},'
-        + M('cond') + '="Needs Repair",' + M('oos') + '<>"Retired"),' + n + ',4),"Nothing flagged for repair"))',
       maint: '=ARRAYFORMULA(IFERROR(ARRAY_CONSTRAIN(SORT(FILTER({' + M('id') + ',' + M('name') + ',' + M('loc') + ',' + M('nextMaint') + ','
         + 'IFERROR(' + M('nextMaint') + '-TODAY(),"")},ISNUMBER(' + M('nextMaint') + '),' + M('nextMaint') + '<=TODAY()+14,'
         + M('oos') + '<>"Retired"),4,TRUE),' + n + ',5),"Nothing due in the next 14 days"))',
+      repair: '=ARRAYFORMULA(IFERROR(ARRAY_CONSTRAIN(FILTER({' + M('id') + ',' + M('name') + ',' + M('loc') + ',' + M('status') + '},'
+        + M('cond') + '="Needs Repair",' + M('oos') + '<>"Retired"),' + n + ',4),"Nothing flagged for repair"))',
+      oos: '=ARRAYFORMULA(IFERROR(ARRAY_CONSTRAIN(SORT(FILTER({' + M('id') + ',' + M('name') + ',' + M('loc') + ',' + M('cond') + ',' + M('nextMaint') + '},'
+        + M('status') + '="Maintenance"),1,TRUE),' + n + ',5),"Nothing out of service"))',
       stock: '=ARRAYFORMULA(IFERROR(ARRAY_CONSTRAIN(SORT(FILTER({' + M('id') + ',' + M('name') + ',' + M('qty') + ',' + M('min') + '},'
         + '(' + M('status') + '="Low Stock")+(' + M('status') + '="Out of Stock")),3,TRUE),' + n + ',4),"All stocked"))'
     },
     more: {
-      overdue: more(tileCell.overdue, ' more overdue. Filter the Inventory Master by Status to see them all.'),
-      who: '=IFERROR(IF(COUNTA(' + who + ')>' + n + ',"+"&(COUNTA(' + who + ')-' + n + ')&" more people",""),"")',
-      out: more(tileCell.out, ' more checked out'),
-      repair: more(tileCell.repair, ' more flagged for repair'),
       maint: more(tileCell.maintDue, ' more due'),
+      repair: more(tileCell.repair, ' more flagged for repair'),
+      oos: more(tileCell.maint, ' more out of service'),
       stock: more(tileCell.stock, ' more low on stock')
     }
   };
@@ -773,7 +674,7 @@ function buildDashboard_(ss, mc) {
 
   var f = dashFormulas_(mc);
   sh.getRange('A1').setValue('Tool & equipment inventory').setFontSize(18).setFontWeight('bold').setFontColor(INV.red);
-  sh.getRange('A2').setValue('Live from the Inventory Master, Checkout Log and Maintenance Log. Nothing to type on this tab.')
+  sh.getRange('A2').setValue('Live from the Inventory Master and the Maintenance Log. Nothing to type on this tab.')
     .setFontColor(INV.gray).setFontStyle('italic');
 
   var tr = DASH.tileRow;
@@ -781,8 +682,7 @@ function buildDashboard_(ss, mc) {
     sh.getRange(tr, t.col).setValue(t.label).setFontSize(9).setFontWeight('bold').setFontColor(INV.gray).setWrap(true).setVerticalAlignment('bottom');
     sh.getRange(tr + 1, t.col).setFormula(f.tiles[t.key]).setFontSize(22).setFontWeight('bold').setFontColor('#202124').setHorizontalAlignment('left');
   });
-  sh.getRange(tr, 1, 2, 5).setBackground('#F8F9FA');
-  sh.getRange(tr, 7, 2, 3).setBackground('#F8F9FA');
+  DASH.shade.forEach(function (g) { sh.getRange(tr, g[0], 2, g[1]).setBackground('#F8F9FA'); });
   sh.setRowHeight(tr, 30);
   sh.setRowHeight(tr + 1, 44);
 
@@ -803,30 +703,25 @@ function buildDashboard_(ss, mc) {
     var b = DASH.blocks.filter(function (x) { return x.key === key; })[0];
     sh.getRange(b.row + 2, b.col + offset, n, 1).setNumberFormat(pattern);
   };
-  fmt('overdue', 3, 'mmm d, yyyy'); fmt('overdue', 4, '0');
-  fmt('out', 3, 'mmm d, yyyy');
   fmt('maint', 3, 'mmm d, yyyy'); fmt('maint', 4, '0');
-  fmt('who', 2, '0');
+  fmt('oos', 4, 'mmm d, yyyy');
   fmt('stock', 2, '0'); fmt('stock', 3, '0');
-  var whoBlock = DASH.blocks.filter(function (x) { return x.key === 'who'; })[0];
-  sh.getRange(whoBlock.row + 2, whoBlock.col + 1, n, 1).setWrap(true);
 
   var tile = function (key) { var t = DASH.tiles.filter(function (x) { return x.key === key; })[0]; return sh.getRange(tr + 1, t.col); };
   var block = function (key, offset) { var b = DASH.blocks.filter(function (x) { return x.key === key; })[0]; return sh.getRange(b.row + 2, b.col + offset, n, 1); };
   var R = function () { return SpreadsheetApp.newConditionalFormatRule(); };
   sh.setConditionalFormatRules([
-    R().whenNumberGreaterThan(0).setFontColor(INV.red).setRanges([tile('overdue'), tile('stock')]).build(),
-    R().whenNumberGreaterThan(0).setFontColor('#B45F06').setRanges([tile('repair'), tile('maintDue')]).build(),
-    R().whenNumberGreaterThan(0).setFontColor(INV.red).setBold(true).setRanges([block('overdue', 4)]).build(),
+    R().whenNumberGreaterThan(0).setFontColor(INV.red).setRanges([tile('stock')]).build(),
+    R().whenNumberGreaterThan(0).setFontColor('#B45F06').setRanges([tile('maint'), tile('repair'), tile('maintDue')]).build(),
     R().whenNumberLessThan(0).setFontColor(INV.red).setBold(true).setRanges([block('maint', 4)]).build()
   ]);
 
   sh.protect().setDescription(INV.tag + 'the Dashboard is calculated').setWarningOnly(true);
 }
 
-// Dashboard, Inventory Master, Checkout Log, Maintenance Log, Lists, then the hidden helper.
+// Dashboard, Inventory Master, Maintenance Log, Lists, then the hidden helper.
 function orderTabs_(ss) {
-  var order = [INV.tabs.dash, INV.tabs.master, INV.tabs.log, INV.tabs.maint, INV.tabs.lists];
+  var order = [INV.tabs.dash, INV.tabs.master, INV.tabs.maint, INV.tabs.lists];
   order.forEach(function (name, i) {
     var sh = ss.getSheetByName(name);
     if (!sh) return;
@@ -850,6 +745,7 @@ function resetProtections_(sh) {
   });
 }
 
+// onCheckoutSubmit is in the list so that a sheet from the check out days loses it.
 function installTriggers_(ss) {
   var mine = { onInventoryEdit: 1, onInventoryChange: 1, onCheckoutSubmit: 1 };
   ScriptApp.getProjectTriggers().forEach(function (t) {
@@ -857,7 +753,6 @@ function installTriggers_(ss) {
   });
   ScriptApp.newTrigger('onInventoryEdit').forSpreadsheet(ss).onEdit().create();
   ScriptApp.newTrigger('onInventoryChange').forSpreadsheet(ss).onChange().create();
-  ScriptApp.newTrigger('onCheckoutSubmit').forSpreadsheet(ss).onFormSubmit().create();
 }
 
 // =============================================================================
@@ -876,10 +771,10 @@ function onInventoryEdit(e) {
         var mc = masterCols_(sh);
         var filled = assignIds_(sh, mc, e.range.getRow(), e.range.getLastRow());
         var c1 = e.range.getColumn(), c2 = e.range.getLastColumn();
-        var touched = ['id', 'name', 'cat', 'oos'].some(function (k) { return mc[k] >= c1 && mc[k] <= c2; });
-        if (filled || touched) refreshFormChoices();
+        var touched = ['id', 'name'].some(function (k) { return mc[k] >= c1 && mc[k] <= c2; });
+        if (filled || touched) writeLinks_(sh, mc);
       });
-    } else if (name === INV.tabs.log || name === INV.tabs.maint) {
+    } else if (name === INV.tabs.maint) {
       stampTimes_(sh, e.range);
       dropCache_();
     } else {
@@ -890,47 +785,12 @@ function onInventoryEdit(e) {
   }
 }
 
-// Installable onChange: deleting item rows does not fire onEdit.
+// Installable onChange: deleting rows does not fire onEdit.
 function onInventoryChange(e) {
   dropCache_();
-  if (e && e.changeType === 'REMOVE_ROW') {
-    try { refreshFormChoices(); } catch (err) { console.error('onInventoryChange: ' + err); }
-  }
-}
-
-// Installable onFormSubmit: a return copies its condition onto the Inventory Master.
-function onCheckoutSubmit(e) {
-  if (!e || !e.range) return;
-  try {
-    var sh = e.range.getSheet();
-    var lc = logCols_(sh);
-    var row = sh.getRange(e.range.getRow(), 1, 1, sh.getLastColumn()).getValues()[0];
-    dropCache_();
-    if (String(row[lc.action - 1]).trim() !== INV.ret) return;
-    var cond = String(row[lc.cond - 1]).trim();
-    if (cond) setMasterCondition_(itemIdOf_(row[lc.item - 1]), cond);
-  } catch (err) {
-    console.error('onCheckoutSubmit: ' + (err && err.stack || err));
-  }
 }
 
 function itemIdOf_(text) { return String(text == null ? '' : text).trim().split(/\s+/)[0] || ''; }
-
-function setMasterCondition_(id, cond) {
-  if (!id) return false;
-  var sh = ss_().getSheetByName(INV.tabs.master);
-  var mc = masterCols_(sh);
-  var last = lastDataRow_(sh, mc);
-  if (last < 2) return false;
-  var ids = sh.getRange(2, mc.id, last - 1, 1).getValues();
-  for (var i = 0; i < ids.length; i++) {
-    if (String(ids[i][0]).trim().toUpperCase() === id.toUpperCase()) {
-      sh.getRange(i + 2, mc.cond).setValue(cond);
-      return true;
-    }
-  }
-  return false;
-}
 
 // Give every row that has a name and a known category an ID like PT-007.
 // Returns true when it filled anything in. Callers hold withLock_.
@@ -974,8 +834,8 @@ function categoryPrefixes_() {
   return out;
 }
 
-// Hand-typed rows on the logs get a real timestamp (the plan's =NOW() would keep
-// changing). Form submissions are stamped by Google and never reach onEdit.
+// Hand-typed rows on the Maintenance Log get a real timestamp (=NOW() would keep
+// changing). Rows the app adds come with their own.
 function stampTimes_(sh, range) {
   var tsCol = headerMap_(sh)['timestamp'];
   if (!tsCol) return;
@@ -998,44 +858,22 @@ function fillMissingIds() {
   withLock_(function () {
     var mc = masterCols_(sh);
     assignIds_(sh, mc, 2, lastDataRow_(sh, mc));
-    refreshFormChoices();
+    writeLinks_(sh, mc);
   });
 }
 
-// Rebuild the backup form's Item dropdown from the Inventory Master: everything
-// with an ID and a name, except consumables and retired items. Also writes each
-// item's Checkout Link (its page in the hub app).
-function refreshFormChoices() {
-  var ss = ss_();
-  var form = getForm_();
-  var sh = ss.getSheetByName(INV.tabs.master);
-  if (!form || !sh) return 0;
-  var item = itemQuestion_(form);
-  if (!item) return 0;
-  var mc = masterCols_(sh);
+// Every item with an ID and a name gets its Item Link: its page in the hub app,
+// which is also what its QR label opens. Rows emptied by hand lose theirs.
+function writeLinks_(sh, mc) {
   var last = lastDataRow_(sh, mc);
-  var data = last > 1 ? sh.getRange(2, 1, last - 1, sh.getLastColumn()).getValues() : [];
-
-  var seen = {}, choices = [];
-  var rowChoice = data.map(function (r) {
-    var id = String(r[mc.id - 1]).trim(), name = String(r[mc.name - 1]).trim();
-    var cat = String(r[mc.cat - 1]).trim().toLowerCase(), oos = String(r[mc.oos - 1]).trim().toLowerCase();
-    if (!id || !name || cat === INV.consumable.toLowerCase() || oos === 'retired') return '';
-    var choice = id + INV.sep + name;
-    if (!seen[choice]) { seen[choice] = true; choices.push(choice); }
-    return choice;
-  });
-  choices.sort();
-  item.setChoiceValues(choices.length ? choices : [INV.noItems]);
-
-  if (data.length) {
-    sh.getRange(2, mc.link, data.length, 1).setValues(rowChoice.map(function (c) {
-      return [c ? appLink_(itemIdOf_(c)) : ''];
+  if (last > 1) {
+    var data = sh.getRange(2, 1, last - 1, sh.getLastColumn()).getValues();
+    sh.getRange(2, mc.link, data.length, 1).setValues(data.map(function (r) {
+      var id = String(r[mc.id - 1]).trim();
+      return [id && String(r[mc.name - 1]).trim() ? appLink_(id) : ''];
     }));
   }
-  // Clear links left below the data (rows that were emptied rather than deleted).
   if (last < sh.getMaxRows()) sh.getRange(last + 1, mc.link, sh.getMaxRows() - last, 1).clearContent();
-  return choices.length;
 }
 
 function appLink_(id) { return INV.appUrl + '?item=' + encodeURIComponent(id); }
@@ -1044,17 +882,12 @@ function appLink_(id) { return INV.appUrl + '?item=' + encodeURIComponent(id); }
 // Links, dialogs, config.js block
 // =============================================================================
 
-function linkInfo_(ss, form) {
-  var published = form ? form.getPublishedUrl() : '';
-  var short = published;
-  if (form) { try { short = form.shortenFormUrl(published); } catch (e) { /* keep the long link */ } }
+function linkInfo_(ss) {
   var gid = function (name) { var s = ss.getSheetByName(name); return s ? String(s.getSheetId()) : ''; };
   return {
     apiUrl: webAppUrl_(),
     appUrl: INV.appUrl,
     sheetUrl: ss.getUrl(),
-    formUrl: short,
-    formEdit: form ? form.getEditUrl() : '',
     gids: { dash: gid(INV.tabs.dash), master: gid(INV.tabs.master), maint: gid(INV.tabs.maint) }
   };
 }
@@ -1069,16 +902,19 @@ function webAppUrl_() {
   }
 }
 
-function writeSettings_(ss, form) {
+// Settings on the Lists tab (H2:I5). Rows 4 and 5 held the backup form's links when
+// the inventory had check outs; they are cleared.
+function writeSettings_(ss) {
   var sh = ss.getSheetByName(INV.tabs.lists);
-  var info = linkInfo_(ss, form);
+  var info = linkInfo_(ss);
   sh.getRange(2, 8, 4, 2).setValues([
     ['Inventory app (share this)', info.appUrl],
-    ['Backup form, if the app is down', info.formUrl],
-    ['Backup form editor', info.formEdit],
-    ['Set up on', new Date()]
+    ['Set up on', new Date()],
+    ['', ''],
+    ['', '']
   ]);
-  sh.getRange(5, 9).setNumberFormat('mmm d, yyyy h:mm am/pm').setHorizontalAlignment('left');
+  sh.getRange(3, 9).setNumberFormat('mmm d, yyyy h:mm am/pm').setHorizontalAlignment('left');
+  sh.getRange(5, 9).setNumberFormat('General');
 }
 
 function configBlock_(info) {
@@ -1089,13 +925,11 @@ function configBlock_(info) {
     + "  dashboardGid: '" + info.gids.dash + "',\n"
     + "  masterGid: '" + info.gids.master + "',\n"
     + "  maintenanceGid: '" + info.gids.maint + "',\n"
-    + "  formUrl: '" + info.formUrl + "',\n"
     + '};';
 }
 
 function showInventoryLinks() {
-  var ss = ss_();
-  showDialog_(linksHtml_(linkInfo_(ss, getForm_()), null), 'Inventory links and setup');
+  showDialog_(linksHtml_(linkInfo_(ss_()), null), 'Inventory links and setup');
 }
 
 function runSelfTest() {
@@ -1105,14 +939,12 @@ function runSelfTest() {
 
 function addTestData() {
   var out = withLock_(addTestData_);
-  ss_().toast('Added ' + out.added.items + ' test items, ' + out.added.log + ' check outs and returns, and '
-    + out.added.maintenance + ' maintenance entries.', 'Test data loaded', 8);
+  ss_().toast('Added ' + out.added.items + ' test items and ' + out.added.maintenance + ' maintenance entries.', 'Test data loaded', 8);
 }
 
 function removeTestData() {
   var out = withLock_(removeTestData_);
-  ss_().toast('Removed ' + out.removed.items + ' test items, ' + out.removed.log + ' log rows and '
-    + out.removed.maintenance + ' maintenance rows.', 'Test data removed', 8);
+  ss_().toast('Removed ' + out.removed.items + ' test items and ' + out.removed.maintenance + ' maintenance rows.', 'Test data removed', 8);
 }
 
 function showDialog_(html, title) {
@@ -1126,13 +958,19 @@ function showDialog_(html, title) {
 
 function esc_(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
-function linksHtml_(info, report) {
+// removed: what retireBorrowing_ took out of an older sheet, if anything.
+function linksHtml_(info, report, removed) {
   var css = '<style>body{font:14px/1.5 Arial,sans-serif;color:#202124;margin:0 4px}h3{font-size:15px;margin:16px 0 6px}'
     + 'a{color:#1F6FB2;word-break:break-all}textarea{width:100%;height:132px;font:12px/1.45 Menlo,Consolas,monospace;'
     + 'border:1px solid #ccc;border-radius:6px;padding:8px;box-sizing:border-box}.ok{color:#1E7A3C}.bad{color:#B31B1B}'
     + 'ul{margin:4px 0 0;padding-left:18px}li{margin:2px 0}button{margin-top:6px;padding:7px 14px;border:0;border-radius:6px;'
     + 'background:#B31B1B;color:#fff;font-weight:bold;cursor:pointer}.muted{color:#5F6368;font-size:12.5px}</style>';
   var out = css;
+  if (removed && removed.length) {
+    out += '<h3>Check outs are gone from this sheet</h3><ul>'
+      + removed.map(function (l) { return '<li>' + esc_(l.charAt(0).toUpperCase() + l.slice(1)) + '.</li>'; }).join('') + '</ul>'
+      + '<p class="muted">Items, maintenance and photos are as they were.</p>';
+  }
   if (report) {
     out += '<h3 class="' + (report.ok ? 'ok' : 'bad') + '">' + esc_(report.summary) + '</h3><ul>'
       + report.lines.map(function (l) { return '<li>' + esc_(l) + '</li>'; }).join('') + '</ul>';
@@ -1143,8 +981,7 @@ function linksHtml_(info, report) {
       : '<h3 class="bad">One step left: deploy the web app</h3><p>Deploy &gt; New deployment &gt; type <b>Web app</b>. Execute as: <b>Me</b>. Who has access: <b>Anyone</b>. Deploy, copy the URL that ends in /exec, and put it in config.js as <b>apiUrl</b>. Then open this dialog again (Inventory menu) to get the full block.</p>';
     out += '<h3>Paste this into the hub\'s config.js</h3><textarea id="cfg" readonly>' + esc_(configBlock_(info)) + '</textarea>'
       + '<button onclick="var t=document.getElementById(\'cfg\');t.select();try{document.execCommand(\'copy\');this.textContent=\'Copied\';}catch(e){}">Copy</button>'
-      + '<p class="muted">It replaces the window.INVENTORY block. The hub\'s inventory app, labels and QR poster read it.</p>'
-      + (info.formUrl ? '<h3>Backup form</h3><p class="muted">If the app is ever down, people can still log check outs at <a href="' + esc_(info.formUrl) + '" target="_blank">' + esc_(info.formUrl) + '</a>. It writes to the same Checkout Log.</p>' : '');
+      + '<p class="muted">It replaces the window.INVENTORY block. The hub\'s inventory app and its labels read it.</p>';
   }
   return out;
 }
@@ -1157,7 +994,6 @@ function linksHtml_(info, report) {
 function selfTest_() {
   var ss = ss_();
   var master = ss.getSheetByName(INV.tabs.master);
-  var log = ss.getSheetByName(INV.tabs.log);
   var maint = ss.getSheetByName(INV.tabs.maint);
   var dash = ss.getSheetByName(INV.tabs.dash);
   var lines = [], fails = 0;
@@ -1165,32 +1001,24 @@ function selfTest_() {
     if (!pass) fails++;
     lines.push((pass ? 'PASS  ' : 'FAIL  ') + label + (pass ? '' : ' (got: ' + got + ')'));
   };
-  if (!master || !log || !maint || !dash) {
+  if (!master || !maint || !dash) {
     return { ok: false, summary: 'Self-test could not run: a tab is missing. Run setupInventory.', lines: [] };
   }
 
-  var mc = masterCols_(master), lc = logCols_(log), tc = colsBySpec_(maint, MAINT);
-  var id = 'ZZ-999', name = 'Self-test item (removed automatically)', who = 'zz999';
+  var mc = masterCols_(master), tc = colsBySpec_(maint, MAINT);
+  var id = 'ZZ-999', name = 'Self-test item (removed automatically)';
   var choice = id + INV.sep + name;
   var day = 86400000;
   var today = new Date(); today.setHours(0, 0, 0, 0);
-  var yesterday = new Date(today.getTime() - day), inThree = new Date(today.getTime() + 3 * day);
+  var inThree = new Date(today.getTime() + 3 * day);
   var sameDay = function (v, d) { return v instanceof Date && v.getFullYear() === d.getFullYear() && v.getMonth() === d.getMonth() && v.getDate() === d.getDate(); };
-  var added = { master: 0, log: [], maint: 0 };
+  var added = { master: 0, maint: 0 };
   var cell = function (sh, row, col) { return sh.getRange(row, col).getValue(); };
   var dashIds = function (key, offset) {
     var b = DASH.blocks.filter(function (x) { return x.key === key; })[0];
     return dash.getRange(b.row + 2, b.col + (offset || 0), INV.listRows, 1).getValues().map(function (r) { return String(r[0]); });
   };
-  var addLog = function (action, extra) {
-    var r = log.getLastRow() + 1;
-    log.getRange(r, lc.ts).setValue(new Date(Date.now() - (action === INV.checkOut ? 120000 : 60000)));
-    log.getRange(r, lc.item).setValue(choice);
-    log.getRange(r, lc.action).setValue(action);
-    log.getRange(r, lc.netid).setValue(who);
-    Object.keys(extra || {}).forEach(function (k) { log.getRange(r, lc[k]).setValue(extra[k]); });
-    added.log.push(r);
-  };
+  var set = function (key, value) { master.getRange(added.master, mc[key]).setValue(value); SpreadsheetApp.flush(); };
 
   try {
     var mr = lastDataRow_(master, mc) + 1;
@@ -1200,25 +1028,9 @@ function selfTest_() {
     master.getRange(mr, mc.cat).setValue('Equipment');
     added.master = mr;
     SpreadsheetApp.flush();
-    check('A new item shows Available', cell(master, mr, mc.status) === 'Available', cell(master, mr, mc.status));
+    check('A new item shows ' + INV.inService, cell(master, mr, mc.status) === INV.inService, cell(master, mr, mc.status));
 
-    addLog(INV.checkOut, { due: yesterday });
-    SpreadsheetApp.flush();
-    check('Checking out sets Status to Checked Out', cell(master, mr, mc.status) === 'Checked Out', cell(master, mr, mc.status));
-    check('Current Holder comes from the log', cell(master, mr, mc.holder) === who, cell(master, mr, mc.holder));
-    check('Due Date comes from the log', sameDay(cell(master, mr, mc.due), yesterday), cell(master, mr, mc.due));
-    var tileOverdue = DASH.tiles.filter(function (t) { return t.key === 'overdue'; })[0];
-    check('Dashboard counts it as overdue', Number(cell(dash, DASH.tileRow + 1, tileOverdue.col)) >= 1, cell(dash, DASH.tileRow + 1, tileOverdue.col));
-    check('Dashboard lists it under Overdue', dashIds('overdue').indexOf(id) >= 0, dashIds('overdue')[0]);
-    check('Dashboard lists the borrower under Who has what', dashIds('who').indexOf(who) >= 0, dashIds('who')[0]);
-    check('Dashboard lists it under Checked out', dashIds('out').indexOf(id) >= 0, dashIds('out')[0]);
-
-    addLog(INV.ret, { cond: 'Needs Repair' });
-    setMasterCondition_(id, 'Needs Repair');   // what onCheckoutSubmit does for a real form return
-    SpreadsheetApp.flush();
-    check('Returning sets Status back to Available', cell(master, mr, mc.status) === 'Available', cell(master, mr, mc.status));
-    check('Current Holder clears on return', cell(master, mr, mc.holder) === '', cell(master, mr, mc.holder));
-    check('The return condition lands on the Inventory Master', cell(master, mr, mc.cond) === 'Needs Repair', cell(master, mr, mc.cond));
+    set('cond', 'Needs Repair');
     check('Dashboard lists it under Needs repair', dashIds('repair').indexOf(id) >= 0, dashIds('repair')[0]);
 
     var tr = maint.getLastRow() + 1;
@@ -1231,6 +1043,11 @@ function selfTest_() {
     check('Next Maintenance comes from the Maintenance Log', sameDay(cell(master, mr, mc.nextMaint), inThree), cell(master, mr, mc.nextMaint));
     check('Dashboard lists it under Maintenance due', dashIds('maint').indexOf(id) >= 0, dashIds('maint')[0]);
 
+    set('oos', 'Maintenance');
+    check('Out of Service = Maintenance shows Maintenance', cell(master, mr, mc.status) === 'Maintenance', cell(master, mr, mc.status));
+    check('Dashboard lists it under Out of service', dashIds('oos').indexOf(id) >= 0, dashIds('oos')[0]);
+
+    set('oos', '');
     master.getRange(mr, mc.cat).setValue(INV.consumable);
     master.getRange(mr, mc.qty).setValue(1);
     master.getRange(mr, mc.min).setValue(5);
@@ -1238,8 +1055,7 @@ function selfTest_() {
     check('A consumable below Min Qty shows Low Stock', cell(master, mr, mc.status) === 'Low Stock', cell(master, mr, mc.status));
     check('Dashboard lists it under Low or out of stock', dashIds('stock').indexOf(id) >= 0, dashIds('stock')[0]);
 
-    master.getRange(mr, mc.oos).setValue('Retired');
-    SpreadsheetApp.flush();
+    set('oos', 'Retired');
     check('Out of Service = Retired shows Retired', cell(master, mr, mc.status) === 'Retired', cell(master, mr, mc.status));
 
     var shown = master.getRange(1, 1, 1, master.getLastColumn()).getDisplayValues()[0];
@@ -1249,11 +1065,8 @@ function selfTest_() {
     fails++;
     lines.push('ERROR ' + (err && err.message || err));
   } finally {
-    // Remove only the rows this test wrote, bottom-up, after checking they are ours.
+    // Remove only the rows this test wrote, after checking they are ours.
     if (added.maint && String(maint.getRange(added.maint, tc.item).getValue()) === choice) maint.deleteRow(added.maint);
-    added.log.sort(function (a, b) { return b - a; }).forEach(function (r) {
-      if (String(log.getRange(r, lc.item).getValue()) === choice) log.deleteRow(r);
-    });
     // The Inventory Master row is cleared rather than deleted so the sheet keeps its size.
     if (added.master && String(master.getRange(added.master, mc.id).getValue()) === id) {
       ['id', 'name', 'cat', 'cond', 'oos', 'qty', 'min', 'link'].forEach(function (k) {
@@ -1274,14 +1087,14 @@ function selfTest_() {
 // =============================================================================
 // Web API for the hub's inventory page (inventory.html)
 // The page calls it JSONP-style: <script src=".../exec?action=list&callback=fn">,
-// which works from the static hub without any CORS setup. Reads and check out /
-// return are open to anyone with the page; catalog changes need admin=1, which
-// only the (unlisted) admin page sends, the same convention as the other modules.
-// Photos are too big for a URL, so they come in as a POST (doPost).
+// which works from the static hub without any CORS setup. Reads are open to anyone
+// with the page; changes need admin=1, which only the (unlisted) admin page sends,
+// the same convention as the other modules. Photos are too big for a URL, so they
+// come in as a POST (doPost).
 // =============================================================================
 
-var CACHE_KEY = 'inv_list_v2';
-var API_VERSION = 2;   // the app turns on photos and teams from version 2
+var CACHE_KEY = 'inv_list_v3';
+var API_VERSION = 3;   // 2 added photos and teams; 3 took out check outs
 
 function doGet(e) {
   var p = (e && e.parameter) || {};
@@ -1307,8 +1120,6 @@ function api_(p) {
   switch (action) {
     case 'list': return apiList_();
     case 'item': return apiItem_(p.id);
-    case 'checkout': return withLock_(function () { return apiCheckout_(p); });
-    case 'return': return withLock_(function () { return apiReturn_(p); });
     case 'save': adminOnly(); return withLock_(function () { return apiSave_(p); });
     case 'maintenance': adminOnly(); return withLock_(function () { return apiMaintenance_(p); });
     case 'count': adminOnly(); return withLock_(function () { return apiCount_(p); });
@@ -1389,7 +1200,7 @@ function itemFromRow_(r, mc, tz) {
   return {
     id: str('id').toUpperCase(), name: str('name'), cat: str('cat'), sub: str('sub'), loc: str('loc'),
     team: (mc.team ? str('team') : '') || INV.shared,
-    status: str('status'), holder: str('holder'), due: day('due'), cond: str('cond'), oos: str('oos'),
+    status: str('status'), cond: str('cond'), oos: str('oos'),
     serial: str('serial'), bought: day('bought'), qty: num('qty'), min: num('min'), nextMaint: day('nextMaint'),
     notes: notes, photo: str('photo'),
     consumable: str('cat').toLowerCase() === INV.consumable.toLowerCase(),
@@ -1460,7 +1271,7 @@ function readRow_(sh, mc, row, tz) {
 function apiItem_(rawId) {
   var ctx = findItem_(reqId_(rawId));
   var tz = ctx.ss.getSpreadsheetTimeZone();
-  return { ok: true, item: ctx.item, history: history_(ctx.ss, ctx.item.id, tz), maintenance: maintHistory_(ctx.ss, ctx.item.id, tz) };
+  return { ok: true, item: ctx.item, maintenance: maintHistory_(ctx.ss, ctx.item.id, tz) };
 }
 
 // Newest first: exact time, then sheet order (later rows are newer) for ties.
@@ -1472,22 +1283,6 @@ function ms_(v) { return v instanceof Date ? v.getTime() : 0; }
 
 function stamp_(v, tz) { return v instanceof Date ? Utilities.formatDate(v, tz, "yyyy-MM-dd'T'HH:mm") : String(v == null ? '' : v).trim(); }
 function dayStr_(v, tz) { return v instanceof Date ? Utilities.formatDate(v, tz, 'yyyy-MM-dd') : String(v == null ? '' : v).trim(); }
-
-function history_(ss, id, tz) {
-  var log = ss.getSheetByName(INV.tabs.log);
-  if (!log || log.getLastRow() < 2) return [];
-  var lc = logCols_(log);
-  var out = [];
-  log.getRange(2, 1, log.getLastRow() - 1, log.getLastColumn()).getValues().forEach(function (r, i) {
-    if (itemIdOf_(r[lc.item - 1]).toUpperCase() !== id) return;
-    out.push({
-      when: stamp_(r[lc.ts - 1], tz), action: String(r[lc.action - 1]).trim(), netid: String(r[lc.netid - 1]).trim(),
-      due: dayStr_(r[lc.due - 1], tz), cond: String(r[lc.cond - 1]).trim(), notes: lc.notes ? String(r[lc.notes - 1]).trim() : '',
-      _t: ms_(r[lc.ts - 1]), _i: i
-    });
-  });
-  return newestFirst_(out).slice(0, 15);
-}
 
 function maintHistory_(ss, id, tz) {
   var sh = ss.getSheetByName(INV.tabs.maint);
@@ -1504,29 +1299,6 @@ function maintHistory_(ss, id, tz) {
     });
   });
   return newestFirst_(out).slice(0, 10);
-}
-
-function apiCheckout_(p) {
-  var id = reqId_(p.id), netid = reqNetid_(p.netid), due = reqDate_(p.due, 'Due back'), notes = text_(p.notes, 500);
-  var ctx = findItem_(id), it = ctx.item, tz = ctx.ss.getSpreadsheetTimeZone();
-  if (it.consumable) throw new Error('Consumables are not checked out. Ask an admin to update the count instead.');
-  if (it.oos) throw new Error(it.name + ' is out of service (' + it.oos + ').');
-  if (it.status === 'Checked Out') throw new Error(it.name + ' is already checked out to ' + (it.holder || 'someone') + '. It has to be returned first.');
-  if (due < Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd')) throw new Error('The due date is in the past.');
-  appendLogRows_(ctx.ss, [{ item: id + INV.sep + it.name, action: INV.checkOut, netid: netid, due: due, notes: notes }]);
-  SpreadsheetApp.flush();
-  return { ok: true, item: readRow_(ctx.sh, ctx.mc, ctx.row, tz) };
-}
-
-function apiReturn_(p) {
-  var id = reqId_(p.id), netid = reqNetid_(p.netid), notes = text_(p.notes, 500);
-  var cond = oneOf_(p.cond, INV.conditions, 'condition');
-  var ctx = findItem_(id), it = ctx.item;
-  if (it.status !== 'Checked Out') throw new Error(it.name + ' is not checked out.');
-  appendLogRows_(ctx.ss, [{ item: id + INV.sep + it.name, action: INV.ret, netid: netid, cond: cond, notes: notes }]);
-  ctx.sh.getRange(ctx.row, ctx.mc.cond).setValue(cond);
-  SpreadsheetApp.flush();
-  return { ok: true, item: readRow_(ctx.sh, ctx.mc, ctx.row, ctx.ss.getSpreadsheetTimeZone()) };
 }
 
 // Add (no id) or edit (id) an item. fields is a JSON object from the app's form.
@@ -1566,7 +1338,7 @@ function apiSave_(p) {
   SpreadsheetApp.flush();
   if (!id) assignIds_(sh, mc, row, row);
   SpreadsheetApp.flush();
-  try { refreshFormChoices(); } catch (e) { console.error('form sync: ' + e); }
+  writeLinks_(sh, mc);
   return { ok: true, item: readRow_(sh, mc, row, ss.getSpreadsheetTimeZone()) };
 }
 
@@ -1724,23 +1496,6 @@ function blankRow_(sh) {
   return row;
 }
 
-// Rows: { item, action, netid, due, cond, notes, when? }
-function appendLogRows_(ss, rows) {
-  var log = ss.getSheetByName(INV.tabs.log);
-  var lc = logCols_(log);
-  var out = rows.map(function (o) {
-    var row = blankRow_(log);
-    var set = function (k, v) { if (lc[k]) row[lc[k] - 1] = v == null ? '' : v; };
-    set('ts', o.when || new Date()); set('item', o.item); set('action', o.action); set('netid', o.netid);
-    set('notes', o.notes); set('due', o.due); set('cond', o.cond);
-    return row;
-  });
-  var start = log.getLastRow() + 1;
-  var need = start + out.length - 1 - log.getMaxRows();
-  if (need > 0) log.insertRowsAfter(log.getMaxRows(), need);
-  log.getRange(start, 1, out.length, out[0].length).setValues(out);
-}
-
 // Rows: { item, issue, taken, by, next, cost, when? }
 function appendMaintRows_(ss, rows) {
   var sh = ss.getSheetByName(INV.tabs.maint);
@@ -1779,22 +1534,12 @@ function reqId_(v) {
   if (!/^[A-Z]+-\d+$/.test(s)) throw new Error('That is not an item ID.');
   return s;
 }
-function reqNetid_(v) {
-  var s = String(v == null ? '' : v).trim().toLowerCase();
-  if (!/^[a-z]{2,4}[0-9]{1,6}$/.test(s)) throw new Error('Enter a NetID like abc123.');
-  return s;
-}
 function optDate_(v, label) {
   var s = String(v == null ? '' : v).trim();
   if (!s) return '';
   var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
   var d = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : null;
   if (!d || d.getMonth() !== Number(m[2]) - 1 || d.getDate() !== Number(m[3])) throw new Error(label + ' must be a date.');
-  return s;
-}
-function reqDate_(v, label) {
-  var s = optDate_(v, label);
-  if (!s) throw new Error(label + ' is required.');
   return s;
 }
 function optNum_(v, label) {
@@ -1822,8 +1567,8 @@ function text_(v, max) {
 }
 
 // =============================================================================
-// Test data: realistic sample items, check outs and maintenance, all tagged
-// "[test data]" so removeTestData_ can take back exactly what it added.
+// Test data: realistic sample items and maintenance, all tagged "[test data]" so
+// removeTestData_ can take back exactly what it added.
 // =============================================================================
 
 var TEST_ITEMS = [
@@ -1853,22 +1598,6 @@ var TEST_ITEMS = [
   { key: 'solder', name: 'Solder, 60/40 rosin core', cat: 'Consumable', sub: 'Solder', loc: 'High Voltage Lab', qty: 6, min: 2 },
   { key: 'pla', name: 'PLA filament, 1 kg spool', cat: 'Consumable', sub: 'Filament', loc: 'Upson LVL', qty: 0, min: 3 },
   { key: 'sandpaper', name: 'Sandpaper, 120 grit (pack)', cat: 'Consumable', sub: 'Sandpaper', loc: 'Upson Composites Lab', qty: 8, min: 4 }
-];
-
-// [item key, Check Out / Return, days ago, NetID, due (days from today), condition, note]
-var TEST_LOG = [
-  ['fluke', 'out', 20, 'tst103', -14],
-  ['fluke', 'in', 15, 'tst103', null, 'Good'],
-  ['prusa', 'out', 12, 'tst101', -5],
-  ['prusa', 'in', 5, 'tst101', null, 'Good'],
-  ['drill1', 'out', 9, 'tst101', -2],
-  ['sander', 'out', 6, 'tst104', -1],
-  ['hakko', 'out', 4, 'tst102', -1],
-  ['scope', 'out', 3, 'tst103', 4],
-  ['sander', 'in', 2, 'tst104', null, 'Needs Repair', 'Pad is worn through.'],
-  ['torque', 'out', 2, 'tst105', 0],
-  ['impact', 'out', 1, 'tst102', 5],
-  ['clamps', 'out', 0, 'tst104', 7]
 ];
 
 // [item key, days ago, issue, action taken, by, next due (days from today), cost]
@@ -1917,20 +1646,12 @@ function addTestData_() {
   var label = {};
   TEST_ITEMS.forEach(function (t, i) { label[t.key] = ids[i] + INV.sep + t.name; });
 
-  var logRows = TEST_LOG.map(function (e, i) {
-    var out = e[1] === 'out';
-    return {
-      when: at(e[2], out ? 10 + (i % 6) : 15 + (i % 3)), item: label[e[0]], action: out ? INV.checkOut : INV.ret, netid: e[3],
-      due: out ? dayFrom(e[4]) : '', cond: out ? '' : e[5], notes: INV.testTag + (e[6] ? ' ' + e[6] : '')
-    };
-  });
-  appendLogRows_(ss, logRows);
   appendMaintRows_(ss, TEST_MAINT.map(function (m) {
     return { when: at(m[1], 11), item: label[m[0]], issue: m[2] + ' ' + INV.testTag, taken: m[3], by: m[4], next: dayFrom(m[5]), cost: m[6] == null ? '' : m[6] };
   }));
   SpreadsheetApp.flush();
-  try { refreshFormChoices(); } catch (e) { console.error('form sync: ' + e); }
-  return { ok: true, added: { items: ids.length, log: logRows.length, maintenance: TEST_MAINT.length } };
+  writeLinks_(sh, mc);
+  return { ok: true, added: { items: ids.length, maintenance: TEST_MAINT.length } };
 }
 
 function removeTestData_() {
@@ -1959,21 +1680,17 @@ function removeTestData_() {
     });
     return { sheet: t, rows: rows };
   };
-  var lc = logCols_(ss.getSheetByName(INV.tabs.log));
   var tc = colsBySpec_(ss.getSheetByName(INV.tabs.maint), MAINT);
-  var logHits = pick(INV.tabs.log, lc.item, lc.notes);
   var maintHits = pick(INV.tabs.maint, tc.item, tc.issue);
   deleteRows_(maintHits.sheet, maintHits.rows);
-  deleteRows_(logHits.sheet, logHits.rows);
   deleteRows_(sh, masterRows);
   SpreadsheetApp.flush();
   photos.forEach(trashIfOurs_);
-  try { refreshFormChoices(); } catch (e) { console.error('form sync: ' + e); }
-  return { ok: true, removed: { items: masterRows.length, log: logHits.rows.length, maintenance: maintHits.rows.length, photos: photos.length } };
+  return { ok: true, removed: { items: masterRows.length, maintenance: maintHits.rows.length, photos: photos.length } };
 }
 
 // Remove, then add again: a fresh copy of the sample data (its dates are relative
-// to today, so overdue and due-soon items stay that way).
+// to today, so maintenance that is overdue or due soon stays that way).
 function resetTestData_() {
   var removed = removeTestData_();
   var added = addTestData_();

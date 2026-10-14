@@ -877,7 +877,7 @@
 
   // Tool & equipment inventory (inventory.html, backed by the Google Sheet through its
   // web app, apps-script/08_inventory.gs). Settings come from window.INVENTORY in config.js.
-  //   data-inventory="app | labels | poster | sheet | script"
+  //   data-inventory="app | labels | sheet | script"
   // Until apiUrl is set, admin buttons show as "not set up yet", and staff blocks marked
   // data-inventory-hide are removed, so staff never see a dead link and search never
   // counts one. The app button itself is wired to its slide-over further down.
@@ -888,7 +888,6 @@
     const targets = {
       app: INV_API ? 'inventory.html' : '',
       labels: INV_API ? 'inventory.html?labels=1' : '',
-      poster: INV_API ? 'inventory-poster.html' : '',
       sheet: sheet,
       script: sheet,
     };
@@ -1252,7 +1251,7 @@
       url: 'inventory.html?embed=1' + (invAdmin ? '&' + invAdmin : ''),
       fullUrl: 'inventory.html' + (invAdmin ? '?' + invAdmin : ''),
       steps: [
-        ['Opening the inventory\u2026', 'Fetching tools and who has them', 2500],
+        ['Opening the inventory\u2026', 'Fetching tools and where they live', 2500],
         ['Almost ready\u2026', 'The inventory sheet can take a few seconds to wake up', 7000],
       ],
     });

@@ -14,7 +14,6 @@ Static web hub for Cornell Project Teams Safety & Operations. Links staff and ad
 | `app.js` | Live search, open-issues dashboard panel, admin sidebar (shared by the pages) |
 | `config.js` | Single source for the Space Status web app `/exec` URL and the inventory settings (`INVENTORY`) |
 | `inventory.html`, `inventory.js`, `inventory.css` | The tool & equipment inventory app (also opens in a panel from the staff and admin pages) |
-| `inventory-poster.html` | Printable shop-wall QR poster that opens the inventory app |
 | `apps-script/08_inventory.gs` | The inventory's backend: builds the Google Sheet, keeps it tidy, and serves the app's API |
 | `assets/` | Cornell seal and favicon SVGs |
 
@@ -91,21 +90,19 @@ deployment version** (any change to web-app logic needs one); the URL stays the 
 
 The inventory is an app inside the hub (`inventory.html`). A Google Sheet is its database, and
 that sheet's own script (`apps-script/08_inventory.gs`) is both its caretaker and its API. It
-replaced the old equipment registry (the `03` and `06` scripts) in October 2026.
+replaced the old equipment registry (the `03` and `06` scripts) in October 2026. Tools stay in the
+shops and nobody borrows them, so the inventory records what there is, where it lives, what shape it
+is in, its maintenance, and how much of each supply is left.
 
 - **Staff page > Tool inventory** opens it in a panel. The board works like a shop shadow board:
-  a tool that is in shows solid, a tool that is out leaves its outline and a tag with its due date,
-  and hazard tape marks anything out of service. Search, the status chips and the Team, Location
-  and Category dropdowns narrow it down.
-- **Checking out** takes a NetID and a return date (one tap for today, tomorrow, 3 days, a week or
-  two weeks, or pick a date). The browser remembers the NetID, fills it in next time, and shows
-  "You have 2 tools out" at the top of the board. **Returning** asks how the tool is, and
-  *Needs repair* asks what is wrong with it.
+  each tool sits on a steel pegboard, hazard tape marks anything out of service, a hang tag flags a
+  repair or a supply running low, and retired items fade. Search, the status chips and the Team,
+  Location and Category dropdowns narrow it down. A tool's page shows where it lives, its condition,
+  its details and its maintenance.
 - **Admin page > Equipment & inventory** opens the admin view: add and edit items, photos, teams,
-  maintenance, stock counts and test data, plus printable QR labels, the shop-wall poster and the
-  spreadsheet itself.
-- A tool's QR label opens that tool (`inventory.html?item=PT-001`); the poster opens the app. The
-  browser's Back button closes an open tool.
+  maintenance, stock counts and test data, plus printable QR labels and the spreadsheet itself.
+- A tool's QR label opens that tool (`inventory.html?item=PT-001`). The browser's Back button closes
+  an open tool.
 
 **Photos.** Admins add a photo from a tool's page or in the add/edit form (on a phone, it can be
 taken on the spot). The app shrinks it before sending, and the script saves it in an *Inventory
@@ -121,20 +118,17 @@ The app talks to the sheet JSONP-style, like the Command Center, so the static s
 setup; photos are the one exception and go up as a plain POST. The app keeps the last good copy in
 the browser, so it paints at once and still shows something if the sheet is slow. The admin view
 follows the hub's convention: it opens from the unlisted admin page (`?admin=1`) with no passcode.
-Anyone with the page can see who has what, like a sign-out sheet.
 
 | Tab | What it holds |
 |-----|---------------|
 | Dashboard | The same numbers as the app, for anyone working in the sheet |
 | Inventory Master | One row per tool or piece of equipment, plus consumables (Current Qty / Min Qty) |
-| Checkout Log | Every check out and return, from the app or the backup form |
 | Maintenance Log | Repairs, calibrations, inspections. Next Due feeds the app and the Dashboard |
 | Lists | Dropdown options (categories with their ID prefix, subcategories, locations, teams) and links |
 
-Status, Current Holder and Due Date come from each item's *latest* Checkout Log row, so a
-duplicate or missing entry can't leave an item stuck in the wrong state. Out of Service
-(Maintenance or Retired) overrides that. Item IDs (PT-001, EQ-004, ...) are assigned from the
-category's prefix and never change, so they are safe to print on labels.
+Status is *In service* unless Out of Service says Maintenance or Retired; consumables show In
+Stock, Low Stock or Out of Stock. Item IDs (PT-001, EQ-004, ...) are assigned from the category's
+prefix and never change, so they are safe to print on labels.
 
 **Connecting it** (once)
 
@@ -148,19 +142,21 @@ category's prefix and never change, so they are safe to print on labels.
 3. After any later change to the script: Deploy > Manage deployments > pencil > Version: New
    version > Deploy. The URL stays the same.
 
-**Updating a sheet set up before photos and teams.** Paste in the new `08_inventory.gs`, run
-`setupInventory` once (it asks for Drive access, moves the new Team column next to Location and
-fills in the team list), then deploy a new version as in step 3. Until then the app keeps working
-and the admin view says photos and teams are switched off.
+**Updating a sheet set up when the inventory had check outs.** Paste in the new `08_inventory.gs`
+and run `setupInventory` once. It unlinks the backup Google Form and moves it to the Drive trash,
+deletes the Checkout Log tab (if it holds anything besides test data, it keeps it as *Old checkout
+log* instead), removes the Current Holder and Due Date columns, and renames Checkout Link to Item
+Link. Items, maintenance and photos stay as they are. Then deploy a new version as in step 3.
+
+**Updating a sheet set up before photos and teams.** The same `setupInventory` run asks for Drive
+access, moves the new Team column next to Location and fills in the team list. Until then the app
+keeps working and the admin view says photos and teams are switched off.
 
 **Test data.** The admin view's *Load test data* button (or Inventory menu > Add test data in the
-sheet) adds 26 sample tools with teams, check outs, returns and maintenance. Everything it adds is
-tagged `[test data]`. *Reset test data* swaps in a fresh copy (its dates are relative to today), and
-*Remove test data* takes all of it out again, including check outs and photos added to test items,
-while leaving real items alone.
-
-**Backup form.** The Google Form created by setup still writes to the Checkout Log if the app is
-ever down. Its link is `formUrl` in `config.js` and on the sheet's Lists tab.
+sheet) adds 26 sample items with teams and maintenance. Everything it adds is tagged
+`[test data]`. *Reset test data* swaps in a fresh copy (its dates are relative to today), and
+*Remove test data* takes all of it out again, including photos added to test items, while leaving
+real items alone.
 
 **Retiring the old registry.** Its code is gone from this repo; these steps clean up the Google side:
 

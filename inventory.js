@@ -8,9 +8,9 @@
  * as a POST. The last good copy of the list is kept in localStorage, so the page
  * paints at once and still shows something if the sheet is slow to answer.
  *
- * The board works like a shop shadow board: a tool that is in shows solid, a tool
- * that is out leaves its painted outline and a tag with the due date, and striped
- * tape means out of service.
+ * Tools stay in the shops; nobody borrows them. The board shows each one on a steel
+ * pegboard, like a shop shadow board: striped tape means out of service, a hang tag
+ * flags a repair or a supply running low, and retired items fade.
  *
  * URL options
  *   ?item=ID   open one item (what the printed QR labels link to)
@@ -29,11 +29,8 @@
   const ADMIN = params.get('admin') === '1';
   const LABELS = params.get('labels') === '1';
   const START_ID = String(params.get('item') || '').trim().toUpperCase();
-  const CACHE_KEY = 'ops-hub-inventory-v2';
-  const NETID_KEY = 'ops-hub-netid';
-  const CONDITIONS = ['Good', 'Fair', 'Needs Repair'];
+  const CACHE_KEY = 'ops-hub-inventory-v3';
   const SHARED = 'Shared';
-  const NETID_RE = /^[A-Za-z]{2,4}[0-9]{1,6}$/;
   const QR_LIB = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
   const mq = (q) => !!(window.matchMedia && window.matchMedia(q).matches);
   const CAN_HOVER = mq('(hover: hover) and (pointer: fine)');
@@ -56,14 +53,12 @@
     filter: 'all', q: '', team: '', loc: '', cat: '',
     view: '',             // drawer: '' (closed), 'item', 'edit', 'add', 'maint'
     openId: '',
-    done: null,           // the confirmation shown after a check out or return
-    details: {},          // id -> { at, history, maintenance } or { at, error }
+    details: {},          // id -> { at, maintenance } or { at, error }
     returnFocus: null,
     armed: '',            // a destructive button waiting for its second click
     startHandled: !START_ID,
     pushed: false,        // the open drawer added a browser history entry
     flashId: '',          // the item to highlight once the drawer closes
-    me: cleanNetid(recall(NETID_KEY)),
     localPhotos: {},      // id -> { data, photo }: a photo just uploaded (Drive thumbnails take a moment)
     busyPhoto: '',
     pendingPhoto: '',     // a photo picked in the add/edit form, sent after the item saves
@@ -83,20 +78,17 @@
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
     return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null;
   }
-  function addDays(iso, n) { const d = parseDay(iso) || new Date(); d.setDate(d.getDate() + n); return isoOf(d); }
   // Whole days from a to b (positive when b is later).
   function daysFrom(a, b) {
     const x = parseDay(a), y = parseDay(b);
     return x && y ? Math.round((y - x) / 86400000) : 0;
   }
   const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   function fmtDay(iso) {
     const d = parseDay(iso);
     if (!d) return String(iso || '');
     return MONTHS[d.getMonth()] + ' ' + d.getDate() + (d.getFullYear() === new Date().getFullYear() ? '' : ', ' + d.getFullYear());
   }
-  function longDay(iso) { const d = parseDay(iso); return d ? DAYS[d.getDay()] + ', ' + fmtDay(iso) : String(iso || ''); }
   function clock(d) {
     let h = d.getHours();
     const ap = h >= 12 ? 'PM' : 'AM';
@@ -109,22 +101,6 @@
     const d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
     return fmtDay(isoOf(d)) + ', ' + clock(d);
   }
-  // Short, for tags: "Due today", "Due Fri", "Due Oct 30".
-  function dueTag(iso) {
-    const n = daysFrom(todayIso(), iso);
-    if (n === 0) return 'Due today';
-    if (n === 1) return 'Due tomorrow';
-    if (n > 1 && n < 7) return 'Due ' + DAYS[parseDay(iso).getDay()].slice(0, 3);
-    return 'Due ' + fmtDay(iso);
-  }
-  // Long, for the item page.
-  function dueSentence(iso) {
-    const n = daysFrom(todayIso(), iso);
-    if (n < 0) return 'It was due ' + longDay(iso) + '.';
-    if (n === 0) return 'Due back today.';
-    if (n === 1) return 'Due back tomorrow, ' + longDay(iso) + '.';
-    return 'Due back ' + longDay(iso) + ', in ' + n + ' days.';
-  }
   const plural = (n, one, many) => n + ' ' + (n === 1 ? one : many);
   const money = (n) => '$' + Number(n).toFixed(2).replace(/\.00$/, '');
   const byName = (a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
@@ -135,8 +111,6 @@
   function store(key, val) {
     try { if (val == null || val === '') localStorage.removeItem(key); else localStorage.setItem(key, val); } catch (e) { /* private mode */ }
   }
-  function cleanNetid(v) { const s = String(v || '').trim(); return NETID_RE.test(s) ? s.toLowerCase() : ''; }
-  function rememberNetid(n) { state.me = cleanNetid(n); store(NETID_KEY, state.me); }
 
   function toast(msg) {
     toastEl.textContent = msg;
@@ -274,14 +248,9 @@
       if (it.min != null && it.qty < it.min) return { key: 'low', label: 'Low stock', line: it.qty + ' left' + reorder, tag: 'Low stock' };
       return { key: 'stock', label: 'In stock', line: it.qty + ' left' + reorder };
     }
-    if (it.status === 'Checked Out') {
-      const who = it.holder || 'someone';
-      const late = it.due && parseDay(it.due) ? daysFrom(it.due, todayIso()) : 0;
-      if (late > 0) return { key: 'overdue', label: 'Overdue', line: 'Out with ' + who, tag: plural(late, 'day', 'days') + ' late' };
-      return { key: 'out', label: 'Checked out', line: 'Out with ' + who, tag: it.due && parseDay(it.due) ? dueTag(it.due) : 'Checked out' };
-    }
-    if (it.cond === 'Needs Repair') return { key: 'avail', label: 'Available', line: it.loc ? 'Available in ' + it.loc : 'Available', tag: 'Needs repair', tagKey: 'repair' };
-    return { key: 'avail', label: 'Available', line: it.loc ? 'Available in ' + it.loc : 'Available' };
+    const line = it.loc || 'No location set';
+    if (it.cond === 'Needs Repair') return { key: 'ok', label: 'In service', line: line, tag: 'Needs repair', tagKey: 'repair' };
+    return { key: 'ok', label: 'In service', line: line };
   }
 
   function maintDue(it) {
@@ -290,9 +259,7 @@
 
   const FILTERS = [
     { key: 'all', label: 'All', test: (it, l) => l.key !== 'retired' },
-    { key: 'avail', label: 'Available', test: (it, l) => l.key === 'avail' },
-    { key: 'out', label: 'Checked out', test: (it, l) => l.key === 'out' || l.key === 'overdue' },
-    { key: 'overdue', label: 'Overdue', alert: true, test: (it, l) => l.key === 'overdue' },
+    { key: 'ok', label: 'In service', test: (it, l) => l.key === 'ok' },
     { key: 'repair', label: 'Needs repair', alert: true, test: (it, l) => it.cond === 'Needs Repair' && l.key !== 'retired' },
     { key: 'stock', label: 'Low stock', alert: true, test: (it, l) => l.key === 'low' || l.key === 'empty' },
     { key: 'oos', label: 'Out of service', test: (it, l) => l.key === 'maint' },
@@ -392,10 +359,9 @@
           : '') +
       '</section>' +
       '<div id="inv-notice"></div>' +
-      '<section class="inv-mine" id="inv-mine" hidden></section>' +
       '<div class="inv-controls" id="inv-controls">' +
         '<label class="inv-search">' + icon('<circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>') +
-          '<input type="search" id="inv-q" placeholder="Search tools, IDs, NetIDs or teams" autocomplete="off" spellcheck="false" aria-label="Search the inventory">' +
+          '<input type="search" id="inv-q" placeholder="Search tools, IDs, teams or places" autocomplete="off" spellcheck="false" aria-label="Search the inventory">' +
           (CAN_HOVER ? '<kbd class="inv-kbd" aria-hidden="true">/</kbd>' : '') +
         '</label>' +
         '<div class="inv-chips" id="inv-chips" role="group" aria-label="Filter by status"></div>' +
@@ -422,7 +388,6 @@
     if (!document.getElementById('inv-results')) scaffold();
     renderReading();
     renderNotice();
-    renderMine();
     renderChips();
     renderPicks();
     renderResults();
@@ -433,12 +398,21 @@
     const el = document.getElementById('inv-reading');
     if (!el) return;
     if (!state.loaded) { el.textContent = state.error ? '' : 'Loading the inventory…'; return; }
-    const tools = state.items.filter((it) => !it.consumable && look(it).key !== 'retired');
-    if (!tools.length) { el.textContent = state.items.length ? 'Supplies only so far. Nothing to check out yet.' : ''; return; }
-    const avail = tools.filter((it) => look(it).key === 'avail').length;
-    const overdue = tools.filter((it) => look(it).key === 'overdue').length;
-    el.textContent = avail + ' of ' + tools.length + ' ' + (tools.length === 1 ? 'tool is' : 'tools are') + ' available right now.' +
-      (overdue ? ' ' + (overdue === 1 ? '1 is overdue.' : overdue + ' are overdue.') : '');
+    const live = state.items.filter((it) => look(it).key !== 'retired');
+    const tools = live.filter((it) => !it.consumable);
+    if (!live.length) { el.textContent = ''; return; }
+    const parts = [];
+    if (tools.length) {
+      const ok = tools.filter((it) => look(it).key === 'ok').length;
+      parts.push(ok === tools.length
+        ? (tools.length === 1 ? 'The 1 tool is in service.' : 'All ' + tools.length + ' tools are in service.')
+        : ok + ' of ' + tools.length + ' tools are in service.');
+      const repair = tools.filter((it) => it.cond === 'Needs Repair').length;
+      if (repair) parts.push(repair === 1 ? '1 needs repair.' : repair + ' need repair.');
+    }
+    const low = live.filter((it) => it.consumable && (look(it).key === 'low' || look(it).key === 'empty')).length;
+    if (low) parts.push(low === 1 ? '1 supply is running low.' : low + ' supplies are running low.');
+    el.textContent = parts.join(' ') || plural(live.length, 'supply', 'supplies') + ' on hand.';
   }
 
   function renderNotice() {
@@ -455,26 +429,6 @@
         'Paste the new <code>08_inventory.gs</code> into the sheet’s Apps Script, run setupInventory, then Deploy &gt; Manage deployments &gt; New version.</span></div>';
     }
     el.innerHTML = html;
-  }
-
-  // "You have 2 tools out" for the NetID this browser last used.
-  function renderMine() {
-    const el = document.getElementById('inv-mine');
-    if (!el) return;
-    const me = state.me;
-    const mine = me && state.loaded
-      ? state.items.filter((it) => it.status === 'Checked Out' && String(it.holder).toLowerCase() === me && look(it).key !== 'retired')
-      : [];
-    if (!mine.length) { el.hidden = true; el.innerHTML = ''; return; }
-    mine.sort((a, b) => (a.due || '9').localeCompare(b.due || '9') || byName(a, b));
-    el.hidden = false;
-    el.innerHTML = '<div class="inv-mine-head"><h2 class="inv-mine-title">You have ' + plural(mine.length, 'tool', 'tools') + ' out</h2>' +
-        '<button type="button" class="inv-link" data-act="forget">Not ' + esc(me) + '?</button></div>' +
-      '<ul class="inv-mine-list">' + mine.map((it) => {
-        const l = look(it);
-        return '<li><button type="button" class="inv-mine-item is-' + l.key + '" data-id="' + esc(it.id) + '">' +
-          '<span class="inv-mine-name">' + esc(it.name) + '</span><span class="inv-mine-due">' + esc(l.tag || '') + '</span></button></li>';
-      }).join('') + '</ul>';
   }
 
   function counts() {
@@ -563,11 +517,10 @@
       if (state.loc && it.loc !== state.loc) return false;
       if (state.cat && it.cat !== state.cat) return false;
       if (!words.length) return true;
-      const hay = [it.id, it.name, it.cat, it.sub, it.loc, teamOf(it), it.serial, it.holder, l.label].join(' ').toLowerCase();
+      const hay = [it.id, it.name, it.cat, it.sub, it.loc, teamOf(it), it.serial, l.label, l.tag].join(' ').toLowerCase();
       return words.every((w) => hay.indexOf(w) >= 0);
     });
-    if (state.filter === 'out' || state.filter === 'overdue') list.sort((a, b) => (a.due || '9').localeCompare(b.due || '9') || byName(a, b));
-    else if (state.filter === 'stock') list.sort((a, b) => (a.qty || 0) - (b.qty || 0) || byName(a, b));
+    if (state.filter === 'stock') list.sort((a, b) => (a.qty || 0) - (b.qty || 0) || byName(a, b));
     else if (state.filter === 'maintdue') list.sort((a, b) => a.nextMaint.localeCompare(b.nextMaint) || byName(a, b));
     else list.sort(byName);
     return list;
@@ -639,7 +592,7 @@
       (state.armed === act ? armedLabel : label) + '</button>';
     el.innerHTML = '<div class="inv-admin-foot-text"><h2>Test data</h2><p>' +
       (n ? plural(n, 'test item is', 'test items are') + ' loaded. Each one is tagged “[test data]” in its notes, and removing them leaves real items alone.'
-        : 'Sample tools, check outs and maintenance you can try things on, then remove in one click.') + '</p></div>' +
+        : 'Sample tools, supplies and maintenance you can try things on, then remove in one click.') + '</p></div>' +
       '<div class="inv-admin-foot-actions">' +
         (n ? btn('test-reset', 'Reset test data', 'Click again to reset', false) + btn('test-remove', 'Remove test data', 'Click again to remove', true)
            : '<button type="button" class="inv-btn is-small" data-act="test-add">Load test data</button>') +
@@ -740,7 +693,6 @@
     const id = state.openId;
     state.view = '';
     state.openId = '';
-    state.done = null;
     state.armed = '';
     state.pendingPhoto = '';
     if (opts.fromHistory) state.pushed = false;
@@ -762,7 +714,6 @@
     const wasOpen = !!state.view;
     state.view = 'item';
     state.openId = id;
-    if (!opts.keepDone) state.done = null;
     state.armed = '';
     drawerBody.innerHTML = itemView(it);
     showDrawer();
@@ -793,14 +744,14 @@
     state.details[id] = Object.assign({}, cur || {}, { loading: true });
     try {
       const res = await api({ action: 'item', id: id });
-      state.details[id] = { at: Date.now(), history: res.history || [], maintenance: res.maintenance || [] };
+      state.details[id] = { at: Date.now(), maintenance: res.maintenance || [] };
       if (res.item) {
         const before = findItem(id);
         const changed = !before || JSON.stringify(before) !== JSON.stringify(res.item);
         upsert(res.item);
         if (changed) {
           renderBoard();
-          if (state.view === 'item' && state.openId === id && !state.done) refreshOpenItem();
+          if (state.view === 'item' && state.openId === id) refreshOpenItem();
         }
       }
     } catch (err) {
@@ -815,9 +766,14 @@
   }
 
   const closeSvg = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+  const backSvg = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"></polyline></svg>';
+  // Inside the hub's panel the item fills the panel, so its control reads as a way back.
+  const EMBED = document.documentElement.classList.contains('inv-embed');
 
   function drawerBar(inner) {
-    return '<div class="inv-d-bar">' + inner + '<button type="button" class="inv-d-close" data-close aria-label="Close">' + closeSvg + '</button></div>';
+    return '<div class="inv-d-bar">' + inner + (EMBED
+      ? '<button type="button" class="inv-d-close" data-close aria-label="Back to all tools">' + backSvg + 'All tools</button>'
+      : '<button type="button" class="inv-d-close" data-close aria-label="Close">' + closeSvg + '</button>') + '</div>';
   }
 
   function fact(label, value, wide) {
@@ -830,7 +786,7 @@
     const notes = String(it.notes || '').replace(/\[test data\]\s*/i, '').trim();
     const link = /^https?:\/\//i.test(it.photo) && !photoSrc(it, 100) ? '<a href="' + esc(it.photo) + '" target="_blank" rel="noopener">Open photo</a>' : '';
     const facts =
-      fact('Team', teamOf(it) === SHARED ? (it.consumable ? 'Shared supplies' : 'Shared. Any team can borrow it.') : esc(teamOf(it)), teamOf(it) === SHARED) +
+      fact('Team', teamOf(it) === SHARED ? (it.consumable ? 'Shared supplies' : 'Shared. Any team can use it.') : esc(teamOf(it)), teamOf(it) === SHARED) +
       fact('Location', esc(it.loc)) +
       fact('Category', esc([it.cat, it.sub].filter(Boolean).join(', '))) +
       fact('Condition', it.consumable ? '' : esc(it.cond)) +
@@ -841,15 +797,16 @@
       fact('Photo', link);
 
     const where = [it.sub || it.cat, it.loc ? 'kept in ' + it.loc : ''].filter(Boolean).join(', ');
+    const action = actionCard(it);
     return drawerBar('<span class="inv-assettag is-lg">' + esc(it.id) + '</span>' +
         '<span class="inv-d-state is-' + l.key + '"><span class="inv-dot is-' + l.key + '" aria-hidden="true"></span>' + esc(l.label) + '</span>' +
         (it.test ? '<span class="inv-testmark">Test data</span>' : '')) +
       '<div class="inv-d-photo">' + bed(it, true) + photoTools(it) + '</div>' +
       '<h2 class="inv-d-title" id="inv-d-title">' + esc(it.name) + '</h2>' +
       '<p class="inv-d-sub">' + esc(where.charAt(0).toUpperCase() + where.slice(1)) + (teamOf(it) !== SHARED ? '<span class="inv-team">' + esc(teamOf(it)) + '</span>' : '') + '</p>' +
-      '<section class="inv-d-action" id="inv-action">' + actionCard(it) + '</section>' +
+      (action ? '<section class="inv-d-action" id="inv-action">' + action + '</section>' : '') +
       (facts ? '<section class="inv-d-sec"><h3 class="inv-d-h">Details</h3><dl class="inv-facts">' + facts + '</dl></section>' : '') +
-      '<section class="inv-d-sec"><h3 class="inv-d-h">History</h3><div id="inv-hist">' + historyHtml(it) + '</div></section>' +
+      '<section class="inv-d-sec"><h3 class="inv-d-h">Maintenance</h3><div id="inv-hist">' + historyHtml(it) + '</div></section>' +
       (ADMIN
         ? '<div class="inv-d-admin"><button type="button" class="inv-btn" data-act="edit">Edit item</button>' +
             '<button type="button" class="inv-btn" data-act="maint">Log maintenance</button></div>'
@@ -868,22 +825,15 @@
     '</div>';
   }
 
+  // What to know before using it: out of service, retired, needs repair, or the stock
+  // level of a supply. Nothing for a tool that is fine.
   function actionCard(it) {
     const l = look(it);
-    if (state.done && state.done.id === it.id) return doneCard(state.done);
     if (l.key === 'retired') return '<div class="inv-callout is-retired"><b>Retired.</b> It is no longer in use.</div>';
     if (l.key === 'maint') return '<div class="inv-callout is-maint"><span class="inv-hazard" aria-hidden="true"></span><b>Out of service for maintenance.</b> Ask the Operations team before you use it.</div>';
     if (it.consumable) return stockCard(it, l);
-    if (l.key === 'out' || l.key === 'overdue') return holderCard(it, l) + returnForm(it);
-    return checkoutForm(it);
-  }
-
-  function doneCard(d) {
-    return '<div class="inv-done" role="status">' +
-      '<svg class="inv-done-mark" viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="23"></circle><path d="M15 27.5l7.5 7.5L38 18.5"></path></svg>' +
-      '<p class="inv-done-title">' + esc(d.title) + '</p>' +
-      (d.sub ? '<p class="inv-done-sub">' + esc(d.sub) + '</p>' : '') +
-      '<button type="button" class="inv-btn" data-close>Done</button></div>';
+    if (it.cond === 'Needs Repair') return '<div class="inv-callout is-repair"><b>Needs repair.</b> Check it over before you use it, or ask the Operations team.</div>';
+    return '';
   }
 
   function stockCard(it, l) {
@@ -894,13 +844,6 @@
       (ADMIN ? countForm(it) : '<p class="inv-hint">Running low? Tell the Operations team.</p>');
   }
 
-  function holderCard(it, l) {
-    return '<div class="inv-holder is-' + l.key + '">' +
-      '<p class="inv-holder-who">Out with <b>' + esc(it.holder || 'someone') + '</b></p>' +
-      (it.due && parseDay(it.due) ? '<p class="inv-holder-due">' + esc(dueSentence(it.due)) + '</p>' : '') +
-    '</div>';
-  }
-
   // ---------------------------------------------------------------- forms
 
   function field(label, control, cls) {
@@ -908,51 +851,6 @@
   }
   const formFoot = (submit) => '<p class="inv-form-err" role="alert" hidden></p>' +
     '<button type="submit" class="inv-btn is-primary is-block">' + submit + '</button>';
-
-  // Who is doing this: the remembered NetID, or a box to type one.
-  function whoField(verb, value) {
-    if (value) {
-      return '<div class="inv-who" data-who><span>' + verb + ' <b>' + esc(value) + '</b></span>' +
-        '<button type="button" class="inv-link" data-act="change-netid">Not you?</button>' +
-        '<input type="hidden" name="netid" value="' + esc(value) + '"></div>';
-    }
-    return netidField('');
-  }
-  function netidField(value) {
-    return field('Your NetID', '<input name="netid" required autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="abc123" value="' + esc(value) + '">');
-  }
-
-  const DUE_PICKS = [[0, 'Today'], [1, 'Tomorrow'], [3, '3 days'], [7, '1 week'], [14, '2 weeks']];
-
-  function checkoutForm(it) {
-    const t = todayIso();
-    const due = addDays(t, 7);
-    return '<form class="inv-card inv-form" data-form="checkout" novalidate>' +
-      '<h3 class="inv-card-title">Check it out</h3>' +
-      (it.cond === 'Needs Repair' ? '<p class="inv-warn">It was last returned as needing repair. Check it over before you use it.</p>' : '') +
-      whoField('Checking out as', state.me) +
-      '<fieldset class="inv-field"><legend class="inv-label">Bring it back by</legend>' +
-        '<div class="inv-due">' +
-          DUE_PICKS.map((p) => '<label class="inv-due-opt"><input type="radio" name="duepick" value="' + p[0] + '"' + (p[0] === 7 ? ' checked' : '') + '><span>' + p[1] + '</span></label>').join('') +
-          '<label class="inv-due-opt"><input type="radio" name="duepick" value="pick"><span>Pick a date</span></label>' +
-        '</div>' +
-        '<input class="inv-due-date" type="date" name="due" min="' + t + '" value="' + due + '" aria-label="Return date" hidden>' +
-        '<p class="inv-due-read" data-due-read>' + esc(longDay(due)) + '</p>' +
-      '</fieldset>' +
-      field('Note <i>optional</i>', '<input name="notes" maxlength="500" placeholder="What is it for?" autocomplete="off">') +
-      formFoot('Check out') + '</form>';
-  }
-
-  function returnForm(it) {
-    const who = state.me;
-    return '<form class="inv-card inv-form" data-form="return" novalidate><h3 class="inv-card-title">Return it</h3>' +
-      (who ? whoField('Returning as', who) : netidField(it.holder || '')) +
-      '<fieldset class="inv-field"><legend class="inv-label">How is it?</legend><div class="inv-seg">' +
-        CONDITIONS.map((c) => '<label class="inv-seg-opt' + (c === 'Needs Repair' ? ' is-bad' : '') + '"><input type="radio" name="cond" value="' + c + '"><span>' + (c === 'Needs Repair' ? 'Needs repair' : c) + '</span></label>').join('') +
-      '</div></fieldset>' +
-      field('<span data-note-label>Note <i>optional</i></span>', '<input name="notes" maxlength="500" placeholder="Anything we should know?" autocomplete="off">') +
-      formFoot('Return') + '</form>';
-  }
 
   function countForm(it) {
     return '<form class="inv-card inv-form" data-form="count" novalidate><h3 class="inv-card-title">Update the count</h3>' +
@@ -1018,7 +916,7 @@
           pickField('loc', 'Location', state.lists.locations, it.loc, { blank: 'Not set', addLabel: 'Add a new location…', placeholder: 'New location' }) +
         '</div>' +
         segField('cond', 'Condition', [['Good', 'Good'], ['Fair', 'Fair'], ['Needs Repair', 'Needs repair']], it.cond) +
-        segField('oos', 'In service', [['', 'In use'], ['Maintenance', 'Maintenance'], ['Retired', 'Retired']], it.oos || '') +
+        segField('oos', 'Status', [['', 'In service'], ['Maintenance', 'Maintenance'], ['Retired', 'Retired']], it.oos || '') +
         '<div class="inv-form-grid">' +
           field('Serial or asset tag', '<input name="serial" maxlength="80" value="' + esc(it.serial || '') + '" autocomplete="off">') +
           field('Purchase date', '<input type="date" name="bought" value="' + esc(parseDay(it.bought) ? it.bought : '') + '">') +
@@ -1064,23 +962,17 @@
 
   function historyHtml(it) {
     const d = it && state.details[it.id];
-    if (!it || !d || (d.loading && !d.history)) return '<div class="inv-hist-wait" aria-label="Loading the history"><i></i><i></i><i></i></div>';
-    if (d.error) return '<p class="inv-hint">Couldn’t load the history. ' + esc(d.error) + '</p>';
-    const rows = (d.history || []).map((h) => ({
-      when: h.when, kind: h.action === 'Return' ? 'in' : 'out',
-      html: (h.action === 'Return'
-        ? 'Returned by <b>' + esc(h.netid) + '</b>' + (h.cond ? ', ' + esc(h.cond.toLowerCase()) : '')
-        : 'Checked out by <b>' + esc(h.netid) + '</b>' + (h.due ? ', due ' + esc(fmtDay(h.due)) : '')) +
-        (h.notes && h.notes.replace(/\[test data\]/i, '').trim() ? '<span class="inv-hist-note">' + esc(h.notes.replace(/\[test data\]\s*/i, '').trim()) + '</span>' : ''),
-    })).concat((d.maintenance || []).map((m) => ({
-      when: m.when, kind: 'fix',
+    if (!it || !d || (d.loading && !d.maintenance)) return '<div class="inv-hist-wait" aria-label="Loading the maintenance log"><i></i><i></i><i></i></div>';
+    if (d.error) return '<p class="inv-hint">Couldn’t load the maintenance log. ' + esc(d.error) + '</p>';
+    const rows = (d.maintenance || []).map((m) => ({
+      when: m.when,
       html: '<b>' + esc(m.issue.replace(/\s*\[test data\]/i, '')) + '</b>' + (m.taken ? '. ' + esc(m.taken) : '') + (m.by ? ' (' + esc(m.by) + ')' : '') +
         (m.cost != null ? ', ' + esc(money(m.cost)) : '') + (m.next ? '. Next check ' + esc(fmtDay(m.next)) + '.' : ''),
-    })));
-    if (!rows.length) return '<p class="inv-hint">No check outs or maintenance yet.</p>';
+    }));
+    if (!rows.length) return '<p class="inv-hint">No maintenance logged yet.</p>';
     rows.sort((a, b) => (a.when < b.when ? 1 : a.when > b.when ? -1 : 0));
     return '<ol class="inv-hist">' + rows.map((r) =>
-      '<li class="is-' + r.kind + '"><span class="inv-hist-text">' + r.html + '</span><time>' + esc(fmtWhen(r.when)) + '</time></li>').join('') + '</ol>';
+      '<li class="is-fix"><span class="inv-hist-text">' + r.html + '</span><time>' + esc(fmtWhen(r.when)) + '</time></li>').join('') + '</ol>';
   }
 
   function formError(form, msg) {
@@ -1137,30 +1029,6 @@
     const radio = (name) => { const r = form.querySelector('input[name="' + name + '"]:checked'); return r ? r.value : ''; };
     markBad(form, '');
 
-    if (kind === 'checkout') {
-      const netid = val('netid'), due = val('due');
-      if (!NETID_RE.test(netid)) { markBad(form, 'netid'); return formError(form, 'Enter your NetID, like abc123.'); }
-      if (!parseDay(due)) return formError(form, 'Pick the day you’ll bring it back.');
-      if (due < todayIso()) return formError(form, 'The return date can’t be in the past.');
-      return submitWith(form, 'Checking out', () => api({ action: 'checkout', id: it.id, netid: netid, due: due, notes: val('notes') }), (res) => {
-        rememberNetid(netid);
-        finishAction(res.item, { title: 'Checked out to ' + res.item.holder, sub: 'Bring it back by ' + longDay(res.item.due) + '.' });
-      });
-    }
-    if (kind === 'return') {
-      const netid = val('netid');
-      const cond = radio('cond');
-      if (!NETID_RE.test(netid)) { markBad(form, 'netid'); return formError(form, 'Enter your NetID, like abc123.'); }
-      if (!cond) return formError(form, 'Pick how it is: good, fair or needs repair.');
-      if (cond === 'Needs Repair' && !val('notes')) { markBad(form, 'notes'); return formError(form, 'Say what’s wrong with it, so it can be fixed.'); }
-      return submitWith(form, 'Returning', () => api({ action: 'return', id: it.id, netid: netid, cond: cond, notes: val('notes') }), (res) => {
-        rememberNetid(netid);
-        finishAction(res.item, {
-          title: 'Returned',
-          sub: cond === 'Needs Repair' ? 'Thanks for flagging it, ' + netid + '. The Operations team will take a look.' : 'Thanks, ' + netid + '.',
-        });
-      });
-    }
     if (kind === 'count') {
       const qty = val('qty');
       if (!/^\d+$/.test(qty)) { markBad(form, 'qty'); return formError(form, 'Enter how many are on hand.'); }
@@ -1209,23 +1077,6 @@
     return null;
   }
 
-  // After a check out or return: show the confirmation in place, update the board.
-  function finishAction(item, done) {
-    upsert(item);
-    state.flashId = item.id;
-    state.done = Object.assign({ id: item.id }, done);
-    delete state.details[item.id];
-    renderBoard();
-    if (state.view === 'item' && state.openId === item.id) {
-      drawerBody.innerHTML = itemView(item);
-      const card = drawerBody.querySelector('.inv-done button');
-      if (card) card.focus({ preventScroll: true });
-      const action = document.getElementById('inv-action');
-      if (action && action.scrollIntoView) action.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    }
-    loadDetail(item.id, true);
-  }
-
   // After an admin change: back to the item page with a short note.
   function afterChange(item, message) {
     upsert(item);
@@ -1235,7 +1086,6 @@
     toast(message);
     state.view = 'item';
     state.openId = item.id;
-    state.done = null;
     drawerBody.innerHTML = itemView(item);
     drawerPanel.scrollTop = 0;
     if (!state.pushed) setUrlItem(item.id, false);
@@ -1315,10 +1165,10 @@
     try {
       const res = await api(mode === 'add' ? { action: 'testdata' } : { action: 'testdata', mode: mode }, 120000);
       toast(mode === 'remove'
-        ? 'Removed ' + res.removed.items + ' test items and their history.'
+        ? 'Removed ' + res.removed.items + ' test items and their maintenance.'
         : mode === 'reset'
           ? 'Test data reset: ' + res.added.items + ' fresh test items.'
-          : 'Loaded ' + res.added.items + ' test items with ' + res.added.log + ' check outs and returns.');
+          : 'Loaded ' + res.added.items + ' test items with ' + res.added.maintenance + ' maintenance entries.');
       if (state.view) closeDrawer();
       state.details = {};
       await load();
@@ -1360,14 +1210,14 @@
     const items = state.items.filter((it) => !it.consumable && look(it).key !== 'retired').sort(byId);
     app.innerHTML =
       '<section class="inv-top inv-noprint"><div class="inv-head"><h1 class="inv-title">Item labels</h1>' +
-        '<p class="inv-reading">Print, cut, and stick one on each tool. Scanning a label opens that tool, ready to check out or return.</p></div>' +
+        '<p class="inv-reading">Print, cut, and stick one on each tool. Scanning a label opens that tool’s page: where it lives, what shape it’s in, and its maintenance.</p></div>' +
         '<div class="inv-head-tools"><button type="button" class="inv-btn is-primary" data-act="print">Print labels</button></div></section>' +
       (items.length
         ? '<div class="inv-qrlabels">' + items.map((it) =>
             '<div class="inv-qrlabel"><div class="inv-qrlabel-code" data-url="' + esc(APP_URL + '?item=' + encodeURIComponent(it.id)) + '"></div>' +
             '<div class="inv-qrlabel-text"><div class="inv-assettag">' + esc(it.id) + '</div><div class="inv-qrlabel-name">' + esc(it.name) + '</div>' +
             (teamOf(it) !== SHARED ? '<div class="inv-qrlabel-team">' + esc(teamOf(it)) + '</div>' : '') +
-            '<div class="inv-qrlabel-hint">Scan to check out or return</div></div></div>').join('') + '</div>'
+            '<div class="inv-qrlabel-hint">Scan for this tool’s details</div></div></div>').join('') + '</div>'
         : '<div class="inv-empty"><h2 class="inv-empty-title">No tools to label yet</h2></div>');
     loadQr().then(() => {
       document.querySelectorAll('.inv-qrlabel-code').forEach((el) => {
@@ -1384,7 +1234,7 @@
   app.addEventListener('click', (e) => {
     const chip = e.target.closest('[data-filter]');
     if (chip) { state.filter = chip.dataset.filter; renderChips(); renderPicks(); renderResults(); return; }
-    const card = e.target.closest('.inv-slot[data-id], .inv-mine-item[data-id]');
+    const card = e.target.closest('.inv-slot[data-id]');
     if (card) { openItem(card.dataset.id, card); return; }
     const act = e.target.closest('[data-act]');
     if (!act) return;
@@ -1397,7 +1247,6 @@
       if (q) q.value = '';
       renderChips(); renderPicks(); renderResults();
     }
-    else if (a === 'forget') { rememberNetid(''); renderMine(); toast('This browser won’t remember a NetID until the next check out.'); }
     else if (a === 'test-add') testData('add');
     else if (a === 'test-remove') arm('test-remove', () => testData('remove'), renderAdminFoot);
     else if (a === 'test-reset') arm('test-reset', () => testData('reset'), renderAdminFoot);
@@ -1441,7 +1290,7 @@
   app.addEventListener('load', photoLoaded, true);
   drawer.addEventListener('load', photoLoaded, true);
 
-  // On a computer, start fetching an item's history while the pointer rests on it.
+  // On a computer, start fetching an item's maintenance log while the pointer rests on it.
   let hoverTimer = 0;
   app.addEventListener('pointerover', (e) => {
     if (!CAN_HOVER) return;
@@ -1470,15 +1319,7 @@
     const a = act.dataset.act;
     if (a === 'edit' && it) openForm('edit', it);
     else if (a === 'maint' && it) openForm('maint', it);
-    else if (a === 'cancel') { if (it) { state.view = 'item'; state.done = null; drawerBody.innerHTML = itemView(it); drawerPanel.scrollTop = 0; loadDetail(it.id); } else closeDrawer(); }
-    else if (a === 'change-netid') {
-      const who = act.closest('[data-who]');
-      if (who) {
-        who.outerHTML = netidField('');
-        const input = drawerBody.querySelector('input[name="netid"]');
-        if (input) input.focus();
-      }
-    }
+    else if (a === 'cancel') { if (it) { state.view = 'item'; drawerBody.innerHTML = itemView(it); drawerPanel.scrollTop = 0; loadDetail(it.id); } else closeDrawer(); }
     else if (a === 'photo-remove' && it) arm('photo', () => removePhoto(it.id), refreshOpenItem);
   });
 
@@ -1499,33 +1340,6 @@
   drawer.addEventListener('change', (e) => {
     const t = e.target;
     const form = t.form;
-    if (t.name === 'duepick' && form) {
-      const box = form.elements.due;
-      if (t.value === 'pick') {
-        box.hidden = false;
-        box.focus();
-        try { if (box.showPicker) box.showPicker(); } catch (err) { /* needs a user gesture in some browsers */ }
-      } else {
-        box.hidden = true;
-        box.value = addDays(todayIso(), Number(t.value));
-      }
-      const read = form.querySelector('[data-due-read]');
-      if (read) read.textContent = longDay(box.value);
-      return;
-    }
-    if (t.name === 'due' && form) {
-      const read = form.querySelector('[data-due-read]');
-      if (read) read.textContent = parseDay(t.value) ? longDay(t.value) : 'Pick a date';
-      return;
-    }
-    if (t.name === 'cond' && form && form.dataset.form === 'return') {
-      const label = form.querySelector('[data-note-label]');
-      const notes = form.elements.notes;
-      const bad = t.value === 'Needs Repair';
-      if (label) label.innerHTML = bad ? 'What’s wrong with it?' : 'Note <i>optional</i>';
-      if (notes) { notes.placeholder = bad ? 'Loose chuck, dull blade, missing piece…' : 'Anything we should know?'; if (bad) notes.focus(); }
-      return;
-    }
     if (t.tagName === 'SELECT' && form && form.elements[t.name + '__new']) {
       const box = form.elements[t.name + '__new'];
       box.hidden = t.value !== '__new';
@@ -1608,6 +1422,10 @@
     renderNotConnected();
     return;
   }
+
+  // Left behind by the version with check outs: the NetID it remembered, and its copy of the list.
+  store('ops-hub-netid', null);
+  store('ops-hub-inventory-v2', null);
 
   const saved = readCache();
   if (saved && Array.isArray(saved.items) && Date.now() - (saved.savedAt || 0) < 7 * 86400000) {

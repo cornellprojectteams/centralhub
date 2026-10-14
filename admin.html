@@ -123,20 +123,16 @@
           </div>
         </section>
 
-        <section class="category admin-block" id="inventory" data-keywords="tool equipment inventory checkout check out return borrow loan overdue who has what repair maintenance consumables low stock qr labels poster sheet test data">
+        <section class="category admin-block" id="inventory" data-keywords="tool equipment inventory location condition repair maintenance consumables low stock qr labels sheet test data">
           <h3 class="admin-label">Equipment &amp; inventory</h3>
           <div class="action-group">
-            <button type="button" class="action action-dashboard" id="inventory-open" data-inventory="app" data-keywords="inventory app check out return add edit items maintenance stock counts test data overdue who has what">
+            <button type="button" class="action action-dashboard" id="inventory-open" data-inventory="app" data-keywords="inventory app add edit items photos maintenance stock counts test data">
               <span class="action-title">Inventory</span>
-              <span class="action-sub">Check tools out and back in, add or edit items, log maintenance, update stock counts, and load or clear test data.</span>
+              <span class="action-sub">Add or edit items and their photos, log maintenance, update stock counts, and load or clear test data.</span>
             </button>
             <a class="action" data-inventory="labels" href="#" target="_blank" rel="noopener" data-keywords="qr labels print stickers scan tools">
               <span class="action-title">Print item labels</span>
-              <span class="action-sub">A QR label for every tool. Scanning one opens that item, ready to check out or return.</span>
-            </a>
-            <a class="action" data-inventory="poster" href="#" target="_blank" rel="noopener" data-keywords="qr code poster print shop wall scan checkout sign">
-              <span class="action-title">Shop wall QR poster</span>
-              <span class="action-sub">Print it and put it up in the shop. Scanning it opens the inventory.</span>
+              <span class="action-sub">A QR label for every tool. Scanning one opens that tool&rsquo;s page in the inventory.</span>
             </a>
             <a class="action" data-inventory="sheet" href="#" target="_blank" rel="noopener" data-keywords="spreadsheet backend google sheet data bulk edit dashboard tab">
               <span class="action-title">Inventory spreadsheet</span>
@@ -224,7 +220,7 @@
               <span class="action-title">Command Center API</span>
               <span class="action-sub">Standalone project "Ops Command Center API" (Code.gs). Redeploy, then bump CACHE_VERSION.</span>
             </a>
-            <a class="action" data-inventory="script" href="#" target="_blank" rel="noopener" data-keywords="inventory equipment checkout maintenance script 08 setup bound extensions apps script self-test">
+            <a class="action" data-inventory="script" href="#" target="_blank" rel="noopener" data-keywords="inventory equipment maintenance script 08 setup bound extensions apps script self-test">
               <span class="action-title">Inventory script</span>
               <span class="action-sub">Tool &amp; equipment inventory (file 08). Open the sheet, then Extensions, Apps Script.</span>
             </a>
@@ -382,7 +378,7 @@
         <div class="issues-loading" role="status" aria-live="polite">
           <div class="issues-loading-mark" aria-hidden="true"></div>
           <p class="issues-loading-text">Opening the inventory…</p>
-          <p class="issues-loading-hint">Fetching tools and who has them</p>
+          <p class="issues-loading-hint">Fetching tools and where they live</p>
           <div class="issues-loading-cards" aria-hidden="true">
             <div class="issues-skeleton-card"></div>
             <div class="issues-skeleton-card"></div>
