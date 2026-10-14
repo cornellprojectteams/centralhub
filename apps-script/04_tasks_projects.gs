@@ -802,7 +802,6 @@ function tpStyles_() {
     + '#tp-proj-list .card-head [id$="-pill"]{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:flex-end}'
     + '.tp-pill--new{color:#8a5a00;background:#fbf3d7;border:1px solid #f0d48a}'
     + '.tp-kicker-bee{font-size:13px;margin-right:4px}'
-    + '.tp-lede{font-family:"Plus Jakarta Sans",Helvetica,Arial,sans-serif;font-size:14.5px;font-weight:600;line-height:1.5;color:#6b665e;margin:10px 0 4px;max-width:40rem}'
     + '.tp-skel{pointer-events:none;box-shadow:none}'
     + '.tp-skel-line{height:10px;border-radius:6px;background:linear-gradient(90deg,#efeee9 0%,#f7f6f2 40%,#efeee9 80%);background-size:200% 100%;animation:tpSkel 1.15s ease infinite;margin-top:10px}'
     + '.tp-skel-line--title{height:18px;width:58%;margin-top:0}'
@@ -1490,8 +1489,6 @@ function projectsPage_(embedded, admin) {
     inner += '<div class="page-head"><div class="page-kicker">Project Teams Ops Hub</div>'
       + '<div class="page-title">Projects</div><div class="page-rule"></div></div>';
   }
-
-  inner += '<p class="tp-lede">Join a project, do the work, finish with an after photo. Ideas that win enough support land here on their own.</p>';
 
   // Admin create form (revealed only in admin mode via tpAdminRevealJs_).
   // Collapsed into a disclosure so it stays out of the way until needed.

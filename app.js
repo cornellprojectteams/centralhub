@@ -1284,17 +1284,40 @@
     const navLinks = [...adminNav.querySelectorAll('a[href^="#"]')];
     const linkById = {};
     navLinks.forEach(a => { linkById[a.getAttribute('href').slice(1)] = a; });
+    const blocks = [...document.querySelectorAll('#admin .admin-block')];
     const setActive = id => {
       navLinks.forEach(a => a.classList.remove('active'));
       if (linkById[id]) linkById[id].classList.add('active');
     };
+    // A clicked link stays lit while the page jumps to its section. The last sections
+    // are too short to reach the top of the window, so without this the one above
+    // them would take the highlight.
+    let holding = false;
+    let holdTimer = null;
+    const hold = () => {
+      holding = true;
+      clearTimeout(holdTimer);
+      holdTimer = setTimeout(() => { holding = false; }, 400);
+    };
     const spy = new IntersectionObserver(entries => {
+      if (holding) return;
       const inView = entries.filter(e => e.isIntersecting)
         .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
       if (inView.length) setActive(inView[0].target.id);
     }, { rootMargin: '-96px 0px -65% 0px', threshold: 0 });
-    document.querySelectorAll('#admin .admin-block').forEach(b => spy.observe(b));
-    navLinks.forEach(a => a.addEventListener('click', () => setActive(a.getAttribute('href').slice(1))));
+    blocks.forEach(b => spy.observe(b));
+    window.addEventListener('scroll', () => {
+      if (holding) { hold(); return; }
+      // Scrolled to the very bottom: light the last section that is in view.
+      const doc = document.documentElement;
+      if (window.innerHeight + window.scrollY < doc.scrollHeight - 2) return;
+      const seen = blocks.filter(b => !b.classList.contains('hidden') && b.getBoundingClientRect().top < window.innerHeight * 0.85);
+      if (seen.length) setActive(seen[seen.length - 1].id);
+    }, { passive: true });
+    navLinks.forEach(a => a.addEventListener('click', () => {
+      setActive(a.getAttribute('href').slice(1));
+      hold();
+    }));
   }
 
   if (!search) return;

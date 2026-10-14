@@ -3,7 +3,8 @@
 <!--
   Admin: back-office tools for SPT staff. Reached only by a shared link,
   it is not surfaced in the staff-facing navigation on index.html.
-  Shares styles.css and app.js with the rest of the hub.
+  Day-to-day operations only. Scripts, code and the developer guide are on
+  developer.html. Shares styles.css and app.js with the rest of the hub.
 -->
 <head>
   <meta charset="UTF-8">
@@ -67,12 +68,14 @@
             <a href="#access" style="--chip:#2563c9"><span class="dot"></span>Fabman</a>
             <a href="#compliance" style="--chip:#1f9d5b"><span class="dot"></span>Compliance</a>
             <a href="#fleet" style="--chip:#7c3aed"><span class="dot"></span>Fleet</a>
-            <a href="#scripts" style="--chip:#444d56"><span class="dot"></span>Scripts</a>
+            <span class="admin-nav-sep" aria-hidden="true"></span>
+            <a href="docs.html" class="admin-nav-extra"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>Admin guide</a>
+            <a href="developer.html" class="admin-nav-extra"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>Developer</a>
           </nav>
         </aside>
 
       <div class="admin-list">
-        <section class="category admin-block" id="space-admin" data-keywords="space status tracking pending actions emailer edit form automation open issues dashboard mark complete approve send back delete">
+        <section class="category admin-block" id="space-admin" data-keywords="space status tracking pending actions open issues dashboard mark complete approve send back edit delete form team contacts">
           <h3 class="admin-label">Space</h3>
           <div class="action-group">
             <button type="button" class="action action-dashboard" id="issues-open" data-keywords="open issues dashboard all teams filter mark complete approve send back delete edit tasks">
@@ -82,24 +85,20 @@
             </button>
             <a class="action" href="https://forms.gle/6DHYsEPonVtdALps5" target="_blank" rel="noopener" data-keywords="space status report form submit issue file new google form">
               <span class="action-title">Space status form</span>
-              <span class="action-sub">The form teams use to report an issue. Open it to file one yourself.</span>
+              <span class="action-sub">The form for reporting an issue. File one yourself.</span>
             </a>
             <a class="action" href="team.html" data-keywords="share link team open issues operations team per-team shareable url copy">
               <span class="action-title">Share a team&rsquo;s issue link</span>
-              <span class="action-sub">Get a clean link to one team&rsquo;s open issues, like Operations Team</span>
+              <span class="action-sub">A clean link to one team&rsquo;s open issues.</span>
             </a>
-            <a class="action" href="https://script.google.com/d/1DpKw0dXIQ5rH6_BQfIQnXpmTbTcPmfH3wq2Dzc6pJUA7lrmeFG7hh5P4/edit" target="_blank" rel="noopener" data-keywords="space status emailer script automation notification">
-              <span class="action-title">Space Status Emailer script</span>
-              <span class="action-sub">Apps Script for team notification emails</span>
-            </a>
-            <a class="action" href="docs.html" data-keywords="documentation docs guide how it works system code reference deploy troubleshooting help manual how to onboarding">
-              <span class="action-title">System guide &amp; docs</span>
-              <span class="action-sub">How it all works: reporting, reminders, completion photos, approvals, and editing tasks.</span>
+            <a class="action" href="https://docs.google.com/spreadsheets/d/1mZrlnA-GiVKB4_Um21aMH9jsSkf6TUJhauDWivnf7-I/edit" target="_blank" rel="noopener" data-keywords="space status tracking sheet spreadsheet form responses team contacts emails recipients projects tab raw data edit rows addressed at reopen">
+              <span class="action-title">Space Status sheet</span>
+              <span class="action-sub">Form Responses, Team Contacts and the Projects tab.</span>
             </a>
           </div>
         </section>
 
-        <section class="category admin-block" id="projects-admin" data-keywords="projects assign create multi student before after photo in progress completed assignees tasks approve reject completion evidence confetti proposals improvement ideas vote rating impact effort quorum">
+        <section class="category admin-block" id="projects-admin" data-keywords="projects assign create multi student before after photo in progress completed assignees approve completion proposals improvement ideas vote rating impact effort quorum">
           <h3 class="admin-label">Projects</h3>
           <div class="action-group">
             <button type="button" class="action action-dashboard" id="proposals-open" data-new-until="2026-08-28" data-keywords="proposals improvement ideas vote rating impact effort approve decline quorum swarm scout provisional">
@@ -107,18 +106,13 @@
               <span class="action-title">Review proposals</span>
               <span class="action-sub">Improvement ideas posted and rated by the team. Enough support moves one into Projects automatically; you can also approve or decline it here.</span>
             </button>
-            <a class="action" data-module="projects-dash" href="#" target="_blank" rel="noopener" data-keywords="projects dashboard hours logged metrics stats completion rate contributors leaderboard before after gallery noah">
-              <span class="action-badge">Dashboard</span>
-              <span class="action-title">Projects dashboard</span>
-              <span class="action-sub">Hours logged, completion rate, top contributors, and a before &amp; after gallery.</span>
-            </a>
-            <a class="action" data-module="projects" data-admin href="#" target="_blank" rel="noopener" data-keywords="assign create project multi student before after photo in progress completed">
+            <a class="action" data-module="projects" data-admin href="#" target="_blank" rel="noopener" data-keywords="assign create project multi student before after photo in progress completed approve send back">
               <span class="action-title">Assign &amp; track projects</span>
-              <span class="action-sub">Hand out bigger jobs, see who&rsquo;s working on each, and view the before and after photos when they wrap up.</span>
+              <span class="action-sub">Create projects, see who&rsquo;s on each, and approve finished work.</span>
             </a>
-            <a class="action" href="https://docs.google.com/spreadsheets/d/1mZrlnA-GiVKB4_Um21aMH9jsSkf6TUJhauDWivnf7-I/edit" target="_blank" rel="noopener" data-keywords="projects tab spreadsheet raw data edit rows completion photo completed at">
-              <span class="action-title">Edit the Projects tab</span>
-              <span class="action-sub">Add or change projects straight in the spreadsheet.</span>
+            <a class="action" data-module="projects-dash" href="#" target="_blank" rel="noopener" data-keywords="projects dashboard hours logged metrics stats completion rate contributors leaderboard before after gallery noah">
+              <span class="action-title">Projects dashboard</span>
+              <span class="action-sub">Hours, completion rate, top contributors and a before &amp; after gallery.</span>
             </a>
           </div>
         </section>
@@ -132,11 +126,11 @@
             </button>
             <a class="action" data-inventory="labels" href="#" target="_blank" rel="noopener" data-keywords="qr labels print stickers scan tools">
               <span class="action-title">Print item labels</span>
-              <span class="action-sub">A QR label for every tool. Scanning one opens that tool&rsquo;s page in the inventory.</span>
+              <span class="action-sub">A QR label for every tool. Scanning one opens it in the inventory.</span>
             </a>
             <a class="action" data-inventory="sheet" href="#" target="_blank" rel="noopener" data-keywords="spreadsheet backend google sheet data bulk edit dashboard tab">
               <span class="action-title">Inventory spreadsheet</span>
-              <span class="action-sub">The Google Sheet behind the app. For bulk edits and the Dashboard tab.</span>
+              <span class="action-sub">The sheet behind the app, for bulk edits and its Dashboard tab.</span>
             </a>
           </div>
         </section>
@@ -146,33 +140,29 @@
           <div class="action-group">
             <a class="action" href="https://docs.google.com/spreadsheets/d/1yazhxA8nwYWDRSdQEN6Cc3UKKnPn6PWF_b3zAe0KoQk/edit" target="_blank" rel="noopener" data-keywords="ell shift responses data summary pivot">
               <span class="action-title">View shift responses</span>
-              <span class="action-sub">Raw shift logs and summary views</span>
+              <span class="action-sub">Shift logs and the summary view.</span>
             </a>
           </div>
         </section>
 
-        <section class="category admin-block" id="access" data-keywords="fabman admin dashboard sign-up api members training qualtrics">
+        <section class="category admin-block" id="access" data-keywords="fabman members sign-up training qualtrics graduates lock activate invitations">
           <h3 class="admin-label">Fabman</h3>
           <div class="action-group">
             <a class="action" href="https://fabman.io/manage/2366" target="_blank" rel="noopener" data-keywords="fabman site open manage members activity bookings analytics access equipment">
               <span class="action-title">Open Fabman</span>
-              <span class="action-sub">The Fabman admin site: members, activity, bookings, access</span>
+              <span class="action-sub">The Fabman admin site: members, activity, bookings, access.</span>
             </a>
-            <a class="action" href="https://docs.google.com/spreadsheets/d/1lDAA4z1YexkjaABSPuXJyEXfSxN2QAsKWVk88TQCRLI/edit" target="_blank" rel="noopener" data-keywords="fabman admin dashboard members">
-              <span class="action-title">Manage Fabman members</span>
-              <span class="action-sub">Dashboard, sign-ups, and Qualtrics imports</span>
-            </a>
-            <a class="action" href="https://docs.google.com/spreadsheets/d/1lDAA4z1YexkjaABSPuXJyEXfSxN2QAsKWVk88TQCRLI/edit" target="_blank" rel="noopener" data-keywords="fabman actions sheet graduates lock activate delete invitations buttons">
-              <span class="action-title">Fabman actions sheet</span>
-              <span class="action-sub">Graduates, lock and activate, invitations (the buttons live here)</span>
+            <a class="action" href="https://docs.google.com/spreadsheets/d/1lDAA4z1YexkjaABSPuXJyEXfSxN2QAsKWVk88TQCRLI/edit" target="_blank" rel="noopener" data-keywords="fabman admin dashboard members sign-ups qualtrics imports actions sheet graduates lock activate delete invitations buttons">
+              <span class="action-title">Fabman members sheet</span>
+              <span class="action-sub">Members, sign-ups and Qualtrics imports, plus the buttons for locking, activating, invitations and graduates.</span>
             </a>
             <a class="action" href="https://docs.google.com/document/d/1O-O-mpEGGtcD6QiLqjxw1y1rFtI7WzayoOroxpoxwfQ/edit" target="_blank" rel="noopener" data-keywords="fabman canvas training integration qualtrics apron">
               <span class="action-title">Fabman-Canvas training integration</span>
-              <span class="action-sub">Training hierarchy and apron tier mapping</span>
+              <span class="action-sub">Training hierarchy and apron tiers.</span>
             </a>
             <a class="action" href="https://docs.google.com/document/d/1nxQQiA-6W2hyB2ZZV71l9vbOelXYbMc70efr7XWPi8o/edit" target="_blank" rel="noopener" data-keywords="fabman su25 report dashboard training">
               <span class="action-title">Fabman operations report</span>
-              <span class="action-sub">Procedures, courses, and supervisor scheduling</span>
+              <span class="action-sub">Procedures, courses and supervisor scheduling.</span>
             </a>
           </div>
         </section>
@@ -182,15 +172,15 @@
           <div class="action-group">
             <a class="action" href="https://docs.google.com/spreadsheets/d/1k97Ey5aNcm58zaviaXxKvJtTgL1yeSI_fvUkXZFEyM4/edit" target="_blank" rel="noopener" data-keywords="master sheet building access workday qualtrics canvas ell hvl waivers">
               <span class="action-title">Building access &amp; training records</span>
-              <span class="action-sub">Qualtrics waivers and Workday EHS by location</span>
+              <span class="action-sub">Qualtrics waivers and Workday EHS by location.</span>
             </a>
             <a class="action" href="https://docs.google.com/spreadsheets/d/1cKd-5815CafamF2AQpwTIqATjdkD4HgM404vQvwTvuM/edit" target="_blank" rel="noopener" data-keywords="workspaces team spaces master list renewal survey upson tang ell">
               <span class="action-title">Project Teams workspaces</span>
-              <span class="action-sub">Space registry, renewals, and compliance docs</span>
+              <span class="action-sub">Space registry, renewals and compliance docs.</span>
             </a>
             <a class="action" href="https://docs.google.com/spreadsheets/d/1UrI5mBI4rqY9NeElobhzdd1lWsAlBDeYa1LZPVWHNnE/edit" target="_blank" rel="noopener" data-keywords="summer contact list seasonal team contacts">
               <span class="action-title">Summer contact list 2026</span>
-              <span class="action-sub">Seasonal team contact roster</span>
+              <span class="action-sub">Seasonal team contact roster.</span>
             </a>
           </div>
         </section>
@@ -198,52 +188,11 @@
         <section class="category admin-block" id="fleet" data-keywords="student drivers tacoma vehicle reservation approval fleet mbn-4258 remove graduated cleanup">
           <h3 class="admin-label">Fleet</h3>
           <div class="action-group">
-            <a class="action" href="https://docs.google.com/spreadsheets/d/1KwJLTkdhrQ0jD7-75p6IuhYvh3Fq0B13KAXf2Pcvk_M/edit" target="_blank" rel="noopener" data-keywords="student drivers tacoma approval reservation log">
+            <a class="action" href="https://docs.google.com/spreadsheets/d/1KwJLTkdhrQ0jD7-75p6IuhYvh3Fq0B13KAXf2Pcvk_M/edit" target="_blank" rel="noopener" data-keywords="student drivers tacoma approval reservation log remove graduated drivers bulk cleanup access rows netid year menu">
               <span class="action-title">Student drivers &amp; reservations</span>
-              <span class="action-sub">Driver approvals and Tacoma (MBN-4258) log</span>
-            </a>
-            <a class="action" href="https://docs.google.com/spreadsheets/d/1KwJLTkdhrQ0jD7-75p6IuhYvh3Fq0B13KAXf2Pcvk_M/edit" target="_blank" rel="noopener" data-keywords="remove graduated drivers bulk cleanup access rows netid year script menu">
-              <span class="action-title">Remove graduated drivers</span>
-              <span class="action-sub">Open the sheet, then run the Driver cleanup menu</span>
+              <span class="action-sub">Driver approvals and the Tacoma (MBN-4258) log. Remove graduated drivers from its Driver cleanup menu.</span>
             </a>
           </div>
-        </section>
-
-        <section class="category admin-block" id="scripts" data-keywords="scripts code apps script google gas editor deploy redeploy web app command center inventory fabman fleet cleanup github repo source editing guide api reference maintain develop update">
-          <h3 class="admin-label">Scripts &amp; code</h3>
-          <div class="action-group">
-            <a class="action" href="https://script.google.com/home" target="_blank" rel="noopener" data-keywords="ops hub web app space status tasks projects dashboard files 02 04 exec deploy new version standalone">
-              <span class="action-title">Ops-hub web app</span>
-              <span class="action-sub">Space Status + tasks/projects (files 02, 04). After edits: Deploy, Manage deployments, New version.</span>
-            </a>
-            <a class="action" href="https://script.google.com/home" target="_blank" rel="noopener" data-keywords="command center api stats endpoint code.gs jsonp cache version standalone attention">
-              <span class="action-title">Command Center API</span>
-              <span class="action-sub">Standalone project "Ops Command Center API" (Code.gs). Redeploy, then bump CACHE_VERSION.</span>
-            </a>
-            <a class="action" data-inventory="script" href="#" target="_blank" rel="noopener" data-keywords="inventory equipment maintenance script 08 setup bound extensions apps script self-test">
-              <span class="action-title">Inventory script</span>
-              <span class="action-sub">Tool &amp; equipment inventory (file 08). Open the sheet, then Extensions, Apps Script.</span>
-            </a>
-            <a class="action" href="https://docs.google.com/spreadsheets/d/1lDAA4z1YexkjaABSPuXJyEXfSxN2QAsKWVk88TQCRLI/edit" target="_blank" rel="noopener" data-keywords="fabman members graduates lock delete script 05 bound extensions apps script actions">
-              <span class="action-title">Fabman script</span>
-              <span class="action-sub">Members &amp; graduates (file 05). Open the sheet, then Extensions, Apps Script.</span>
-            </a>
-            <a class="action" href="https://docs.google.com/spreadsheets/d/1KwJLTkdhrQ0jD7-75p6IuhYvh3Fq0B13KAXf2Pcvk_M/edit" target="_blank" rel="noopener" data-keywords="fleet driver cleanup remove graduated script bound extensions apps script menu">
-              <span class="action-title">Fleet driver cleanup script</span>
-              <span class="action-sub">Remove graduated drivers (menu). Open the sheet, then Extensions, Apps Script.</span>
-            </a>
-            <a class="action" href="https://github.com/cornellprojectteams/centralhub" target="_blank" rel="noopener" data-keywords="github repository repo source code centralhub website">
-              <span class="action-title">Open the GitHub repo</span>
-              <span class="action-sub">Source code and history for this hub</span>
-            </a>
-            <a class="action" href="https://docs.google.com/document/d/1wCMPnGjn5A07y06uOzXZRI2h7YL7LBqrwXQ8iKpD3Vw/edit" target="_blank" rel="noopener" data-keywords="fabman api guide apps script reference calls">
-              <span class="action-title">Fabman API guide</span>
-              <span class="action-sub">Apps Script reference for API calls</span>
-            </a>
-          </div>
-          <p class="action-note" data-keywords="edit website guide codespaces copilot github commit push publish browser documentation">
-            Editing the site? <a href="dev-guide.html">Read the editing guide</a>
-          </p>
         </section>
       </div>
       </div>
@@ -414,8 +363,8 @@
         <div class="footer-col">
           <h4>Elsewhere</h4>
           <a href="index.html">Staff hub</a>
-          <a href="docs.html">System guide</a>
-          <a href="dev-guide.html">Editing guide</a>
+          <a href="docs.html">Admin guide</a>
+          <a href="developer.html">Developer</a>
         </div>
       </nav>
     </div>

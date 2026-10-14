@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <!--
-  Project Teams Ops Hub: editing guide
-  Manual for editing this site with GitHub Codespaces and Copilot,
-  then publishing with git add / commit / push.
-  Shares header/footer and styles.css with index.html.
+  Project Teams Ops Hub: developer guide
+  Editing and publishing this site (Codespaces, Copilot, git), and how the
+  Apps Script projects behind it work and deploy.
+  Shares header/footer and styles.css with the other pages.
 -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Editing guide | Project Teams Ops Hub</title>
+  <title>Developer guide | Project Teams Ops Hub</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -26,37 +26,26 @@
         <img src="assets/cornell-seal.svg" alt="Cornell University" class="logo-seal">
         <div class="logo-text-block">
           <div class="logo-text">Project Teams Ops Hub</div>
-          <div class="logo-sub">Safety &amp; Operations</div>
+          <div class="logo-sub">Developer guide</div>
         </div>
       </a>
       <div class="header-tools">
         <nav class="hub-nav" aria-label="Hub sections">
-          <a class="hub-nav-btn" href="index.html">Staff</a>
-          <div class="hub-admin">
-            <a class="hub-nav-btn" href="admin.html">
-              Admin <span class="hub-admin-caret" aria-hidden="true"></span>
-            </a>
-            <a class="hub-admin-cmd" href="command-center.html" aria-label="Open Command Center">
-              <span class="hub-admin-cmd-dot" aria-hidden="true"></span>
-              Command
-              <span class="hub-admin-cmd-go" aria-hidden="true">→</span>
-            </a>
-          </div>
+          <a class="hub-nav-btn" href="admin.html">Admin</a>
+          <a class="hub-nav-btn is-active" href="developer.html">Developer</a>
         </nav>
-        <form class="header-search" action="index.html" method="get" role="search">
-          <div class="search-box">
-            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-            <input type="search" class="search-input" name="q" placeholder="Search tools…" autocomplete="off" aria-label="Search tools">
-            <kbd class="search-kbd">⌘K</kbd>
-          </div>
-        </form>
+        <a class="cmd-link" href="command-center.html">
+          <span class="cmd-dot" aria-hidden="true"></span>
+          <span class="cmd-text">Command<span class="cmd-text-full"> Center</span></span>
+          <span class="cmd-go" aria-hidden="true">&rarr;</span>
+        </a>
       </div>
     </div>
   </header>
 
   <main class="doc-layout">
     <aside class="doc-sidebar" aria-label="Guide sections">
-      <p class="doc-sidebar-kicker">On this page</p>
+      <p class="doc-sidebar-kicker">The site</p>
       <nav class="doc-sidebar-nav">
         <a href="#setup" class="doc-sidebar-link is-active"><strong>Requirements</strong><small>GitHub access</small></a>
         <a href="#codespace" class="doc-sidebar-link"><strong>Open a Codespace</strong><small>Edit in the browser</small></a>
@@ -65,23 +54,31 @@
         <a href="#copilot" class="doc-sidebar-link"><strong>Use Copilot</strong><small>AI-assisted edits</small></a>
         <a href="#ship" class="doc-sidebar-link"><strong>Publish</strong><small>Commit and push</small></a>
         <a href="#rescue" class="doc-sidebar-link"><strong>Recovery</strong><small>Undo mistakes</small></a>
-        <a href="#links" class="doc-sidebar-link"><strong>Links</strong><small>Repo and live site</small></a>
+      </nav>
+      <p class="doc-sidebar-kicker doc-sidebar-kicker--group">The scripts</p>
+      <nav class="doc-sidebar-nav">
+        <a href="#scripts" class="doc-sidebar-link"><strong>Apps Script projects</strong><small>Where each runs, deploying</small></a>
+        <a href="#engine" class="doc-sidebar-link"><strong>Space Status engine</strong><small>Emails, deadlines, reminders</small></a>
+        <a href="#routes" class="doc-sidebar-link"><strong>Routes and setup</strong><small>Web app URLs, utilities</small></a>
+        <a href="#command-api" class="doc-sidebar-link"><strong>Command Center API</strong><small>Stats, cache</small></a>
+        <a href="#links" class="doc-sidebar-link"><strong>Links</strong><small>Repo, live site, web app</small></a>
       </nav>
       <div class="doc-resource-box">
         <p class="doc-resource-label">Quick links</p>
+        <a href="developer.html">Back to developer page</a>
         <a href="https://github.com/cornellprojectteams/centralhub" target="_blank" rel="noopener">GitHub repo</a>
         <a href="https://cornellprojectteams.github.io/centralhub/" target="_blank" rel="noopener">Live site</a>
-        <a href="docs.html">System guide</a>
-        <a href="admin.html">Back to admin hub</a>
+        <a href="docs.html">Admin guide</a>
       </div>
     </aside>
 
     <div class="doc-content">
-    <span class="doc-eyebrow">Editing manual</span>
-    <h1>Editing this site</h1>
+    <span class="doc-eyebrow">Developer guide</span>
+    <h1>Working on the hub</h1>
     <p class="doc-lede">
-      How to edit the site in a browser with GitHub Codespaces and Copilot, then publish with
-      git. Nothing to install.
+      How to edit and publish this site from a browser with GitHub Codespaces and Copilot, and how
+      the Apps Script projects behind it work and go live. For running things day to day, use the
+      <a href="docs.html">admin guide</a>.
     </p>
 
     <nav class="doc-toc doc-toc--mobile" aria-label="On this page">
@@ -92,6 +89,10 @@
       <a href="#copilot">Use Copilot</a>
       <a href="#ship">Publish</a>
       <a href="#rescue">Recovery</a>
+      <a href="#scripts">Apps Script projects</a>
+      <a href="#engine">Space Status engine</a>
+      <a href="#routes">Routes and setup</a>
+      <a href="#command-api">Command Center API</a>
       <a href="#links">Links</a>
     </nav>
 
@@ -99,6 +100,7 @@
       <h2><span class="doc-num">01</span>Requirements</h2>
       <ul>
         <li>A GitHub account with access to <a href="https://github.com/cornellprojectteams/centralhub" target="_blank" rel="noopener">cornellprojectteams/centralhub</a>. If the repo shows a 404, ask to be added as a collaborator.</li>
+        <li>For the scripts: edit access to the Apps Script project or the Google Sheet it is bound to.</li>
       </ul>
     </section>
 
@@ -115,11 +117,17 @@
     <section class="doc-section" id="tour">
       <h2><span class="doc-num">03</span>Files</h2>
       <ul>
-        <li><code>index.html</code> The hub page: all sections, links, and buttons.</li>
-        <li><code>styles.css</code> Colors, fonts, spacing.</li>
-        <li><code>app.js</code> Tabs, search, and the open-issues dashboard panel.</li>
-        <li><code>docs.html</code>, <code>dev-guide.html</code> The guides.</li>
-        <li><code>apps-script/</code> Reference copy of the email engine. The live version runs on Google; editing this folder does not change what sends. See <a href="docs.html">the system guide</a>.</li>
+        <li><code>index.html</code> The staff page.</li>
+        <li><code>admin.html</code> The admin page: day-to-day tools. Not linked from the staff page.</li>
+        <li><code>developer.html</code> The developer page: script projects, the repo and this guide.</li>
+        <li><code>command-center.html</code> The ops dashboard. <code>team.html</code> One team's open issues, for sharing.</li>
+        <li><code>inventory.html</code>, <code>inventory.js</code>, <code>inventory.css</code> The inventory app.</li>
+        <li><code>styles.css</code> Colors, fonts and spacing for every page except the inventory app.</li>
+        <li><code>app.js</code> Search, the slide-over panels and the section list, shared by the staff, admin and developer pages.</li>
+        <li><code>config.js</code> The web app URLs and the inventory settings. Change a URL here, not in the pages.</li>
+        <li><code>docs.html</code> The admin guide. <code>dev-guide.html</code> This guide. <code>space-status-how-to.html</code> The staff how-to.</li>
+        <li><code>apps-script/</code> Copies of the Apps Script code. The live code runs on Google; see <a href="#scripts">Apps Script projects</a>.</li>
+        <li><code>README.md</code> More detail, including setting up the inventory.</li>
       </ul>
     </section>
 
@@ -144,9 +152,9 @@
         <li>Describe the change. Name the file and point at an existing element to copy its format. Examples:</li>
       </ol>
       <ul>
-        <li>"In index.html, add a link to the fire safety training doc in the Compliance section, formatted like the other links there."</li>
+        <li>"In admin.html, add a link to the fire safety training doc in the Compliance section, formatted like the other links there."</li>
         <li>"In styles.css, make the footer headings slightly larger."</li>
-        <li>"Add a new admin category called Events with one link, following the pattern of the Fleet section."</li>
+        <li>"In admin.html, add a section called Events with one link, following the pattern of the Fleet section, and add it to the section list."</li>
       </ul>
       <ol start="3">
         <li>Review the proposed diff, then <strong>Accept</strong>. To edit one spot, select the code and press <strong>Cmd/Ctrl + I</strong>.</li>
@@ -188,8 +196,162 @@
       </ul>
     </section>
 
+    <section class="doc-section" id="scripts">
+      <h2><span class="doc-num">08</span>Apps Script projects</h2>
+      <p>
+        The scripts run on Google, not from this repo. <code>apps-script/</code> keeps a copy of each so
+        changes can be reviewed and tracked. Editing a copy changes nothing until it is pasted into its
+        project. The developer page links to each project.
+      </p>
+      <table class="sla sla--stack">
+        <thead>
+          <tr><th>Project</th><th>Where it runs</th><th>Copy in the repo</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Space Status web app<small>Emails, reminders, issue pages, projects, proposals</small></td><td>Standalone project "Production Space Status Tracking Emailer"</td><td><code>02_notify_on_submit.gs</code> <code>04_tasks_projects.gs</code> <code>07_proposals.gs</code></td></tr>
+          <tr><td>Command Center API<small>The Command Center's numbers</small></td><td>Standalone project "Ops Command Center API"</td><td><code>command-center/Code.gs</code></td></tr>
+          <tr><td>Inventory<small>Keeps the sheet tidy and serves the app</small></td><td>Bound to the inventory sheet</td><td><code>08_inventory.gs</code></td></tr>
+          <tr><td>Fabman members<small>The buttons in the Fabman members sheet</small></td><td>Bound to the Fabman Admin sheet</td><td><code>05_fabman_members.gs</code></td></tr>
+          <tr><td>Fleet driver cleanup<small>The Driver cleanup menu</small></td><td>Bound to the Student Drivers sheet</td><td><code>fleet_driver_cleanup.gs</code></td></tr>
+          <tr><td>Team Contacts setup<small>Run once, already done</small></td><td>From the Space Status sheet</td><td><code>01_setup_team_contacts.gs</code></td></tr>
+        </tbody>
+      </table>
+      <p>
+        A bound script opens from its sheet: Extensions &gt; Apps Script. <code>fleet_remove_drivers.gs</code>
+        is an older, run-by-hand version of the driver cleanup, kept for reference.
+      </p>
+
+      <h3>Putting a change live</h3>
+      <ol>
+        <li>Open the project, paste the changed file over the old one and save.</li>
+        <li>The three web apps (Space Status, Command Center API, Inventory) only change after a new version: Deploy &gt; Manage deployments &gt; pencil &gt; Version: New version &gt; Deploy. The URL stays the same.</li>
+        <li>Make sure the copy in <code>apps-script/</code> matches what now runs, and publish it.</li>
+      </ol>
+      <p>
+        The site finds the web apps through <code>config.js</code> (Space Status and the inventory) and
+        <code>STATS_ENDPOINT</code> in <code>app.js</code> and <code>command-center.html</code> (Command
+        Center API). Those URLs only change if someone makes a new deployment instead of a new version.
+        Setting up the inventory, and updating an older inventory sheet, are covered in the README.
+      </p>
+    </section>
+
+    <section class="doc-section" id="engine">
+      <h2><span class="doc-num">09</span>Space Status engine</h2>
+      <p>
+        One standalone project runs Space Status: the emails, the reminders and every web page (issue
+        dashboards, team pages, the confirm page, projects and proposals). The Space Status Tracking
+        sheet is its database.
+      </p>
+
+      <h3>On submit</h3>
+      <p>The form-submit trigger is named <code>sendEmails</code> and calls <code>onFormSubmit</code>, which:</p>
+      <ol>
+        <li>Reads the row by header name. Column order does not matter.</li>
+        <li>Looks the team up in Team Contacts. To: general email and liaison. Cc: safety lead, Extra CC and <code>CONFIG.alwaysCc</code>.</li>
+        <li>Sends the email: subject by severity, deadline in bold, one action button.</li>
+        <li>Stamps <code>Issue token</code> and <code>Notified at</code> on the row and shares any photo by link so the pages can show it.</li>
+      </ol>
+      <p>If the team has no usable email, mail goes to <code>CONFIG.fallbackEmail</code>.</p>
+      <p>
+        The trigger belongs to another account and cannot be deleted from this one. The script keeps
+        a shim so it runs the current code:
+      </p>
+      <div class="cmd">function sendEmails(e) { onFormSubmit(e); }</div>
+      <p>Do not add a second on-submit trigger; teams would get every email twice.</p>
+
+      <h3>Deadlines and reminders</h3>
+      <p>
+        The form question is <em>Respond within</em>; older rows and the sheet column may still say
+        Current Status. <code>parseColor_</code> maps both the old color labels and the timeframe answers
+        to the same five levels. Windows are in <code>SLA_DAYS</code> and the email wording in
+        <code>SEVERITY</code>, both at the top of <code>02_notify_on_submit.gs</code>:
+      </p>
+      <div class="cmd">
+        const SLA_DAYS = { red: 0, orange: 3, yellow: 10, ivory: 21, purple: null };<br>
+        <br>
+        const SEVERITY = {<br>
+        &nbsp;&nbsp;red: { subject: 'Urgent: same-day action needed', ... },<br>
+        &nbsp;&nbsp;...<br>
+        };
+      </div>
+      <p><code>sendReminders</code> runs on a daily time trigger. Day 0 is covered by the first email. The first reminder goes on the due date, then they repeat at:</p>
+      <div class="cmd">interval = max(1, round(windowDays / 2))&nbsp;&nbsp;<span class="c">// days</span></div>
+      <p>
+        The schedule counts from the <code>Last reminder</code> stamp, so a missed run catches up the
+        next day. Rows that are approved (<code>Addressed at</code>), waiting for approval
+        (<code>Completed at</code>) or purple are skipped.
+      </p>
+
+      <h3>Settings</h3>
+      <p>Go-live settings, in <code>CONFIG</code> at the top of the script:</p>
+      <div class="cmd">
+        sender: 'eng_projectteams@cornell.edu',&nbsp;&nbsp;<span class="c">// send-as alias on the running account</span><br>
+        alwaysCc: ['nhh5@cornell.edu'],<br>
+        fallbackEmail: 'nhh5@cornell.edu',<br>
+        webAppUrl: '.../exec',&nbsp;&nbsp;<span class="c">// must be the deployed URL; the email buttons use it</span>
+      </div>
+      <p>
+        The columns the script writes (<code>Notified at</code>, <code>Issue token</code>,
+        <code>Addressed at</code>, <code>Last reminder</code>, <code>Completion photo</code>,
+        <code>Completion note</code>, <code>Completed at</code>, <code>Sent back reason</code>) are named
+        in <code>CONFIG</code> and added when first needed. Completion photos and project uploads go to a
+        Drive folder named <em>Ops Hub completion and project uploads</em>.
+      </p>
+      <p>
+        Pages opened with <code>admin=1</code> show the admin controls with no passcode. Only the links on
+        the admin page add it.
+      </p>
+    </section>
+
+    <section class="doc-section" id="routes">
+      <h2><span class="doc-num">10</span>Routes and setup</h2>
+      <p>Every page is a route on the one web app URL (<code>SPACE_STATUS_URL</code> in <code>config.js</code>):</p>
+      <div class="cmd">
+        /exec&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">team picker</span><br>
+        ?view=all&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">every team's issues (admin=1 adds the admin controls)</span><br>
+        ?view=Baja&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">one team's issues, read only (act=1 allows completing)</span><br>
+        ?team=TOKEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">a team's private page: complete jobs with a photo</span><br>
+        ?id=TOKEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">confirm page behind the email button</span><br>
+        ?module=projects&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">projects list (admin=1 adds the admin controls)</span><br>
+        ?module=projects-dash&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">projects dashboard</span><br>
+        ?module=proposals&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">proposal board (admin=1, back= link to the hub)</span><br>
+        ?registry=...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">old registry links and labels: "Inventory has moved"</span>
+      </div>
+      <p>
+        <code>embed=1</code> on any of them drops the page header, for the hub's slide-over panels. The
+        confirm page exists because mail scanners open links on their own; a plain link would close
+        issues by itself. Nothing changes until a person clicks.
+      </p>
+
+      <h3>Setup and utilities</h3>
+      <p>Run from the script editor. The setup functions are safe to run again.</p>
+      <ul>
+        <li><code>setupTasksProjects</code> Creates the Projects tab and the completion columns.</li>
+        <li><code>setupProposals</code> Creates the Proposals and Proposal votes tabs. The rating thresholds are in the <code>PR</code> object at the top of <code>07_proposals.gs</code>.</li>
+        <li><code>fillTeamTokens</code> Gives every team on Team Contacts a private page token. Run it after adding a team.</li>
+        <li><code>sendReminders</code> Sends due reminders now.</li>
+        <li><code>sharePhotos</code> One-time backfill that makes older report photos viewable on the pages.</li>
+        <li><code>listResponseHeaders</code> Prints the Form Responses headers to the log.</li>
+        <li><code>setupInventory</code> (inventory sheet) Builds or repairs the inventory sheet and runs a self-test.</li>
+      </ul>
+    </section>
+
+    <section class="doc-section" id="command-api">
+      <h2><span class="doc-num">11</span>Command Center API</h2>
+      <p>
+        A separate, read-only project. It reads the source sheets listed in <code>SOURCES</code> and returns
+        one JSON payload, which the Command Center page and the badge on the Command button load
+        JSONP-style. It shares no code or deployment with Space Status.
+      </p>
+      <ul>
+        <li>Results are cached for <code>CACHE_SECONDS</code> (3 minutes). After changing its logic, deploy a new version and bump <code>CACHE_VERSION</code>, or run <code>clearStatsCache</code>; otherwise the old output keeps showing until the cache runs out.</li>
+        <li><code>describeSources</code>, <code>peekFleetLog</code> and <code>peekFleetApproval</code> print what the API sees in its sheets, for checking column names.</li>
+        <li>Its inventory numbers (mill room orders, locks) come from the old <em>Tool inventory, purchasing and locks</em> sheet, not the inventory app.</li>
+      </ul>
+    </section>
+
     <section class="doc-section" id="links">
-      <h2><span class="doc-num">08</span>Links</h2>
+      <h2><span class="doc-num">12</span>Links</h2>
       <ul class="doc-links">
         <li>
           <a href="https://github.com/cornellprojectteams/centralhub" target="_blank" rel="noopener">GitHub repo</a>
@@ -197,18 +359,30 @@
         </li>
         <li>
           <a href="https://cornellprojectteams.github.io/centralhub/" target="_blank" rel="noopener">Live site</a>
-          <span>What the public sees after you push.</span>
+          <span>What everyone sees after you push.</span>
         </li>
         <li>
           <a href="https://github.com/codespaces" target="_blank" rel="noopener">Your Codespaces</a>
           <span>Reopen or delete codespaces.</span>
         </li>
         <li>
-          <a href="docs.html">System guide</a>
-          <span>How the Space Status code works.</span>
+          <a href="https://script.google.com/d/1DpKw0dXIQ5rH6_BQfIQnXpmTbTcPmfH3wq2Dzc6pJUA7lrmeFG7hh5P4/edit" target="_blank" rel="noopener">Space Status script</a>
+          <span>Edit and deploy the Space Status web app here.</span>
+        </li>
+        <li>
+          <a href="https://script.google.com/macros/s/AKfycbwNbGjVcBrcsMZiOl2nXzpqZHz04nvKLm9D_aC0VJDz7Xxxf_4kLKlNSOHubPXj1X74/exec" target="_blank" rel="noopener">Space Status web app</a>
+          <span>The deployed URL. Add the routes above to test a page.</span>
+        </li>
+        <li>
+          <a href="developer.html">Developer page</a>
+          <span>Every script project, the repo and the Fabman API guide.</span>
+        </li>
+        <li>
+          <a href="docs.html">Admin guide</a>
+          <span>How each part of the admin page is used day to day.</span>
         </li>
       </ul>
-      <p class="doc-updated">Last updated July 2026.</p>
+      <p class="doc-updated">Last updated October 2026.</p>
     </section>
     </div>
   </main>
@@ -219,7 +393,7 @@
         <img src="assets/cornell-seal.svg" alt="" class="footer-seal" aria-hidden="true">
         <div>
           <div class="footer-title">Project Teams Ops Hub</div>
-          <p class="footer-tagline">Everyday tools for Student Project Team safety and operations.</p>
+          <p class="footer-tagline">Back-office tools for Student Project Team safety and operations.</p>
         </div>
       </div>
 
@@ -228,24 +402,24 @@
           <h4>Jump to</h4>
           <a href="index.html">Staff</a>
           <a href="admin.html">Admin</a>
-          <a href="command-center.html">↳ Command</a>
+          <a href="developer.html">Developer</a>
         </div>
         <div class="footer-col">
           <h4>On this page</h4>
           <a href="#codespace">Open a Codespace</a>
           <a href="#ship">Publish</a>
-          <a href="#rescue">Recovery</a>
+          <a href="#scripts">Apps Script projects</a>
         </div>
         <div class="footer-col">
           <h4>Guides</h4>
-          <a href="docs.html">System guide</a>
+          <a href="docs.html">Admin guide</a>
         </div>
       </nav>
     </div>
 
     <div class="footer-bottom">
       <span>&copy; 2026 Cornell University &middot; Student Project Team Program</span>
-      <a class="footer-back" href="index.html">Back to the hub &rarr;</a>
+      <a class="footer-back" href="developer.html">Back to developer page &rarr;</a>
     </div>
   </footer>
 </div>
@@ -258,13 +432,21 @@
       link.classList.add('is-active');
     });
   });
+  // A tall sidebar scrolls on its own; keep the highlighted link inside it.
+  const docSide = document.querySelector('.doc-sidebar');
+  function keepLinkVisible(a) {
+    if (!docSide || docSide.scrollHeight <= docSide.clientHeight) return;
+    const r = a.getBoundingClientRect(), s = docSide.getBoundingClientRect();
+    if (r.top < s.top) docSide.scrollTop -= s.top - r.top + 8;
+    else if (r.bottom > s.bottom) docSide.scrollTop += r.bottom - s.bottom + 8;
+  }
   if ('IntersectionObserver' in window) {
     const docObserver = new IntersectionObserver(entries => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
           docLinks.forEach(l => l.classList.remove('is-active'));
           const active = document.querySelector('.doc-sidebar-link[href="#' + entry.target.id + '"]');
-          if (active) active.classList.add('is-active');
+          if (active) { active.classList.add('is-active'); keepLinkVisible(active); }
         }
       });
     }, { rootMargin: '-20% 0px -65% 0px' });

@@ -1,14 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <!--
-  Project Teams Ops Hub: system guide
-  Reference manual for the Space Status code.
-  Shares header/footer and styles.css with index.html.
+  Project Teams Ops Hub: admin guide
+  How to run each part of the admin page day to day. Code, scripts and deploying
+  are in the developer guide (dev-guide.html).
+  Shares header/footer and styles.css with the other pages.
 -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>System guide | Project Teams Ops Hub</title>
+  <title>Admin guide | Project Teams Ops Hub</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -25,30 +26,19 @@
         <img src="assets/cornell-seal.svg" alt="Cornell University" class="logo-seal">
         <div class="logo-text-block">
           <div class="logo-text">Project Teams Ops Hub</div>
-          <div class="logo-sub">Safety &amp; Operations</div>
+          <div class="logo-sub">Admin guide</div>
         </div>
       </a>
       <div class="header-tools">
         <nav class="hub-nav" aria-label="Hub sections">
-          <a class="hub-nav-btn" href="index.html">Staff</a>
-          <div class="hub-admin">
-            <a class="hub-nav-btn" href="admin.html">
-              Admin <span class="hub-admin-caret" aria-hidden="true"></span>
-            </a>
-            <a class="hub-admin-cmd" href="command-center.html" aria-label="Open Command Center">
-              <span class="hub-admin-cmd-dot" aria-hidden="true"></span>
-              Command
-              <span class="hub-admin-cmd-go" aria-hidden="true">→</span>
-            </a>
-          </div>
+          <a class="hub-nav-btn is-active" href="admin.html">Admin</a>
+          <a class="hub-nav-btn" href="developer.html">Developer</a>
         </nav>
-        <form class="header-search" action="index.html" method="get" role="search">
-          <div class="search-box">
-            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-            <input type="search" class="search-input" name="q" placeholder="Search tools…" autocomplete="off" aria-label="Search tools">
-            <kbd class="search-kbd">⌘K</kbd>
-          </div>
-        </form>
+        <a class="cmd-link" href="command-center.html">
+          <span class="cmd-dot" aria-hidden="true"></span>
+          <span class="cmd-text">Command<span class="cmd-text-full"> Center</span></span>
+          <span class="cmd-go" aria-hidden="true">&rarr;</span>
+        </a>
       </div>
     </div>
   </header>
@@ -57,233 +47,265 @@
     <aside class="doc-sidebar" aria-label="Guide sections">
       <p class="doc-sidebar-kicker">On this page</p>
       <nav class="doc-sidebar-nav">
-        <a href="#overview" class="doc-sidebar-link is-active"><strong>Overview</strong><small>How the system fits together</small></a>
-        <a href="#components" class="doc-sidebar-link"><strong>Components</strong><small>Form, sheet, script, portal</small></a>
-        <a href="#submit" class="doc-sidebar-link"><strong>On submit</strong><small>What the emailer does</small></a>
-        <a href="#severity" class="doc-sidebar-link"><strong>Severity</strong><small>Deadlines by color</small></a>
-        <a href="#reminders" class="doc-sidebar-link"><strong>Reminders</strong><small>Daily follow-ups</small></a>
-        <a href="#pages" class="doc-sidebar-link"><strong>Web pages</strong><small>Portal routes</small></a>
-        <a href="#workflow" class="doc-sidebar-link"><strong>Completion &amp; approval</strong><small>Photos, approve, edit, delete</small></a>
-        <a href="#proposals" class="doc-sidebar-link"><strong>Proposals</strong><small>Scouting, rating, quorum</small></a>
-        <a href="#changes" class="doc-sidebar-link"><strong>Making changes</strong><small>Contacts, teams, deploy</small></a>
-        <a href="#utilities" class="doc-sidebar-link"><strong>Utilities</strong><small>Script editor functions</small></a>
-        <a href="#links" class="doc-sidebar-link"><strong>Links</strong><small>All resources</small></a>
+        <a href="#admin-page" class="doc-sidebar-link is-active"><strong>The admin page</strong><small>Sections, search, panels</small></a>
+        <a href="#space" class="doc-sidebar-link"><strong>Space</strong><small>Issues, deadlines, approvals</small></a>
+        <a href="#projects" class="doc-sidebar-link"><strong>Projects</strong><small>Projects and proposals</small></a>
+        <a href="#equipment" class="doc-sidebar-link"><strong>Equipment</strong><small>Inventory, labels, the sheet</small></a>
+        <a href="#ell" class="doc-sidebar-link"><strong>Experiential Learning Lab</strong><small>Shift logs</small></a>
+        <a href="#fabman" class="doc-sidebar-link"><strong>Fabman</strong><small>Members and graduates</small></a>
+        <a href="#compliance" class="doc-sidebar-link"><strong>Compliance</strong><small>Access and training records</small></a>
+        <a href="#fleet" class="doc-sidebar-link"><strong>Fleet</strong><small>Drivers and the Tacoma</small></a>
+        <a href="#command" class="doc-sidebar-link"><strong>Command Center</strong><small>What needs attention</small></a>
+        <a href="#links" class="doc-sidebar-link"><strong>Links</strong><small>Every sheet and form</small></a>
       </nav>
       <div class="doc-resource-box">
         <p class="doc-resource-label">Quick links</p>
-        <a href="https://forms.gle/6DHYsEPonVtdALps5" target="_blank" rel="noopener">Live form</a>
-        <a href="https://docs.google.com/forms/d/1bVzxR-lGNDtll6wh7wsdZGsVuqMkaRavVcGxykLHMFw/edit" target="_blank" rel="noopener">Edit form</a>
-        <a href="https://docs.google.com/spreadsheets/d/1mZrlnA-GiVKB4_Um21aMH9jsSkf6TUJhauDWivnf7-I/edit" target="_blank" rel="noopener">Tracking sheet</a>
-        <a href="https://script.google.com/d/1DpKw0dXIQ5rH6_BQfIQnXpmTbTcPmfH3wq2Dzc6pJUA7lrmeFG7hh5P4/edit" target="_blank" rel="noopener">Emailer script</a>
-        <a href="admin.html">Back to admin hub</a>
+        <a href="admin.html">Back to admin</a>
+        <a href="https://docs.google.com/spreadsheets/d/1mZrlnA-GiVKB4_Um21aMH9jsSkf6TUJhauDWivnf7-I/edit" target="_blank" rel="noopener">Space Status sheet</a>
+        <a href="https://forms.gle/6DHYsEPonVtdALps5" target="_blank" rel="noopener">Report form</a>
+        <a href="space-status-how-to.html">Staff how-to</a>
+        <a href="dev-guide.html">Developer guide</a>
       </div>
     </aside>
 
     <div class="doc-content">
-    <span class="doc-eyebrow">Admin manual</span>
-    <h1>Space Status system guide</h1>
+    <span class="doc-eyebrow">Admin guide</span>
+    <h1>Running the admin side</h1>
     <p class="doc-lede">
-      Reference for the Space Status system: what each part does, how notifications and
-      reminders behave, and how to make changes.
+      What each part of the admin page is for and how to do the everyday jobs in it.
+      Changing how something works (code, scripts, deploying) is covered in the
+      <a href="dev-guide.html">developer guide</a>.
     </p>
 
     <nav class="doc-toc doc-toc--mobile" aria-label="On this page">
-      <a href="#overview">Overview</a>
-      <a href="#components">Components</a>
-      <a href="#submit">On submit</a>
-      <a href="#severity">Severity &amp; deadlines</a>
-      <a href="#reminders">Reminders</a>
-      <a href="#pages">Web pages</a>
-      <a href="#workflow">Completion &amp; approval</a>
-      <a href="#proposals">Proposals</a>
-      <a href="#changes">Making changes</a>
-      <a href="#utilities">Utilities</a>
+      <a href="#admin-page">The admin page</a>
+      <a href="#space">Space</a>
+      <a href="#projects">Projects</a>
+      <a href="#equipment">Equipment</a>
+      <a href="#ell">Experiential Learning Lab</a>
+      <a href="#fabman">Fabman</a>
+      <a href="#compliance">Compliance</a>
+      <a href="#fleet">Fleet</a>
+      <a href="#command">Command Center</a>
       <a href="#links">Links</a>
     </nav>
 
-    <section class="doc-section" id="overview">
-      <h2><span class="doc-num">01</span>Overview</h2>
+    <section class="doc-section" id="admin-page">
+      <h2><span class="doc-num">01</span>The admin page</h2>
       <p>
-        The system runs on a Google Form, a Google Sheet, and one Apps Script. A form submission
-        triggers an email to the responsible team with a deadline. Reminders repeat until the work is
-        completed with a photo and an admin approves it. Each team has a status page. The sheet is the database.
+        The admin page holds the dashboards, forms and sheets for each area. It is not linked from
+        the staff page. The dashboards it opens come up with admin controls and no passcode, so send
+        students the staff page, never an admin link.
+      </p>
+      <ul>
+        <li><strong>Sections.</strong> The list on the left jumps to Space, Projects, Equipment, the Experiential Learning Lab, Fabman, Compliance and Fleet. This guide follows the same order.</li>
+        <li><strong>Search.</strong> Press <kbd>/</kbd> and type. The arrow keys move through the results and Enter opens one.</li>
+        <li><strong>Panels.</strong> The large tiles (Open issues dashboard, Review proposals, Inventory) open over the page. <em>Full page</em> opens the same view in its own tab, and Esc closes the panel.</li>
+        <li><strong>Command Center.</strong> The gold button at the top. A number on it means something needs attention (see <a href="#command">Command Center</a>).</li>
+        <li><strong>Developer page.</strong> The scripts, the code and the developer guide have their own page, linked at the bottom of the section list. Daily work never needs it.</li>
+      </ul>
+    </section>
+
+    <section class="doc-section" id="space">
+      <h2><span class="doc-num">02</span>Space</h2>
+      <p>
+        Space Status is how staff report problems in team spaces and how teams are held to fixing
+        them. It runs on the report form, the Space Status Tracking sheet and a script that sends the
+        emails.
       </p>
       <div class="doc-flow">
-        <span>Form</span><span class="arr">&rarr;</span>
-        <span>Sheet</span><span class="arr">&rarr;</span>
-        <span>Script</span><span class="arr">&rarr;</span>
-        <span>Email</span><span class="arr">&rarr;</span>
-        <span>Complete with a photo</span><span class="arr">&rarr;</span>
-        <span>Admin approves</span>
+        <span>Report</span><span class="arr">&rarr;</span>
+        <span>Email to the team</span><span class="arr">&rarr;</span>
+        <span>Reminders</span><span class="arr">&rarr;</span>
+        <span>Team sends a photo</span><span class="arr">&rarr;</span>
+        <span>You approve</span>
       </div>
-    </section>
 
-    <section class="doc-section" id="components">
-      <h2><span class="doc-num">02</span>Components</h2>
-      <ul>
-        <li><strong><a href="https://docs.google.com/forms/d/1bVzxR-lGNDtll6wh7wsdZGsVuqMkaRavVcGxykLHMFw/edit" target="_blank" rel="noopener">The form.</a></strong> Collects team, one issue type, how soon a response is needed, details, and a photo. The team dropdown must match the Team column in Team Contacts. Do not rename the question titles; the script finds columns by those names.</li>
-        <li><strong><a href="https://docs.google.com/spreadsheets/d/1mZrlnA-GiVKB4_Um21aMH9jsSkf6TUJhauDWivnf7-I/edit#gid=0" target="_blank" rel="noopener">Form Responses tab.</a></strong> One row per submission. The script manages four columns: <code>Notified at</code>, <code>Issue token</code>, <code>Addressed at</code>, <code>Last reminder</code>. Do not edit them by hand.</li>
-        <li><strong><a href="https://docs.google.com/spreadsheets/d/1mZrlnA-GiVKB4_Um21aMH9jsSkf6TUJhauDWivnf7-I/edit" target="_blank" rel="noopener">Team Contacts tab.</a></strong> Liaison, team general email, safety lead, extra CC, and a team token per row. The script reads it live; edits apply to the next email.</li>
-        <li><strong><a href="https://script.google.com/d/1DpKw0dXIQ5rH6_BQfIQnXpmTbTcPmfH3wq2Dzc6pJUA7lrmeFG7hh5P4/edit" target="_blank" rel="noopener">The script.</a></strong> A standalone Apps Script project. One file: <code>02_notify_on_submit.gs</code>. A copy is kept in this repo under <code>apps-script/</code>.</li>
-        <li><strong><a href="https://script.google.com/macros/s/AKfycbwNbGjVcBrcsMZiOl2nXzpqZHz04nvKLm9D_aC0VJDz7Xxxf_4kLKlNSOHubPXj1X74/exec" target="_blank" rel="noopener">The web app.</a></strong> Served by the same script: the confirm page behind the email button and the team status pages.</li>
-      </ul>
-    </section>
-
-    <section class="doc-section" id="submit">
-      <h2><span class="doc-num">03</span>On submit</h2>
-      <p>The form-submit trigger is named <code>sendEmails</code> and calls <code>onFormSubmit</code>, which:</p>
-      <ol>
-        <li>Reads the row by header name. Column order does not matter.</li>
-        <li>Looks up the team in Team Contacts. To: general email and liaison. Cc: safety lead, extra CC, always-CC list.</li>
-        <li>Sends the email: severity-based subject, deadline in bold, one action button.</li>
-        <li>Stamps <code>Issue token</code> and <code>Notified at</code> on the row and sets any photo to link-view so the portal can display it.</li>
-      </ol>
-      <p>If the team has no usable email, mail goes to <code>CONFIG.fallbackEmail</code>.</p>
-      <p>
-        The trigger belongs to another account and cannot be deleted from this one. The script keeps
-        a shim so it runs the current code:
-      </p>
-      <div class="cmd">function sendEmails(e) { onFormSubmit(e); }</div>
-      <p>Do not add a second on-submit trigger; teams would get duplicate mail.</p>
-    </section>
-
-    <section class="doc-section" id="severity">
-      <h2><span class="doc-num">04</span>Severity and deadlines</h2>
-      <p>The form question is <strong>Respond within</strong>. Older rows, and the sheet column until the question is renamed, still say Current Status. <code>parseColor_</code> maps both the old color labels and the timeframe choices to the same window. Teams never see the color names.</p>
+      <h3>Deadlines and reminders</h3>
+      <p>The answer to <em>Respond within</em> on the form sets the deadline. Reminders go to the same people as the first email.</p>
       <table class="sla">
         <thead>
-          <tr><th>Form choice</th><th>Window</th><th>What the team reads</th></tr>
+          <tr><th>Respond within</th><th>Deadline</th><th>Reminders</th></tr>
         </thead>
         <tbody>
-          <tr><td>Same day</td><td>Same day</td><td>Urgent: same-day action needed</td></tr>
-          <tr><td>2 to 3 business days</td><td>3 days</td><td>Action needed within 2 to 3 days</td></tr>
-          <tr><td>7 to 10 days</td><td>10 days</td><td>Please address within 7 to 10 days</td></tr>
-          <tr><td>14 to 21 days</td><td>21 days</td><td>For attention within 14 to 21 days</td></tr>
-          <tr><td>When time allows</td><td>None</td><td>Improvement opportunity. No deadline, no reminders.</td></tr>
+          <tr><td>Same day<small>Red on older rows</small></td><td>Same day</td><td>Every day, starting the next day</td></tr>
+          <tr><td>2 to 3 business days<small>Orange</small></td><td>3 days</td><td>On the due date, then every 2 days</td></tr>
+          <tr><td>7 to 10 days<small>Yellow</small></td><td>10 days</td><td>On the due date, then every 5 days</td></tr>
+          <tr><td>14 to 21 days<small>Ivory</small></td><td>21 days</td><td>On the due date, then every 11 days</td></tr>
+          <tr><td>When time allows<small>Purple</small></td><td>None</td><td>None</td></tr>
         </tbody>
       </table>
-      <p>Windows are set in <code>SLA_DAYS</code>, wording in <code>SEVERITY</code>. Both are at the top of the script:</p>
-      <div class="cmd">
-        const SLA_DAYS = { red: 0, orange: 3, yellow: 10, ivory: 21, purple: null };<br>
-        <br>
-        const SEVERITY = {<br>
-        &nbsp;&nbsp;red: { subject: 'Urgent: same-day action needed', ... },<br>
-        &nbsp;&nbsp;...<br>
-        };
-      </div>
-    </section>
-
-    <section class="doc-section" id="reminders">
-      <h2><span class="doc-num">05</span>Reminders</h2>
-      <p><code>sendReminders</code> runs on a daily time trigger.</p>
-      <ul>
-        <li>Day 0: no reminder. The initial notice covers it.</li>
-        <li>Due date: first reminder.</li>
-        <li>After that: repeat until the issue is marked addressed, at this interval:</li>
-      </ul>
-      <div class="cmd">interval = max(1, round(windowDays / 2))&nbsp;&nbsp;<span class="c">// days</span></div>
       <p>
-        Example: reported June 1, due June 5. Reminders go June 5, 7, 9, and so on. Red reminds
-        daily. Purple never reminds. The schedule anchors to the <code>Last reminder</code> stamp,
-        so a missed run self-corrects the next day.
+        Days are counted from the day of the report. Reminders pause while finished work waits for your
+        review and stop once you approve it. Teams never see the color names.
       </p>
-    </section>
 
-    <section class="doc-section" id="pages">
-      <h2><span class="doc-num">06</span>Web pages</h2>
-      <p>Four routes on one URL:</p>
-      <div class="cmd">
-        /exec&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">team picker (default)</span><br>
-        /exec?view=all&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">Admin hub: all issues + projects, with approve / edit / delete</span><br>
-        /exec?module=projects&nbsp;<span class="c">projects list (assign, join, complete, approve)</span><br>
-        /exec?view=Baja&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">read-only status page for one team</span><br>
-        /exec?team=TOKEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">team page: complete a job with a photo</span><br>
-        /exec?id=TOKEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">confirm page, opened by the email button</span>
-      </div>
+      <h3>Who gets the email</h3>
       <p>
-        The confirm page exists because mail scanners prefetch links; a plain link would close
-        issues on its own. Nothing changes until a person clicks confirm.
+        The team's row on the <strong>Team Contacts</strong> tab decides it. The email goes to the team's
+        general email and its liaison, with the safety lead and anyone in Extra CC copied. Noah is
+        copied on every email, and gets the email for any team with no address on file. Changes to
+        Team Contacts apply from the next email; nothing needs restarting.
       </p>
-      <p>
-        Approving an issue writes a timestamp into <code>Addressed at</code>. Clear that cell to reopen
-        the issue.
-      </p>
-    </section>
 
-    <section class="doc-section" id="workflow">
-      <h2><span class="doc-num">07</span>Completion &amp; approval</h2>
+      <h3>The open issues dashboard</h3>
       <p>
-        Finishing a job is a two-step, accountable flow: the person doing the work submits it,
-        then an admin reviews and approves. Nothing closes on a single click.
+        <em>Open issues dashboard</em> lists every job across all teams. The chips at the top switch
+        between open, pending and completed jobs, and search, the team picker and <em>Overdue only</em>
+        narrow the list. The Projects tab at the top of the panel holds the projects
+        (see <a href="#projects">Projects</a>).
       </p>
       <ul>
-        <li><strong>Complete with a photo.</strong> On a team page or the confirm page, the doer adds a photo of the finished work, and can add an optional note about what they did. The item moves to <em>Pending approval</em> (it stamps <code>Completed at</code> and reminders pause). It is not closed yet. The note is stored in <code>Completion note</code> and shown to the reviewer.</li>
-        <li><strong>Photo-optional tasks.</strong> A photo is required for most tasks. The <em>Informational</em> issue type (no work requested) shows a one-tap <em>Mark done</em>. Older rows whose Required action was informational, a facilities work order, an unsafe-practice correction, or &ldquo;Other&rdquo; stay photo-optional too. The server enforces this, so a photo cannot be skipped where it is required.</li>
-        <li><strong>Approve or send back.</strong> In the Open issues dashboard (Admin hub) each pending item shows Approve and Send back. Approve stamps <code>Addressed at</code> = Completed. Send back reopens the item with an optional reason shown to the doer, and keeps the submitted photo and note. Open items do not have Send back.</li>
-        <li><strong>Edit in place.</strong> Admins can edit an item without leaving the dashboard: team, issue type, and details on a space issue; title, scope, and assignees on a project. Team and issue type are picklists so values stay valid; Required action is fixed at submission and not editable.</li>
-        <li><strong>Delete.</strong> Admins can permanently remove a task or project from the dashboard, behind a confirm step. It deletes the row.</li>
+        <li><strong>Mark complete</strong> (open jobs). Closes the job right away, with no photo and no review. Use it when you know the work is done.</li>
+        <li><strong>Approve</strong> (pending jobs). The team has sent photos of the finished work, and maybe a note. Approving closes the job.</li>
+        <li><strong>Send back</strong> (pending jobs). Reopens the job, with an optional reason. The team gets an email with your reason and the photos they sent, and reminders pick up again.</li>
+        <li><strong>Edit.</strong> Change the team, issue type or details. Moving a job to another team emails that team a fresh notice and restarts its reminders. The required action stays as reported.</li>
+        <li><strong>Delete.</strong> Removes the job from the sheet for good, after a confirm. There is no undo.</li>
+      </ul>
+      <p>To reopen a job that was already approved, clear its <code>Addressed at</code> cell on the Form Responses tab.</p>
+
+      <h3>What teams see</h3>
+      <ul>
+        <li>The button in the email opens a page where the team adds photos of the finished work and an optional note. The job then shows as pending for you.</li>
+        <li>Informational reports only need <em>Mark done</em>; a photo is optional. The same goes for older reports whose required action was a facilities work order, an unsafe practice correction, no action, or Other.</li>
+        <li>Operations Team email comes to an admin, so those jobs close as soon as they are marked complete, with no photo or review.</li>
+        <li><strong>Share a team's issue link</strong> gives you a clean link to one team's live list of open issues, to send to that team.</li>
+      </ul>
+
+      <h3>The form and the sheet</h3>
+      <ul>
+        <li><strong>Changing who gets email:</strong> edit the team's row on Team Contacts.</li>
+        <li><strong>Adding a team:</strong> add the name to the form's <em>Responsible Team</em> question and add a row on Team Contacts with exactly the same name. Then ask a developer to run <code>fillTeamTokens</code> once; it gives the team its private page link.</li>
+        <li><strong>Editing the form:</strong> do not rename the questions or the <em>Respond within</em> choices. The script reads both by their wording.</li>
+        <li><strong>Columns the script fills in:</strong> <code>Notified at</code>, <code>Issue token</code>, <code>Addressed at</code>, <code>Last reminder</code>, <code>Completion photo</code>, <code>Completion note</code>, <code>Completed at</code> and <code>Sent back reason</code>. Leave them alone, apart from clearing <code>Addressed at</code> to reopen a job.</li>
       </ul>
       <p>
-        <strong>Projects</strong> are larger jobs an admin assigns. A student joins a project, then completes it
-        with an &ldquo;after&rdquo; photo and the hours it took, which also goes to Pending approval. The Projects
-        dashboard tracks hours, completion, and contributors. Projects live in the <code>Projects</code> tab;
-        space issues stay in Form Responses.
+        The <a href="https://docs.google.com/document/d/1-pAMO02ul8k7pg9sCfkmVZ5W5p4NuWzaG2ALOWn60hk/edit" target="_blank" rel="noopener">Space Status manual</a>
+        explains when and how to report, for the people filing. The <a href="space-status-how-to.html">staff how-to</a>
+        shows what staff see when they finish a job.
       </p>
     </section>
 
-    <section class="doc-section" id="proposals">
-      <h2><span class="doc-num">08</span>Proposals</h2>
+    <section class="doc-section" id="projects">
+      <h2><span class="doc-num">03</span>Projects</h2>
       <p>
-        Staff scout improvements to our spaces and post them; the team rates each one, and the
-        ideas with enough genuine support become real projects. The rules are modelled on how a
-        honeybee swarm picks a new home: independent scouting reports, and a commitment threshold
-        rather than a show of hands. Students reach it from <strong>Propose an improvement</strong> on
-        the staff hub; admins from <strong>Review proposals</strong> here, which opens as a slide-over
-        with an option to go full page. Both carry the same board; the admin view unlocks Edit,
-        Approve, Decline, and Delete.
+        Projects are bigger jobs than a space issue, often for several people. They live on the
+        Projects tab of the Space Status sheet, and staff find them under <em>Your work</em> on the
+        staff page.
+      </p>
+
+      <h3>Running a project</h3>
+      <ol>
+        <li><strong>Create it</strong> in <em>Assign &amp; track projects</em>, or the Projects tab of the open issues panel: a title, a description, any assignees, and if you like a before photo, a file or a link.</li>
+        <li><strong>Someone joins.</strong> The first person to join moves it from Assigned to In Progress.</li>
+        <li><strong>They finish it</strong> with an after photo and the hours it took. It moves to Pending.</li>
+        <li><strong>You review it.</strong> Approve marks it Completed. Send back returns it to In Progress with your reason; the photo and hours stay on it.</li>
+      </ol>
+      <p>
+        You can edit a project's title, description and assignees in place, or delete it (the row goes;
+        its photos stay in Drive). <em>Projects dashboard</em> shows hours logged, the completion rate,
+        top contributors and a before and after gallery.
+      </p>
+
+      <h3>Proposals</h3>
+      <p>
+        Staff post improvement ideas from <em>Propose an improvement</em> on the staff page, and the
+        team rates them. <em>Review proposals</em> opens the same board with your controls on it.
       </p>
       <ul>
-        <li><strong>Post.</strong> Title is the only requirement. Photos of the spot are optional and upload in the background while the form is being filled in.</li>
-        <li><strong>Rate independently.</strong> Every voter scores <em>Impact</em> and <em>Effort</em> separately, 1 to 5. Effort is recorded for planning and never blocks a promotion.</li>
-        <li><strong>Earned voice.</strong> A person's ratings only start counting once they have reviewed <strong>3 proposals</strong>. Until then their ratings are saved but not counted, and the page tells them so.</li>
-        <li><strong>Quorum.</strong> A proposal is promoted automatically once it has <strong>3 counted reviews</strong> and an average Impact of <strong>3.5 or better</strong>. That writes a row on the Projects sheet so staff can join it from Your work.</li>
-        <li><strong>Honesty.</strong> One rating per NetID per proposal, enforced on the server; re-rating replaces the old one. Nobody can rate their own proposal.</li>
-        <li><strong>Admin actions.</strong> <em>Edit</em> changes the title, description, area, and scout name in place. <em>Approve now</em> promotes without waiting for quorum. <em>Decline</em> closes it but keeps the row for the record. <em>Delete</em> removes the proposal and its ratings entirely, behind a confirm step, for junk or ideas the team has clearly rejected.</li>
+        <li><strong>Ratings.</strong> Each person rates Impact and Effort from 1 to 5. One rating per person per proposal (rating again replaces it), and nobody can rate their own.</li>
+        <li><strong>Whose ratings count.</strong> A person's ratings count once they have rated 3 proposals. While fewer than 3 proposals are open, every rating counts.</li>
+        <li><strong>Becoming a project.</strong> With 3 counted ratings and an average Impact of 3.5 or more, a proposal becomes an Open project by itself. Effort is there for planning and never holds an idea back.</li>
+        <li><strong>Your controls.</strong> <em>Edit</em> fixes the title, description, area or name. <em>Approve now</em> makes it a project without waiting. <em>Decline</em> closes it but keeps the record. <em>Delete</em> removes it and its ratings, for junk.</li>
       </ul>
+      <p>A project that came from a proposal is announced on a gold strip at the top of the staff task pages for two weeks.</p>
+    </section>
+
+    <section class="doc-section" id="equipment">
+      <h2><span class="doc-num">04</span>Equipment</h2>
       <p>
-        Newly promoted proposals become Open projects. A gold strip at the top of the
-        students' tasks pages names the new project for two weeks and switches Your work
-        to the Projects tab; ideas still awaiting ratings sit on a quieter strip below.
-        The thresholds all live in the <code>PR</code> object at the top of
-        <code>07_proposals.gs</code>; the sheets are <code>Proposals</code> and
-        <code>Proposal votes</code>, created by running <code>setupProposals</code> once.
+        The inventory is an app in the hub with a Google Sheet behind it. Tools stay in the shops and
+        nobody checks them out, so it records what there is, where each thing lives, what shape it is
+        in, its maintenance, and how much of each supply is left. Staff open the same app from
+        <em>Tool inventory</em> on the staff page, without the editing controls.
+      </p>
+      <ul>
+        <li><strong>Inventory.</strong> Add and edit items: a photo (on a phone you can take one on the spot), the team that owns it or Shared, the location and the condition. On an item's page, <em>Log maintenance</em> records what was wrong or checked, what was done, by whom, the cost and when the next check is due. Supplies have <em>Update the count</em>.</li>
+        <li><strong>Status.</strong> Condition is Good, Fair or Needs Repair. Setting Out of Service to Maintenance takes an item out of service; Retired items only show on the admin view. Supplies read In stock, Low stock or Out of stock against their minimum. The Maintenance due and Retired filters are admin only.</li>
+        <li><strong>Print item labels.</strong> A QR label for every item, and scanning one opens that item. Item IDs (PT-001, EQ-004 and so on) never change, so printed labels stay good.</li>
+        <li><strong>Inventory spreadsheet.</strong> The Dashboard tab has the same numbers as the app. Inventory Master has one row per item, the Maintenance Log has every repair and check, and Lists holds the dropdown choices, teams and locations included. Status, Next Maintenance and Item Link fill themselves in; don't type in them.</li>
+        <li><strong>Test data.</strong> <em>Load test data</em> adds 26 sample items tagged <code>[test data]</code>. Reset and Remove only touch tagged items, so real ones are safe.</li>
+      </ul>
+    </section>
+
+    <section class="doc-section" id="ell">
+      <h2><span class="doc-num">05</span>Experiential Learning Lab</h2>
+      <p>
+        ELL staff fill in the ELL Shift Summary form at the end of each shift: how busy it was, how each
+        room was used, supplies, and any safety or maintenance problems. <em>View shift responses</em>
+        opens the answers. The raw rows are on the Form Responses 1 tab, with a summary view beside them.
+        The Command Center flags safety problems and supply shortages from the latest shift.
       </p>
     </section>
 
-    <section class="doc-section" id="changes">
-      <h2><span class="doc-num">09</span>Making changes</h2>
+    <section class="doc-section" id="fabman">
+      <h2><span class="doc-num">06</span>Fabman</h2>
+      <p>
+        <em>Open Fabman</em> goes to the Fabman admin site for members, activity, bookings and machine
+        access. Bulk changes happen in the <em>Fabman members sheet</em>, through buttons that call
+        Fabman for you.
+      </p>
       <ul>
-        <li><strong>Contacts and recipients:</strong> edit Team Contacts.</li>
-        <li><strong>Wording, deadlines, sender:</strong> edit the constants at the top of the script and save.</li>
-        <li><strong>New team:</strong> add a row in Team Contacts, run <code>fillTeamTokens</code>, add the name to the form dropdown.</li>
-        <li><strong>Web page changes:</strong> these do not go live until you deploy a new version. Deploy &rarr; Manage deployments &rarr; pencil &rarr; Version: New version &rarr; Deploy. The URL stays the same.</li>
+        <li><strong>Dashboard tab.</strong> Every Fabman member with their team, graduation year, apron and trainings, pulled from Fabman.</li>
+        <li><strong>Sign-up Form tab.</strong> New sign-ups arrive here and are added to Fabman.</li>
+        <li><strong>Actions tab.</strong> Put email addresses in column A, then press a button to make one change for all of them: grant Machines or Mills, set an apron color (Red also grants Machines and Mills), add or remove Supervisor, lock or activate accounts, delete them, or send Fabman invitations.</li>
+        <li><strong>Graduates.</strong> <em>Flag graduates for review</em> lists everyone whose graduation year is this year or earlier on a Graduates tab, each ticked and set to Lock. Untick anyone to keep, switch someone to Delete if needed, then run <em>Process graduates</em>. Delete removes the Fabman account for good. Each row shows what happened in its Result column.</li>
       </ul>
-      <p>Go-live settings, in <code>CONFIG</code> at the top of the script:</p>
-      <div class="cmd">
-        sender: 'eng_projectteams@cornell.edu',&nbsp;&nbsp;<span class="c">// send-as alias on the running account</span><br>
-        alwaysCc: ['nhh5@cornell.edu'],
-      </div>
+      <p>
+        The <em>Fabman-Canvas training integration</em> doc maps the Canvas trainings to Fabman courses
+        and apron tiers. The <em>Fabman operations report</em> covers procedures, courses and supervisor
+        scheduling.
+      </p>
     </section>
 
-    <section class="doc-section" id="utilities">
-      <h2><span class="doc-num">10</span>Utilities</h2>
-      <p>Run from the script editor:</p>
+    <section class="doc-section" id="compliance">
+      <h2><span class="doc-num">07</span>Compliance</h2>
       <ul>
-        <li><code>fillTeamTokens</code> Creates tokens for teams that lack one.</li>
-        <li><code>sharePhotos</code> One-time backfill; makes older photos viewable in the portal.</li>
-        <li><code>sendReminders</code> Sends due reminders immediately.</li>
-        <li><code>listResponseHeaders</code> Prints the sheet's column headers to the log.</li>
+        <li><strong>Building access &amp; training records</strong> (the Master Sheet). Usage agreements and waivers signed through the Safety &amp; Training Hub Canvas course, one tab per location (ELL, HVL, Rhodes penthouse and others), plus Workday EHS training completions.</li>
+        <li><strong>Project Teams workspaces.</strong> The register of every team space: building, room, access form, waivers, usage agreement and safety plan, with the yearly renewal survey answers.</li>
+        <li><strong>Summer contact list 2026.</strong> Who to reach on each team over the summer. View only.</li>
       </ul>
+    </section>
+
+    <section class="doc-section" id="fleet">
+      <h2><span class="doc-num">08</span>Fleet</h2>
+      <p>
+        <em>Student drivers &amp; reservations</em> opens the sheet for the program's Tacoma (MBN-4258).
+        The Approval tab tracks each driver's application and training, the Log tab holds the
+        reservations, and the Process tab lists the approval steps.
+      </p>
+      <h3>Removing graduated drivers</h3>
+      <ol>
+        <li>In that sheet, choose <strong>Driver cleanup &gt; 1. List graduated drivers</strong>. Everyone graduating this year or earlier goes on a <em>Drivers to remove</em> tab.</li>
+        <li>Check that tab and delete the row of anyone you want to keep.</li>
+        <li>Choose <strong>2. Delete listed drivers (rows)</strong> to take them off the drivers list, or <strong>2. Remove listed drivers (access)</strong> to remove their edit access to the sheet.</li>
+      </ol>
+      <p>
+        The Command Center warns when the Tacoma is double-booked, when this week's reservations are
+        missing details, and when driver applications are ready to file or stuck.
+      </p>
+    </section>
+
+    <section class="doc-section" id="command">
+      <h2><span class="doc-num">09</span>Command Center</h2>
+      <p>
+        The <a href="command-center.html">Command Center</a> shows what needs attention across every area
+        on one screen: open, overdue and same-day space issues, ELL flags and supplies, Fabman members
+        waiting for training and graduates who still have access, building access and Workday records,
+        Tacoma bookings and driver applications, and mill room orders and locks not returned. The number
+        on the gold button counts what needs attention. It reads the sheets directly and refreshes every
+        few minutes.
+      </p>
     </section>
 
     <section class="doc-section" id="links">
@@ -291,34 +313,58 @@
       <ul class="doc-links">
         <li>
           <a href="https://docs.google.com/spreadsheets/d/1mZrlnA-GiVKB4_Um21aMH9jsSkf6TUJhauDWivnf7-I/edit" target="_blank" rel="noopener">Space Status Tracking sheet</a>
-          <span>Form Responses and the Team Contacts tab. The database.</span>
+          <span>Form Responses, Team Contacts and the Projects tab.</span>
         </li>
         <li>
-          <a href="https://docs.google.com/forms/d/1bVzxR-lGNDtll6wh7wsdZGsVuqMkaRavVcGxykLHMFw/edit" target="_blank" rel="noopener">Report form (editor)</a>
-          <span>Teams, issue types, and fields. Editing here changes what gets collected.</span>
+          <a href="https://forms.gle/6DHYsEPonVtdALps5" target="_blank" rel="noopener">Report form</a>
+          <span>The form staff use to report an issue.</span>
         </li>
         <li>
-          <a href="https://forms.gle/6DHYsEPonVtdALps5" target="_blank" rel="noopener">Report form (live)</a>
-          <span>The form people submit.</span>
+          <a href="https://docs.google.com/forms/d/1bVzxR-lGNDtll6wh7wsdZGsVuqMkaRavVcGxykLHMFw/edit" target="_blank" rel="noopener">Report form, editor</a>
+          <span>Questions and choices. Check the notes under Space before renaming anything.</span>
         </li>
         <li>
-          <a href="https://script.google.com/d/1DpKw0dXIQ5rH6_BQfIQnXpmTbTcPmfH3wq2Dzc6pJUA7lrmeFG7hh5P4/edit" target="_blank" rel="noopener">Apps Script project</a>
-          <span>The engine. Edit and deploy here.</span>
-        </li>
-        <li>
-          <a href="https://script.google.com/macros/s/AKfycbwNbGjVcBrcsMZiOl2nXzpqZHz04nvKLm9D_aC0VJDz7Xxxf_4kLKlNSOHubPXj1X74/exec" target="_blank" rel="noopener">Web app</a>
-          <span>The team status pages and the confirm page. The deployed URL.</span>
-        </li>
-        <li>
-          <a href="https://docs.google.com/document/d/1-pAMO02ul8k7pg9sCfkmVZ5W5p4NuWzaG2ALOWn60hk/edit" target="_blank" rel="noopener">Space Status Manual</a>
+          <a href="https://docs.google.com/document/d/1-pAMO02ul8k7pg9sCfkmVZ5W5p4NuWzaG2ALOWn60hk/edit" target="_blank" rel="noopener">Space Status manual</a>
           <span>When and how to report. For the people filing issues.</span>
         </li>
         <li>
-          <a href="https://github.com/cornellprojectteams/centralhub" target="_blank" rel="noopener">GitHub repo</a>
-          <span>This hub's source, including a reference copy of the script.</span>
+          <a href="https://docs.google.com/spreadsheets/d/1Gjjqu3hX4Xcwm6w0Bp3maPg7hM0y91zAP7nnFXtwnIM/edit" target="_blank" rel="noopener">Inventory spreadsheet</a>
+          <span>The sheet behind the inventory app.</span>
+        </li>
+        <li>
+          <a href="https://docs.google.com/spreadsheets/d/1yazhxA8nwYWDRSdQEN6Cc3UKKnPn6PWF_b3zAe0KoQk/edit" target="_blank" rel="noopener">ELL shift responses</a>
+          <span>Answers from the ELL Shift Summary form.</span>
+        </li>
+        <li>
+          <a href="https://fabman.io/manage/2366" target="_blank" rel="noopener">Fabman</a>
+          <span>The Fabman admin site.</span>
+        </li>
+        <li>
+          <a href="https://docs.google.com/spreadsheets/d/1lDAA4z1YexkjaABSPuXJyEXfSxN2QAsKWVk88TQCRLI/edit" target="_blank" rel="noopener">Fabman members sheet</a>
+          <span>Dashboard, sign-ups, the Actions buttons and graduates.</span>
+        </li>
+        <li>
+          <a href="https://docs.google.com/spreadsheets/d/1k97Ey5aNcm58zaviaXxKvJtTgL1yeSI_fvUkXZFEyM4/edit" target="_blank" rel="noopener">Building access &amp; training records</a>
+          <span>The Master Sheet: waivers by location and Workday trainings.</span>
+        </li>
+        <li>
+          <a href="https://docs.google.com/spreadsheets/d/1cKd-5815CafamF2AQpwTIqATjdkD4HgM404vQvwTvuM/edit" target="_blank" rel="noopener">Project Teams workspaces</a>
+          <span>Team spaces, renewals and compliance documents.</span>
+        </li>
+        <li>
+          <a href="https://docs.google.com/spreadsheets/d/1UrI5mBI4rqY9NeElobhzdd1lWsAlBDeYa1LZPVWHNnE/edit" target="_blank" rel="noopener">Summer contact list 2026</a>
+          <span>Seasonal team contacts.</span>
+        </li>
+        <li>
+          <a href="https://docs.google.com/spreadsheets/d/1KwJLTkdhrQ0jD7-75p6IuhYvh3Fq0B13KAXf2Pcvk_M/edit" target="_blank" rel="noopener">Student drivers &amp; reservations</a>
+          <span>Driver approvals, the Tacoma log and the Driver cleanup menu.</span>
+        </li>
+        <li>
+          <a href="dev-guide.html">Developer guide</a>
+          <span>Editing the site, the scripts and deploying.</span>
         </li>
       </ul>
-      <p class="doc-updated">Last updated July 2026.</p>
+      <p class="doc-updated">Last updated October 2026.</p>
     </section>
     </div>
   </main>
@@ -329,7 +375,7 @@
         <img src="assets/cornell-seal.svg" alt="" class="footer-seal" aria-hidden="true">
         <div>
           <div class="footer-title">Project Teams Ops Hub</div>
-          <p class="footer-tagline">Everyday tools for Student Project Team safety and operations.</p>
+          <p class="footer-tagline">Back-office tools for Student Project Team safety and operations.</p>
         </div>
       </div>
 
@@ -338,24 +384,25 @@
           <h4>Jump to</h4>
           <a href="index.html">Staff</a>
           <a href="admin.html">Admin</a>
-          <a href="command-center.html">↳ Command</a>
+          <a href="command-center.html">&#8627; Command Center</a>
         </div>
         <div class="footer-col">
           <h4>On this page</h4>
-          <a href="#overview">Overview</a>
-          <a href="#changes">Making changes</a>
-          <a href="#utilities">Utilities</a>
+          <a href="#space">Space</a>
+          <a href="#projects">Projects</a>
+          <a href="#equipment">Equipment</a>
         </div>
         <div class="footer-col">
           <h4>Guides</h4>
-          <a href="dev-guide.html">Editing this site</a>
+          <a href="space-status-how-to.html">Staff how-to</a>
+          <a href="dev-guide.html">Developer guide</a>
         </div>
       </nav>
     </div>
 
     <div class="footer-bottom">
       <span>&copy; 2026 Cornell University &middot; Student Project Team Program</span>
-      <a class="footer-back" href="index.html">Back to the hub &rarr;</a>
+      <a class="footer-back" href="admin.html">Back to admin &rarr;</a>
     </div>
   </footer>
 </div>
@@ -368,13 +415,21 @@
       link.classList.add('is-active');
     });
   });
+  // A tall sidebar scrolls on its own; keep the highlighted link inside it.
+  const docSide = document.querySelector('.doc-sidebar');
+  function keepLinkVisible(a) {
+    if (!docSide || docSide.scrollHeight <= docSide.clientHeight) return;
+    const r = a.getBoundingClientRect(), s = docSide.getBoundingClientRect();
+    if (r.top < s.top) docSide.scrollTop -= s.top - r.top + 8;
+    else if (r.bottom > s.bottom) docSide.scrollTop += r.bottom - s.bottom + 8;
+  }
   if ('IntersectionObserver' in window) {
     const docObserver = new IntersectionObserver(entries => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
           docLinks.forEach(l => l.classList.remove('is-active'));
           const active = document.querySelector('.doc-sidebar-link[href="#' + entry.target.id + '"]');
-          if (active) active.classList.add('is-active');
+          if (active) { active.classList.add('is-active'); keepLinkVisible(active); }
         }
       });
     }, { rootMargin: '-20% 0px -65% 0px' });

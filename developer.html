@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+  Developer: the scripts and code behind the hub, kept apart from the admin
+  page's day-to-day tools. Reached from the admin page; not linked from the
+  staff page. Shares styles.css and app.js (and the admin layout) with admin.html.
+-->
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Developer | Project Teams Ops Hub</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" media="print" onload="this.media='all';this.onload=null">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap"></noscript>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="app-shell">
+  <header class="app-header">
+    <div class="header-inner">
+      <a href="index.html" class="logo">
+        <img src="assets/cornell-seal.svg" alt="Cornell University" class="logo-seal">
+        <div class="logo-text-block">
+          <div class="logo-text">Project Teams Ops Hub</div>
+          <div class="logo-sub">Developer</div>
+        </div>
+      </a>
+      <div class="header-tools">
+        <a class="cmd-link" href="command-center.html">
+          <span class="cmd-dot" aria-hidden="true"></span>
+          <span class="cmd-text">Command<span class="cmd-text-full"> Center</span></span>
+          <span class="cmd-badge" id="cmd-badge" hidden></span>
+          <span class="cmd-go" aria-hidden="true">&rarr;</span>
+        </a>
+        <div class="header-search" role="search">
+          <div class="search-box">
+            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input type="search" class="search-input" id="search" placeholder="Search developer tools…" autocomplete="off" aria-label="Search developer tools">
+            <button type="button" class="search-clear" id="search-clear" aria-label="Clear search" hidden>&#10005;</button>
+            <kbd class="search-kbd" id="search-kbd">/</kbd>
+          </div>
+          <div class="search-meta" id="search-meta" hidden>
+            <span class="search-count" id="search-count"></span>
+            <span class="search-hint"><kbd>&uarr;</kbd><kbd>&darr;</kbd> navigate &middot; <kbd>&crarr;</kbd> open &middot; <kbd>esc</kbd> clear</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="page-main">
+    <h1 class="sr-only">Developer tools</h1>
+
+    <!-- id="admin" on purpose: this page uses the admin layout, styles and section list. -->
+    <section class="hub-zone is-active" id="admin">
+      <div class="admin-layout" id="admin-layout">
+        <aside class="admin-side">
+          <span class="admin-side-label">Developer</span>
+          <nav class="admin-nav" id="admin-nav" aria-label="Developer sections">
+            <a href="admin.html" class="admin-nav-back" aria-label="Back to the admin page"><span class="back-arrow" aria-hidden="true">&larr;</span>Admin</a>
+            <a href="#scripts" style="--chip:#444d56"><span class="dot"></span>Apps Script</a>
+            <a href="#code" style="--chip:#2f5d8a"><span class="dot"></span>Code &amp; docs</a>
+          </nav>
+        </aside>
+
+      <div class="admin-list">
+        <section class="category admin-block" id="scripts" data-keywords="scripts code apps script google gas editor deploy redeploy web app new version">
+          <h3 class="admin-label">Apps Script</h3>
+          <p class="admin-block-intro">
+            These run on Google; the repo&rsquo;s <code>apps-script</code> folder holds copies. Paste a change
+            into the project and save. The three web apps (Space Status, Command Center, Inventory) also need
+            a new version: Deploy, Manage deployments, New version.
+          </p>
+          <div class="action-group">
+            <a class="action" href="https://script.google.com/d/1DpKw0dXIQ5rH6_BQfIQnXpmTbTcPmfH3wq2Dzc6pJUA7lrmeFG7hh5P4/edit" target="_blank" rel="noopener" data-keywords="space status emailer script automation notification ops hub web app tasks projects proposals files 02 04 07 exec deploy new version standalone">
+              <span class="action-title">Space Status web app</span>
+              <span class="action-sub">Emails, reminders, issue pages, projects and proposals (files 02, 04, 07).</span>
+            </a>
+            <a class="action" href="https://script.google.com/home" target="_blank" rel="noopener" data-keywords="command center api stats endpoint code.gs jsonp cache version standalone attention">
+              <span class="action-title">Command Center API</span>
+              <span class="action-sub">Standalone project &ldquo;Ops Command Center API&rdquo;. Redeploy, then bump CACHE_VERSION.</span>
+            </a>
+            <a class="action" data-inventory="script" href="#" target="_blank" rel="noopener" data-keywords="inventory equipment maintenance script 08 setup bound extensions apps script self-test web app">
+              <span class="action-title">Inventory script</span>
+              <span class="action-sub">File 08, bound to the inventory sheet. Open the sheet, then Extensions, Apps Script.</span>
+            </a>
+            <a class="action" href="https://docs.google.com/spreadsheets/d/1lDAA4z1YexkjaABSPuXJyEXfSxN2QAsKWVk88TQCRLI/edit" target="_blank" rel="noopener" data-keywords="fabman members graduates lock delete script 05 bound extensions apps script actions buttons">
+              <span class="action-title">Fabman script</span>
+              <span class="action-sub">File 05, bound to the Fabman members sheet. Open the sheet, then Extensions, Apps Script.</span>
+            </a>
+            <a class="action" href="https://docs.google.com/spreadsheets/d/1KwJLTkdhrQ0jD7-75p6IuhYvh3Fq0B13KAXf2Pcvk_M/edit" target="_blank" rel="noopener" data-keywords="fleet driver cleanup remove graduated script bound extensions apps script menu">
+              <span class="action-title">Fleet driver cleanup script</span>
+              <span class="action-sub">The Driver cleanup menu, bound to the drivers sheet. Open the sheet, then Extensions, Apps Script.</span>
+            </a>
+          </div>
+        </section>
+
+        <section class="category admin-block" id="code" data-keywords="code github repo source website editing guide documentation codespaces copilot commit push publish api reference">
+          <h3 class="admin-label">Code &amp; docs</h3>
+          <div class="action-group">
+            <a class="action" href="dev-guide.html" data-keywords="developer guide editing guide edit website codespaces copilot github commit push publish deploy routes reminders documentation">
+              <span class="action-title">Developer guide</span>
+              <span class="action-sub">Editing and publishing the site, and how each script works and deploys.</span>
+            </a>
+            <a class="action" href="https://github.com/cornellprojectteams/centralhub" target="_blank" rel="noopener" data-keywords="github repository repo source code centralhub website history">
+              <span class="action-title">GitHub repo</span>
+              <span class="action-sub">Source code and history for this hub.</span>
+            </a>
+            <a class="action" href="https://docs.google.com/document/d/1wCMPnGjn5A07y06uOzXZRI2h7YL7LBqrwXQ8iKpD3Vw/edit" target="_blank" rel="noopener" data-keywords="fabman api guide apps script reference calls">
+              <span class="action-title">Fabman API guide</span>
+              <span class="action-sub">Apps Script reference for Fabman API calls.</span>
+            </a>
+          </div>
+        </section>
+      </div>
+      </div>
+    </section>
+
+    <p class="no-results" id="no-results">No tools match your search.</p>
+  </main>
+
+  <footer class="app-footer">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <img src="assets/cornell-seal.svg" alt="" class="footer-seal" aria-hidden="true">
+        <div>
+          <div class="footer-title">Project Teams Ops Hub</div>
+          <p class="footer-tagline">The scripts and code behind the hub.</p>
+        </div>
+      </div>
+
+      <nav class="footer-nav" aria-label="Footer">
+        <div class="footer-col">
+          <h4>Developer</h4>
+          <a href="#scripts">Apps Script</a>
+          <a href="#code">Code &amp; docs</a>
+          <a href="dev-guide.html">Developer guide</a>
+        </div>
+        <div class="footer-col">
+          <h4>Elsewhere</h4>
+          <a href="admin.html">Admin</a>
+          <a href="docs.html">Admin guide</a>
+          <a href="index.html">Staff hub</a>
+        </div>
+      </nav>
+    </div>
+
+    <div class="footer-bottom">
+      <span>&copy; 2026 Cornell University &middot; Student Project Team Program</span>
+      <span class="footer-press">Press <kbd>/</kbd> to search</span>
+    </div>
+  </footer>
+</div>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

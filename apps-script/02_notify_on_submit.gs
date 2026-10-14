@@ -546,7 +546,7 @@ function doGet(e) {
   if (p.module === 'projects-dash') return projectsDashboardPage_(embed);   // Projects dashboard (04_tasks_projects.gs)
   // The old equipment registry was retired. Old links and printed QR labels land here
   // instead of falling through to the ?id= handler below.
-  if (p.registry || p.module === 'registry-dash') return htmlPage_('Inventory has moved', 'The old equipment registry was retired. To borrow or return a tool, open Tool inventory on the Ops Hub, or scan the QR poster in the shop.');
+  if (p.registry || p.module === 'registry-dash') return htmlPage_('Inventory has moved', 'The old equipment registry was retired. Tools and equipment are now in Tool inventory on the Ops Hub. <a href="https://cornellprojectteams.github.io/centralhub/inventory.html" target="_top" style="color:#b31b1b;font-weight:700">Open the inventory</a>');
   if (p.team) { const t = lookupTeamByToken_(p.team); return t ? teamPortal_(t, false) : htmlPage_('Invalid link', 'This team link is not recognized.'); }
   if (p.view === 'all') return allIssuesPage_(embed, admin);
   if (p.view) return teamPortal_(String(p.view), !(p.act === '1' || p.act === 'true'), p.embed === '1' || p.embed === 'true');   // ?view=<team> read-only; &act=1 markable; &embed=1 no top bar

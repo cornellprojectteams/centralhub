@@ -7,11 +7,15 @@ Static web hub for Cornell Project Teams Safety & Operations. Links staff and ad
 | File | Purpose |
 |------|---------|
 | `index.html` | Staff page: everyday tasks + the Operations Team open-tasks panel |
-| `admin.html` | Admin page: back-office tools. Reached by shared link, not in the staff nav |
+| `admin.html` | Admin page: day-to-day operations only. Reached by shared link, not in the staff nav |
+| `developer.html` | Developer page: Apps Script projects, the repo and the developer guide. Linked from the admin page |
+| `docs.html` | Admin guide: how each part of the admin page is used |
+| `dev-guide.html` | Developer guide: editing and publishing the site, and how the scripts work and deploy |
+| `space-status-how-to.html` | Staff how-to for Space Status |
 | `command-center.html` | Ops metrics dashboard. Reached by shared link |
 | `team.html` | Shareable per-team open-issues page (`team.html?team=<name>`) |
 | `styles.css` | Layout and Cornell theming |
-| `app.js` | Live search, open-issues dashboard panel, admin sidebar (shared by the pages) |
+| `app.js` | Live search, the slide-over panels, the section list (shared by the staff, admin and developer pages) |
 | `config.js` | Single source for the Space Status web app `/exec` URL and the inventory settings (`INVENTORY`) |
 | `inventory.html`, `inventory.js`, `inventory.css` | The tool & equipment inventory app (also opens in a panel from the staff and admin pages) |
 | `apps-script/08_inventory.gs` | The inventory's backend: builds the Google Sheet, keeps it tidy, and serves the app's API |
@@ -29,27 +33,33 @@ Open `http://localhost:3000` (or the port shown).
 
 ## Navigation
 
-- Header buttons switch between **Staff** and **Admin tools**.
-- Only one hub zone is visible at a time.
-- `#staff` and `#admin` URL hashes restore the selected view on load or refresh.
+- **Staff** (`index.html`) is the public page.
+- **Admin** (`admin.html`) is reached by a shared link and holds the day-to-day tools. Its links open
+  the dashboards with admin controls, so it is never linked from the staff page.
+- **Developer** (`developer.html`) is linked from the bottom of the admin section list. Script editors,
+  the repo and the developer guide live there, not on the admin page.
 
 ## Search
 
-The search box filters tools by visible text and optional `data-keywords` attributes on categories, actions, and footnotes. While searching, matching items from both zones may appear. Clearing search returns to the active nav view.
+The search box filters tools by visible text and optional `data-keywords` attributes on categories, actions, and footnotes. Clearing search shows everything again.
 
 ## Adding a tool link
 
-1. Choose the correct zone in `index.html` (`#staff` or `#admin`).
+1. Pick the page: staff tools in `index.html`, admin tools in `admin.html`, scripts and code in `developer.html`.
 2. Add an `<a class="action">` with `href`, `target="_blank"`, and `rel="noopener"`.
 3. Include `<span class="action-title">` and `<span class="action-sub">` for the label and subtitle.
 4. Add `data-keywords="..."` with abbreviations and synonyms users might search for.
 
-Admin tools are grouped in `<section class="category admin-block">` blocks with an `<h3 class="admin-label">` heading.
+Admin and developer tools are grouped in `<section class="category admin-block">` blocks with an
+`<h3 class="admin-label">` heading. A new block also needs a link in the section list (`#admin-nav`)
+and a color (`--cat`, `--cat-deep`, `--glow`) in the category color list in `styles.css`.
 
 ## Styling notes
 
 - Staff actions use the red gradient theme (`--red-*` tokens).
-- Admin actions use the burgundy gradient theme (`--burgundy-*` tokens).
+- On the admin and developer pages each section has its own color. Dashboard openers
+  (`action-dashboard`) are the big colored tiles; every other link is a white card marked with the
+  section color, two to a row.
 - Design tokens live in `:root` at the top of `styles.css`.
 
 ## Completion evidence &amp; Projects
@@ -65,25 +75,25 @@ button in the notification email) now works like this:
 2. Submitting fires a client-side **confetti burst** and moves the item to
    *Pending approval* (stamps `Completed at`; reminder emails pause).
 3. An admin **Approves** → stamps `Addressed at` (= Completed/resolved), or
-   **Sends back** → clears the submission (back to Open / Uncompleted).
+   **Sends back** → reopens it with an optional reason, emailed to the team (their photo and note stay).
 
-This reuses the one `Form Responses` tracking sheet, adding two columns
-(`Completion photo`, `Completed at`), with no parallel system.
+This reuses the one `Form Responses` tracking sheet, adding four columns
+(`Completion photo`, `Completion note`, `Completed at`, `Sent back reason`), with no parallel system.
 
 **Projects** (`?module=projects`, linked from the hub via a `data-module` attribute
 that `app.js` rewrites to `…/exec?module=projects`) are multi-user work
 created/assigned by an admin. Any student can **pick (join)** a project; the first
 pick auto-flips it *Assigned → In Progress*. Multiple assignees are tracked.
-Completion is a manual trigger that **enforces both a before and an after photo**.
+Completion **requires an after photo and the hours** it took; the before photo is
+optional and is added when the project is created.
 
 **Roles.** Everyone is a doer by default. Admin-only actions (approve or send back
-completions, create/assign projects) are gated by the shared passcode
-(`CONFIG.toolPassHash`, same as the other admin tools), validated server-side on
-every mutating call; unlock with the **Admin** bar on the page. Project completion
-is open to assignees. Photo uploads go to a dedicated Drive folder.
+completions, create/assign projects) show when a page is opened with `admin=1`, which
+only the admin page's links add. Project completion is open to assignees. Photo
+uploads go to a dedicated Drive folder.
 
 **First run:** open the Space Status Apps Script project, run `setupTasksProjects()`
-once (creates the `Projects` tab and the two completion columns), then push a **new
+once (creates the `Projects` tab and the completion columns), then push a **new
 deployment version** (any change to web-app logic needs one); the URL stays the same.
 
 ## Tool & equipment inventory
