@@ -904,7 +904,7 @@
       const sub = el.querySelector('.action-sub');
       if (sub && !explained.has(block)) {
         explained.add(block);
-        sub.textContent = 'Not connected yet. Deploy the inventory sheet\u2019s script as a web app and put its URL in config.js as apiUrl (see the README).';
+        sub.textContent = 'Not connected yet. Deploy the inventory sheet\u2019s script as a web app and put its URL in config.js as apiUrl (see the developer guide).';
       }
     });
   })();
@@ -954,7 +954,8 @@
   const embedQuery = (issuesPanel && issuesPanel.dataset.embedQuery) || 'view=all';
   const sep = SPACE_STATUS_URL.indexOf('?') >= 0 ? '&' : '?';
   const issuesUrl = SPACE_STATUS_URL ? SPACE_STATUS_URL + sep + embedQuery + '&embed=1' : '';
-  const issuesFullUrl = SPACE_STATUS_URL ? SPACE_STATUS_URL + sep + embedQuery : '';
+  const hereUrl = encodeURIComponent(location.origin + location.pathname);
+  const issuesFullUrl = SPACE_STATUS_URL ? SPACE_STATUS_URL + sep + embedQuery + '&back=' + hereUrl : '';
 
   if (issuesFallbackLink && issuesFullUrl) issuesFallbackLink.href = issuesFullUrl;
   if (issuesPanelExt && issuesFullUrl) issuesPanelExt.href = issuesFullUrl;
@@ -970,7 +971,7 @@
   // mode so create / approve / delete are available; staff panels stay student-mode.
   const adminSuffix = /(?:^|&)admin=1(?:&|$)/.test(embedQuery || '') ? '&admin=1' : '';
   const projectsUrl = SPACE_STATUS_URL ? SPACE_STATUS_URL + sep + 'module=projects&embed=1' + adminSuffix : '';
-  const projectsFullUrl = SPACE_STATUS_URL ? SPACE_STATUS_URL + sep + 'module=projects' + adminSuffix : '';
+  const projectsFullUrl = SPACE_STATUS_URL ? SPACE_STATUS_URL + sep + 'module=projects' + adminSuffix + '&back=' + hereUrl : '';
   const projectsNew = document.getElementById('seg-projects-new');
   let projectsFrameStarted = false;
   let projectsLoadBound = false;

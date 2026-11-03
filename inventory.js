@@ -367,7 +367,7 @@
   function scaffold() {
     const icon = (d) => '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + '</svg>';
     app.innerHTML =
-      (EMBED ? '' : '<a class="inv-back" href="' + (ADMIN ? 'admin.html#inventory' : 'index.html') + '"><span aria-hidden="true">&larr;</span> ' + (ADMIN ? 'Back to admin' : 'Back to the hub') + '</a>') +
+      (EMBED ? '' : '<a class="back-to-admin" href="' + (ADMIN ? 'admin.html#inventory' : 'index.html') + '"><span aria-hidden="true">&larr;</span> ' + (ADMIN ? 'Back to admin' : 'Back to the hub') + '</a>') +
       '<section class="inv-top">' +
         '<div class="inv-head">' +
           '<div class="inv-title-row"><h1 class="inv-title">' + (TEAM_MODE ? esc(TEAM_NAME) + ' inventory' : 'Tool inventory') + '</h1>' +
@@ -693,7 +693,7 @@
   function renderNotConnected() {
     app.innerHTML = '<section class="inv-setup"><h1 class="inv-title">The inventory isn’t connected yet</h1>' +
       (ADMIN
-        ? '<p>Deploy the inventory sheet’s script as a web app (Deploy &gt; New deployment &gt; Web app, execute as Me, access Anyone) and put its URL in <code>config.js</code> as <code>INVENTORY.apiUrl</code>. The README has the steps.</p>'
+        ? '<p>Deploy the inventory sheet’s script as a web app (Deploy &gt; New deployment &gt; Web app, execute as Me, access Anyone) and put its URL in <code>config.js</code> as <code>INVENTORY.apiUrl</code>. The developer guide has the steps.</p>'
         : '<p>Check back soon, or ask the Operations team.</p>') +
       '</section>';
   }

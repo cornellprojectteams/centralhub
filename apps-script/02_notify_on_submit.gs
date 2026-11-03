@@ -542,13 +542,13 @@ function doGet(e) {
   // admin controls without a passcode - the admin page's obscurity is the gate.
   const admin = p.admin === '1' || p.admin === 'true';
   if (p.module === 'proposals') return proposalsPage_(embed, admin, p.back);   // Honeybee-swarm improvement voting (07_proposals.gs); ?back= is the hub link for the back button
-  if (p.module === 'projects') return projectsPage_(embed, admin);   // Multi-user projects (04_tasks_projects.gs)
-  if (p.module === 'projects-dash') return projectsDashboardPage_(embed);   // Projects dashboard (04_tasks_projects.gs)
+  if (p.module === 'projects') return projectsPage_(embed, admin, p.back);   // Multi-user projects (04_tasks_projects.gs)
+  if (p.module === 'projects-dash') return projectsDashboardPage_(embed, p.back);   // Projects dashboard (04_tasks_projects.gs)
   // The old equipment registry was retired. Old links and printed QR labels land here
   // instead of falling through to the ?id= handler below.
   if (p.registry || p.module === 'registry-dash') return htmlPage_('Inventory has moved', 'The old equipment registry was retired. Tools and equipment are now in Tool inventory on the Ops Hub. <a href="https://cornellprojectteams.github.io/centralhub/inventory.html" target="_top" style="color:#b31b1b;font-weight:700">Open the inventory</a>');
   if (p.team) { const t = lookupTeamByToken_(p.team); return t ? teamPortal_(t, false) : htmlPage_('Invalid link', 'This team link is not recognized.'); }
-  if (p.view === 'all') return allIssuesPage_(embed, admin);
+  if (p.view === 'all') return allIssuesPage_(embed, admin, p.back);
   if (p.view) return teamPortal_(String(p.view), !(p.act === '1' || p.act === 'true'), p.embed === '1' || p.embed === 'true');   // ?view=<team> read-only; &act=1 markable; &embed=1 no top bar
   if (p.id) return confirmPage_(p.id);
   return pickerPage_();
@@ -1133,7 +1133,7 @@ function listAllIssues_() {
 // Every open issue across all teams. Staff complete from the team portal (photo
 // evidence). The admin hub (?admin=1) is Mark complete / Edit / Delete on open
 // items; pending keeps Approve / Send back. No photo. Embedded when embed=1.
-function allIssuesPage_(embedded, admin) {
+function allIssuesPage_(embedded, admin, back) {
   const data = listAllIssues_();
   const issues = data.open;
   const teamSet = {};
@@ -1142,7 +1142,7 @@ function allIssuesPage_(embedded, admin) {
 
   let inner = '';
   if (!embedded) {
-    inner += '<div class="page-head">'
+    inner += hubBackLink_(back) + '<div class="page-head">'
       + '<div class="page-kicker">Project Teams Ops Hub</div>'
       + '<div class="page-title">Open space issues</div>'
       + '<div class="page-rule"></div>'
@@ -1347,6 +1347,18 @@ function newToken_() { return Utilities.getUuid().replace(/-/g, ''); }
 function norm_(s) { return String(s == null ? '' : s).trim().toLowerCase().replace(/\s+/g, ' '); }
 function lcFirst_(s) { return s ? s.charAt(0).toLowerCase() + s.slice(1) : s; }
 function phrase_(s) { return String(s == null ? '' : s).replace(/\s*\/\s*/g, ' or ').trim(); }
+// The return link at the top of a full page opened from the hub. back= is the hub page
+// that opened it (the hub adds it to its links); the label follows that page, so it reads
+// "Back to admin" from the admin page. Same look as .back-to-admin in the hub's styles.css.
+function hubBackLink_(back) {
+  const url = String(back || '').trim();
+  if (!/^https?:\/\/[^\s"'<>]+$/i.test(url)) return '';
+  const label = /admin\.html/i.test(url) ? 'Back to admin' : /developer\.html/i.test(url) ? 'Back to the developer page' : 'Back to the hub';
+  return '<a class="hub-back" href="' + escapeHtml_(url) + '" target="_top" '
+    + 'style="display:inline-flex;align-items:center;gap:6px;margin:0 0 18px;font-family:Inter,Helvetica,Arial,sans-serif;font-size:14px;font-weight:700;color:#b31b1b;text-decoration:none">'
+    + '<span aria-hidden="true">&#8592;</span> ' + label + '</a>';
+}
+
 function escapeHtml_(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 function uniqEmails_(arr) {
   const seen = {}, out = [];

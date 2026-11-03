@@ -47,327 +47,204 @@
     <aside class="doc-sidebar" aria-label="Guide sections">
       <p class="doc-sidebar-kicker">On this page</p>
       <nav class="doc-sidebar-nav">
-        <a href="#admin-page" class="doc-sidebar-link is-active"><strong>The admin page</strong><small>Sections, search, panels</small></a>
+        <a href="#start" class="doc-sidebar-link is-active"><strong>Start here</strong><small>How the admin page works</small></a>
         <a href="#space" class="doc-sidebar-link"><strong>Space</strong><small>Issues, deadlines, approvals</small></a>
         <a href="#projects" class="doc-sidebar-link"><strong>Projects</strong><small>Projects and proposals</small></a>
-        <a href="#equipment" class="doc-sidebar-link"><strong>Equipment</strong><small>Inventory, labels, the sheet</small></a>
+        <a href="#equipment" class="doc-sidebar-link"><strong>Equipment</strong><small>Inventory and team links</small></a>
+        <a href="#teams" class="doc-sidebar-link"><strong>Teams</strong><small>Member photos</small></a>
         <a href="#ell" class="doc-sidebar-link"><strong>Experiential Learning Lab</strong><small>Shift logs</small></a>
-        <a href="#fabman" class="doc-sidebar-link"><strong>Fabman</strong><small>Members and graduates</small></a>
+        <a href="#fabman" class="doc-sidebar-link"><strong>Fabman</strong><small>Sign-ups and graduates</small></a>
         <a href="#compliance" class="doc-sidebar-link"><strong>Compliance</strong><small>Access and training records</small></a>
         <a href="#fleet" class="doc-sidebar-link"><strong>Fleet</strong><small>Drivers and the Tacoma</small></a>
         <a href="#command" class="doc-sidebar-link"><strong>Command Center</strong><small>What needs attention</small></a>
-        <a href="#links" class="doc-sidebar-link"><strong>Links</strong><small>Every sheet and form</small></a>
       </nav>
       <div class="doc-resource-box">
-        <p class="doc-resource-label">Quick links</p>
+        <p class="doc-resource-label">Other guides</p>
         <a href="admin.html">Back to admin</a>
-        <a href="https://docs.google.com/spreadsheets/d/1mZrlnA-GiVKB4_Um21aMH9jsSkf6TUJhauDWivnf7-I/edit" target="_blank" rel="noopener">Space Status sheet</a>
-        <a href="https://forms.gle/6DHYsEPonVtdALps5" target="_blank" rel="noopener">Report form</a>
         <a href="space-status-how-to.html">Staff how-to</a>
         <a href="dev-guide.html">Developer guide</a>
       </div>
     </aside>
 
     <div class="doc-content">
+    <a class="back-to-admin" href="admin.html"><span aria-hidden="true">&larr;</span> Back to admin</a>
     <span class="doc-eyebrow">Admin guide</span>
     <h1>Running the admin side</h1>
     <p class="doc-lede">
-      What each part of the admin page is for and how to do the everyday jobs in it.
-      Changing how something works (code, scripts, deploying) is covered in the
-      <a href="dev-guide.html">developer guide</a>.
+      The everyday jobs on the admin page, in the same order as the page. Anything that needs code,
+      a script or a deployment is in the <a href="dev-guide.html">developer guide</a>.
     </p>
 
     <nav class="doc-toc doc-toc--mobile" aria-label="On this page">
-      <a href="#admin-page">The admin page</a>
+      <a href="#start">Start here</a>
       <a href="#space">Space</a>
       <a href="#projects">Projects</a>
       <a href="#equipment">Equipment</a>
+      <a href="#teams">Teams</a>
       <a href="#ell">Experiential Learning Lab</a>
       <a href="#fabman">Fabman</a>
       <a href="#compliance">Compliance</a>
       <a href="#fleet">Fleet</a>
       <a href="#command">Command Center</a>
-      <a href="#links">Links</a>
     </nav>
 
-    <section class="doc-section" id="admin-page">
-      <h2><span class="doc-num">01</span>The admin page</h2>
-      <p>
-        The admin page holds the dashboards, forms and sheets for each area. It is not linked from
-        the staff page. The dashboards it opens come up with admin controls and no passcode, so send
-        students the staff page, never an admin link.
-      </p>
+    <section class="doc-section" id="start">
+      <h2><span class="doc-num">01</span>Start here</h2>
       <ul>
-        <li><strong>Sections.</strong> The list on the left jumps to Space, Projects, Equipment, the Experiential Learning Lab, Fabman, Compliance and Fleet. This guide follows the same order.</li>
-        <li><strong>Search.</strong> Press <kbd>/</kbd> and type. The arrow keys move through the results and Enter opens one.</li>
-        <li><strong>Panels.</strong> The large tiles (Open issues dashboard, Review proposals, Inventory) open over the page. <em>Full page</em> opens the same view in its own tab, and Esc closes the panel.</li>
-        <li><strong>Command Center.</strong> The gold button at the top. A number on it means something needs attention (see <a href="#command">Command Center</a>).</li>
-        <li><strong>Developer page.</strong> The scripts, the code and the developer guide have their own page, linked at the bottom of the section list. Daily work never needs it.</li>
-        <li><strong>Practice.</strong> The <a href="dev-guide.html#preview">sandbox</a> runs this whole admin side on made-up data, emails included, so every button here can be tried without reaching a real team.</li>
+        <li><strong>Keep the admin link private.</strong> Anything opened from the admin page has admin controls and no passcode. Send students the staff page, never an admin link.</li>
+        <li><strong>Find a tool.</strong> Press <kbd>/</kbd> and type. Enter opens the first result.</li>
+        <li><strong>Big tiles open a panel.</strong> <em>Full page</em> opens the same view in a tab. Esc closes it.</li>
+        <li><strong>Check the Command Center.</strong> A number on the gold button means something needs attention.</li>
+        <li><strong>Practice first.</strong> The <a href="dev-guide.html#preview">sandbox</a> is a copy of everything on made-up data. Nothing you do there reaches a real team.</li>
       </ul>
     </section>
 
     <section class="doc-section" id="space">
       <h2><span class="doc-num">02</span>Space</h2>
-      <p>
-        Space Status is how staff report problems in team spaces and how teams are held to fixing
-        them. It runs on the report form, the Space Status Tracking sheet and a script that sends the
-        emails.
-      </p>
-      <div class="doc-flow">
-        <span>Report</span><span class="arr">&rarr;</span>
-        <span>Email to the team</span><span class="arr">&rarr;</span>
-        <span>Reminders</span><span class="arr">&rarr;</span>
-        <span>Team sends a photo</span><span class="arr">&rarr;</span>
-        <span>You approve</span>
-      </div>
+      <p>Staff report a problem in a team space. The team gets an email, reminders follow until it is fixed, the team sends a photo, and you approve it.</p>
 
-      <h3>Deadlines and reminders</h3>
-      <p>The answer to <em>Respond within</em> on the form sets the deadline. Reminders go to the same people as the first email.</p>
+      <h3>Deadlines</h3>
+      <p><em>Respond within</em> on the report form sets the deadline. Days count from the report.</p>
       <table class="sla">
         <thead>
           <tr><th>Respond within</th><th>Deadline</th><th>Reminders</th></tr>
         </thead>
         <tbody>
-          <tr><td>Same day<small>Red on older rows</small></td><td>Same day</td><td>Every day, starting the next day</td></tr>
-          <tr><td>2 to 3 business days<small>Orange</small></td><td>3 days</td><td>On the due date, then every 2 days</td></tr>
-          <tr><td>7 to 10 days<small>Yellow</small></td><td>10 days</td><td>On the due date, then every 5 days</td></tr>
-          <tr><td>14 to 21 days<small>Ivory</small></td><td>21 days</td><td>On the due date, then every 11 days</td></tr>
-          <tr><td>When time allows<small>Purple</small></td><td>None</td><td>None</td></tr>
+          <tr><td>Same day</td><td>Same day</td><td>Every day</td></tr>
+          <tr><td>2 to 3 business days</td><td>3 days</td><td>On the due date, then every 2 days</td></tr>
+          <tr><td>7 to 10 days</td><td>10 days</td><td>On the due date, then every 5 days</td></tr>
+          <tr><td>14 to 21 days</td><td>21 days</td><td>On the due date, then every 11 days</td></tr>
+          <tr><td>When time allows</td><td>None</td><td>None</td></tr>
         </tbody>
       </table>
-      <p>
-        Days are counted from the day of the report. Reminders pause while finished work waits for your
-        review and stop once you approve it. Teams never see the color names.
-      </p>
+      <p>Reminders pause while a photo waits for your review and stop once you approve it.</p>
+
+      <h3>Daily jobs</h3>
+      <p>Open <strong>Open issues dashboard</strong>. The chips switch between open, pending and completed.</p>
+      <ul>
+        <li><strong>Approve finished work.</strong> Pending jobs have the team's photos. Approve closes the job.</li>
+        <li><strong>Send work back.</strong> Send back reopens the job with your reason. The team gets an email and reminders restart.</li>
+        <li><strong>Close a job yourself.</strong> Mark complete closes an open job with no photo.</li>
+        <li><strong>Fix a report.</strong> Edit changes the team, type or details. Moving it to another team emails that team.</li>
+        <li><strong>Delete a report.</strong> Delete removes it for good. There is no undo.</li>
+        <li><strong>Reopen an approved job.</strong> In the Space Status sheet, clear its <em>Addressed at</em> cell.</li>
+        <li><strong>Send a team its list.</strong> <em>Share a team's issue link</em> gives a link to that team's open issues.</li>
+      </ul>
 
       <h3>Who gets the email</h3>
-      <p>
-        The team's row on the <strong>Team Contacts</strong> tab decides it. The email goes to the team's
-        general email and its liaison, with the safety lead and anyone in Extra CC copied. Noah is
-        copied on every email, and gets the email for any team with no address on file. Changes to
-        Team Contacts apply from the next email; nothing needs restarting.
-      </p>
+      <p>The team's row on the <em>Team Contacts</em> tab: the team email and liaison, with the safety lead and Extra CC copied. Noah is copied on every email. Edit the row to change who gets it; it applies from the next email.</p>
 
-      <h3>The open issues dashboard</h3>
-      <p>
-        <em>Open issues dashboard</em> lists every job across all teams. The chips at the top switch
-        between open, pending and completed jobs, and search, the team picker and <em>Overdue only</em>
-        narrow the list. The Projects tab at the top of the panel holds the projects
-        (see <a href="#projects">Projects</a>).
-      </p>
+      <h3>Rules for the form and sheet</h3>
       <ul>
-        <li><strong>Mark complete</strong> (open jobs). Closes the job right away, with no photo and no review. Use it when you know the work is done.</li>
-        <li><strong>Approve</strong> (pending jobs). The team has sent photos of the finished work, and maybe a note. Approving closes the job.</li>
-        <li><strong>Send back</strong> (pending jobs). Reopens the job, with an optional reason. The team gets an email with your reason and the photos they sent, and reminders pick up again.</li>
-        <li><strong>Edit.</strong> Change the team, issue type or details. Moving a job to another team emails that team a fresh notice and restarts its reminders. The required action stays as reported.</li>
-        <li><strong>Delete.</strong> Removes the job from the sheet for good, after a confirm. There is no undo.</li>
+        <li><strong>Adding a team:</strong> add it to the form's <em>Responsible Team</em> question and to Team Contacts with the exact same name. Then ask a developer to run <code>fillTeamTokens</code>.</li>
+        <li><strong>Don't rename</strong> the form's questions or its <em>Respond within</em> choices. The script reads them by their wording.</li>
+        <li><strong>Don't type in</strong> the columns the script fills: Notified at, Issue token, Addressed at, Last reminder, Completion photo, Completion note, Completed at, Sent back reason.</li>
       </ul>
-      <p>To reopen a job that was already approved, clear its <code>Addressed at</code> cell on the Form Responses tab.</p>
-
-      <h3>What teams see</h3>
-      <ul>
-        <li>The button in the email opens a page where the team adds photos of the finished work and an optional note. The job then shows as pending for you.</li>
-        <li>Informational reports only need <em>Mark done</em>; a photo is optional. The same goes for older reports whose required action was a facilities work order, an unsafe practice correction, no action, or Other.</li>
-        <li>Operations Team email comes to an admin, so those jobs close as soon as they are marked complete, with no photo or review.</li>
-        <li><strong>Share a team's issue link</strong> gives you a clean link to one team's live list of open issues, to send to that team.</li>
-      </ul>
-
-      <h3>The form and the sheet</h3>
-      <ul>
-        <li><strong>Changing who gets email:</strong> edit the team's row on Team Contacts.</li>
-        <li><strong>Adding a team:</strong> add the name to the form's <em>Responsible Team</em> question and add a row on Team Contacts with exactly the same name. Then ask a developer to run <code>fillTeamTokens</code> once; it gives the team its private page link.</li>
-        <li><strong>Editing the form:</strong> do not rename the questions or the <em>Respond within</em> choices. The script reads both by their wording.</li>
-        <li><strong>Columns the script fills in:</strong> <code>Notified at</code>, <code>Issue token</code>, <code>Addressed at</code>, <code>Last reminder</code>, <code>Completion photo</code>, <code>Completion note</code>, <code>Completed at</code> and <code>Sent back reason</code>. Leave them alone, apart from clearing <code>Addressed at</code> to reopen a job.</li>
-      </ul>
-      <p>
-        The <a href="https://docs.google.com/document/d/1-pAMO02ul8k7pg9sCfkmVZ5W5p4NuWzaG2ALOWn60hk/edit" target="_blank" rel="noopener">Space Status manual</a>
-        explains when and how to report, for the people filing. The <a href="space-status-how-to.html">staff how-to</a>
-        shows what staff see when they finish a job.
-      </p>
     </section>
 
     <section class="doc-section" id="projects">
       <h2><span class="doc-num">03</span>Projects</h2>
-      <p>
-        Projects are bigger jobs than a space issue, often for several people. They live on the
-        Projects tab of the Space Status sheet, and staff find them under <em>Your work</em> on the
-        staff page.
-      </p>
-
-      <h3>Running a project</h3>
+      <p>Projects are bigger jobs, often for several people. Staff find them under <em>Your work</em> on the staff page.</p>
       <ol>
-        <li><strong>Create it</strong> in <em>Assign &amp; track projects</em>, or the Projects tab of the open issues panel: a title, a description, any assignees, and if you like a before photo, a file or a link.</li>
-        <li><strong>Someone joins.</strong> The first person to join moves it from Assigned to In Progress.</li>
-        <li><strong>They finish it</strong> with an after photo and the hours it took. It moves to Pending.</li>
-        <li><strong>You review it.</strong> Approve marks it Completed. Send back returns it to In Progress with your reason; the photo and hours stay on it.</li>
+        <li><strong>Create</strong> one in <em>Assign &amp; track projects</em>: title, description, assignees, and a before photo if you like.</li>
+        <li>Someone <strong>joins</strong>. It moves to In Progress.</li>
+        <li>They <strong>finish</strong> it with an after photo and the hours. It moves to Pending.</li>
+        <li>You <strong>approve</strong> it, or send it back with a reason.</li>
       </ol>
-      <p>
-        You can edit a project's title, description and assignees in place, or delete it (the row goes;
-        its photos stay in Drive). <em>Projects dashboard</em> shows hours logged, the completion rate,
-        top contributors and a before and after gallery.
-      </p>
 
       <h3>Proposals</h3>
-      <p>
-        Staff post improvement ideas from <em>Propose an improvement</em> on the staff page, and the
-        team rates them. <em>Review proposals</em> opens the same board with your controls on it.
-      </p>
+      <p>Staff post ideas from <em>Propose an improvement</em> and rate each other's. <em>Review proposals</em> opens the board with your controls.</p>
       <ul>
-        <li><strong>Ratings.</strong> Each person rates Impact and Effort from 1 to 5. One rating per person per proposal (rating again replaces it), and nobody can rate their own.</li>
-        <li><strong>Whose ratings count.</strong> A person's ratings count once they have rated 3 proposals. While fewer than 3 proposals are open, every rating counts.</li>
-        <li><strong>Becoming a project.</strong> With 3 counted ratings and an average Impact of 3.5 or more, a proposal becomes an Open project by itself. Effort is there for planning and never holds an idea back.</li>
-        <li><strong>Your controls.</strong> <em>Edit</em> fixes the title, description, area or name. <em>Approve now</em> makes it a project without waiting. <em>Decline</em> closes it but keeps the record. <em>Delete</em> removes it and its ratings, for junk.</li>
+        <li><strong>Ratings.</strong> Everyone rates Impact and Effort from 1 to 5, once per proposal, never their own.</li>
+        <li><strong>Automatic projects.</strong> Three counted ratings with an average Impact of 3.5 or more turns a proposal into a project.</li>
+        <li><strong>Your controls.</strong> Approve now, Decline (keeps the record), Edit, or Delete (for junk).</li>
       </ul>
-      <p>A project that came from a proposal is announced on a gold strip at the top of the staff task pages for two weeks.</p>
     </section>
 
     <section class="doc-section" id="equipment">
       <h2><span class="doc-num">04</span>Equipment</h2>
-      <p>
-        The inventory is an app in the hub with a Google Sheet behind it. Tools stay in the shops and
-        nobody checks them out, so it records what there is, where each thing lives, what shape it is
-        in, its maintenance, and how much of each supply is left. Staff open the same app from
-        <em>Tool inventory</em> on the staff page, without the editing controls.
-      </p>
+      <p>The inventory lists every tool and supply in the shops: where it is, its condition, how many there are and its maintenance. Staff see the same board without the editing controls.</p>
+
+      <h3>Adding and editing items</h3>
       <ul>
-        <li><strong>Inventory.</strong> Add and edit items: a photo (on a phone you can take one on the spot), the team that owns it or Shared, the location and the condition. On an item's page, <em>Log maintenance</em> records what was wrong or checked, what was done, by whom, the cost and when the next check is due. Supplies have <em>Update the count</em>.</li>
-        <li><strong>Status.</strong> Condition is Good, Fair or Needs Repair. Setting Out of Service to Maintenance takes an item out of service; Retired items only show on the admin view. Supplies read In stock, Low stock or Out of stock against their minimum. The Maintenance due and Retired filters are admin only.</li>
-        <li><strong>Print item labels.</strong> A QR label for every item, and scanning one opens that item. Item IDs (PT-001, EQ-004 and so on) never change, so printed labels stay good.</li>
-        <li><strong>Inventory spreadsheet.</strong> The Dashboard tab has the same numbers as the app. Inventory Master has one row per item, the Maintenance Log has every repair and check, and Lists holds the dropdown choices, teams and locations included. Status, Next Maintenance and Item Link fill themselves in; don't type in them.</li>
-        <li><strong>Test data.</strong> <em>Load test data</em> adds 26 sample items tagged <code>[test data]</code>. Reset and Remove only touch tagged items, so real ones are safe.</li>
+        <li><strong>Add an item.</strong> Add item, then fill in the name, category, team, location and <em>Quantity</em>. Supplies also take a reorder level.</li>
+        <li><strong>Add several in a row.</strong> <em>Add and start another</em> saves and opens a new form with the same category, location and team.</li>
+        <li><strong>Add a photo.</strong> In the form, or from the item's page. On a phone you can take one on the spot.</li>
+        <li><strong>Update a count.</strong> On a supply's page, <em>Update the count</em>.</li>
+        <li><strong>Log maintenance.</strong> On the item's page: what was wrong, what was done, by whom, and the next check date.</li>
+        <li><strong>Take an item out of service.</strong> Edit it and set Status to Maintenance, or Retired.</li>
+        <li><strong>See what's new.</strong> The <em>Recently added</em> filter shows the last 30 days. Each item shows when it was added and by whom.</li>
       </ul>
+
+      <h3>Letting teams add their own items</h3>
+      <ol>
+        <li>At the bottom of the inventory, open <strong>Team links</strong> and click <strong>Show team links</strong>.</li>
+        <li><strong>Copy</strong> the team's link and send it to the team.</li>
+        <li>Team members add their tools and supplies with quantities and photos. They can only add and edit their own team's items.</li>
+      </ol>
+      <p><strong>Reset all links</strong> stops every old link from working. Send teams their new links afterwards.</p>
+
+      <h3>Labels and the sheet</h3>
+      <ul>
+        <li><strong>Print labels.</strong> Print labels makes a QR label for each item. Item IDs never change, so labels stay good.</li>
+        <li><strong>The spreadsheet.</strong> One row per item on <em>Inventory Master</em>. Don't type in Status, Next Maintenance, Item Link or Date Added; they fill themselves in.</li>
+        <li><strong>Test data.</strong> <em>Load test data</em> adds sample items you can practice on. <em>Remove test data</em> only removes those.</li>
+      </ul>
+    </section>
+
+    <section class="doc-section" id="teams">
+      <h2><span class="doc-num">05</span>Teams</h2>
+      <p><strong>Team member photos</strong> shows the headshots from every team's website, with filters for team and lead, member or advisor.</p>
+      <ul>
+        <li><strong>Find people.</strong> Pick a team, a role, or search by name. <em>Download CSV</em> saves what is shown.</li>
+        <li><strong>Get new photos.</strong> Press <em>Update from team sites</em>. It takes 5 to 10 minutes and says what changed. You can leave the page while it runs. It also runs by itself on the 1st of each month.</li>
+        <li><strong>Graduates.</strong> Nothing to do. People are hidden from June 1 of their class year. Anyone no longer on their team's site is hidden as <em>former</em>. Turn on <em>Graduated &amp; former</em> to see them.</li>
+        <li><strong>Fix a person or add one by hand.</strong> Open <em>Photo database</em> on the admin page and edit it on GitHub. The steps are in the <a href="dev-guide.html#photos">developer guide</a>.</li>
+      </ul>
+      <p>The photos are only as current as each team's website. If a team hasn't updated its site, ask the team to.</p>
     </section>
 
     <section class="doc-section" id="ell">
-      <h2><span class="doc-num">05</span>Experiential Learning Lab</h2>
-      <p>
-        ELL staff fill in the ELL Shift Summary form at the end of each shift: how busy it was, how each
-        room was used, supplies, and any safety or maintenance problems. <em>View shift responses</em>
-        opens the answers. The raw rows are on the Form Responses 1 tab, with a summary view beside them.
-        The Command Center flags safety problems and supply shortages from the latest shift.
-      </p>
+      <h2><span class="doc-num">06</span>Experiential Learning Lab</h2>
+      <p>ELL staff fill in the shift summary form at the end of each shift. <strong>View shift responses</strong> opens the answers. The Command Center flags safety problems and supply shortages from the latest shift.</p>
     </section>
 
     <section class="doc-section" id="fabman">
-      <h2><span class="doc-num">06</span>Fabman</h2>
-      <p>
-        <em>Open Fabman</em> goes to the Fabman admin site for members, activity, bookings and machine
-        access. Bulk changes happen in the <em>Fabman members sheet</em>, through buttons that call
-        Fabman for you.
-      </p>
+      <h2><span class="doc-num">07</span>Fabman</h2>
+      <p><strong>Open Fabman</strong> goes to the Fabman admin site. Bulk changes happen in the <strong>Fabman members sheet</strong>.</p>
       <ul>
-        <li><strong>Dashboard tab.</strong> Every Fabman member with their team, graduation year, apron and trainings, pulled from Fabman.</li>
-        <li><strong>FabMan Agreement tab.</strong> Each FabMan Agreement signed in the Safety &amp; Training Hub Canvas course (a Qualtrics survey) arrives here as a new row and becomes a Fabman account within a minute or so: Spaces and Lab (plus Machines and Mills for a red apron) and an invitation email. The <em>Fabman status</em> column says what happened to each one. A status starting with <em>Error</em> or <em>Has an account</em> needs a person: fix the row (usually a mistyped NetID) and clear the status, and the script tries again. <em>Will retry</em> means Fabman was busy; it sorts itself out. Don't rename this tab or its column headers, because the survey writes to them by name.</li>
-        <li><strong>Sign-up Form tab.</strong> Responses to the older Google Form version of the agreement. They are handled the same way until that form is retired.</li>
-        <li><strong>Fabman sign-ups menu.</strong> <em>Check sign-ups</em> lists recent sign-ups that have no account, without changing anything. <em>Process waiting sign-ups now</em> does the hourly run straight away, and <em>Process sign-ups since a date</em> catches up after an outage. <em>Set up the sign-up triggers</em> is run once, from a staff account rather than a student's. Problems are emailed, and the Command Center shows any sign-up still without an account.</li>
-        <li><strong>Actions tab.</strong> Put email addresses in column A, then press a button to make one change for all of them: grant Machines or Mills, set an apron color (Red also grants Machines and Mills), add or remove Supervisor, lock or activate accounts, delete them, or send Fabman invitations.</li>
-        <li><strong>Graduates.</strong> <em>Flag graduates for review</em> lists everyone whose graduation year is this year or earlier on a Graduates tab, each ticked and set to Lock. Untick anyone to keep, switch someone to Delete if needed, then run <em>Process graduates</em>. Delete removes the Fabman account for good. Each row shows what happened in its Result column.</li>
+        <li><strong>New sign-ups.</strong> Agreements signed in the Canvas course become Fabman accounts within a minute, on the <em>FabMan Agreement</em> tab. If a row's Fabman status starts with <em>Error</em> or <em>Has an account</em>, fix the row (usually a mistyped NetID) and clear the status. <em>Will retry</em> fixes itself.</li>
+        <li><strong>Catch up after an outage.</strong> Fabman sign-ups menu, <em>Process sign-ups since a date</em>.</li>
+        <li><strong>Change many accounts at once.</strong> On the <em>Actions</em> tab, put emails in column A and press a button: machines, mills, apron color, supervisor, lock, activate, delete or invite.</li>
+        <li><strong>Remove graduates.</strong> <em>Flag graduates for review</em> lists them, each set to Lock. Untick anyone to keep, then <em>Process graduates</em>.</li>
+        <li><strong>Don't rename</strong> the FabMan Agreement tab or its headers. The Canvas survey writes to them by name.</li>
       </ul>
-      <p>
-        The <em>Fabman-Canvas training integration</em> doc maps the Canvas trainings to Fabman courses
-        and apron tiers. The <em>Fabman operations report</em> covers procedures, courses and supervisor
-        scheduling.
-      </p>
     </section>
 
     <section class="doc-section" id="compliance">
-      <h2><span class="doc-num">07</span>Compliance</h2>
+      <h2><span class="doc-num">08</span>Compliance</h2>
       <ul>
-        <li><strong>Building access &amp; training records</strong> (the Master Sheet). Usage agreements and waivers signed through the Safety &amp; Training Hub Canvas course, one tab per location (ELL, HVL, Rhodes penthouse and others), plus Workday EHS training completions.</li>
-        <li><strong>Project Teams workspaces.</strong> The register of every team space: building, room, access form, waivers, usage agreement and safety plan, with the yearly renewal survey answers.</li>
-        <li><strong>Summer contact list 2026.</strong> Who to reach on each team over the summer. View only.</li>
+        <li><strong>Building access &amp; training records.</strong> Usage agreements and waivers by location, plus Workday safety training.</li>
+        <li><strong>Project Teams workspaces.</strong> Every team space with its room, waivers, safety plan and yearly renewal.</li>
+        <li><strong>Summer contact list.</strong> Who to reach on each team over the summer.</li>
       </ul>
     </section>
 
     <section class="doc-section" id="fleet">
-      <h2><span class="doc-num">08</span>Fleet</h2>
-      <p>
-        <em>Student drivers &amp; reservations</em> opens the sheet for the program's Tacoma (MBN-4258).
-        The Approval tab tracks each driver's application and training, the Log tab holds the
-        reservations, and the Process tab lists the approval steps.
-      </p>
+      <h2><span class="doc-num">09</span>Fleet</h2>
+      <p><strong>Student drivers &amp; reservations</strong> opens the sheet for the Tacoma (MBN-4258): driver approvals on <em>Approval</em>, bookings on <em>Log</em>.</p>
       <h3>Removing graduated drivers</h3>
       <ol>
-        <li>In that sheet, choose <strong>Driver cleanup &gt; 1. List graduated drivers</strong>. Everyone graduating this year or earlier goes on a <em>Drivers to remove</em> tab.</li>
-        <li>Check that tab and delete the row of anyone you want to keep.</li>
-        <li>Choose <strong>2. Delete listed drivers (rows)</strong> to take them off the drivers list, or <strong>2. Remove listed drivers (access)</strong> to remove their edit access to the sheet.</li>
+        <li>In the sheet, <em>Driver cleanup &gt; 1. List graduated drivers</em>.</li>
+        <li>On the <em>Drivers to remove</em> tab, delete the row of anyone to keep.</li>
+        <li><em>2. Delete listed drivers</em> to remove their rows, or <em>2. Remove listed drivers (access)</em> to remove their access.</li>
       </ol>
-      <p>
-        The Command Center warns when the Tacoma is double-booked, when this week's reservations are
-        missing details, and when driver applications are ready to file or stuck.
-      </p>
     </section>
 
     <section class="doc-section" id="command">
-      <h2><span class="doc-num">09</span>Command Center</h2>
-      <p>
-        The <a href="command-center.html">Command Center</a> shows what needs attention across every area
-        on one screen: open, overdue and same-day space issues, ELL flags and supplies, Fabman members
-        waiting for training and graduates who still have access, building access and Workday records,
-        Tacoma bookings and driver applications, and mill room orders and locks not returned. The number
-        on the gold button counts what needs attention. It reads the sheets directly and refreshes every
-        few minutes.
-      </p>
-    </section>
-
-    <section class="doc-section" id="links">
-      <h2><span class="doc-num">10</span>Links</h2>
-      <ul class="doc-links">
-        <li>
-          <a href="https://docs.google.com/spreadsheets/d/1mZrlnA-GiVKB4_Um21aMH9jsSkf6TUJhauDWivnf7-I/edit" target="_blank" rel="noopener">Space Status Tracking sheet</a>
-          <span>Form Responses, Team Contacts and the Projects tab.</span>
-        </li>
-        <li>
-          <a href="https://forms.gle/6DHYsEPonVtdALps5" target="_blank" rel="noopener">Report form</a>
-          <span>The form staff use to report an issue.</span>
-        </li>
-        <li>
-          <a href="https://docs.google.com/forms/d/1bVzxR-lGNDtll6wh7wsdZGsVuqMkaRavVcGxykLHMFw/edit" target="_blank" rel="noopener">Report form, editor</a>
-          <span>Questions and choices. Check the notes under Space before renaming anything.</span>
-        </li>
-        <li>
-          <a href="https://docs.google.com/document/d/1-pAMO02ul8k7pg9sCfkmVZ5W5p4NuWzaG2ALOWn60hk/edit" target="_blank" rel="noopener">Space Status manual</a>
-          <span>When and how to report. For the people filing issues.</span>
-        </li>
-        <li>
-          <a href="https://docs.google.com/spreadsheets/d/1Gjjqu3hX4Xcwm6w0Bp3maPg7hM0y91zAP7nnFXtwnIM/edit" target="_blank" rel="noopener">Inventory spreadsheet</a>
-          <span>The sheet behind the inventory app.</span>
-        </li>
-        <li>
-          <a href="https://docs.google.com/spreadsheets/d/1yazhxA8nwYWDRSdQEN6Cc3UKKnPn6PWF_b3zAe0KoQk/edit" target="_blank" rel="noopener">ELL shift responses</a>
-          <span>Answers from the ELL Shift Summary form.</span>
-        </li>
-        <li>
-          <a href="https://fabman.io/manage/2366" target="_blank" rel="noopener">Fabman</a>
-          <span>The Fabman admin site.</span>
-        </li>
-        <li>
-          <a href="https://docs.google.com/spreadsheets/d/1lDAA4z1YexkjaABSPuXJyEXfSxN2QAsKWVk88TQCRLI/edit" target="_blank" rel="noopener">Fabman members sheet</a>
-          <span>Dashboard, sign-ups, the Actions buttons and graduates.</span>
-        </li>
-        <li>
-          <a href="https://docs.google.com/spreadsheets/d/1k97Ey5aNcm58zaviaXxKvJtTgL1yeSI_fvUkXZFEyM4/edit" target="_blank" rel="noopener">Building access &amp; training records</a>
-          <span>The Master Sheet: waivers by location and Workday trainings.</span>
-        </li>
-        <li>
-          <a href="https://docs.google.com/spreadsheets/d/1cKd-5815CafamF2AQpwTIqATjdkD4HgM404vQvwTvuM/edit" target="_blank" rel="noopener">Project Teams workspaces</a>
-          <span>Team spaces, renewals and compliance documents.</span>
-        </li>
-        <li>
-          <a href="https://docs.google.com/spreadsheets/d/1UrI5mBI4rqY9NeElobhzdd1lWsAlBDeYa1LZPVWHNnE/edit" target="_blank" rel="noopener">Summer contact list 2026</a>
-          <span>Seasonal team contacts.</span>
-        </li>
-        <li>
-          <a href="https://docs.google.com/spreadsheets/d/1KwJLTkdhrQ0jD7-75p6IuhYvh3Fq0B13KAXf2Pcvk_M/edit" target="_blank" rel="noopener">Student drivers &amp; reservations</a>
-          <span>Driver approvals, the Tacoma log and the Driver cleanup menu.</span>
-        </li>
-        <li>
-          <a href="dev-guide.html">Developer guide</a>
-          <span>Editing the site, the scripts and deploying.</span>
-        </li>
-      </ul>
-      <p class="doc-updated">Last updated October 2026.</p>
+      <h2><span class="doc-num">10</span>Command Center</h2>
+      <p>One screen with what needs attention in every area: overdue space issues, ELL flags, Fabman members waiting or graduated, missing access records, Tacoma double bookings and driver applications, and mill room orders and locks. The number on the gold button counts them. It refreshes every few minutes.</p>
+      <p class="doc-updated">Last updated November 2026.</p>
     </section>
     </div>
   </main>
@@ -392,8 +269,8 @@
         <div class="footer-col">
           <h4>On this page</h4>
           <a href="#space">Space</a>
-          <a href="#projects">Projects</a>
           <a href="#equipment">Equipment</a>
+          <a href="#teams">Teams</a>
         </div>
         <div class="footer-col">
           <h4>Guides</h4>

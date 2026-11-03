@@ -1,3 +1,5 @@
+> **Archived November 2026.** A one-time audit from summer 2026, kept for reference. It is not kept up to date. Current documentation: the admin guide (`docs.html`) and the developer guide (`dev-guide.html`).
+
 # Project Teams Safety & Operations — Complete Inventory
 
 > **Hub location:** `~/Desktop/Project-Teams-Ops-Hub`  

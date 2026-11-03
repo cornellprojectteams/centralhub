@@ -23,7 +23,7 @@
  * =============================================================================
  */
 
-// Source spreadsheets (IDs from SHEETS_INVENTORY.md).
+// Source spreadsheets (IDs also listed in archive/sheets-audit-2026-07.md).
 const SOURCES = {
   spaceStatus: '1mZrlnA-GiVKB4_Um21aMH9jsSkf6TUJhauDWivnf7-I', // Space Status Tracking
   ell:         '1yazhxA8nwYWDRSdQEN6Cc3UKKnPn6PWF_b3zAe0KoQk', // ELL Shift Summary (Responses)

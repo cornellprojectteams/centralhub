@@ -2,8 +2,8 @@
 <html lang="en">
 <!--
   Project Teams Ops Hub: developer guide
-  Editing and publishing this site (Codespaces, Copilot, git), and how the
-  Apps Script projects behind it work and deploy.
+  The one place for technical steps: editing and publishing the site, the sandbox,
+  and how each Apps Script project works, is set up and goes live.
   Shares header/footer and styles.css with the other pages.
 -->
 <head>
@@ -45,26 +45,24 @@
 
   <main class="doc-layout">
     <aside class="doc-sidebar" aria-label="Guide sections">
-      <p class="doc-sidebar-kicker">The site</p>
+      <p class="doc-sidebar-kicker">Working on the site</p>
       <nav class="doc-sidebar-nav">
-        <a href="#setup" class="doc-sidebar-link is-active"><strong>Requirements</strong><small>GitHub access</small></a>
-        <a href="#codespace" class="doc-sidebar-link"><strong>Open a Codespace</strong><small>Edit in the browser</small></a>
-        <a href="#tour" class="doc-sidebar-link"><strong>Files</strong><small>What each file does</small></a>
-        <a href="#preview" class="doc-sidebar-link"><strong>Sandbox</strong><small>The platform on fake data</small></a>
-        <a href="#copilot" class="doc-sidebar-link"><strong>Use Copilot</strong><small>AI-assisted edits</small></a>
-        <a href="#ship" class="doc-sidebar-link"><strong>Publish</strong><small>Commit and push</small></a>
-        <a href="#rescue" class="doc-sidebar-link"><strong>Recovery</strong><small>Undo mistakes</small></a>
+        <a href="#setup" class="doc-sidebar-link is-active"><strong>Get started</strong><small>Access and a codespace</small></a>
+        <a href="#preview" class="doc-sidebar-link"><strong>Sandbox</strong><small>Try changes on fake data</small></a>
+        <a href="#ship" class="doc-sidebar-link"><strong>Edit and publish</strong><small>Change, push, undo</small></a>
+        <a href="#tour" class="doc-sidebar-link"><strong>Files</strong><small>What lives where</small></a>
       </nav>
       <p class="doc-sidebar-kicker doc-sidebar-kicker--group">The scripts</p>
       <nav class="doc-sidebar-nav">
-        <a href="#scripts" class="doc-sidebar-link"><strong>Apps Script projects</strong><small>Where each runs, deploying</small></a>
-        <a href="#engine" class="doc-sidebar-link"><strong>Space Status engine</strong><small>Emails, deadlines, reminders</small></a>
-        <a href="#routes" class="doc-sidebar-link"><strong>Routes and setup</strong><small>Web app URLs, utilities</small></a>
-        <a href="#command-api" class="doc-sidebar-link"><strong>Command Center API</strong><small>Stats, cache</small></a>
-        <a href="#links" class="doc-sidebar-link"><strong>Links</strong><small>Repo, live site, web app</small></a>
+        <a href="#scripts" class="doc-sidebar-link"><strong>Apps Script projects</strong><small>Where each runs, going live</small></a>
+        <a href="#engine" class="doc-sidebar-link"><strong>Space Status</strong><small>Emails, reminders, pages</small></a>
+        <a href="#inventory" class="doc-sidebar-link"><strong>Inventory</strong><small>Sheet, API, team links</small></a>
+        <a href="#photos" class="doc-sidebar-link"><strong>Team photos</strong><small>Scraper and Update button</small></a>
+        <a href="#fabman" class="doc-sidebar-link"><strong>Fabman sign-ups</strong><small>Canvas to Fabman</small></a>
+        <a href="#command-api" class="doc-sidebar-link"><strong>Command Center API</strong><small>Stats and cache</small></a>
       </nav>
       <div class="doc-resource-box">
-        <p class="doc-resource-label">Quick links</p>
+        <p class="doc-resource-label">Links</p>
         <a href="developer.html">Back to developer page</a>
         <a href="https://github.com/cornellprojectteams/centralhub" target="_blank" rel="noopener">GitHub repo</a>
         <a href="https://cornellprojectteams.github.io/centralhub/" target="_blank" rel="noopener">Live site</a>
@@ -73,357 +71,241 @@
     </aside>
 
     <div class="doc-content">
+    <a class="back-to-admin" href="admin.html"><span aria-hidden="true">&larr;</span> Back to admin</a>
     <span class="doc-eyebrow">Developer guide</span>
     <h1>Working on the hub</h1>
     <p class="doc-lede">
-      How to edit and publish this site from a browser with GitHub Codespaces and Copilot, and how
-      the Apps Script projects behind it work and go live. For running things day to day, use the
-      <a href="docs.html">admin guide</a>.
+      How to change the site and the scripts behind it, and how each script goes live.
+      Everyday admin work is in the <a href="docs.html">admin guide</a>.
     </p>
 
     <nav class="doc-toc doc-toc--mobile" aria-label="On this page">
-      <a href="#setup">Requirements</a>
-      <a href="#codespace">Open a Codespace</a>
-      <a href="#tour">Files</a>
+      <a href="#setup">Get started</a>
       <a href="#preview">Sandbox</a>
-      <a href="#copilot">Use Copilot</a>
-      <a href="#ship">Publish</a>
-      <a href="#rescue">Recovery</a>
+      <a href="#ship">Edit and publish</a>
+      <a href="#tour">Files</a>
       <a href="#scripts">Apps Script projects</a>
-      <a href="#engine">Space Status engine</a>
-      <a href="#routes">Routes and setup</a>
+      <a href="#engine">Space Status</a>
+      <a href="#inventory">Inventory</a>
+      <a href="#photos">Team photos</a>
+      <a href="#fabman">Fabman sign-ups</a>
       <a href="#command-api">Command Center API</a>
-      <a href="#links">Links</a>
     </nav>
 
     <section class="doc-section" id="setup">
-      <h2><span class="doc-num">01</span>Requirements</h2>
-      <ul>
-        <li>A GitHub account with access to <a href="https://github.com/cornellprojectteams/centralhub" target="_blank" rel="noopener">cornellprojectteams/centralhub</a>. If the repo shows a 404, ask to be added as a collaborator.</li>
-        <li>For the scripts: edit access to the Apps Script project or the Google Sheet it is bound to.</li>
-        <li>For the sandbox on a laptop: <a href="https://nodejs.org" target="_blank" rel="noopener">Node.js</a> 18 or newer. A codespace already has it.</li>
-      </ul>
-    </section>
-
-    <section class="doc-section" id="codespace">
-      <h2><span class="doc-num">02</span>Open a Codespace</h2>
+      <h2><span class="doc-num">01</span>Get started</h2>
+      <p>You need a GitHub account with access to <a href="https://github.com/cornellprojectteams/centralhub" target="_blank" rel="noopener">cornellprojectteams/centralhub</a> (a 404 means ask to be added), and for a script, edit access to its Apps Script project or sheet.</p>
       <ol>
-        <li>Open the <a href="https://github.com/cornellprojectteams/centralhub" target="_blank" rel="noopener">repository</a>.</li>
-        <li>Click the green <strong>Code</strong> button, select the <strong>Codespaces</strong> tab, click <strong>Create codespace on main</strong>.</li>
-        <li>Wait about a minute. VS Code opens in the browser with the site's files loaded, and the <a href="#preview">sandbox</a> starts in a terminal.</li>
+        <li>Open the repository, click the green <strong>Code</strong> button, then <strong>Codespaces &gt; Create codespace on main</strong>.</li>
+        <li>Wait about a minute. VS Code opens in the browser and the sandbox starts.</li>
+        <li>Next time, reopen the same codespace from that menu instead of making a new one.</li>
       </ol>
-      <p>To continue later, reopen the same codespace from that menu instead of creating a new one.</p>
-    </section>
-
-    <section class="doc-section" id="tour">
-      <h2><span class="doc-num">03</span>Files</h2>
-      <ul>
-        <li><code>index.html</code> The staff page.</li>
-        <li><code>admin.html</code> The admin page: day-to-day tools. Not linked from the staff page.</li>
-        <li><code>developer.html</code> The developer page: script projects, the repo and this guide.</li>
-        <li><code>command-center.html</code> The ops dashboard. <code>team.html</code> One team's open issues, for sharing.</li>
-        <li><code>inventory.html</code>, <code>inventory.js</code>, <code>inventory.css</code> The inventory app.</li>
-        <li><code>styles.css</code> Colors, fonts and spacing for every page except the inventory app.</li>
-        <li><code>app.js</code> Search, the slide-over panels and the section list, shared by the staff, admin and developer pages.</li>
-        <li><code>config.js</code> The web app URLs and the inventory settings. Change a URL here, not in the pages.</li>
-        <li><code>docs.html</code> The admin guide. <code>dev-guide.html</code> This guide. <code>space-status-how-to.html</code> The staff how-to.</li>
-        <li><code>apps-script/</code> Copies of the Apps Script code. The live code runs on Google; see <a href="#scripts">Apps Script projects</a>.</li>
-        <li><code>sandbox/</code> The <a href="#preview">sandbox</a>: the whole platform on fake data, for trying changes. <code>.devcontainer/</code> starts it in a codespace.</li>
-        <li><code>README.md</code> More detail, including setting up the inventory.</li>
-      </ul>
+      <p>On your own computer instead: clone the repo and install <a href="https://nodejs.org" target="_blank" rel="noopener">Node.js</a> 18 or newer.</p>
     </section>
 
     <section class="doc-section" id="preview">
-      <h2><span class="doc-num">04</span>Sandbox</h2>
-      <p>
-        The sandbox runs the whole platform on made-up data: every page, the Space Status web app,
-        the inventory, the Command Center and the sheet scripts. Emails land in an outbox instead of
-        being sent, and nothing reaches Google, Fabman or a real person, so any change can be tried
-        end to end before it goes live.
-      </p>
+      <h2><span class="doc-num">02</span>Sandbox</h2>
+      <p>The whole platform on made-up data: every page, every web app and the sheet scripts. Emails go to an outbox. Nothing reaches Google, Fabman or a real person.</p>
       <ol>
-        <li>In a codespace it starts by itself. If it is not running, open a terminal (<strong>Ctrl + `</strong>) and run the command below.</li>
-        <li>On a laptop, in the repo folder, run:</li>
+        <li>In a codespace it is already running. Otherwise run:</li>
       </ol>
       <div class="cmd">node sandbox/server.js</div>
-      <ol start="3">
-        <li>Open the control panel: <strong>Open in Browser</strong> in the popup, the globe on port 8080 in the Ports panel, or <code>http://localhost:8080/sandbox/</code> on a laptop.</li>
-        <li>Edit, save (<strong>Cmd/Ctrl + S</strong>), refresh. That goes for the <code>.gs</code> files too; there is nothing to paste or deploy.</li>
+      <ol start="2">
+        <li>Open <code>http://localhost:8080/sandbox/</code> (in a codespace: the globe on port 8080 in the Ports panel).</li>
+        <li>Edit a file, save, refresh. Script files too; nothing to paste or deploy.</li>
       </ol>
-      <p>
-        The control panel has a list of things to try, the outbox, the fake sheets and a page for each
-        script project where any function can be run. <strong>Reset the sandbox</strong> puts the fake data back.
-        <code>sandbox/README.md</code> says what is real and what is fake, and
-        <code>node sandbox/check.js</code> tests the sandbox itself.
-      </p>
-      <p>
-        The sandbox is private to your codespace or laptop. Nothing is public until you push. Before a
-        script change goes into a live project, it can also be tried on real Google in your own account,
-        with emails going only to you: see <code>sandbox/google/README.md</code>.
-      </p>
-    </section>
-
-    <section class="doc-section" id="copilot">
-      <h2><span class="doc-num">05</span>Use Copilot</h2>
-      <ol>
-        <li>Open Copilot chat: the chat icon in the sidebar, or <strong>Cmd/Ctrl + Shift + I</strong>.</li>
-        <li>Describe the change. Name the file and point at an existing element to copy its format. Examples:</li>
-      </ol>
-      <ul>
-        <li>"In admin.html, add a link to the fire safety training doc in the Compliance section, formatted like the other links there."</li>
-        <li>"In styles.css, make the footer headings slightly larger."</li>
-        <li>"In admin.html, add a section called Events with one link, following the pattern of the Fleet section, and add it to the section list."</li>
-      </ul>
-      <ol start="3">
-        <li>Review the proposed diff, then <strong>Accept</strong>. To edit one spot, select the code and press <strong>Cmd/Ctrl + I</strong>.</li>
-      </ol>
-      <p>Make one change at a time and check the preview after each. If a suggestion is wrong, reject it and rephrase.</p>
+      <p><em>Reset the sandbox</em> puts the fake data back. <code>node sandbox/check.js</code> tests everything. To try a script change on real Google with mail going only to you, follow <code>sandbox/google/README.md</code>.</p>
     </section>
 
     <section class="doc-section" id="ship">
-      <h2><span class="doc-num">06</span>Publish</h2>
-      <p>In the terminal:</p>
+      <h2><span class="doc-num">03</span>Edit and publish</h2>
+      <h3>Edit</h3>
+      <p>Make the change yourself, or ask Copilot (chat icon, or <strong>Cmd/Ctrl + Shift + I</strong>). Name the file and point at something to copy, for example: "In admin.html, add a link to the fire safety doc in the Compliance section, like the other links there." Review the diff before accepting. One change at a time.</p>
+      <h3>Adding a link to a page</h3>
+      <ul>
+        <li>Staff links go in <code>index.html</code>, admin links in <code>admin.html</code>, script and code links in <code>developer.html</code>.</li>
+        <li>Copy an existing <code>&lt;a class="action"&gt;</code> next to it: keep <code>action-title</code>, <code>action-sub</code>, and add search words in <code>data-keywords</code>.</li>
+        <li>A new admin section also needs a link in the section list (<code>#admin-nav</code>) and a color in <code>styles.css</code> (search for <code>--cat</code>).</li>
+        <li>Colors and fonts are the tokens at the top of <code>styles.css</code>.</li>
+      </ul>
+      <h3>Publish</h3>
       <div class="cmd">
         git add -A<br>
         git commit -m "add fire safety link to compliance"<br>
         git push
       </div>
+      <p>Or use the <strong>Source Control</strong> icon: type a message, <strong>Commit</strong>, <strong>Sync Changes</strong>. The <a href="https://cornellprojectteams.github.io/centralhub/" target="_blank" rel="noopener">live site</a> updates within a minute or two. Hard-refresh (<strong>Cmd/Ctrl + Shift + R</strong>) if you don't see it.</p>
+      <h3>Undo</h3>
       <ul>
-        <li><code>git add -A</code> stages all changed files.</li>
-        <li><code>git commit -m "..."</code> saves a checkpoint. The message should say what changed.</li>
-        <li><code>git push</code> uploads it to GitHub.</li>
+        <li><code>git status</code> lists what changed.</li>
+        <li><code>git checkout -- file</code> discards your edits to that file since the last commit.</li>
+        <li>Pushed something broken? Every version is kept in history. Ask for help before forcing anything.</li>
       </ul>
-      <p>
-        Equivalent buttons: the <strong>Source Control</strong> icon in the sidebar. Type the
-        message, click <strong>Commit</strong>, then <strong>Sync Changes</strong>.
-      </p>
-      <p>
-        GitHub Pages publishes the main branch to
-        <a href="https://cornellprojectteams.github.io/centralhub/" target="_blank" rel="noopener">the live site</a>
-        within a minute or two. Hard-refresh (Cmd/Ctrl + Shift + R) if the change does not appear.
-      </p>
+      <p>A push that is rejected because GitHub has newer commits (the team photos bot commits too): run <code>git pull --rebase</code>, then push again.</p>
     </section>
 
-    <section class="doc-section" id="rescue">
-      <h2><span class="doc-num">07</span>Recovery</h2>
-      <ul>
-        <li><code>git status</code> Lists what changed since the last commit.</li>
-        <li><code>git checkout -- filename</code> Discards uncommitted edits to that file.</li>
-        <li>Pushed something broken? Every commit stays in history and any version can be restored. Ask for help before forcing anything.</li>
-        <li>Codespaces stop when idle; work is kept. Delete unused ones at <a href="https://github.com/codespaces" target="_blank" rel="noopener">github.com/codespaces</a>.</li>
-      </ul>
+    <section class="doc-section" id="tour">
+      <h2><span class="doc-num">04</span>Files</h2>
+      <table class="sla sla--stack">
+        <thead><tr><th>File</th><th>What it is</th></tr></thead>
+        <tbody>
+          <tr><td><code>index.html</code></td><td>Staff page</td></tr>
+          <tr><td><code>admin.html</code>, <code>developer.html</code></td><td>Admin page and developer page. Reached by shared link only.</td></tr>
+          <tr><td><code>docs.html</code>, <code>dev-guide.html</code>, <code>space-status-how-to.html</code></td><td>Admin guide, this guide, staff how-to</td></tr>
+          <tr><td><code>command-center.html</code>, <code>team.html</code></td><td>Ops dashboard; one team's open issues</td></tr>
+          <tr><td><code>inventory.html</code> <code>.js</code> <code>.css</code></td><td>Inventory app</td></tr>
+          <tr><td><code>team-photos.html</code> <code>.js</code>, <code>data/team-photos.json</code></td><td>Team photos page and its data</td></tr>
+          <tr><td><code>styles.css</code>, <code>app.js</code></td><td>Shared look; search, panels and section list</td></tr>
+          <tr><td><code>config.js</code></td><td>Every web app URL. Change URLs here only.</td></tr>
+          <tr><td><code>apps-script/</code></td><td>Copies of the Apps Script code (it runs on Google)</td></tr>
+          <tr><td><code>tools/team-photos/</code>, <code>.github/workflows/</code></td><td>Photo scraper and the Action that runs it</td></tr>
+          <tr><td><code>sandbox/</code></td><td>The sandbox</td></tr>
+          <tr><td><code>archive/</code></td><td>Old notes kept for reference. Not current.</td></tr>
+        </tbody>
+      </table>
     </section>
 
     <section class="doc-section" id="scripts">
-      <h2><span class="doc-num">08</span>Apps Script projects</h2>
-      <p>
-        The scripts run on Google, not from this repo. <code>apps-script/</code> keeps a copy of each so
-        changes can be reviewed and tracked. Editing a copy changes nothing until it is pasted into its
-        project. The developer page links to each project.
-      </p>
+      <h2><span class="doc-num">05</span>Apps Script projects</h2>
+      <p>The scripts run on Google. <code>apps-script/</code> holds a copy of each; editing a copy changes nothing live.</p>
       <table class="sla sla--stack">
-        <thead>
-          <tr><th>Project</th><th>Where it runs</th><th>Copy in the repo</th></tr>
-        </thead>
+        <thead><tr><th>Project</th><th>Where it runs</th><th>File</th></tr></thead>
         <tbody>
-          <tr><td>Space Status web app<small>Emails, reminders, issue pages, projects, proposals</small></td><td>Standalone project "Production Space Status Tracking Emailer"</td><td><code>02_notify_on_submit.gs</code> <code>04_tasks_projects.gs</code> <code>07_proposals.gs</code></td></tr>
-          <tr><td>Command Center API<small>The Command Center's numbers</small></td><td>Standalone project "Ops Command Center API"</td><td><code>command-center/Code.gs</code></td></tr>
-          <tr><td>Inventory<small>Keeps the sheet tidy and serves the app</small></td><td>Bound to the inventory sheet</td><td><code>08_inventory.gs</code></td></tr>
-          <tr><td>Fabman members<small>Accounts for FabMan Agreement sign-ups, and the buttons in the Fabman members sheet</small></td><td>Bound to the Fabman Admin sheet</td><td><code>05_fabman_members.gs</code></td></tr>
+          <tr><td>Space Status web app<small>Emails, reminders, issue pages, projects, proposals</small></td><td>Standalone: "Production Space Status Tracking Emailer"</td><td><code>02_notify_on_submit.gs</code> <code>04_tasks_projects.gs</code> <code>07_proposals.gs</code></td></tr>
+          <tr><td>Inventory web app<small>Sheet upkeep and the inventory app's API</small></td><td>Bound to the inventory sheet</td><td><code>08_inventory.gs</code></td></tr>
+          <tr><td>Team photos update service<small>Starts the photo refresh</small></td><td>Standalone</td><td><code>09_team_photos.gs</code></td></tr>
+          <tr><td>Command Center API<small>The Command Center's numbers</small></td><td>Standalone: "Ops Command Center API"</td><td><code>command-center/Code.gs</code></td></tr>
+          <tr><td>Fabman members<small>Sign-ups and the sheet's buttons</small></td><td>Bound to the Fabman Admin sheet</td><td><code>05_fabman_members.gs</code></td></tr>
           <tr><td>Fleet driver cleanup<small>The Driver cleanup menu</small></td><td>Bound to the Student Drivers sheet</td><td><code>fleet_driver_cleanup.gs</code></td></tr>
-          <tr><td>Team Contacts setup<small>Run once, already done</small></td><td>From the Space Status sheet</td><td><code>01_setup_team_contacts.gs</code></td></tr>
         </tbody>
       </table>
-      <p>
-        A bound script opens from its sheet: Extensions &gt; Apps Script. <code>fleet_remove_drivers.gs</code>
-        is an older, run-by-hand version of the driver cleanup, kept for reference.
-      </p>
-
-      <h3>Fabman sign-ups</h3>
-      <p>
-        The FabMan Agreement in the Canvas course is a Qualtrics survey. A workflow on the survey (a
-        Google Sheets task) adds each response as a row on the Fabman sheet's FabMan Agreement tab, which
-        fires the sheet's change trigger. <code>onSheetChange</code> in <code>05_fabman_members.gs</code> turns the row
-        into a Fabman account (or tops up an existing one) and writes the outcome in the row's Fabman status
-        column. Responses to the older Google Form land on the Sign-up Form tab and go through
-        <code>onFormSubmit</code> the same way. <code>processNewSignups</code> runs hourly and finishes anything left
-        waiting on either tab.
-      </p>
-      <p>
-        The script finds columns by header, so their order does not matter, but the Qualtrics task also
-        writes to the headers by name, so renaming the tab or a header breaks it. Qualtrics writes times in
-        Mountain Standard Time; the scripts allow for that. Two optional script properties (Project Settings
-        &gt; Script properties) change settings without a code edit: <code>ALERT_EMAILS</code>, who hears about
-        problems (Noah if unset), and <code>FABMAN_API_KEY</code>, which replaces the key at the top of the
-        script. Triggers run as the person who made them, and the Qualtrics task writes as the Google account
-        connected to it, so set up both from a staff account that will still exist next year.
-        <em>Set up the sign-up triggers</em> in the sheet's Fabman sign-ups menu installs the triggers and
-        makes the FabMan Agreement tab if it is missing.
-      </p>
+      <p>A bound script opens from its sheet: <strong>Extensions &gt; Apps Script</strong>. <code>01_setup_team_contacts.gs</code> and <code>fleet_remove_drivers.gs</code> are old one-off scripts, kept for reference.</p>
 
       <h3>Putting a change live</h3>
       <ol>
-        <li>Try it in the <a href="#preview">sandbox</a> first, and for a bigger change, in your own Google copy (<code>sandbox/google/README.md</code>).</li>
-        <li>Open the project, paste the changed file over the old one and save.</li>
-        <li>The three web apps (Space Status, Command Center API, Inventory) only change after a new version: Deploy &gt; Manage deployments &gt; pencil &gt; Version: New version &gt; Deploy. The URL stays the same.</li>
-        <li>Make sure the copy in <code>apps-script/</code> matches what now runs, and publish it.</li>
+        <li>Try it in the sandbox.</li>
+        <li>Open the project, paste the new file over the old one, save.</li>
+        <li>For a web app: <strong>Deploy &gt; Manage deployments &gt; pencil &gt; Version: New version &gt; Deploy</strong>. The URL stays the same.</li>
+        <li>Commit the same file in <code>apps-script/</code> so the copy matches what runs.</li>
       </ol>
-      <p>
-        The site finds the web apps through <code>config.js</code> (Space Status and the inventory) and
-        <code>STATS_ENDPOINT</code> in <code>app.js</code> and <code>command-center.html</code> (Command
-        Center API). Those URLs only change if someone makes a new deployment instead of a new version.
-        Setting up the inventory, and updating an older inventory sheet, are covered in the README.
-      </p>
+
+      <h3>Setting up a new web app</h3>
+      <ol>
+        <li>Paste the file into its project (or the sheet's Apps Script) and save.</li>
+        <li><strong>Deploy &gt; New deployment &gt; Web app</strong>. Execute as: <strong>Me</strong>. Who has access: <strong>Anyone</strong>. Plain "Anyone": with "Anyone with a Google account" the site gets a sign-in page and can't reach it.</li>
+        <li>Copy the URL ending in <code>/exec</code> into <code>config.js</code>: <code>SPACE_STATUS_URL</code>, <code>INVENTORY.apiUrl</code> or <code>TEAM_PHOTOS.refreshUrl</code>. The Command Center URL is <code>STATS_ENDPOINT</code> in <code>app.js</code> and <code>command-center.html</code>.</li>
+        <li>Check it: open the URL with <code>?action=status</code> or <code>?action=list</code> on the end. You should see a line of JSON, not a sign-in page.</li>
+      </ol>
     </section>
 
     <section class="doc-section" id="engine">
-      <h2><span class="doc-num">09</span>Space Status engine</h2>
-      <p>
-        One standalone project runs Space Status: the emails, the reminders and every web page (issue
-        dashboards, team pages, the confirm page, projects and proposals). The Space Status Tracking
-        sheet is its database.
-      </p>
-
-      <h3>On submit</h3>
-      <p>The form-submit trigger is named <code>sendEmails</code> and calls <code>onFormSubmit</code>, which:</p>
+      <h2><span class="doc-num">06</span>Space Status</h2>
+      <p>One project sends the emails and reminders and serves every Space Status page. The Space Status Tracking sheet is its database.</p>
+      <h3>How a report flows</h3>
       <ol>
-        <li>Reads the row by header name. Column order does not matter.</li>
-        <li>Looks the team up in Team Contacts. To: general email and liaison. Cc: safety lead, Extra CC and <code>CONFIG.alwaysCc</code>.</li>
-        <li>Sends the email: subject by severity, deadline in bold, one action button.</li>
-        <li>Stamps <code>Issue token</code> and <code>Notified at</code> on the row and shares any photo by link so the pages can show it.</li>
+        <li>The form-submit trigger <code>sendEmails</code> calls <code>onFormSubmit</code>. It reads the row by header name.</li>
+        <li>It finds the team on Team Contacts and emails it (team email and liaison; Cc safety lead, Extra CC, <code>CONFIG.alwaysCc</code>). No address on file: <code>CONFIG.fallbackEmail</code>.</li>
+        <li>It stamps <code>Issue token</code> and <code>Notified at</code> and shares the photo by link.</li>
+        <li><code>sendReminders</code> runs daily. First reminder on the due date, then every <code>max(1, round(windowDays / 2))</code> days. Approved, pending and "when time allows" rows are skipped.</li>
       </ol>
-      <p>If the team has no usable email, mail goes to <code>CONFIG.fallbackEmail</code>.</p>
-      <p>
-        The trigger belongs to another account and cannot be deleted from this one. The script keeps
-        a shim so it runs the current code:
-      </p>
-      <div class="cmd">function sendEmails(e) { onFormSubmit(e); }</div>
-      <p>Do not add a second on-submit trigger; teams would get every email twice.</p>
-
-      <h3>Deadlines and reminders</h3>
-      <p>
-        The form question is <em>Respond within</em>; older rows and the sheet column may still say
-        Current Status. <code>parseColor_</code> maps both the old color labels and the timeframe answers
-        to the same five levels. Windows are in <code>SLA_DAYS</code> and the email wording in
-        <code>SEVERITY</code>, both at the top of <code>02_notify_on_submit.gs</code>:
-      </p>
-      <div class="cmd">
-        const SLA_DAYS = { red: 0, orange: 3, yellow: 10, ivory: 21, purple: null };<br>
-        <br>
-        const SEVERITY = {<br>
-        &nbsp;&nbsp;red: { subject: 'Urgent: same-day action needed', ... },<br>
-        &nbsp;&nbsp;...<br>
-        };
-      </div>
-      <p><code>sendReminders</code> runs on a daily time trigger. Day 0 is covered by the first email. The first reminder goes on the due date, then they repeat at:</p>
-      <div class="cmd">interval = max(1, round(windowDays / 2))&nbsp;&nbsp;<span class="c">// days</span></div>
-      <p>
-        The schedule counts from the <code>Last reminder</code> stamp, so a missed run catches up the
-        next day. Rows that are approved (<code>Addressed at</code>), waiting for approval
-        (<code>Completed at</code>) or purple are skipped.
-      </p>
-
+      <p>The trigger belongs to another account and can't be deleted, so the script keeps <code>function sendEmails(e) { onFormSubmit(e); }</code>. Never add a second submit trigger: teams would get every email twice.</p>
       <h3>Settings</h3>
-      <p>Go-live settings, in <code>CONFIG</code> at the top of the script:</p>
-      <div class="cmd">
-        sender: 'eng_projectteams@cornell.edu',&nbsp;&nbsp;<span class="c">// send-as alias on the running account</span><br>
-        alwaysCc: ['nhh5@cornell.edu'],<br>
-        fallbackEmail: 'nhh5@cornell.edu',<br>
-        webAppUrl: '.../exec',&nbsp;&nbsp;<span class="c">// must be the deployed URL; the email buttons use it</span>
-      </div>
-      <p>
-        The columns the script writes (<code>Notified at</code>, <code>Issue token</code>,
-        <code>Addressed at</code>, <code>Last reminder</code>, <code>Completion photo</code>,
-        <code>Completion note</code>, <code>Completed at</code>, <code>Sent back reason</code>) are named
-        in <code>CONFIG</code> and added when first needed. Completion photos and project uploads go to a
-        Drive folder named <em>Ops Hub completion and project uploads</em>.
-      </p>
-      <p>
-        Pages opened with <code>admin=1</code> show the admin controls with no passcode. Only the links on
-        the admin page add it.
-      </p>
+      <p>At the top of <code>02_notify_on_submit.gs</code>: deadlines in <code>SLA_DAYS</code>, email wording in <code>SEVERITY</code>, and <code>CONFIG</code> (sender alias, <code>alwaysCc</code>, <code>fallbackEmail</code>, and <code>webAppUrl</code>, which must be the deployed URL because the email buttons use it). Proposal thresholds are in <code>PR</code> in <code>07_proposals.gs</code>.</p>
+      <h3>Pages</h3>
+      <table class="sla sla--stack">
+        <thead><tr><th>Add to the /exec URL</th><th>Page</th></tr></thead>
+        <tbody>
+          <tr><td><code>?view=all</code></td><td>Every team's issues (<code>admin=1</code> adds admin controls)</td></tr>
+          <tr><td><code>?view=Baja</code></td><td>One team's issues (<code>act=1</code> allows completing)</td></tr>
+          <tr><td><code>?team=TOKEN</code></td><td>A team's private page</td></tr>
+          <tr><td><code>?id=TOKEN</code></td><td>Confirm page behind the email button (mail scanners open links, so nothing changes until a person clicks)</td></tr>
+          <tr><td><code>?module=projects</code>, <code>projects-dash</code>, <code>proposals</code></td><td>Projects list, projects dashboard, proposal board</td></tr>
+        </tbody>
+      </table>
+      <p><code>embed=1</code> drops the page header, for the hub's panels.</p>
+      <h3>Functions to run by hand</h3>
+      <ul>
+        <li><code>fillTeamTokens</code> after adding a team.</li>
+        <li><code>sendReminders</code> to send due reminders now.</li>
+        <li><code>setupTasksProjects</code>, <code>setupProposals</code> to build or repair their tabs (safe to rerun).</li>
+        <li><code>listResponseHeaders</code> to print the form's headers.</li>
+      </ul>
     </section>
 
-    <section class="doc-section" id="routes">
-      <h2><span class="doc-num">10</span>Routes and setup</h2>
-      <p>Every page is a route on the one web app URL (<code>SPACE_STATUS_URL</code> in <code>config.js</code>):</p>
-      <div class="cmd">
-        /exec&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">team picker</span><br>
-        ?view=all&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">every team's issues (admin=1 adds the admin controls)</span><br>
-        ?view=Baja&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">one team's issues, read only (act=1 allows completing)</span><br>
-        ?team=TOKEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">a team's private page: complete jobs with a photo</span><br>
-        ?id=TOKEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">confirm page behind the email button</span><br>
-        ?module=projects&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">projects list (admin=1 adds the admin controls)</span><br>
-        ?module=projects-dash&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">projects dashboard</span><br>
-        ?module=proposals&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">proposal board (admin=1, back= link to the hub)</span><br>
-        ?registry=...&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">old registry links and labels: "Inventory has moved"</span>
-      </div>
-      <p>
-        <code>embed=1</code> on any of them drops the page header, for the hub's slide-over panels. The
-        confirm page exists because mail scanners open links on their own; a plain link would close
-        issues by itself. Nothing changes until a person clicks.
-      </p>
-
-      <h3>Setup and utilities</h3>
-      <p>Run from the script editor. The setup functions are safe to run again.</p>
+    <section class="doc-section" id="inventory">
+      <h2><span class="doc-num">07</span>Inventory</h2>
+      <p>The inventory sheet is the database. Its bound script, <code>08_inventory.gs</code>, keeps the sheet tidy and is the app's API (JSONP; photos go up as a POST).</p>
+      <h3>The sheet</h3>
       <ul>
-        <li><code>setupTasksProjects</code> Creates the Projects tab and the completion columns.</li>
-        <li><code>setupProposals</code> Creates the Proposals and Proposal votes tabs. The rating thresholds are in the <code>PR</code> object at the top of <code>07_proposals.gs</code>.</li>
-        <li><code>fillTeamTokens</code> Gives every team on Team Contacts a private page token. Run it after adding a team.</li>
-        <li><code>sendReminders</code> Sends due reminders now.</li>
-        <li><code>sharePhotos</code> One-time backfill that makes older report photos viewable on the pages.</li>
-        <li><code>listResponseHeaders</code> Prints the Form Responses headers to the log.</li>
-        <li><code>setupInventory</code> (inventory sheet) Builds or repairs the inventory sheet and runs a self-test.</li>
+        <li><strong>Inventory Master:</strong> one row per item. Status, Next Maintenance and Item Link are formulas; Item ID, Date Added and Added By are filled by the script.</li>
+        <li><strong>Maintenance Log</strong>, <strong>Lists</strong> (categories with ID prefix, subcategories, locations, teams in column E) and <strong>Dashboard</strong>.</li>
+        <li>Item IDs (PT-001) come from the category prefix and never change.</li>
+      </ul>
+      <h3>Setup and updates</h3>
+      <ol>
+        <li>Paste <code>08_inventory.gs</code> into the sheet's Apps Script and run <code>setupInventory</code>. It is safe to rerun: it adds missing columns and runs a self-test. Approve Drive access for photos.</li>
+        <li>Deploy as a web app (see <a href="#scripts">Setting up a new web app</a>) into <code>INVENTORY.apiUrl</code>.</li>
+        <li>After a code change, deploy a new version. The app's admin view warns when the sheet runs an older script.</li>
+      </ol>
+      <p>Never run <code>setupInventory</code> in the old <em>Tool inventory, purchasing and locks</em> sheet; it refuses to, because the Command Center reads that sheet.</p>
+      <h3>Team links</h3>
+      <p><code>inventory.html?team=Baja&amp;key=...</code>. The key is an HMAC of the team name signed with the script property <code>INV_TEAM_SECRET</code> (made on first use). A link can add items to its own team and edit them, nothing else. <em>Reset all links</em> makes a new secret.</p>
+    </section>
+
+    <section class="doc-section" id="photos">
+      <h2><span class="doc-num">08</span>Team photos</h2>
+      <p>The Update button on <code>team-photos.html</code> asks <code>09_team_photos.gs</code> to start the GitHub Action <code>team-photos.yml</code>. The Action runs <code>tools/team-photos/scrape.py</code> (opens each team page in a headless browser) and <code>build.py</code> (works out name, role, subteam and class year), then commits <code>data/team-photos.json</code>. It also runs on the 1st of each month.</p>
+      <h3>Connecting the Update button (once)</h3>
+      <ol>
+        <li>On GitHub: <strong>Settings &gt; Developer settings &gt; Fine-grained tokens</strong>. Owner <code>cornellprojectteams</code>, only <code>centralhub</code>, permission <strong>Actions: Read and write</strong>.</li>
+        <li>New Apps Script project with <code>09_team_photos.gs</code>. Add the token as script property <code>GITHUB_TOKEN</code>.</li>
+        <li>Deploy it as a web app into <code>TEAM_PHOTOS.refreshUrl</code>.</li>
+      </ol>
+      <p>When the token expires the page says so. Replace the script property; no redeploy needed.</p>
+      <h3>What a refresh changes</h3>
+      <ul>
+        <li>New people are added; changed roles, photos and class years are updated.</li>
+        <li>People no longer on their team's site get <code>"status": "left"</code> (hidden as former).</li>
+        <li>A team whose site fails, or suddenly lists under half as many people, is left as it was.</li>
+      </ul>
+      <h3>Editing the data by hand</h3>
+      <p>Edit <code>data/team-photos.json</code> on GitHub. Each person is one entry in <code>people</code>:</p>
+      <div class="cmd">{ "id": "manual-jdoe1", "team": "Baja", "name": "Jane Doe", "role": "Suspension Lead",<br>&nbsp;&nbsp;"roleType": "lead", "subteam": "Suspension", "classYear": 2028,<br>&nbsp;&nbsp;"photo": "https://...", "status": "current", "source": "manual" }</div>
+      <ul>
+        <li><code>roleType</code> is <code>lead</code>, <code>member</code> or <code>advisor</code>. <code>team</code> must match <code>tools/team-photos/sites.json</code>.</li>
+        <li><code>"source": "manual"</code> entries are never touched by a refresh. To keep a fix on a scraped person, add <code>"locked": true</code>.</li>
+        <li>To mark someone graduated early, set <code>"status": "graduated"</code>.</li>
+      </ul>
+      <h3>When a team moves its page</h3>
+      <p>Update the team in <code>tools/team-photos/targets.json</code> and <code>sites.json</code>, then test locally:</p>
+      <div class="cmd">
+        pip install playwright &amp;&amp; playwright install chromium<br>
+        python3 tools/team-photos/scrape.py "Mars Rover"<br>
+        python3 tools/team-photos/build.py --dry-run
+      </div>
+      <p>Drop <code>--dry-run</code> to write the file. <code>--prune</code> deletes everyone graduated or former.</p>
+    </section>
+
+    <section class="doc-section" id="fabman">
+      <h2><span class="doc-num">09</span>Fabman sign-ups</h2>
+      <ul>
+        <li>The Canvas FabMan Agreement is a Qualtrics survey. Its Google Sheets task adds a row to the <em>FabMan Agreement</em> tab, which fires <code>onSheetChange</code> in <code>05_fabman_members.gs</code>. That makes the Fabman account and writes the result in <em>Fabman status</em>.</li>
+        <li><code>processNewSignups</code> runs hourly and finishes anything left waiting.</li>
+        <li>Script properties: <code>ALERT_EMAILS</code> (who hears about problems; Noah if unset) and <code>FABMAN_API_KEY</code> (replaces the key in the code).</li>
+        <li>Triggers and the Qualtrics task run as whoever set them up. Use a staff account that will still exist next year: sheet menu <em>Fabman sign-ups &gt; Set up the sign-up triggers</em>.</li>
+        <li>Columns are found by header, but Qualtrics writes by header name too: renaming the tab or a header breaks sign-ups.</li>
       </ul>
     </section>
 
     <section class="doc-section" id="command-api">
-      <h2><span class="doc-num">11</span>Command Center API</h2>
-      <p>
-        A separate, read-only project. It reads the source sheets listed in <code>SOURCES</code> and returns
-        one JSON payload, which the Command Center page and the badge on the Command button load
-        JSONP-style. It shares no code or deployment with Space Status.
-      </p>
+      <h2><span class="doc-num">10</span>Command Center API</h2>
       <ul>
-        <li>Results are cached for <code>CACHE_SECONDS</code> (3 minutes). After changing its logic, deploy a new version and bump <code>CACHE_VERSION</code>, or run <code>clearStatsCache</code>; otherwise the old output keeps showing until the cache runs out.</li>
-        <li><code>describeSources</code>, <code>peekFleetLog</code> and <code>peekFleetApproval</code> print what the API sees in its sheets, for checking column names.</li>
-        <li>Its inventory numbers (mill room orders, locks) come from the old <em>Tool inventory, purchasing and locks</em> sheet, not the inventory app.</li>
+        <li>Read-only. Reads the sheets in <code>SOURCES</code> and returns one JSON payload.</li>
+        <li>Cached for 3 minutes. After a change, deploy a new version and bump <code>CACHE_VERSION</code> (or run <code>clearStatsCache</code>).</li>
+        <li><code>describeSources</code>, <code>peekFleetLog</code> and <code>peekFleetApproval</code> print what it sees, for checking column names.</li>
+        <li>Mill room orders and locks come from the old <em>Tool inventory, purchasing and locks</em> sheet, not the inventory app.</li>
       </ul>
-    </section>
-
-    <section class="doc-section" id="links">
-      <h2><span class="doc-num">12</span>Links</h2>
-      <ul class="doc-links">
-        <li>
-          <a href="https://github.com/cornellprojectteams/centralhub" target="_blank" rel="noopener">GitHub repo</a>
-          <span>Open a Codespace from the green Code button here.</span>
-        </li>
-        <li>
-          <a href="https://cornellprojectteams.github.io/centralhub/" target="_blank" rel="noopener">Live site</a>
-          <span>What everyone sees after you push.</span>
-        </li>
-        <li>
-          <a href="https://github.com/codespaces" target="_blank" rel="noopener">Your Codespaces</a>
-          <span>Reopen or delete codespaces.</span>
-        </li>
-        <li>
-          <a href="https://script.google.com/d/1DpKw0dXIQ5rH6_BQfIQnXpmTbTcPmfH3wq2Dzc6pJUA7lrmeFG7hh5P4/edit" target="_blank" rel="noopener">Space Status script</a>
-          <span>Edit and deploy the Space Status web app here.</span>
-        </li>
-        <li>
-          <a href="https://script.google.com/macros/s/AKfycbwNbGjVcBrcsMZiOl2nXzpqZHz04nvKLm9D_aC0VJDz7Xxxf_4kLKlNSOHubPXj1X74/exec" target="_blank" rel="noopener">Space Status web app</a>
-          <span>The deployed URL. Add the routes above to test a page.</span>
-        </li>
-        <li>
-          <a href="developer.html">Developer page</a>
-          <span>Every script project, the repo and the Fabman API guide.</span>
-        </li>
-        <li>
-          <a href="docs.html">Admin guide</a>
-          <span>How each part of the admin page is used day to day.</span>
-        </li>
-      </ul>
-      <p class="doc-updated">Last updated October 2026.</p>
+      <p class="doc-updated">Last updated November 2026.</p>
     </section>
     </div>
   </main>
@@ -447,9 +329,9 @@
         </div>
         <div class="footer-col">
           <h4>On this page</h4>
-          <a href="#codespace">Open a Codespace</a>
-          <a href="#ship">Publish</a>
+          <a href="#ship">Edit and publish</a>
           <a href="#scripts">Apps Script projects</a>
+          <a href="#photos">Team photos</a>
         </div>
         <div class="footer-col">
           <h4>Guides</h4>

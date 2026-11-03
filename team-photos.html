@@ -2,7 +2,7 @@
 <html lang="en">
 <!--
   Team member photos: every project team's public member photos in one place.
-  Data: data/team-photos.json, built by tools/team-photos (see the README there).
+  Data: data/team-photos.json, built by tools/team-photos (see dev-guide.html#photos).
   Filters: team, role (lead / member / advisor), name search, and whether to show
   people who have graduated or left. Opened from the admin page (?admin=1), it also
   shows the Update button, which rescrapes the team sites through a GitHub Action.
@@ -21,14 +21,6 @@
   <script src="config.js"></script>
   <style>
     .tp-main { flex: 1; width: 100%; max-width: 76rem; margin: 0 auto; padding: 2rem 1.5rem 5rem; }
-
-    /* back links */
-    .tp-back { display: flex; gap: 1.5rem; align-items: center; margin-bottom: 2.25rem; }
-    .tp-back a { font-size: .875rem; font-weight: 600; color: var(--text); text-decoration: none; display: inline-flex; gap: .4rem; align-items: center; }
-    .tp-back a:first-child { color: var(--red); font-weight: 700; }
-    .tp-back a:first-child span { transition: transform .2s ease; }
-    .tp-back a:first-child:hover span { transform: translateX(-3px); }
-    .tp-back a:hover { text-decoration: underline; text-underline-offset: 3px; }
 
     /* hero */
     .tp-eyebrow { font-size: .75rem; font-weight: 800; text-transform: uppercase; letter-spacing: .16em; color: var(--red); }
@@ -187,10 +179,7 @@
   </header>
 
   <main class="tp-main">
-    <nav class="tp-back" aria-label="Back">
-      <a href="admin.html#teams-admin"><span aria-hidden="true">&larr;</span> Admin</a>
-      <a href="index.html">Staff page</a>
-    </nav>
+    <a class="back-to-admin" href="admin.html#teams-admin"><span aria-hidden="true">&larr;</span> Back to admin</a>
 
     <div class="tp-eyebrow">Project teams</div>
     <h1 class="tp-title">Team member <em>photos</em></h1>
@@ -225,7 +214,7 @@
 
     <div class="tp-foot">
       <p><strong>Graduated</strong> means the class year has passed (from June 1 of that year), or an admin marked the person graduated. <strong>Former</strong> means the person was not on their team&rsquo;s site at the last update. Both are hidden unless the switch is on.</p>
-      <p>Adding people by hand and removing graduates: <a href="https://github.com/cornellprojectteams/centralhub/blob/main/tools/team-photos/README.md" target="_blank" rel="noopener">photo database guide</a>.</p>
+      <p>Adding people by hand and removing graduates: <a href="dev-guide.html#photos">developer guide</a>.</p>
     </div>
   </main>
 

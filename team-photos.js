@@ -15,7 +15,7 @@
   var ADMIN = params.get('admin') === '1';
   var REFRESH_URL = (window.TEAM_PHOTOS && window.TEAM_PHOTOS.refreshUrl) || '';
   var ACTIONS_URL = 'https://github.com/cornellprojectteams/centralhub/actions/workflows/team-photos.yml';
-  var GUIDE_URL = 'https://github.com/cornellprojectteams/centralhub/blob/main/tools/team-photos/README.md';
+  var GUIDE_URL = 'dev-guide.html#photos';
   var JOB_KEY = 'teamPhotosJob';
 
   var state = { team: '', role: '', q: '', gone: false };
@@ -287,7 +287,7 @@
       setStatus({
         kind: 'info', title: 'The update service isn’t connected yet.',
         detail: 'An admin needs to deploy the update web app once and put its URL in <code>config.js</code>. The guide has the steps.',
-        actions: [{ href: GUIDE_URL + '#connect-the-update-button', label: 'Open the guide' }],
+        actions: [{ href: GUIDE_URL, label: 'Open the guide' }],
       });
       return;
     }
@@ -302,11 +302,11 @@
       follow();
     }).catch(function (e) {
       if (e.kind === 'network' || e.kind === 'timeout') fail('Couldn’t reach the update service.', 'Check your connection. If this keeps happening, the web app is probably asking visitors to sign in: in Apps Script, Deploy &gt; Manage deployments &gt; edit, and set <b>Who has access</b> to <b>Anyone</b>. Otherwise the URL in <code>config.js</code> may be wrong or the deployment was removed.',
-        [{ act: 'retry', label: 'Try again' }, { href: GUIDE_URL + '#connect-the-update-button', label: 'Setup guide' }]);
+        [{ act: 'retry', label: 'Try again' }, { href: GUIDE_URL, label: 'Setup guide' }]);
       else if (e.data && e.data.code === 'cooldown') {
         setButton(false);
         setStatus({ kind: 'info', title: 'Already up to date.', detail: esc(e.message) });
-      } else fail('The update couldn’t start.', esc(e.message), [{ act: 'retry', label: 'Try again' }, { href: GUIDE_URL + '#connect-the-update-button', label: 'Setup guide' }]);
+      } else fail('The update couldn’t start.', esc(e.message), [{ act: 'retry', label: 'Try again' }, { href: GUIDE_URL, label: 'Setup guide' }]);
     });
   }
 

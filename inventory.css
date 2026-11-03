@@ -43,9 +43,7 @@ html.inv-embed .inv-reading { margin-top: 0; }
 .inv-title { font: 700 2.5rem/1 var(--inv-tag-font); letter-spacing: -.005em; color: var(--text); }
 .inv-admin-pill { font: 600 .75rem/1 var(--font); color: #7a1f2b; background: #f9e8ea; border: 1px solid #efc9ce; border-radius: 999px; padding: .38rem .62rem; }
 .inv-admin-pill.is-team { color: #1f5e3a; background: #e7f5ec; border-color: #bfe3cc; }
-.inv-back { display: inline-flex; align-items: center; gap: .4rem; margin-bottom: 1rem; font-size: .875rem; font-weight: 700; color: var(--red); text-decoration: none; }
-.inv-back:hover { text-decoration: underline; text-underline-offset: 3px; }
-html.inv-embed .inv-back { display: none; }
+html.inv-embed .back-to-admin { display: none; }
 .inv-reading { margin-top: .55rem; font-size: 1.0625rem; color: var(--inv-steel-600); }
 .inv-head-tools { display: flex; flex-wrap: wrap; gap: .5rem; }
 

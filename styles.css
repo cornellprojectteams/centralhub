@@ -2540,7 +2540,9 @@ body.issues-panel-open { overflow: hidden; }
 
 @media (max-width: 768px) {
   .app-header { height: auto; min-height: var(--header-h); }
-  .header-inner { flex-wrap: wrap; padding: .75rem 1.25rem; gap: .75rem; }
+  /* min-height keeps a header with only the logo (team photos, guides) as tall as the
+     bar, so the seal stays vertically centered instead of riding at the top. */
+  .header-inner { flex-wrap: wrap; padding: .75rem 1.25rem; gap: .75rem; min-height: var(--header-h); }
   /* `width:100%` is inert here — the base rule sets `flex:1` (= flex-basis:0%),
      and basis wins over width when sizing a flex item. It stayed on the logo's
      row, squeezed to ~116px, and its children spilled off-screen. Set the basis. */
@@ -2905,3 +2907,19 @@ code {
   .doc-main { padding: 2rem 1.25rem 3rem; }
   .doc-main h1 { font-size: 1.75rem; }
 }
+
+/* ---- Back to admin -------------------------------------------------------
+   The same return link at the top of every page reached from the admin page. */
+.back-to-admin {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  margin-bottom: 1.25rem;
+  font-size: .875rem;
+  font-weight: 700;
+  color: var(--red);
+  text-decoration: none;
+}
+.back-to-admin span { transition: transform .2s ease; }
+.back-to-admin:hover { text-decoration: underline; text-underline-offset: 3px; }
+.back-to-admin:hover span { transform: translateX(-3px); }

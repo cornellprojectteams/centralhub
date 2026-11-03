@@ -1387,13 +1387,13 @@ function tpDashStyles_() {
 
 // Projects dashboard: hero hours counter, status tiles, completion ring,
 // hours-by-project bars, a compact contributor row, and a before/after gallery.
-function projectsDashboardPage_(embedded) {
+function projectsDashboardPage_(embedded, back) {
   var s = tpProjectStats_();
   var pct = s.total > 0 ? Math.round(s.done / s.total * 100) : 0;
   var AVA = ['#b31b1b', '#e08a1e', '#157a47', '#2563c9', '#7c3aed', '#0d9488', '#b06a00'];
   var initials = function (n) { var parts = String(n).trim().split(/\s+/); return ((parts[0] || '')[0] || '?').toUpperCase() + (parts.length > 1 ? (parts[parts.length - 1][0] || '').toUpperCase() : ''); };
 
-  var inner = tpDashStyles_() + '<div class="dash">';
+  var inner = tpDashStyles_() + '<div class="dash">' + (embedded ? '' : hubBackLink_(back));
 
   inner += '<div class="dash-hero"><div class="dash-hero-glow"></div>'
     + '<div class="dash-kicker">Project Teams Ops Hub</div>'
@@ -1482,11 +1482,11 @@ function projectsDashboardPage_(embedded) {
 
 // ---- Projects page ----
 
-function projectsPage_(embedded, admin) {
+function projectsPage_(embedded, admin, back) {
   // Chrome only: the list arrives from tpProjectsPayload so the iframe paints immediately.
   var inner = '';
   if (!embedded) {
-    inner += '<div class="page-head"><div class="page-kicker">Project Teams Ops Hub</div>'
+    inner += hubBackLink_(back) + '<div class="page-head"><div class="page-kicker">Project Teams Ops Hub</div>'
       + '<div class="page-title">Projects</div><div class="page-rule"></div></div>';
   }
 

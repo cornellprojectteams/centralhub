@@ -710,7 +710,7 @@ function proposalsPage_(embedded, admin, back) {
   var inner = '<div class="pr-page">';
   if (!embedded) {
     inner += '<div class="pr-top">'
-      + (backHref ? '<a class="pr-back" href="' + escapeHtml_(backHref) + '" target="_top" rel="noopener"><span class="pr-back-arrow" aria-hidden="true">&#8592;</span> Back to the hub</a>' : '')
+      + hubBackLink_(backHref)
       + '</div>'
       + '<div class="page-head"><div class="page-kicker">Project Teams Ops Hub</div><div class="page-title">Proposals</div><div class="page-rule"></div></div>';
   }
