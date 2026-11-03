@@ -1,0 +1,132 @@
+{
+ "AguaClara": [
+  "https://aguaclara.cornell.edu/Team"
+ ],
+ "AppDev": [
+  "https://www.cornellappdev.com/team"
+ ],
+ "AutoBoat": [
+  "https://www.cornellautoboat.com/team"
+ ],
+ "Autonomous Drone": [
+  "https://cuad.info/members"
+ ],
+ "Autonomous Sailboat": [
+  "https://cusail.com/app/ourteam.html"
+ ],
+ "Autonomous Underwater Vehicle": [
+  "https://cuauv.org/team?subteam=mechanical",
+  "https://cuauv.org/team?subteam=electrical",
+  "https://cuauv.org/team?subteam=software",
+  "https://cuauv.org/team?subteam=business",
+  "https://cuauv.org/team"
+ ],
+ "Baja": [
+  "https://baja.mae.cornell.edu/team.html"
+ ],
+ "Biomedical Device": [
+  "https://www.cubmd.org/team-roster"
+ ],
+ "ChemE Car": [
+  "https://cornellchemecar.com/?page_id=69",
+  "https://cornellchemecar.com/?page_id=144"
+ ],
+ "Combat Robotics": [
+  "https://combatrobotics.engineering.cornell.edu/#/team/leads",
+  "https://combatrobotics.engineering.cornell.edu/#/team/mechanical",
+  "https://combatrobotics.engineering.cornell.edu/#/team/autonomous",
+  "https://combatrobotics.engineering.cornell.edu/#/team/marketing"
+ ],
+ "Concrete Canoe": [
+  "https://cornellconcretecanoe.com/our-team"
+ ],
+ "Cornell Assistive Technologies": [
+  "https://www.cornellassist.com/|About Us"
+ ],
+ "Custom Silicon Systems": [
+  "https://www.c2s2.dev/team"
+ ],
+ "Data Science": [
+  "https://cornelldata.science/eboard",
+  "https://cornelldata.science/subteam/machine-learning-engineering",
+  "https://cornelldata.science/subteam/data-engineering",
+  "https://cornelldata.science/subteam/quantitative-finance",
+  "https://cornelldata.science/subteam/data-science"
+ ],
+ "DEBUT": [
+  "https://cornelldebut.org/members/"
+ ],
+ "Design Build Fly": [
+  "https://dbf.engineering.cornell.edu/|Our Team"
+ ],
+ "Digital Technology and Innovation": [
+  "https://new.cornelldti.org/team"
+ ],
+ "Electric Vehicles": [
+  "https://www.cornellelectricvehicles.org/team/leadership",
+  "https://www.cornellelectricvehicles.org/team/mechanical",
+  "https://www.cornellelectricvehicles.org/team/electrical",
+  "https://www.cornellelectricvehicles.org/team/telemetry",
+  "https://www.cornellelectricvehicles.org/team/autonomy",
+  "https://www.cornellelectricvehicles.org/team/operations"
+ ],
+ "Engineering World Health": [
+  "https://www.cornellewh.org/members"
+ ],
+ "Engineers for a Sustainable World": [
+  "https://esw.engineering.cornell.edu/indexMEET_THE_TEAM.html"
+ ],
+ "Engineers in Action": [
+  "https://eia.engineering.cornell.edu/team_Updated-1.html"
+ ],
+ "Engineers Without Borders": [
+  "https://ewbcornell.org/members/"
+ ],
+ "Extended Reality": [
+  "https://cornellxr.com/team/"
+ ],
+ "FSAE Racing": [
+  "https://cornellracing.org/team/"
+ ],
+ "GeoData": [
+  "https://cornellgeodata.com/#/members"
+ ],
+ "Hack4Impact": [],
+ "Hyperloop": [
+  "https://www.cornellhyperloop.com/members.html"
+ ],
+ "iGEM": [
+  "https://igem.engineering.cornell.edu/team.html"
+ ],
+ "Mars Rover": [
+  "https://marsrover.engineering.cornell.edu/team/"
+ ],
+ "Nexus": [
+  "https://www.cornellnexus.com/team"
+ ],
+ "Rocketry": [
+  "https://cornellrocketryteam.com/members"
+ ],
+ "Seismic Design": [
+  "https://www.cornellseismicdesign.com/team"
+ ],
+ "SensTech": [
+  "https://www.cornellsenstech.com/team.html"
+ ],
+ "Solar Boat": [
+  "https://cusb.engineering.cornell.edu/#/team"
+ ],
+ "Steel Bridge": [
+  "https://steelbridge.engineering.cornell.edu/members.html"
+ ],
+ "Unmanned Air System": [
+  "https://cuair.org/full-team-leads.html",
+  "https://cuair.org/airframe.html",
+  "https://cuair.org/autopilot.html",
+  "https://cuair.org/design-and-operations.html",
+  "https://cuair.org/electrical.html",
+  "https://cuair.org/integration-and-testing-operations.html",
+  "https://cuair.org/intelligence.html",
+  "https://cuair.org/structures-payloads.html"
+ ]
+}

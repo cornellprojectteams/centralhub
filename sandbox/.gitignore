@@ -1,0 +1,4 @@
+# The sandbox keeps its fake data here; it never belongs in a commit.
+.state/
+# Safe copies made by google/make-copies.js, for pasting into your own Apps Script project.
+google/out/

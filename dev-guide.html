@@ -50,7 +50,7 @@
         <a href="#setup" class="doc-sidebar-link is-active"><strong>Requirements</strong><small>GitHub access</small></a>
         <a href="#codespace" class="doc-sidebar-link"><strong>Open a Codespace</strong><small>Edit in the browser</small></a>
         <a href="#tour" class="doc-sidebar-link"><strong>Files</strong><small>What each file does</small></a>
-        <a href="#preview" class="doc-sidebar-link"><strong>Preview</strong><small>Local test server</small></a>
+        <a href="#preview" class="doc-sidebar-link"><strong>Sandbox</strong><small>The platform on fake data</small></a>
         <a href="#copilot" class="doc-sidebar-link"><strong>Use Copilot</strong><small>AI-assisted edits</small></a>
         <a href="#ship" class="doc-sidebar-link"><strong>Publish</strong><small>Commit and push</small></a>
         <a href="#rescue" class="doc-sidebar-link"><strong>Recovery</strong><small>Undo mistakes</small></a>
@@ -85,7 +85,7 @@
       <a href="#setup">Requirements</a>
       <a href="#codespace">Open a Codespace</a>
       <a href="#tour">Files</a>
-      <a href="#preview">Preview</a>
+      <a href="#preview">Sandbox</a>
       <a href="#copilot">Use Copilot</a>
       <a href="#ship">Publish</a>
       <a href="#rescue">Recovery</a>
@@ -101,6 +101,7 @@
       <ul>
         <li>A GitHub account with access to <a href="https://github.com/cornellprojectteams/centralhub" target="_blank" rel="noopener">cornellprojectteams/centralhub</a>. If the repo shows a 404, ask to be added as a collaborator.</li>
         <li>For the scripts: edit access to the Apps Script project or the Google Sheet it is bound to.</li>
+        <li>For the sandbox on a laptop: <a href="https://nodejs.org" target="_blank" rel="noopener">Node.js</a> 18 or newer. A codespace already has it.</li>
       </ul>
     </section>
 
@@ -109,7 +110,7 @@
       <ol>
         <li>Open the <a href="https://github.com/cornellprojectteams/centralhub" target="_blank" rel="noopener">repository</a>.</li>
         <li>Click the green <strong>Code</strong> button, select the <strong>Codespaces</strong> tab, click <strong>Create codespace on main</strong>.</li>
-        <li>Wait about a minute. VS Code opens in the browser with the site's files loaded.</li>
+        <li>Wait about a minute. VS Code opens in the browser with the site's files loaded, and the <a href="#preview">sandbox</a> starts in a terminal.</li>
       </ol>
       <p>To continue later, reopen the same codespace from that menu instead of creating a new one.</p>
     </section>
@@ -127,22 +128,39 @@
         <li><code>config.js</code> The web app URLs and the inventory settings. Change a URL here, not in the pages.</li>
         <li><code>docs.html</code> The admin guide. <code>dev-guide.html</code> This guide. <code>space-status-how-to.html</code> The staff how-to.</li>
         <li><code>apps-script/</code> Copies of the Apps Script code. The live code runs on Google; see <a href="#scripts">Apps Script projects</a>.</li>
+        <li><code>sandbox/</code> The <a href="#preview">sandbox</a>: the whole platform on fake data, for trying changes. <code>.devcontainer/</code> starts it in a codespace.</li>
         <li><code>README.md</code> More detail, including setting up the inventory.</li>
       </ul>
     </section>
 
     <section class="doc-section" id="preview">
-      <h2><span class="doc-num">04</span>Preview</h2>
+      <h2><span class="doc-num">04</span>Sandbox</h2>
+      <p>
+        The sandbox runs the whole platform on made-up data: every page, the Space Status web app,
+        the inventory, the Command Center and the sheet scripts. Emails land in an outbox instead of
+        being sent, and nothing reaches Google, Fabman or a real person, so any change can be tried
+        end to end before it goes live.
+      </p>
       <ol>
-        <li>Open a terminal: <strong>Ctrl + `</strong> (backtick, under Esc).</li>
-        <li>Run:</li>
+        <li>In a codespace it starts by itself. If it is not running, open a terminal (<strong>Ctrl + `</strong>) and run the command below.</li>
+        <li>On a laptop, in the repo folder, run:</li>
       </ol>
-      <div class="cmd">python3 -m http.server 8000</div>
+      <div class="cmd">node sandbox/server.js</div>
       <ol start="3">
-        <li>Click <strong>Open in Browser</strong> in the popup.</li>
-        <li>Edit, save (<strong>Cmd/Ctrl + S</strong>), refresh the preview tab.</li>
+        <li>Open the control panel: <strong>Open in Browser</strong> in the popup, the globe on port 8080 in the Ports panel, or <code>http://localhost:8080/sandbox/</code> on a laptop.</li>
+        <li>Edit, save (<strong>Cmd/Ctrl + S</strong>), refresh. That goes for the <code>.gs</code> files too; there is nothing to paste or deploy.</li>
       </ol>
-      <p>The preview is private to your codespace. Nothing is public until you push.</p>
+      <p>
+        The control panel has a list of things to try, the outbox, the fake sheets and a page for each
+        script project where any function can be run. <strong>Reset the sandbox</strong> puts the fake data back.
+        <code>sandbox/README.md</code> says what is real and what is fake, and
+        <code>node sandbox/check.js</code> tests the sandbox itself.
+      </p>
+      <p>
+        The sandbox is private to your codespace or laptop. Nothing is public until you push. Before a
+        script change goes into a live project, it can also be tried on real Google in your own account,
+        with emails going only to you: see <code>sandbox/google/README.md</code>.
+      </p>
     </section>
 
     <section class="doc-section" id="copilot">
@@ -211,7 +229,7 @@
           <tr><td>Space Status web app<small>Emails, reminders, issue pages, projects, proposals</small></td><td>Standalone project "Production Space Status Tracking Emailer"</td><td><code>02_notify_on_submit.gs</code> <code>04_tasks_projects.gs</code> <code>07_proposals.gs</code></td></tr>
           <tr><td>Command Center API<small>The Command Center's numbers</small></td><td>Standalone project "Ops Command Center API"</td><td><code>command-center/Code.gs</code></td></tr>
           <tr><td>Inventory<small>Keeps the sheet tidy and serves the app</small></td><td>Bound to the inventory sheet</td><td><code>08_inventory.gs</code></td></tr>
-          <tr><td>Fabman members<small>The buttons in the Fabman members sheet</small></td><td>Bound to the Fabman Admin sheet</td><td><code>05_fabman_members.gs</code></td></tr>
+          <tr><td>Fabman members<small>Accounts for FabMan Agreement sign-ups, and the buttons in the Fabman members sheet</small></td><td>Bound to the Fabman Admin sheet</td><td><code>05_fabman_members.gs</code></td></tr>
           <tr><td>Fleet driver cleanup<small>The Driver cleanup menu</small></td><td>Bound to the Student Drivers sheet</td><td><code>fleet_driver_cleanup.gs</code></td></tr>
           <tr><td>Team Contacts setup<small>Run once, already done</small></td><td>From the Space Status sheet</td><td><code>01_setup_team_contacts.gs</code></td></tr>
         </tbody>
@@ -221,8 +239,31 @@
         is an older, run-by-hand version of the driver cleanup, kept for reference.
       </p>
 
+      <h3>Fabman sign-ups</h3>
+      <p>
+        The FabMan Agreement in the Canvas course is a Qualtrics survey. A workflow on the survey (a
+        Google Sheets task) adds each response as a row on the Fabman sheet's FabMan Agreement tab, which
+        fires the sheet's change trigger. <code>onSheetChange</code> in <code>05_fabman_members.gs</code> turns the row
+        into a Fabman account (or tops up an existing one) and writes the outcome in the row's Fabman status
+        column. Responses to the older Google Form land on the Sign-up Form tab and go through
+        <code>onFormSubmit</code> the same way. <code>processNewSignups</code> runs hourly and finishes anything left
+        waiting on either tab.
+      </p>
+      <p>
+        The script finds columns by header, so their order does not matter, but the Qualtrics task also
+        writes to the headers by name, so renaming the tab or a header breaks it. Qualtrics writes times in
+        Mountain Standard Time; the scripts allow for that. Two optional script properties (Project Settings
+        &gt; Script properties) change settings without a code edit: <code>ALERT_EMAILS</code>, who hears about
+        problems (Noah if unset), and <code>FABMAN_API_KEY</code>, which replaces the key at the top of the
+        script. Triggers run as the person who made them, and the Qualtrics task writes as the Google account
+        connected to it, so set up both from a staff account that will still exist next year.
+        <em>Set up the sign-up triggers</em> in the sheet's Fabman sign-ups menu installs the triggers and
+        makes the FabMan Agreement tab if it is missing.
+      </p>
+
       <h3>Putting a change live</h3>
       <ol>
+        <li>Try it in the <a href="#preview">sandbox</a> first, and for a bigger change, in your own Google copy (<code>sandbox/google/README.md</code>).</li>
         <li>Open the project, paste the changed file over the old one and save.</li>
         <li>The three web apps (Space Status, Command Center API, Inventory) only change after a new version: Deploy &gt; Manage deployments &gt; pencil &gt; Version: New version &gt; Deploy. The URL stays the same.</li>
         <li>Make sure the copy in <code>apps-script/</code> matches what now runs, and publish it.</li>

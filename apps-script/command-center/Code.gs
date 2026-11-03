@@ -43,7 +43,7 @@ const CACHE_SECONDS = 180; // SpreadsheetApp reads are slow; serve cached JSON b
 // version in the key, a redeploy keeps serving the OLD code's output until the
 // TTL expires. That once showed "supplies need restocking" over "all supplies
 // stocked". Bumping the key makes a redeploy take effect immediately.
-const CACHE_VERSION = 'v7';   // v7: breakdown lines use a middle dot, not an em dash
+const CACHE_VERSION = 'v9';   // v9: Qualtrics sign-up tab and its Mountain-time dates
 const CACHE_KEY = 'stats_' + CACHE_VERSION;
 
 // --- Web entry point -------------------------------------------------------
@@ -346,6 +346,7 @@ function fabman_() {
   }
 
   const newThisWeek = signupsSince_(ss, addDays_(startOfDay_(new Date()), -7));
+  const stuck = signupProblems_(ss);
 
   const stat = {
     key: 'fabman', name: 'Fabman', dot: '#2563c9', live: true,
@@ -359,6 +360,18 @@ function fabman_() {
   // No meter here: it would restate the "graduated still active" alarm below.
 
   const attention = [];
+  if (stuck.stalled || stuck.problems.length) {
+    const n = stuck.stalled + stuck.problems.length;
+    attention.push({
+      sev: stuck.stalled ? 'crit' : 'warn', domain: 'Fabman', dot: '#2563c9',
+      title: n + (n === 1 ? ' FabMan Agreement sign-up has' : ' FabMan Agreement sign-ups have') + ' no account yet',
+      sub: stuck.stalled
+        ? 'The sign-up script has not run on the newest sign-ups. Check its triggers (Fabman sheet, Fabman sign-ups menu)'
+        : 'See the Fabman status column in the Fabman sheet',
+      pill: stuck.stalled ? 'Stalled' : 'Check', pillType: stuck.stalled ? 'crit' : 'warn',
+      items: (stuck.stalled ? [stuck.stalled + ' waiting with no status'] : []).concat(stuck.problems.slice(0, 7)),
+    });
+  }
   if (awaiting > 0) {
     attention.push({
       sev: 'warn', domain: 'Fabman', dot: '#2563c9',
@@ -401,19 +414,78 @@ function truthy_(v) {
   return s === 'true' || s === 'yes' || s === 'y' || s === '1' || s === 'x';
 }
 
-// Count Sign-up Form submissions on/after `since`.
-function signupsSince_(ss, since) {
-  const sh = pickSheet_(ss, ['Sign-up Form', 'Sign up Form', 'Signup Form', 'Form Responses 1']);
-  if (!sh) return 0;
-  const v = sh.getDataRange().getValues();
-  if (v.length < 2) return 0;
-  const c = findCol_(v[0].map(norm_), ['timestamp']);
-  if (c < 0) return 0;
-  let n = 0;
-  for (let i = 1; i < v.length; i++) {
-    const d = new Date(v[i][c]);
-    if (!isNaN(d.getTime()) && d >= since) n++;
+// The tabs FabMan Agreement sign-ups land on: the Qualtrics survey's tab and the older
+// Google Form's. Older layouts used other names for the form tab.
+function signupTabs_(ss) {
+  const tabs = ['FabMan Agreement', 'Sign-up Form'].map(function (n) { return ss.getSheetByName(n); }).filter(Boolean);
+  if (tabs.length) return tabs;
+  const old = pickSheet_(ss, ['Sign up Form', 'Signup Form', 'Form Responses 1']);
+  return old ? [old] : [];
+}
+
+// When a sign-up was submitted, in milliseconds (NaN if unreadable). The Google Form
+// writes dates; Qualtrics writes text such as "2026-10-26 11:45:10" in Mountain Standard
+// Time (UTC-7), whatever the account's time zone.
+function signupTime_(v) {
+  if (v instanceof Date) return v.getTime();
+  const s = String(v == null ? '' : v).trim();
+  let m = /^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/.exec(s);
+  if (m) return Date.UTC(+m[1], +m[2] - 1, +m[3], +(m[4] || 0) + 7, +(m[5] || 0), +(m[6] || 0));
+  m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:,?\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*([AP]M)?)?$/i.exec(s);
+  if (m) {
+    const h = m[7] ? +m[4] % 12 + (/p/i.test(m[7]) ? 12 : 0) : +(m[4] || 0);
+    return Date.UTC(+m[3], +m[1] - 1, +m[2], h + 7, +(m[5] || 0), +(m[6] || 0));
   }
+  return s ? new Date(s).getTime() : NaN;
+}
+
+// FabMan Agreement sign-ups that did not become accounts, read from the "Fabman status"
+// column the Fabman sheet's script writes on each response. Two kinds:
+//   problems  a status saying an admin should look (an error, a locked account) or that
+//             a retry is pending; listed with the status text
+//   stalled   the newest sign-ups have no status at all, more than six hours after
+//             submitting, although earlier ones do: the script's triggers stopped. Six,
+//             not two, because a Qualtrics time that Sheets turned into a date can read
+//             up to three hours early (see signupTime_)
+// Sheets without the column (the script not set up yet) report nothing.
+function signupProblems_(ss) {
+  const out = { problems: [], stalled: 0 };
+  signupTabs_(ss).forEach(function (sh) {
+    const v = sh.getDataRange().getValues();
+    if (v.length < 2) return;
+    const H = v[0].map(norm_);
+    const cTs = findCol_(H, ['timestamp', 'recorded date']), cSt = findCol_(H, ['fabman status']);
+    if (cTs < 0 || cSt < 0) return;
+    const cFirst = findCol_(H, ['first name']), cLast = findCol_(H, ['last name']);
+    const recent = addDays_(startOfDay_(new Date()), -30).getTime();
+    const quiet = Date.now() - 6 * 3600000;
+    let lastWithStatus = -1;
+    for (let i = 1; i < v.length; i++) if (String(v[i][cSt]).trim()) lastWithStatus = i;
+    for (let i = 1; i < v.length; i++) {
+      const t = signupTime_(v[i][cTs]);
+      if (isNaN(t) || t < recent) continue;
+      const st = String(v[i][cSt]).trim();
+      const who = [cFirst >= 0 ? v[i][cFirst] : '', cLast >= 0 ? v[i][cLast] : ''].join(' ').trim() || 'Row ' + (i + 1);
+      if (/^(error|will retry|has an account)/i.test(st)) out.problems.push(who + ' · ' + st.replace(/\s*\([^)]*\)\s*$/, '').slice(0, 90));
+      else if (!st && lastWithStatus >= 0 && i > lastWithStatus && t < quiet) out.stalled++;
+    }
+  });
+  return out;
+}
+
+// Count FabMan Agreement sign-ups (both tabs) on/after `since`.
+function signupsSince_(ss, since) {
+  let n = 0;
+  signupTabs_(ss).forEach(function (sh) {
+    const v = sh.getDataRange().getValues();
+    if (v.length < 2) return;
+    const c = findCol_(v[0].map(norm_), ['timestamp', 'recorded date']);
+    if (c < 0) return;
+    for (let i = 1; i < v.length; i++) {
+      const t = signupTime_(v[i][c]);
+      if (!isNaN(t) && t >= since.getTime()) n++;
+    }
+  });
   return n;
 }
 

@@ -103,6 +103,7 @@
         <li><strong>Panels.</strong> The large tiles (Open issues dashboard, Review proposals, Inventory) open over the page. <em>Full page</em> opens the same view in its own tab, and Esc closes the panel.</li>
         <li><strong>Command Center.</strong> The gold button at the top. A number on it means something needs attention (see <a href="#command">Command Center</a>).</li>
         <li><strong>Developer page.</strong> The scripts, the code and the developer guide have their own page, linked at the bottom of the section list. Daily work never needs it.</li>
+        <li><strong>Practice.</strong> The <a href="dev-guide.html#preview">sandbox</a> runs this whole admin side on made-up data, emails included, so every button here can be tried without reaching a real team.</li>
       </ul>
     </section>
 
@@ -257,7 +258,9 @@
       </p>
       <ul>
         <li><strong>Dashboard tab.</strong> Every Fabman member with their team, graduation year, apron and trainings, pulled from Fabman.</li>
-        <li><strong>Sign-up Form tab.</strong> New sign-ups arrive here and are added to Fabman.</li>
+        <li><strong>FabMan Agreement tab.</strong> Each FabMan Agreement signed in the Safety &amp; Training Hub Canvas course (a Qualtrics survey) arrives here as a new row and becomes a Fabman account within a minute or so: Spaces and Lab (plus Machines and Mills for a red apron) and an invitation email. The <em>Fabman status</em> column says what happened to each one. A status starting with <em>Error</em> or <em>Has an account</em> needs a person: fix the row (usually a mistyped NetID) and clear the status, and the script tries again. <em>Will retry</em> means Fabman was busy; it sorts itself out. Don't rename this tab or its column headers, because the survey writes to them by name.</li>
+        <li><strong>Sign-up Form tab.</strong> Responses to the older Google Form version of the agreement. They are handled the same way until that form is retired.</li>
+        <li><strong>Fabman sign-ups menu.</strong> <em>Check sign-ups</em> lists recent sign-ups that have no account, without changing anything. <em>Process waiting sign-ups now</em> does the hourly run straight away, and <em>Process sign-ups since a date</em> catches up after an outage. <em>Set up the sign-up triggers</em> is run once, from a staff account rather than a student's. Problems are emailed, and the Command Center shows any sign-up still without an account.</li>
         <li><strong>Actions tab.</strong> Put email addresses in column A, then press a button to make one change for all of them: grant Machines or Mills, set an apron color (Red also grants Machines and Mills), add or remove Supervisor, lock or activate accounts, delete them, or send Fabman invitations.</li>
         <li><strong>Graduates.</strong> <em>Flag graduates for review</em> lists everyone whose graduation year is this year or earlier on a Graduates tab, each ticked and set to Lock. Untick anyone to keep, switch someone to Delete if needed, then run <em>Process graduates</em>. Delete removes the Fabman account for good. Each row shows what happened in its Result column.</li>
       </ul>

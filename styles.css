@@ -1949,6 +1949,7 @@ body.issues-panel-open { overflow: hidden; }
 #projects-admin { --cat: #b8791a; --cat-deep: #82530b; --glow: rgba(184, 121, 26, 0.3); }
 #fleet       { --cat: #7c3aed; --cat-deep: #5b27b0; --glow: rgba(124, 58, 237, 0.3); }
 #inventory   { --cat: #0d9488; --cat-deep: #0a6d64; --glow: rgba(13, 148, 136, 0.3); }
+#teams-admin { --cat: #be185d; --cat-deep: #8a1144; --glow: rgba(190, 24, 93, 0.3); }
 #scripts     { --cat: #444d56; --cat-deep: #1b1f24; --glow: rgba(27, 31, 36, 0.3); }
 #code        { --cat: #2f5d8a; --cat-deep: #1f3f5f; --glow: rgba(47, 93, 138, 0.3); }
 

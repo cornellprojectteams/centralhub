@@ -14,22 +14,32 @@ Static web hub for Cornell Project Teams Safety & Operations. Links staff and ad
 | `space-status-how-to.html` | Staff how-to for Space Status |
 | `command-center.html` | Ops metrics dashboard. Reached by shared link |
 | `team.html` | Shareable per-team open-issues page (`team.html?team=<name>`) |
+| `team-photos.html`, `team-photos.js` | Team member photos from every team's website, filtered by team and role. Linked from the admin page (Teams) |
+| `data/team-photos.json`, `tools/team-photos/` | The photo database and the scripts that refresh it (see `tools/team-photos/README.md`) |
 | `styles.css` | Layout and Cornell theming |
 | `app.js` | Live search, the slide-over panels, the section list (shared by the staff, admin and developer pages) |
 | `config.js` | Single source for the Space Status web app `/exec` URL and the inventory settings (`INVENTORY`) |
 | `inventory.html`, `inventory.js`, `inventory.css` | The tool & equipment inventory app (also opens in a panel from the staff and admin pages) |
 | `apps-script/08_inventory.gs` | The inventory's backend: builds the Google Sheet, keeps it tidy, and serves the app's API |
 | `assets/` | Cornell seal and favicon SVGs |
+| `sandbox/` | The sandbox: the whole platform on made-up data, for trying changes safely (see `sandbox/README.md`) |
+| `.devcontainer/` | Codespace settings; a new codespace starts the sandbox |
 
 ## Running locally
 
-Any static file server works, for example:
+Use the sandbox. It serves the site and also runs the Apps Script projects on fake data, so the
+dashboards, emails, inventory and Command Center all work, and nothing reaches Google, Fabman or a
+real person. It needs Node.js 18 or newer and nothing else:
 
 ```bash
-npx serve .
+node sandbox/server.js
 ```
 
-Open `http://localhost:3000` (or the port shown).
+Open `http://localhost:8080/sandbox/`. In a codespace it starts on its own. `sandbox/README.md`
+explains what is real and what is fake, and `sandbox/google/README.md` covers trying a script change
+on real Google in your own account before it goes live.
+
+Any static file server (`npx serve .`) still shows the pages, but without data behind them.
 
 ## Navigation
 
