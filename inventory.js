@@ -27,6 +27,11 @@
   const APP_URL = String(CFG.appUrl || '').trim() || new URL('inventory.html', location.href).href;
   const params = new URLSearchParams(location.search);
   const ADMIN = params.get('admin') === '1';
+  // A team link (?team=Baja&key=...) lets that team add items and edit its own items.
+  const TEAM_NAME = ADMIN ? '' : String(params.get('team') || '').trim();
+  const TEAM_KEY = ADMIN ? '' : String(params.get('key') || '').trim();
+  const TEAM_MODE = !!(TEAM_NAME && TEAM_KEY);
+  const NEW_DAYS = 30;   // "Recently added" covers this many days
   const LABELS = params.get('labels') === '1';
   const START_ID = String(params.get('item') || '').trim().toUpperCase();
   const CACHE_KEY = 'ops-hub-inventory-v3';
@@ -50,7 +55,10 @@
     loading: false,
     error: '',
     savedAt: 0,
-    filter: 'all', q: '', team: '', loc: '', cat: '',
+    filter: 'all', q: '', team: TEAM_MODE ? TEAM_NAME : '', loc: '', cat: '',
+    teamOk: null,         // team link: null (checking), true, or the error message
+    links: null,          // admin's team links: null, 'loading', [{ team, key }] or an error message
+    carry: null,          // "Add and start another": category, location and team for the next form
     view: '',             // drawer: '' (closed), 'item', 'edit', 'add', 'maint'
     openId: '',
     details: {},          // id -> { at, maintenance } or { at, error }
@@ -140,6 +148,7 @@
       const cb = '__inv' + Date.now().toString(36) + (++seq);
       const q = new URLSearchParams(query);
       if (ADMIN) q.set('admin', '1');
+      else if (TEAM_MODE) { q.set('team', TEAM_NAME); q.set('key', TEAM_KEY); }
       q.set('callback', cb);
       const s = document.createElement('script');
       let done = false;
@@ -170,7 +179,7 @@
     try {
       const res = await fetch(API, {
         method: 'POST',
-        body: JSON.stringify({ action: 'photo', admin: '1', id: id, data: data }),
+        body: JSON.stringify(Object.assign({ action: 'photo', id: id, data: data }, ADMIN ? { admin: '1' } : { team: TEAM_NAME, key: TEAM_KEY })),
         signal: ctrl ? ctrl.signal : undefined,
       });
       const out = await res.json();
@@ -263,6 +272,7 @@
     { key: 'repair', label: 'Needs repair', alert: true, test: (it, l) => it.cond === 'Needs Repair' && l.key !== 'retired' },
     { key: 'stock', label: 'Low stock', alert: true, test: (it, l) => l.key === 'low' || l.key === 'empty' },
     { key: 'oos', label: 'Out of service', test: (it, l) => l.key === 'maint' },
+    { key: 'new', label: 'Recently added', test: (it, l) => l.key !== 'retired' && recentlyAdded(it) },
     { key: 'maintdue', label: 'Maintenance due', alert: true, admin: true, test: (it, l) => l.key !== 'retired' && maintDue(it) },
     { key: 'retired', label: 'Retired', admin: true, test: (it, l) => l.key === 'retired' },
   ].filter((f) => ADMIN || !f.admin);
@@ -275,7 +285,18 @@
 
   function findItem(id) { return state.items.find((i) => i.id === id) || null; }
   function teamOf(it) { return it.team || SHARED; }
-  function photosOn() { return ADMIN && state.meta.api >= 2; }
+  function teamLinkOk() { return TEAM_MODE && state.teamOk === true; }
+  function photosOn() { return (ADMIN && state.meta.api >= 2) || (teamLinkOk() && state.meta.api >= 4); }
+  function canAdd() { return ADMIN || teamLinkOk(); }
+  function canEdit(it) { return ADMIN || (teamLinkOk() && !!it && teamOf(it) === TEAM_NAME); }
+  function addedDays(it) { return it.added && parseDay(it.added) ? daysFrom(it.added, todayIso()) : null; }
+  function recentlyAdded(it) { const d = addedDays(it); return d !== null && d >= 0 && d <= NEW_DAYS; }
+  function addedText(it) {
+    if (!it.added || !parseDay(it.added)) return '';
+    const d = addedDays(it);
+    const when = d === 0 ? 'today' : d === 1 ? 'yesterday' : fmtDay(it.added);
+    return when + (it.addedBy ? ' by ' + it.addedBy : '');
+  }
 
   function upsert(item) {
     const i = state.items.findIndex((x) => x.id === item.id);
@@ -346,15 +367,17 @@
   function scaffold() {
     const icon = (d) => '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + '</svg>';
     app.innerHTML =
+      (EMBED ? '' : '<a class="inv-back" href="' + (ADMIN ? 'admin.html#inventory' : 'index.html') + '"><span aria-hidden="true">&larr;</span> ' + (ADMIN ? 'Back to admin' : 'Back to the hub') + '</a>') +
       '<section class="inv-top">' +
         '<div class="inv-head">' +
-          '<div class="inv-title-row"><h1 class="inv-title">Tool inventory</h1>' + (ADMIN ? '<span class="inv-admin-pill">Admin view</span>' : '') + '</div>' +
+          '<div class="inv-title-row"><h1 class="inv-title">' + (TEAM_MODE ? esc(TEAM_NAME) + ' inventory' : 'Tool inventory') + '</h1>' +
+            (ADMIN ? '<span class="inv-admin-pill">Admin view</span>' : TEAM_MODE ? '<span class="inv-admin-pill is-team">Team link</span>' : '') + '</div>' +
           '<p class="inv-reading" id="inv-reading"></p>' +
         '</div>' +
-        (ADMIN
+        (ADMIN || TEAM_MODE
           ? '<div class="inv-head-tools">' +
-              '<button type="button" class="inv-btn is-primary" data-act="add">' + icon('<line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>') + 'Add item</button>' +
-              '<a class="inv-btn" href="inventory.html?labels=1" target="_blank" rel="noopener">' + icon('<polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect>') + 'Print labels</a>' +
+              '<button type="button" class="inv-btn is-primary" data-act="add"' + (TEAM_MODE ? ' id="inv-add-team" disabled' : '') + '>' + icon('<line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>') + 'Add item</button>' +
+              (ADMIN ? '<a class="inv-btn" href="inventory.html?labels=1" target="_blank" rel="noopener">' + icon('<polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect>') + 'Print labels</a>' : '') +
             '</div>'
           : '') +
       '</section>' +
@@ -423,6 +446,14 @@
       html += '<div class="inv-notice is-warn" role="alert"><span>' + esc(state.error) +
         (state.savedAt ? ' Showing what was loaded at ' + esc(clock(new Date(state.savedAt))) + '.' : '') +
         '</span><button type="button" class="inv-btn is-small" data-act="reload">Try again</button></div>';
+    }
+    if (TEAM_MODE && state.teamOk === true) {
+      html += '<div class="inv-notice is-info"><span><b>You are adding to the ' + esc(TEAM_NAME) + ' inventory.</b> Add each tool or supply your team keeps in the shops, with how many there are. ' +
+        'Items you add are filed under ' + esc(TEAM_NAME) + ', and you can edit them later from this same link.</span></div>';
+    } else if (TEAM_MODE && typeof state.teamOk === 'string') {
+      html += '<div class="inv-notice is-warn" role="alert"><span>' + esc(state.teamOk) + ' You can still look through the inventory.</span></div>';
+    } else if (TEAM_MODE && state.loaded && state.meta.api && state.meta.api < 4) {
+      html += '<div class="inv-notice is-warn"><span><b>Team links aren’t switched on yet.</b> The inventory sheet is running an older script. Ask the Operations team to update it.</span></div>';
     }
     if (ADMIN && state.loaded && !state.error && state.meta.api < 2) {
       html += '<div class="inv-notice is-info"><span><b>Photos and teams are switched off.</b> The inventory sheet is still running the previous script. ' +
@@ -522,6 +553,7 @@
     });
     if (state.filter === 'stock') list.sort((a, b) => (a.qty || 0) - (b.qty || 0) || byName(a, b));
     else if (state.filter === 'maintdue') list.sort((a, b) => a.nextMaint.localeCompare(b.nextMaint) || byName(a, b));
+    else if (state.filter === 'new') list.sort((a, b) => String(b.added).localeCompare(String(a.added)) || byName(a, b));
     else list.sort(byName);
     return list;
   }
@@ -533,6 +565,8 @@
       bed(it, false) +
       '<span class="inv-slot-body">' +
         '<span class="inv-slot-top"><span class="inv-assettag">' + esc(it.id) + '</span>' + team +
+          (!it.consumable && it.qty > 1 ? '<span class="inv-qtymark" title="' + it.qty + ' of these">×' + it.qty + '</span>' : '') +
+          (recentlyAdded(it) ? '<span class="inv-newmark" title="Added ' + esc(addedText(it)) + '">New</span>' : '') +
           (it.test ? '<span class="inv-testmark">Test</span>' : '') + '</span>' +
         '<span class="inv-slot-name">' + esc(it.name) + '</span>' +
         '<span class="inv-slot-line"><span class="inv-dot is-' + l.key + '" aria-hidden="true"></span><span>' + esc(l.line) +
@@ -557,7 +591,10 @@
 
     if (!state.items.length) {
       count.innerHTML = '';
-      el.innerHTML = ADMIN
+      el.innerHTML = teamLinkOk()
+        ? '<div class="inv-empty"><h2 class="inv-empty-title">Nothing on the board yet</h2><p>Add the first tool or supply your team keeps in the shops.</p>' +
+            '<div class="inv-empty-actions"><button type="button" class="inv-btn is-primary" data-act="add">Add item</button></div></div>'
+        : ADMIN
         ? '<div class="inv-empty"><h2 class="inv-empty-title">Nothing on the board yet</h2><p>Add the first tool, or load test data to see how everything works.</p>' +
             '<div class="inv-empty-actions"><button type="button" class="inv-btn is-primary" data-act="add">Add item</button>' +
             '<button type="button" class="inv-btn" data-act="test-add">Load test data</button></div></div>'
@@ -572,8 +609,13 @@
       ? 'Showing ' + list.length + ' of ' + plural(total, 'item', 'items') + '<button type="button" class="inv-link" data-act="clear">Clear filters</button>'
       : plural(total, 'item', 'items');
     const flash = state.view ? '' : state.flashId;
+    const teamEmpty = TEAM_MODE && state.team === TEAM_NAME && !state.q && state.filter === 'all' && !state.loc && !state.cat;
     el.innerHTML = list.length
       ? '<ul class="inv-grid">' + list.map((it) => slot(it, flash)).join('') + '</ul>'
+      : teamEmpty
+      ? '<div class="inv-empty"><h2 class="inv-empty-title">Nothing for ' + esc(TEAM_NAME) + ' yet</h2><p>' +
+          (teamLinkOk() ? 'Add the first tool or supply your team keeps in the shops.' : 'Nothing is filed under this team yet.') + '</p>' +
+          (teamLinkOk() ? '<div class="inv-empty-actions"><button type="button" class="inv-btn is-primary" data-act="add">Add item</button></div>' : '') + '</div>'
       : '<div class="inv-empty"><h2 class="inv-empty-title">Nothing matches</h2><p>Try another search, or clear the filters to see everything.</p>' +
           '<button type="button" class="inv-btn" data-act="clear">Clear filters</button></div>';
     if (flash) {
@@ -590,13 +632,62 @@
     const btn = (act, label, armedLabel, danger) =>
       '<button type="button" class="inv-btn is-small' + (state.armed === act ? ' is-danger' : danger ? ' is-quiet-danger' : '') + '" data-act="' + act + '">' +
       (state.armed === act ? armedLabel : label) + '</button>';
-    el.innerHTML = '<div class="inv-admin-foot-text"><h2>Test data</h2><p>' +
+    el.innerHTML = teamLinksHtml() + '<div class="inv-admin-foot-row"><div class="inv-admin-foot-text"><h2>Test data</h2><p>' +
       (n ? plural(n, 'test item is', 'test items are') + ' loaded. Each one is tagged “[test data]” in its notes, and removing them leaves real items alone.'
         : 'Sample tools, supplies and maintenance you can try things on, then remove in one click.') + '</p></div>' +
       '<div class="inv-admin-foot-actions">' +
         (n ? btn('test-reset', 'Reset test data', 'Click again to reset', false) + btn('test-remove', 'Remove test data', 'Click again to remove', true)
            : '<button type="button" class="inv-btn is-small" data-act="test-add">Load test data</button>') +
-      '</div>';
+      '</div></div>';
+  }
+
+  // Team links: one link per team that lets it add its own items (see teamFromLink_ in the script).
+  function teamLink(l) { return APP_URL + '?team=' + encodeURIComponent(l.team) + '&key=' + encodeURIComponent(l.key); }
+
+  function teamLinksHtml() {
+    const L = state.links;
+    const head = '<div class="inv-admin-foot-text"><h2>Team links</h2><p>Send a team its link and its members can add their own tools and supplies, with quantities and photos. ' +
+      'A link only adds and edits that team’s items. Resetting makes every old link stop working.</p></div>';
+    let body;
+    if (state.meta.api && state.meta.api < 4) body = '<p class="inv-hint">Team links need the updated inventory script. Paste the new <code>08_inventory.gs</code> into the sheet’s Apps Script, then Deploy &gt; Manage deployments &gt; New version.</p>';
+    else if (!L) body = '<button type="button" class="inv-btn is-small" data-act="links-show">Show team links</button>';
+    else if (L === 'loading') body = '<p class="inv-hint"><span class="inv-spin" aria-hidden="true"></span> Getting the links…</p>';
+    else if (typeof L === 'string') body = '<p class="inv-hint">Couldn’t get the links. ' + esc(L) + '</p><button type="button" class="inv-btn is-small" data-act="links-show">Try again</button>';
+    else body = '<ul class="inv-links">' + L.map((l, i) =>
+        '<li><span class="inv-links-team">' + esc(l.team) + '</span>' +
+        '<input class="inv-links-url" readonly value="' + esc(teamLink(l)) + '" aria-label="Link for ' + esc(l.team) + '">' +
+        '<button type="button" class="inv-btn is-small" data-act="links-copy" data-i="' + i + '">Copy</button></li>').join('') + '</ul>' +
+      '<div class="inv-admin-foot-actions">' +
+        '<button type="button" class="inv-btn is-small' + (state.armed === 'links-reset' ? ' is-danger' : ' is-quiet-danger') + '" data-act="links-reset">' +
+        (state.armed === 'links-reset' ? 'Click again: every old link stops working' : 'Reset all links') + '</button></div>';
+    return '<div class="inv-admin-foot-row is-links">' + head + '<div class="inv-links-body">' + body + '</div></div>';
+  }
+
+  async function loadLinks(reset) {
+    state.links = 'loading';
+    renderAdminFoot();
+    try {
+      const res = await api({ action: reset ? 'resetteamlinks' : 'teamlinks' }, 30000);
+      state.links = res.links || [];
+      if (reset) toast('New team links made. The old ones no longer work.');
+    } catch (err) {
+      state.links = err.message;
+    }
+    renderAdminFoot();
+  }
+
+  async function copyLink(i, btn) {
+    const l = Array.isArray(state.links) && state.links[i];
+    if (!l) return;
+    const url = teamLink(l);
+    try { await navigator.clipboard.writeText(url); }
+    catch (e) {
+      const box = btn.parentNode.querySelector('input');
+      if (box) { box.select(); try { document.execCommand('copy'); } catch (x) { /* user can copy by hand */ } }
+    }
+    btn.textContent = 'Copied';
+    setTimeout(() => { if (document.contains(btn)) btn.textContent = 'Copy'; }, 1600);
+    toast('Link for ' + l.team + ' copied.');
   }
 
   function renderNotConnected() {
@@ -790,9 +881,11 @@
       fact('Location', esc(it.loc)) +
       fact('Category', esc([it.cat, it.sub].filter(Boolean).join(', '))) +
       fact('Condition', it.consumable ? '' : esc(it.cond)) +
+      fact('Quantity', !it.consumable && it.qty != null ? esc(String(it.qty)) : '') +
       fact('Serial or asset tag', esc(it.serial)) +
       fact('Purchased', it.bought ? esc(fmtDay(it.bought)) : '') +
       fact('Next maintenance', it.nextMaint ? esc(fmtDay(it.nextMaint)) + (nextIn !== null && nextIn < 0 ? ' <span class="inv-late">overdue</span>' : '') : '') +
+      fact('Added', esc(addedText(it))) +
       fact('Notes', esc(notes), true) +
       fact('Photo', link);
 
@@ -807,9 +900,9 @@
       (action ? '<section class="inv-d-action" id="inv-action">' + action + '</section>' : '') +
       (facts ? '<section class="inv-d-sec"><h3 class="inv-d-h">Details</h3><dl class="inv-facts">' + facts + '</dl></section>' : '') +
       '<section class="inv-d-sec"><h3 class="inv-d-h">Maintenance</h3><div id="inv-hist">' + historyHtml(it) + '</div></section>' +
-      (ADMIN
+      (canEdit(it)
         ? '<div class="inv-d-admin"><button type="button" class="inv-btn" data-act="edit">Edit item</button>' +
-            '<button type="button" class="inv-btn" data-act="maint">Log maintenance</button></div>'
+            (ADMIN ? '<button type="button" class="inv-btn" data-act="maint">Log maintenance</button>' : '') + '</div>'
         : '');
   }
 
@@ -841,7 +934,7 @@
         '<span class="inv-stock-n">' + (it.qty == null ? '?' : it.qty) + '</span>' +
         '<span class="inv-stock-text"><b>on hand</b>' + (it.min != null ? 'Reorder at ' + it.min : 'No reorder level set') + '</span>' +
       '</div>' +
-      (ADMIN ? countForm(it) : '<p class="inv-hint">Running low? Tell the Operations team.</p>');
+      (canEdit(it) ? countForm(it) : '<p class="inv-hint">Running low? Tell the Operations team.</p>');
   }
 
   // ---------------------------------------------------------------- forms
@@ -853,7 +946,7 @@
     '<button type="submit" class="inv-btn is-primary is-block">' + submit + '</button>';
 
   function countForm(it) {
-    return '<form class="inv-card inv-form" data-form="count" novalidate><h3 class="inv-card-title">Update the count</h3>' +
+    return '<form class="inv-card inv-form" data-form="count" novalidate><h3 class="inv-card-title">' + (it.consumable ? 'Update the count' : 'How many') + '</h3>' +
       '<div class="inv-stepper"><button type="button" class="inv-btn" data-step="-1" aria-label="One less">−</button>' +
       '<input type="number" name="qty" min="0" step="1" inputmode="numeric" value="' + (it.qty == null ? '' : it.qty) + '" aria-label="On hand">' +
       '<button type="button" class="inv-btn" data-step="1" aria-label="One more">+</button></div>' +
@@ -901,7 +994,8 @@
 
   function editView(it) {
     const isNew = !it;
-    it = it || { cat: '', sub: '', loc: '', team: SHARED, cond: 'Good', oos: '' };
+    it = it || Object.assign({ cat: '', sub: '', loc: '', team: TEAM_MODE ? TEAM_NAME : SHARED, cond: 'Good', oos: '', qty: 1 }, state.carry || {});
+    state.carry = null;
     const cats = state.lists.categories.map((c) => c.name);
     const consumable = String(it.cat).toLowerCase() === 'consumable';
     return drawerBar('<span class="inv-assettag is-lg' + (isNew ? ' is-new' : '') + '">' + (isNew ? 'New' : esc(it.id)) + '</span>') +
@@ -912,7 +1006,9 @@
         '<div class="inv-form-grid">' +
           pickField('cat', 'Category', cats, it.cat, { blank: isNew ? 'Pick one' : null, required: true }) +
           pickField('sub', 'Subcategory', state.lists.subcategories, it.sub, { blank: 'None', addLabel: 'Add a new subcategory…', placeholder: 'New subcategory' }) +
-          pickField('team', 'Team', teamsList(), teamOf(it), {}) +
+          (TEAM_MODE
+            ? '<div class="inv-field"><span class="inv-label">Team</span><span class="inv-fixed">' + esc(TEAM_NAME) + '</span></div>'
+            : pickField('team', 'Team', teamsList(), teamOf(it), {})) +
           pickField('loc', 'Location', state.lists.locations, it.loc, { blank: 'Not set', addLabel: 'Add a new location…', placeholder: 'New location' }) +
         '</div>' +
         segField('cond', 'Condition', [['Good', 'Good'], ['Fair', 'Fair'], ['Needs Repair', 'Needs repair']], it.cond) +
@@ -921,13 +1017,19 @@
           field('Serial or asset tag', '<input name="serial" maxlength="80" value="' + esc(it.serial || '') + '" autocomplete="off">') +
           field('Purchase date', '<input type="date" name="bought" value="' + esc(parseDay(it.bought) ? it.bought : '') + '">') +
         '</div>' +
-        '<div class="inv-form-grid inv-qty-fields' + (consumable ? '' : ' is-hidden') + '">' +
-          field('On hand', '<input type="number" name="qty" min="0" step="1" inputmode="numeric" value="' + (it.qty == null ? '' : it.qty) + '">') +
-          field('Reorder at', '<input type="number" name="min" min="0" step="1" inputmode="numeric" value="' + (it.min == null ? '' : it.min) + '">') +
+        '<div class="inv-form-grid inv-qty-fields">' +
+          '<label class="inv-field"><span class="inv-label" data-qty-label>' + (consumable ? 'On hand' : 'Quantity') + '</span>' +
+            '<span class="inv-stepper is-inline"><button type="button" class="inv-btn" data-step="-1" aria-label="One less">−</button>' +
+            '<input type="number" name="qty" min="0" step="1" inputmode="numeric" value="' + (it.qty == null ? '' : it.qty) + '">' +
+            '<button type="button" class="inv-btn" data-step="1" aria-label="One more">+</button></span></label>' +
+          '<label class="inv-field inv-min-field' + (consumable ? '' : ' is-hidden') + '"><span class="inv-label">Reorder at</span>' +
+            '<input type="number" name="min" min="0" step="1" inputmode="numeric" value="' + (it.min == null ? '' : it.min) + '"></label>' +
         '</div>' +
+        (isNew && TEAM_MODE ? field('Your name or NetID', '<input name="addedBy" required maxlength="60" value="' + esc(recall('inv-added-by') || '') + '" autocomplete="name">', 'is-wide') : '') +
         field('Notes', '<textarea name="notes" rows="3" maxlength="1000">' + esc(it.notes || '') + '</textarea>', 'is-wide') +
         '<div class="inv-form-bar"><p class="inv-form-err" role="alert" hidden></p><div class="inv-form-actions">' +
           '<button type="submit" class="inv-btn is-primary">' + (isNew ? 'Add item' : 'Save changes') + '</button>' +
+          (isNew ? '<button type="submit" class="inv-btn" name="again" value="1">Add and start another</button>' : '') +
           '<button type="button" class="inv-btn" data-act="cancel">Cancel</button></div></div>' +
       '</form>';
   }
@@ -1022,7 +1124,7 @@
     return String(el.value || '').trim();
   }
 
-  function onSubmit(form) {
+  function onSubmit(form, submitter) {
     const kind = form.dataset.form;
     const it = findItem(state.openId);
     const val = (name) => (form.elements[name] ? String(form.elements[name].value || '').trim() : '');
@@ -1041,10 +1143,17 @@
         name: val('name'), cat: selectValue(form, 'cat'), sub: selectValue(form, 'sub'), loc: selectValue(form, 'loc'),
         team: selectValue(form, 'team'), cond: radio('cond'), oos: radio('oos'),
         serial: val('serial'), bought: val('bought'), qty: val('qty'), min: val('min'), notes: val('notes'),
+        addedBy: val('addedBy'),
       };
+      if (TEAM_MODE) f.team = TEAM_NAME;
+      if (!form.elements.addedBy) delete f.addedBy;
+      const again = !!(submitter && submitter.name === 'again');
       if (!f.team) delete f.team;   // older scripts don't know teams
       if (!f.name) { markBad(form, 'name'); return formError(form, 'Give the item a name.'); }
       if (!f.cat) { markBad(form, 'cat'); return formError(form, 'Pick a category.'); }
+      if (f.qty && !/^\d+$/.test(f.qty)) { markBad(form, 'qty'); return formError(form, 'The quantity has to be a whole number.'); }
+      if (form.elements.addedBy && !f.addedBy) { markBad(form, 'addedBy'); return formError(form, 'Add your name or NetID so the Operations team knows who added it.'); }
+      if (f.addedBy) store('inv-added-by', f.addedBy);
       if (form.elements.loc && form.elements.loc.value === '__new' && !f.loc) { markBad(form, 'loc__new'); return formError(form, 'Type the new location, or pick one from the list.'); }
       if (form.elements.sub && form.elements.sub.value === '__new' && !f.sub) { markBad(form, 'sub__new'); return formError(form, 'Type the new subcategory, or pick one from the list.'); }
       const editing = state.view === 'edit' && it;
@@ -1066,7 +1175,18 @@
         state.pendingPhoto = '';
         if (f.loc && state.lists.locations.indexOf(f.loc) < 0) state.lists.locations.push(f.loc);
         if (f.sub && state.lists.subcategories.indexOf(f.sub) < 0) state.lists.subcategories.push(f.sub);
-        afterChange(res.item, res.photoError ? 'Saved, but the photo didn’t upload. ' + res.photoError : (editing ? 'Saved.' : 'Added ' + res.item.id + '.'));
+        const msg = res.photoError ? 'Saved, but the photo didn’t upload. ' + res.photoError : (editing ? 'Saved.' : 'Added ' + res.item.id + '.');
+        if (again && !editing) {
+          // keep where it lives and who owns it; start the next item blank otherwise
+          upsert(res.item);
+          state.flashId = res.item.id;
+          renderBoard();
+          state.carry = { cat: f.cat, sub: f.sub, loc: f.loc, team: f.team || SHARED };
+          openForm('add', null);
+          toast(msg + ' Add the next one.');
+          return;
+        }
+        afterChange(res.item, msg);
       });
     }
     if (kind === 'maint') {
@@ -1240,13 +1360,16 @@
     if (!act) return;
     const a = act.dataset.act;
     if (a === 'reload') load();
-    else if (a === 'add') { state.returnFocus = act; openForm('add', null); }
+    else if (a === 'add' && canAdd()) { state.returnFocus = act; openForm('add', null); }
     else if (a === 'clear') {
       state.filter = 'all'; state.q = ''; state.team = ''; state.loc = ''; state.cat = '';
       const q = document.getElementById('inv-q');
       if (q) q.value = '';
       renderChips(); renderPicks(); renderResults();
     }
+    else if (a === 'links-show') loadLinks(false);
+    else if (a === 'links-reset') arm('links-reset', () => loadLinks(true), renderAdminFoot);
+    else if (a === 'links-copy') copyLink(Number(act.dataset.i), act);
     else if (a === 'test-add') testData('add');
     else if (a === 'test-remove') arm('test-remove', () => testData('remove'), renderAdminFoot);
     else if (a === 'test-reset') arm('test-reset', () => testData('reset'), renderAdminFoot);
@@ -1325,7 +1448,7 @@
 
   drawer.addEventListener('submit', (e) => {
     e.preventDefault();
-    onSubmit(e.target);
+    onSubmit(e.target, e.submitter);
   });
 
   // Typing again clears an earlier error, so stale messages don't linger.
@@ -1346,8 +1469,11 @@
       if (!box.hidden) box.focus();
     }
     if (t.name === 'cat' && form && form.dataset.form === 'save') {
-      const qty = form.querySelector('.inv-qty-fields');
-      if (qty) qty.classList.toggle('is-hidden', t.value.toLowerCase() !== 'consumable');
+      const supply = t.value.toLowerCase() === 'consumable';
+      const min = form.querySelector('.inv-min-field');
+      if (min) min.classList.toggle('is-hidden', !supply);
+      const label = form.querySelector('[data-qty-label]');
+      if (label) label.textContent = supply ? 'On hand' : 'Quantity';
     }
     if (t.matches && t.matches('[data-photo-for]')) { const f = t.files && t.files[0]; if (f) uploadPhoto(t.dataset.photoFor, f); return; }
     if (t.matches && t.matches('[data-photo-pick]')) pickFormPhoto(t);
@@ -1416,6 +1542,9 @@
     // Inside the hub's slide-over: "Back to the hub" makes no sense there.
     const back = document.getElementById('inv-head-back');
     if (back) back.hidden = true;
+  } else if (ADMIN) {
+    const back = document.getElementById('inv-head-back');
+    if (back) { back.href = 'admin.html#inventory'; back.innerHTML = '&larr; Back to admin'; }
   }
 
   if (!API) {
@@ -1438,4 +1567,14 @@
 
   if (LABELS) renderLabels(); else { renderBoard(); handleStart(false); }
   load();
+  if (TEAM_MODE) {
+    api({ action: 'teamcheck' }, 30000).then((res) => {
+      state.teamOk = true;
+      if (res.team && res.team !== TEAM_NAME) state.team = res.team;
+    }, (err) => { state.teamOk = err.message; }).then(() => {
+      const add = document.getElementById('inv-add-team');
+      if (add) add.disabled = !teamLinkOk();
+      renderBoard();
+    });
+  }
 })();

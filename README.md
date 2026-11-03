@@ -125,6 +125,24 @@ is in, its maintenance, and how much of each supply is left.
 - A tool's QR label opens that tool (`inventory.html?item=PT-001`). The browser's Back button closes
   an open tool.
 
+**Adding items.** The add form takes a quantity for every item (how many of that tool; for a
+consumable, the count on hand plus a reorder level). *Add and start another* saves the item and
+opens a fresh form with the same category, location and team, so a batch goes in without closing
+the form. Each item records **Date Added** and **Added By**; rows typed straight into the sheet get
+their date when their ID fills in. The *Recently added* chip lists the last 30 days, newest first.
+
+**Team links.** At the bottom of the admin view, *Team links* lists one link per team
+(`inventory.html?team=Baja&key=...`). Send a team its link and its members can add their own tools
+and supplies (with quantities and photos) and edit them later. A link only works for its own team:
+items it adds are filed under that team, and it can't touch other teams' items or log maintenance.
+The key is a signature made with a secret kept in the script's properties (`INV_TEAM_SECRET`), so it
+can't be guessed. *Reset all links* makes a new secret and every old link stops working.
+
+**After updating `08_inventory.gs`** (team links, quantities and Date Added came in API version 4):
+paste the new file into the inventory sheet's Apps Script, then Deploy > Manage deployments >
+pencil > Version: New version > Deploy. The Date Added and Added By columns appear on the
+Inventory Master by themselves the first time the app saves; running `setupInventory` also adds them.
+
 **Photos.** Admins add a photo from a tool's page or in the add/edit form (on a phone, it can be
 taken on the spot). The app shrinks it before sending, and the script saves it in an *Inventory
 photos* folder next to the sheet in Drive, shared view-only by link like the Space Status uploads.

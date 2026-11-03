@@ -79,7 +79,8 @@ var INV = {
   red: '#B31B1B',
   gray: '#5F6368',
   calcBg: '#F3F3F3',
-  tag: 'Inventory: '          // prefix on protections this script owns
+  tag: 'Inventory: ',         // prefix on protections this script owns
+  teamSecret: 'INV_TEAM_SECRET' // script property that signs team links (made on first use)
 };
 
 // Inventory Master columns, in order. calc = filled by a formula or by the script.
@@ -95,12 +96,14 @@ var MASTER = [
   { key: 'oos', h: 'Out of Service', w: 120, note: 'Maintenance or Retired takes the item out of service. Leave it blank while the item is in use.' },
   { key: 'serial', h: 'Serial / Asset Tag', w: 135 },
   { key: 'bought', h: 'Purchase Date', w: 110, fmt: 'mmm d, yyyy' },
-  { key: 'qty', h: 'Current Qty', w: 95, fmt: '0', note: 'Consumables only.' },
+  { key: 'qty', h: 'Current Qty', w: 95, fmt: '0', note: 'How many there are. For consumables, the count on hand (compared with Min Qty).' },
   { key: 'min', h: 'Min Qty', w: 80, fmt: '0', note: 'Consumables only. Below this number the item shows Low Stock.' },
   { key: 'nextMaint', h: 'Next Maintenance', w: 130, calc: true, fmt: 'mmm d, yyyy', note: 'Calculated: the latest Next Due for this item on the Maintenance Log.' },
   { key: 'notes', h: 'Notes', w: 230 },
   { key: 'photo', h: 'Photo URL', w: 150, note: 'Set by the app when an admin adds a photo (it is saved in the Inventory photos folder in Drive). You can also paste a link to a photo here.' },
-  { key: 'link', h: 'Item Link', alias: 'Checkout Link', w: 160, calc: true, note: 'Filled in by the script. Opens this item in the hub\'s inventory app. The app prints QR labels from the same link.' }
+  { key: 'link', h: 'Item Link', alias: 'Checkout Link', w: 160, calc: true, note: 'Filled in by the script. Opens this item in the hub\'s inventory app. The app prints QR labels from the same link.' },
+  { key: 'added', h: 'Date Added', w: 110, fmt: 'mmm d, yyyy', note: 'Filled in when the item gets its ID: by the app, or when someone types a new row here.' },
+  { key: 'addedBy', h: 'Added By', w: 150, note: 'Who added it: Admin, or the team and name given on a team link.' }
 ];
 
 var MAINT = [
@@ -818,6 +821,14 @@ function assignIds_(sh, mc, fromRow, toRow) {
     changed = true;
   }
   if (changed) sh.getRange(fromRow, mc.id, toRow - fromRow + 1, 1).setValues(ids.slice(fromRow - 2, toRow - 1));
+  if (changed && mc.added) {
+    // a row typed straight into the sheet gets its Date Added with its ID
+    var added = sh.getRange(fromRow, mc.added, toRow - fromRow + 1, 1).getValues(), stamp = false, now = new Date();
+    added.forEach(function (r, j) {
+      if (!r[0] && String(ids[fromRow - 2 + j][0]).trim()) { r[0] = now; stamp = true; }
+    });
+    if (stamp) sh.getRange(fromRow, mc.added, added.length, 1).setValues(added);
+  }
   return changed;
 }
 
@@ -1093,8 +1104,8 @@ function selfTest_() {
 // come in as a POST (doPost).
 // =============================================================================
 
-var CACHE_KEY = 'inv_list_v3';
-var API_VERSION = 3;   // 2 added photos and teams; 3 took out check outs
+var CACHE_KEY = 'inv_list_v4';
+var API_VERSION = 4;   // 2 added photos and teams; 3 took out check outs; 4 added team links, quantities and Date Added
 
 function doGet(e) {
   var p = (e && e.parameter) || {};
@@ -1120,7 +1131,12 @@ function api_(p) {
   switch (action) {
     case 'list': return apiList_();
     case 'item': return apiItem_(p.id);
-    case 'save': adminOnly(); return withLock_(function () { return apiSave_(p); });
+    case 'teamcheck': return { ok: true, team: teamFromLink_(p) };
+    case 'teamlinks': adminOnly(); return apiTeamLinks_(false);
+    case 'resetteamlinks': adminOnly(); return withLock_(function () { return apiTeamLinks_(true); });
+    case 'save':
+      if (p.admin !== '1') teamFromLink_(p);   // a team link may add and edit its own team's items
+      return withLock_(function () { return apiSave_(p); });
     case 'maintenance': adminOnly(); return withLock_(function () { return apiMaintenance_(p); });
     case 'count': adminOnly(); return withLock_(function () { return apiCount_(p); });
     case 'removephoto': adminOnly(); return withLock_(function () { return apiRemovePhoto_(p); });
@@ -1141,7 +1157,10 @@ function doPost(e) {
     var body;
     try { body = JSON.parse((e && e.postData && e.postData.contents) || '{}'); } catch (x) { throw new Error('Could not read the upload.'); }
     if (String(body.action || '') !== 'photo') throw new Error('Unknown request.');
-    if (String(body.admin || '') !== '1') throw new Error('Adding photos needs the admin view of the inventory.');
+    if (String(body.admin || '') !== '1') {
+      var team = teamFromLink_(body);
+      if (teamOf_(findItem_(reqId_(body.id)).item) !== team) throw new Error('A team link can only add photos to its own team\'s items.');
+    }
     out = apiPhoto_(body);
   } catch (err) {
     out = { ok: false, error: String((err && err.message) || err) };
@@ -1203,6 +1222,7 @@ function itemFromRow_(r, mc, tz) {
     status: str('status'), cond: str('cond'), oos: str('oos'),
     serial: str('serial'), bought: day('bought'), qty: num('qty'), min: num('min'), nextMaint: day('nextMaint'),
     notes: notes, photo: str('photo'),
+    added: mc.added ? day('added') : '', addedBy: mc.addedBy ? str('addedBy') : '',
     consumable: str('cat').toLowerCase() === INV.consumable.toLowerCase(),
     test: notes.toLowerCase().indexOf(INV.testTag) >= 0
   };
@@ -1318,16 +1338,26 @@ function apiSave_(p) {
     qty: optNum_(f.qty, 'Current qty'), min: optNum_(f.min, 'Min qty'),
     notes: text_(f.notes, 1000), photo: optUrl_(f.photo)
   };
+  var team = p.admin === '1' ? '' : teamFromLink_(p);
+  if (team) vals.team = team;   // a team link always files items under its own team
   var id = f.id ? reqId_(f.id) : '', row;
   if (id) {
-    row = findItem_(id).row;
+    var found = findItem_(id);
+    if (team && teamOf_(found.item) !== team) throw new Error('A team link can only edit its own team\'s items.');
+    row = found.row;
     // Fields the app did not send keep what the sheet has (the photo, for one,
     // is changed separately).
     var cur = sh.getRange(row, 1, 1, sh.getLastColumn()).getValues()[0];
     Object.keys(vals).forEach(function (k) {
       if (f[k] === undefined && mc[k]) vals[k] = cur[mc[k] - 1];
     });
+    if (mc.added) vals.added = cur[mc.added - 1];
+    if (mc.addedBy) vals.addedBy = cur[mc.addedBy - 1];
   } else {
+    var who = text_(f.addedBy, 60);
+    if (team && !who) throw new Error('Add your name or NetID so the Operations team knows who added it.');
+    vals.added = new Date();
+    vals.addedBy = team ? team + (who ? ' (' + who + ')' : '') : (who ? 'Admin (' + who + ')' : 'Admin');
     if (!categoryPrefixes_()[cat.toLowerCase()]) throw new Error('The ' + cat + ' category has no ID prefix on the Lists tab.');
     row = lastDataRow_(sh, mc) + 1;
     if (row > sh.getMaxRows()) sh.insertRowsAfter(sh.getMaxRows(), 1);
@@ -1360,10 +1390,48 @@ function apiCount_(p) {
   var qty = optNum_(p.qty, 'The count');
   if (qty === '') throw new Error('Enter how many are on hand.');
   var ctx = findItem_(id);
-  if (!ctx.item.consumable) throw new Error('Only consumables have a count.');
   ctx.sh.getRange(ctx.row, ctx.mc.qty).setValue(Math.round(Number(qty)));
   SpreadsheetApp.flush();
   return { ok: true, item: readRow_(ctx.sh, ctx.mc, ctx.row, ctx.ss.getSpreadsheetTimeZone()) };
+}
+
+// ---- team links -------------------------------------------------------------------
+
+// A team link (inventory.html?team=Baja&key=...) lets that team add items and edit its
+// own items without the admin view. The key is a signature of the team name, so it
+// can't be guessed or reused for another team. Resetting makes every old link stop working.
+function teamOf_(item) { return String((item && item.team) || INV.shared); }
+
+function teamSecret_(fresh) {
+  var props = props_();
+  var secret = props.getProperty(INV.teamSecret);
+  if (!secret || fresh) {
+    secret = Utilities.getUuid() + Utilities.getUuid();
+    props.setProperty(INV.teamSecret, secret);
+  }
+  return secret;
+}
+
+function teamKey_(team, secret) {
+  var sig = Utilities.computeHmacSha256Signature(String(team).trim().toLowerCase(), secret || teamSecret_());
+  return Utilities.base64EncodeWebSafe(sig).replace(/=+$/, '').slice(0, 16);
+}
+
+// The team a request's link is for, or an error. p: { team, key }.
+function teamFromLink_(p) {
+  var team = String((p && p.team) || '').trim();
+  var key = String((p && p.key) || '').trim();
+  if (!team || !key) throw new Error('That change needs the admin view of the inventory, or a team link.');
+  var known = readLists_(ss_()).teams.filter(function (t) { return t.toLowerCase() === team.toLowerCase(); })[0];
+  if (!known || known === INV.shared) throw new Error('This team link is for a team that is not on the team list.');
+  if (key !== teamKey_(known)) throw new Error('This team link no longer works. Ask the Operations team for a new one.');
+  return known;
+}
+
+function apiTeamLinks_(reset) {
+  var secret = teamSecret_(reset);
+  var teams = readLists_(ss_()).teams.filter(function (t) { return t && t !== INV.shared; });
+  return { ok: true, links: teams.map(function (t) { return { team: t, key: teamKey_(t, secret) }; }) };
 }
 
 // ---- photos -------------------------------------------------------------------

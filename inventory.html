@@ -4,7 +4,8 @@
   Tool & equipment inventory: the hub's app for the inventory Google Sheet.
   The sheet is the database; its script (apps-script/08_inventory.gs) is the API,
   reached JSONP-style at INVENTORY.apiUrl in config.js.
-    ?admin=1   admin view: add and edit items, photos, maintenance, counts, test data
+    ?admin=1   admin view: add and edit items, photos, maintenance, counts, test data, team links
+    ?team=T&key=K   team link: that team adds its own items and edits them (no admin view needed)
     ?embed=1   no header or footer, for the hub's slide-over panel
     ?item=ID   open one item (what the printed QR labels link to)
     ?labels=1  printable QR labels for every tool
