@@ -34,21 +34,11 @@
     .tp-eyebrow { font-size: .75rem; font-weight: 800; text-transform: uppercase; letter-spacing: .16em; color: var(--red); }
     .tp-title { font-family: var(--font-display); font-size: clamp(2.5rem, 6.5vw, 4.5rem); font-weight: 800; letter-spacing: -0.05em; line-height: .95; margin: .6rem 0 0; color: var(--text); }
     .tp-title em { font-style: normal; background: linear-gradient(100deg, var(--red-dark), var(--red-bright) 55%, #e2702b); -webkit-background-clip: text; background-clip: text; color: transparent; }
-    .tp-lede { font-size: 1.0625rem; line-height: 1.55; color: var(--text); max-width: 40rem; margin: 1.1rem 0 0; }
 
-    .tp-stats { display: flex; flex-wrap: wrap; margin: 2rem 0 0; padding: 0; list-style: none; }
-    .tp-stat { padding: 0 2rem 0 0; margin-right: 2rem; border-right: 1.5px solid var(--line); }
-    .tp-stat:last-child { border-right: 0; margin-right: 0; padding-right: 0; }
-    .tp-stat b { display: block; font-family: var(--font-display); font-size: 2.25rem; font-weight: 800; letter-spacing: -0.04em; line-height: 1; color: var(--text); font-variant-numeric: tabular-nums; }
-    .tp-stat span { display: block; margin-top: .35rem; font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; color: var(--text); }
-    .tp-stat--red b { color: var(--red); }
 
     /* database row + update */
-    .tp-db { display: flex; flex-wrap: wrap; gap: .75rem 1.5rem; align-items: center; margin-top: 2.25rem; padding: 1rem 0; border-top: 1.5px solid var(--line); border-bottom: 1.5px solid var(--line); }
-    .tp-db-label { font-size: .75rem; font-weight: 800; text-transform: uppercase; letter-spacing: .14em; color: var(--text); }
-    .tp-db a { font-size: .875rem; color: var(--red); font-weight: 600; text-decoration: none; border-bottom: 1.5px solid var(--gold); }
-    .tp-db a:hover { border-bottom-color: var(--red); }
-    .tp-db-when { font-size: .8125rem; color: var(--text); }
+    .tp-db { display: flex; flex-wrap: wrap; gap: .75rem 1.5rem; align-items: center; margin-top: 1.5rem; }
+    .tp-db-when { font-size: .875rem; font-weight: 600; color: var(--text); }
     .tp-update {
       margin-left: auto; display: inline-flex; align-items: center; gap: .55rem;
       font-family: var(--font-display); font-size: .9375rem; font-weight: 700; color: #fff;
@@ -170,8 +160,6 @@
 
     @media (max-width: 720px) {
       .tp-main { padding: 1.5rem 1rem 3.5rem; }
-      .tp-stat { padding-right: 1.1rem; margin-right: 1.1rem; }
-      .tp-stat b { font-size: 1.75rem; }
       .tp-update { margin-left: 0; }
       .tp-select { min-width: 0; flex: 1 1 100%; }
       .tp-roles { flex: 1 1 100%; }
@@ -206,20 +194,7 @@
 
     <div class="tp-eyebrow">Project teams</div>
     <h1 class="tp-title">Team member <em>photos</em></h1>
-    <p class="tp-lede">Every member photo from the teams&rsquo; public websites in one place. Filter by team and role, search by name, and click a photo to open the full image.</p>
-
-    <ul class="tp-stats" id="tp-stats" aria-label="Totals">
-      <li class="tp-stat tp-stat--red"><b data-stat="people">&ndash;</b><span>People</span></li>
-      <li class="tp-stat"><b data-stat="teams">&ndash;</b><span>Teams</span></li>
-      <li class="tp-stat"><b data-stat="leads">&ndash;</b><span>Leads</span></li>
-      <li class="tp-stat"><b data-stat="advisors">&ndash;</b><span>Advisors</span></li>
-    </ul>
-
     <div class="tp-db" id="update">
-      <span class="tp-db-label">Database</span>
-      <a href="https://github.com/cornellprojectteams/centralhub/blob/main/data/team-photos.json" target="_blank" rel="noopener">Open the data file</a>
-      <a href="https://github.com/cornellprojectteams/centralhub/edit/main/data/team-photos.json" target="_blank" rel="noopener">Edit on GitHub</a>
-      <a href="data/team-photos.json" download>Download JSON</a>
       <span class="tp-db-when" id="tp-updated"></span>
       <button type="button" class="tp-update" id="tp-update" hidden>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"></path><path d="M21 3v6h-6"></path></svg>

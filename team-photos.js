@@ -87,29 +87,9 @@
     $('tp-list').innerHTML = block + block;
   }
 
-  function renderStats() {
-    var cur = db.people.filter(function (p) { return statusOf(p) === 'current'; });
-    var teams = {};
-    cur.forEach(function (p) { teams[p.team] = 1; });
-    var n = {
-      people: cur.length, teams: Object.keys(teams).length,
-      leads: cur.filter(function (p) { return p.roleType === 'lead'; }).length,
-      advisors: cur.filter(function (p) { return p.roleType === 'advisor'; }).length,
-    };
-    document.querySelectorAll('[data-stat]').forEach(function (el) { countUp(el, n[el.dataset.stat]); });
+  function renderUpdated() {
     var d = new Date(db.updated + 'T12:00:00');
     $('tp-updated').textContent = 'Updated ' + d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-  }
-
-  function countUp(el, to) {
-    var from = parseInt(el.textContent.replace(/\D/g, ''), 10) || 0;
-    if (from === to || window.matchMedia('(prefers-reduced-motion: reduce)').matches) { el.textContent = to.toLocaleString(); return; }
-    var t0 = performance.now(), dur = 700;
-    (function step(t) {
-      var k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3);
-      el.textContent = Math.round(from + (to - from) * e).toLocaleString();
-      if (k < 1) requestAnimationFrame(step);
-    })(t0);
   }
 
   function render() {
@@ -217,7 +197,7 @@
   function show(data) {
     db = data;
     fillTeams();
-    renderStats();
+    renderUpdated();
     render();
   }
 
@@ -321,8 +301,8 @@
       if (res.busy) setStatus({ kind: 'busy', title: 'An update is already running. Following it…', step: 1 });
       follow();
     }).catch(function (e) {
-      if (e.kind === 'timeout') fail('The update service didn’t answer.', 'It may be waking up. Wait a few seconds and try again.');
-      else if (e.kind === 'network') fail('Couldn’t reach the update service.', 'Check your connection. If this keeps happening, the web app URL in <code>config.js</code> may be wrong or the deployment was removed.');
+      if (e.kind === 'network' || e.kind === 'timeout') fail('Couldn’t reach the update service.', 'Check your connection. If this keeps happening, the web app is probably asking visitors to sign in: in Apps Script, Deploy &gt; Manage deployments &gt; edit, and set <b>Who has access</b> to <b>Anyone</b>. Otherwise the URL in <code>config.js</code> may be wrong or the deployment was removed.',
+        [{ act: 'retry', label: 'Try again' }, { href: GUIDE_URL + '#connect-the-update-button', label: 'Setup guide' }]);
       else if (e.data && e.data.code === 'cooldown') {
         setButton(false);
         setStatus({ kind: 'info', title: 'Already up to date.', detail: esc(e.message) });
