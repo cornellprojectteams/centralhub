@@ -2340,7 +2340,7 @@
     {
      "src": "https://aguaclara.cornell.edu/assets/Team-7122771b.webp",
      "alt": "",
-     "w": 314,
+     "w": 315,
      "h": 236,
      "lines": [],
      "after": [
@@ -15822,15 +15822,36 @@
      ],
      "head": "Team Advisors"
     }
-   ],
-   "error": "Locator.click: Timeout 8000ms exceeded.\nCall log:\nwaiting for get_by_text(\"Our Team\", exact=True).first\n  -   locator resolved to <a href=\"/team\">Our Team</a>\n  - attempting click action\n  -   waiting"
+   ]
   }
  },
  "ChemE Car": {
   "https://cornellchemecar.com/?page_id=69": {
    "url": "https://cornellchemecar.com/?page_id=69",
-   "items": [],
-   "error": "no photos found"
+   "items": [
+    {
+     "src": "https://cornellchemecar.com/wp-content/uploads/2023/04/8805da7a75309923f9dafab15f5097e27e2a2fc0-removebg-preview-9-150x150.png",
+     "alt": "Cornell ChemE Car",
+     "w": 101,
+     "h": 101,
+     "lines": [
+      "ABOUT US",
+      "MEET THE TEAM",
+      "RECRUITMENT",
+      "SPONSORS",
+      "CONTACT US",
+      "ABOUT US",
+      "Who We Are",
+      "35 active members",
+      "regional and national level",
+      ".",
+      "What We Do",
+      "Each year, we bring 2 cars to competition: one powered by a chemical battery, and one powered by a"
+     ],
+     "after": [],
+     "head": ""
+    }
+   ]
   },
   "https://cornellchemecar.com/?page_id=144": {
    "url": "https://cornellchemecar.com/?page_id=144",
@@ -16345,7 +16366,8 @@
      ],
      "head": "💭 RDC"
     }
-   ]
+   ],
+   "error": "no photos found"
   }
  },
  "Hack4Impact": {
@@ -18023,13 +18045,22 @@
       "MAE",
       "2028"
      ],
-     "after": [
+     "after": [],
+     "head": "Drivetrain Subteam"
+    },
+    {
+     "src": "https://www.cornellelectricvehicles.org/_next/image?url=%2Fteam%2Falexis-barrow.jpg&w=1920&q=75",
+     "alt": "Alexis Barrow",
+     "w": 286,
+     "h": 286,
+     "lines": [
       "Alexis Barrow",
       "Drivetrain Member",
       "MAE",
       "2027"
      ],
-     "head": "Drivetrain Subteam"
+     "after": [],
+     "head": "Emely Benavides"
     },
     {
      "src": "https://www.cornellelectricvehicles.org/team/placeholder.svg",
@@ -19140,15 +19171,35 @@
       "Structures",
       "Sankalp Gupta"
      ],
+     "after": [],
+     "head": "JAKE DIETERICH"
+    },
+    {
+     "src": "placeholder:svg",
+     "alt": "Kiran Foster",
+     "w": 230,
+     "h": 246,
+     "lines": [
+      "Structures",
+      "Kiran Foster"
+     ],
+     "after": [],
+     "head": "SANKALP GUPTA"
+    },
+    {
+     "src": "placeholder:svg",
+     "alt": "Addite Rajvaidya",
+     "w": 230,
+     "h": 246,
+     "lines": [
+      "Structures",
+      "Addite Rajvaidya"
+     ],
      "after": [
-      "Structures",
-      "Kiran Foster",
-      "Structures",
-      "Addite Rajvaidya",
       "Magnetics",
       "07 members"
      ],
-     "head": "JAKE DIETERICH"
+     "head": "KIRAN FOSTER"
     },
     {
      "src": "https://www.cornellhyperloop.com/res/compressed_teamPhotos/noah.avif",
@@ -19207,15 +19258,59 @@
       "Magnetics",
       "Audrey Horn"
      ],
+     "after": [],
+     "head": "AJ CAVANAUGH"
+    },
+    {
+     "src": "placeholder:svg",
+     "alt": "Luisa Frackiewicz",
+     "w": 230,
+     "h": 246,
+     "lines": [
+      "Magnetics",
+      "Luisa Frackiewicz"
+     ],
+     "after": [],
+     "head": "AUDREY HORN"
+    },
+    {
+     "src": "placeholder:svg",
+     "alt": "Madhav Venkatachalam",
+     "w": 230,
+     "h": 246,
+     "lines": [
+      "Magnetics",
+      "Madhav Venkatachalam"
+     ],
      "after": [
-      "Magnetics",
-      "Luisa Frackiewicz",
-      "Magnetics",
-      "Madhav Venkatachalam",
       "Power",
       "06 members"
      ],
-     "head": "AJ CAVANAUGH"
+     "head": "LUISA FRACKIEWICZ"
+    },
+    {
+     "src": "placeholder:svg",
+     "alt": "Ashley Bertagnoli",
+     "w": 230,
+     "h": 246,
+     "lines": [
+      "Power",
+      "Ashley Bertagnoli"
+     ],
+     "after": [],
+     "head": "MADHAV VENKATACHALAM"
+    },
+    {
+     "src": "placeholder:svg",
+     "alt": "Jimmy Chen",
+     "w": 230,
+     "h": 246,
+     "lines": [
+      "Power",
+      "Jimmy Chen"
+     ],
+     "after": [],
+     "head": "ASHLEY BERTAGNOLI"
     },
     {
      "src": "https://www.cornellhyperloop.com/res/compressed_teamPhotos/raymond.avif",
@@ -19264,11 +19359,21 @@
      ],
      "after": [
       "ECC",
-      "08 members",
+      "08 members"
+     ],
+     "head": "FATIMA LIRA"
+    },
+    {
+     "src": "placeholder:svg",
+     "alt": "Cody Zhu",
+     "w": 230,
+     "h": 246,
+     "lines": [
       "ECC",
       "Cody Zhu"
      ],
-     "head": "FATIMA LIRA"
+     "after": [],
+     "head": "JONNY NGUYEN"
     },
     {
      "src": "https://www.cornellhyperloop.com/res/compressed_teamPhotos/farahabdullah.avif",
@@ -22375,14 +22480,390 @@
       "Stan Cho"
      ],
      "after": [
-      "PRODUCT DEVELOPMENT",
+      "PRODUCT DEVELOPMENT"
+     ],
+     "head": "Parth Patel"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2026/members/IsabellaSalducco.jpg",
+     "alt": "card image",
+     "w": 2600,
+     "h": 2600,
+     "lines": [
       "Isabella Salducco",
       "Product Development Lead",
       "Major: Biomedical Engineering",
       "Hometown: Medford, NY",
       "Isabella Salducco"
      ],
-     "head": "Parth Patel"
+     "after": [],
+     "head": "PRODUCT DEVELOPMENT"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2026/members/BennettTerchowitz.jpg",
+     "alt": "card image",
+     "w": 2600,
+     "h": 2600,
+     "lines": [
+      "Bennett Terchowitz",
+      "Product Development",
+      "Major: Chemical Engineering",
+      "Hometown: Syracuse, NY",
+      "Bennett Terchowitz"
+     ],
+     "after": [],
+     "head": "Isabella Salducco"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2026/members/ChristopherYoung.jpg",
+     "alt": "card image",
+     "w": 2600,
+     "h": 2600,
+     "lines": [
+      "Christopher Young",
+      "Product Development",
+      "Major: Biomedical Engineering",
+      "Hometown: Las Vegas, NV",
+      "Christopher Young"
+     ],
+     "after": [],
+     "head": "Bennett Terchowitz"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2026/members/ErykNguyen.jpg",
+     "alt": "card image",
+     "w": 2600,
+     "h": 2600,
+     "lines": [
+      "Eryk Nguyen",
+      "Product Development",
+      "Major: Chemical Engineering",
+      "Hometown: Rochester, MI",
+      "Eryk Nguyen"
+     ],
+     "after": [],
+     "head": "Christopher Young"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2026/members/JoshuaLennon.jpg",
+     "alt": "card image",
+     "w": 2600,
+     "h": 2600,
+     "lines": [
+      "Joshua Lennon",
+      "Product Development",
+      "Major: Chemical Engineering",
+      "Hometown: Seattle, WA",
+      "Joshua Lennon"
+     ],
+     "after": [],
+     "head": "Eryk Nguyen"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2026/members/NehaChopade.jpg",
+     "alt": "card image",
+     "w": 2600,
+     "h": 2600,
+     "lines": [
+      "Neha Chopade",
+      "Product Development",
+      "Major: Chemical Engineering",
+      "Hometown: San Diego, CA",
+      "Neha Chopade"
+     ],
+     "after": [],
+     "head": "Joshua Lennon"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2026/members/NickLennon.jpg",
+     "alt": "card image",
+     "w": 2600,
+     "h": 2600,
+     "lines": [
+      "Nick Lennon",
+      "Product Development",
+      "Major: Computer Science, Cognitive Science",
+      "Hometown: Seattle, WA",
+      "Nick Lennon"
+     ],
+     "after": [],
+     "head": "Neha Chopade"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2026/members/SaraRaoufi.jpg",
+     "alt": "card image",
+     "w": 2600,
+     "h": 2600,
+     "lines": [
+      "Sara Raoufi",
+      "Product Development",
+      "Major: Biological Sciences",
+      "Hometown: Ann Arbor, MI",
+      "Sara Raoufi"
+     ],
+     "after": [
+      "POLICY AND PRACTICES"
+     ],
+     "head": "Nick Lennon"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2026/members/GraceChen.jpg",
+     "alt": "card image",
+     "w": 2600,
+     "h": 2600,
+     "lines": [
+      "Grace Chen",
+      "Policy & Practices Lead",
+      "Major: Biometry and Statistics",
+      "Hometown: Cleveland, OH",
+      "Grace Chen"
+     ],
+     "after": [],
+     "head": "POLICY AND PRACTICES"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2025/Christina%20Cheng.JPG",
+     "alt": "card image",
+     "w": 1733,
+     "h": 1726,
+     "lines": [
+      "Christina Cheng",
+      "Policy & Practices",
+      "Major: Biological Sciences",
+      "Hometown: Albany, NY",
+      "Christina Cheng"
+     ],
+     "after": [],
+     "head": "Grace Chen"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2026/members/DanielJung.jpg",
+     "alt": "card image",
+     "w": 2600,
+     "h": 2600,
+     "lines": [
+      "Daniel Jung",
+      "Policy & Practices",
+      "Major: Cognitive Science, Biological Sciences",
+      "Hometown: Lexington, MA",
+      "Daniel Jung"
+     ],
+     "after": [],
+     "head": "Christina Cheng"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2026/members/JangheeLee.jpg",
+     "alt": "card image",
+     "w": 2600,
+     "h": 2600,
+     "lines": [
+      "Janghee Lee",
+      "Policy & Practices",
+      "Major: Health Care Policy",
+      "Hometown: Scarsdale, NY",
+      "Janghee Lee"
+     ],
+     "after": [],
+     "head": "Daniel Jung"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2026/members/KalistaKingue.JPG",
+     "alt": "card image",
+     "w": 2600,
+     "h": 2600,
+     "lines": [
+      "Kalista Kingue",
+      "Policy & Practices",
+      "Major: Biology",
+      "Hometown: New York, NY",
+      "Kalista Kingue"
+     ],
+     "after": [],
+     "head": "Janghee Lee"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2026/members/MatiasRiverosAmado.jpg",
+     "alt": "card image",
+     "w": 2600,
+     "h": 2600,
+     "lines": [
+      "Matias Riveros-Amado",
+      "Policy & Practices",
+      "Major: Cognitive Science & Computer Science",
+      "Hometown: Augusta, GA",
+      "Matias Riveros-Amado"
+     ],
+     "after": [],
+     "head": "Kalista Kingue"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2026/members/NicoleKim.jpg",
+     "alt": "card image",
+     "w": 2600,
+     "h": 2600,
+     "lines": [
+      "Nicole Kim",
+      "Policy & Practices",
+      "Major: Biology",
+      "Hometown: Seattle, WA",
+      "Nicole Kim"
+     ],
+     "after": [
+      "BUSINESS"
+     ],
+     "head": "Matias Riveros-Amado"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2026/members/MarkNguyen.jpg",
+     "alt": "card image",
+     "w": 2600,
+     "h": 2600,
+     "lines": [
+      "Mark Nguyen",
+      "Business Lead",
+      "Major: Bioengineering",
+      "Hometown: Oklahoma City, OK",
+      "Mark Nguyen"
+     ],
+     "after": [],
+     "head": "BUSINESS"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2025/Arrth%20Mittal.JPG",
+     "alt": "card image",
+     "w": 2606,
+     "h": 2602,
+     "lines": [
+      "Arrth Mittal",
+      "Business",
+      "Major: Biomedical Engineering",
+      "Hometown: Seattle, WA",
+      "Arrth Mittal"
+     ],
+     "after": [],
+     "head": "Mark Nguyen"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2026/members/EmmaMukerji.jpg",
+     "alt": "card image",
+     "w": 2600,
+     "h": 2600,
+     "lines": [
+      "Emma Mukerji",
+      "Business",
+      "Major: Biological Engineering",
+      "Hometown: Potomac, MD",
+      "Emma Mukerji"
+     ],
+     "after": [],
+     "head": "Arrth Mittal"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2026/members/NandiniyVelayudhan.jpg",
+     "alt": "card image",
+     "w": 2600,
+     "h": 2600,
+     "lines": [
+      "Nandiniy Velayudhan",
+      "Business",
+      "Major: Biology",
+      "Hometown: Seattle, WA",
+      "Nandiniy Velayudhan"
+     ],
+     "after": [],
+     "head": "Emma Mukerji"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2026/members/SanshraySingh.jpg",
+     "alt": "card image",
+     "w": 2600,
+     "h": 2600,
+     "lines": [
+      "Sanshray Singh",
+      "Business",
+      "Major: filler",
+      "Hometown: filler",
+      "Sanshray Singh"
+     ],
+     "after": [],
+     "head": "Nandiniy Velayudhan"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2026/members/UlianaDoroshenko_.jpg",
+     "alt": "card image",
+     "w": 2600,
+     "h": 2600,
+     "lines": [
+      "Uliana Doroshenko",
+      "Business",
+      "Major: Biological Engineering",
+      "Hometown: filler",
+      "Uliana Doroshenko"
+     ],
+     "after": [],
+     "head": "Sanshray Singh"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2026/members/WalterLumpkin.jpg",
+     "alt": "card image",
+     "w": 2600,
+     "h": 2600,
+     "lines": [
+      "Walter Lumpkin",
+      "Business",
+      "Major: Chemical Engineering",
+      "Hometown: Kirkland, WA",
+      "Walter Lumpkin"
+     ],
+     "after": [
+      "WIKI"
+     ],
+     "head": "Uliana Doroshenko"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2026/members/AnthonyAhn.jpg",
+     "alt": "card image",
+     "w": 2600,
+     "h": 2600,
+     "lines": [
+      "Anthony Ahn",
+      "Wiki & Design Lead",
+      "Major: Computer Science",
+      "Hometown: Syracuse, NY",
+      "Anthony Ahn"
+     ],
+     "after": [],
+     "head": "WIKI"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2026/members/AlexPeng.jpg",
+     "alt": "card image",
+     "w": 2600,
+     "h": 2600,
+     "lines": [
+      "Alex Peng",
+      "Wiki & Design",
+      "Major: Chemistry & Biology",
+      "Hometown: Corning, NY",
+      "Alex Peng"
+     ],
+     "after": [],
+     "head": "Anthony Ahn"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2026/members/AudreyFu.jpg",
+     "alt": "card image",
+     "w": 2600,
+     "h": 2600,
+     "lines": [
+      "Audrey Fu",
+      "Wiki & Design",
+      "Major: Chemical Engineering",
+      "Hometown: Princeton, NJ",
+      "Audrey Fu"
+     ],
+     "after": [],
+     "head": "Alex Peng"
     },
     {
      "src": "https://igem.engineering.cornell.edu/images/headshots_2023/blank.jpg",
@@ -22390,23 +22871,61 @@
      "w": 400,
      "h": 400,
      "lines": [
-      "WIKI",
-      "Anthony Ahn",
-      "Wiki & Design Lead",
-      "Major: Computer Science",
-      "Hometown: Syracuse, NY",
-      "Anthony Ahn",
-      "Alex Peng",
+      "Maxwell Swann",
       "Wiki & Design",
-      "Major: Chemistry & Biology",
-      "Hometown: Corning, NY",
-      "Alex Peng",
-      "Audrey Fu"
+      "Major: Biological Sciences",
+      "Hometown: Ellicott City, MD",
+      "Maxwell Swann"
+     ],
+     "after": [],
+     "head": "Audrey Fu"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2026/members/NicoleZhu.jpg",
+     "alt": "card image",
+     "w": 2600,
+     "h": 2600,
+     "lines": [
+      "Nicole Zhu",
+      "Wiki & Design",
+      "Major: Biology",
+      "Hometown: New York, NY",
+      "Nicole Zhu"
+     ],
+     "after": [],
+     "head": "Maxwell Swann"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2026/members/WendyWu.JPG",
+     "alt": "card image",
+     "w": 2600,
+     "h": 2600,
+     "lines": [
+      "Wendy Wu",
+      "Wiki & Design",
+      "Major: Biological Sciences",
+      "Hometown: TX",
+      "Wendy Wu"
+     ],
+     "after": [],
+     "head": "Nicole Zhu"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2026/members/WinnieLin.jpg",
+     "alt": "card image",
+     "w": 2600,
+     "h": 2600,
+     "lines": [
+      "Winnie Lin",
+      "Wiki & Design",
+      "Major: Computer Science",
+      "Hometown: Manhattan, NY",
+      "Winnie Lin"
      ],
      "after": [
       "MENTORS AND ADVISORS"
      ],
-     "head": "Walter Lumpkin"
+     "head": "Wendy Wu"
     },
     {
      "src": "https://igem.engineering.cornell.edu/images/advisors/Prof%20Cira.png",
@@ -22450,15 +22969,282 @@
       "Department of Biomedical Engineering",
       "Yannis Ntekas"
      ],
-     "after": [
+     "after": [],
+     "head": "Professor Mridusmita Saikia"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2024/Jaymee%20Palma.JPG",
+     "alt": "card image",
+     "w": 1749,
+     "h": 1749,
+     "lines": [
       "Jaymee Palma",
       "Graduate Mentor",
       "PhD Student",
       "Biochemistry",
-      "Jaymee Palma",
+      "Jaymee Palma"
+     ],
+     "after": [],
+     "head": "Yannis Ntekas"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2026/advisors/AnnaVoronova.jpg",
+     "alt": "card image",
+     "w": 2600,
+     "h": 2600,
+     "lines": [
+      "Anna Voronova",
+      "Student Advisor",
+      "Major: Chemical Engineering",
+      "Hometown: Sharon, MA",
       "Anna Voronova"
      ],
-     "head": "Professor Mridusmita Saikia"
+     "after": [],
+     "head": "Jaymee Palma"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2025/Coco%20Poopat.JPG",
+     "alt": "card image",
+     "w": 2937,
+     "h": 3073,
+     "lines": [
+      "Coco Poopat",
+      "Student Advisor",
+      "Major: Plant Sciences",
+      "Hometown: Las Vegas, Neveada",
+      "Coco Poopat"
+     ],
+     "after": [],
+     "head": "Anna Voronova"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2026/advisors/EujinLee.jpg",
+     "alt": "card image",
+     "w": 2600,
+     "h": 2600,
+     "lines": [
+      "Eujin Lee",
+      "Student Advisor",
+      "Major: Computer Science",
+      "Hometown: Fairfax, VA",
+      "Eujin Lee"
+     ],
+     "after": [],
+     "head": "Coco Poopat"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2025/Jeffrey%20Ho.JPG",
+     "alt": "card image",
+     "w": 2600,
+     "h": 2600,
+     "lines": [
+      "Jeffrey Ho",
+      "Student Advisor",
+      "Major: Biological Sciences",
+      "Hometown: Millburn, NJ",
+      "Jeffrey Ho"
+     ],
+     "after": [],
+     "head": "Eujin Lee"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2024/Lulu%20Wang.JPG",
+     "alt": "card image",
+     "w": 2600,
+     "h": 2600,
+     "lines": [
+      "Lulu Wang",
+      "Student Advisor",
+      "Major: Chemical Engineering",
+      "Hometown: Mason, OH",
+      "Lulu Wang"
+     ],
+     "after": [],
+     "head": "Jeffrey Ho"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2025/Madeline%20Hung.JPG",
+     "alt": "card image",
+     "w": 2598,
+     "h": 2850,
+     "lines": [
+      "Madeline Hung",
+      "Student Advisor",
+      "Major: Biological Sciences & Philosophy",
+      "Hometown: Saratoga, CA",
+      "Madeline Hung"
+     ],
+     "after": [],
+     "head": "Lulu Wang"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2025/Michelle%20Kim.JPG",
+     "alt": "card image",
+     "w": 2497,
+     "h": 2685,
+     "lines": [
+      "Michelle Kim",
+      "Student Advisor",
+      "Major: Biology & Society",
+      "Hometown: VA",
+      "Michelle Kim"
+     ],
+     "after": [],
+     "head": "Madeline Hung"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2025/Natalie%20Deng.JPG",
+     "alt": "card image",
+     "w": 2590,
+     "h": 2655,
+     "lines": [
+      "Natalie Deng",
+      "Student Advisor",
+      "Major: Biology & Society",
+      "Hometown: Queens, NY",
+      "Natalie Deng"
+     ],
+     "after": [],
+     "head": "Michelle Kim"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2025/Ralph%20Ho.JPG",
+     "alt": "card image",
+     "w": 2621,
+     "h": 2670,
+     "lines": [
+      "Ralph Ho",
+      "Student Advisor",
+      "Major: Biological Sciences",
+      "Hometown: Irvine, CA",
+      "Ralph Ho"
+     ],
+     "after": [],
+     "head": "Natalie Deng"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2026/advisors/GreasyRich.jpg",
+     "alt": "card image",
+     "w": 2600,
+     "h": 2600,
+     "lines": [
+      "Richard Lin",
+      "Student Advisor",
+      "Major: Biomedical Engineering",
+      "Hometown: Long Island, NY",
+      "Richard Lin"
+     ],
+     "after": [
+      "ALUMNI",
+      "Class of 2024"
+     ],
+     "head": "Ralph Ho"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/alumni/Elena%20Joseph.jpeg",
+     "alt": "card image",
+     "w": 1903,
+     "h": 1903,
+     "lines": [
+      "Elena Joseph",
+      "Sales Engineer, IBM",
+      "B.A. Information Science (Information Ethics, Law and Policy)"
+     ],
+     "after": [],
+     "head": "Class of 2024"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/alumni/Emma%20Taigounov.jpg",
+     "alt": "card image",
+     "w": 3111,
+     "h": 3111,
+     "lines": [
+      "Emma Taigounov",
+      "Masters Student, Cornell University",
+      "B.S. Biomedical Engineering"
+     ],
+     "after": [],
+     "head": "Elena Joseph"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/headshots_2023/Jacob%20Novozhenets.jpg",
+     "alt": "card image",
+     "w": 2901,
+     "h": 2901,
+     "lines": [
+      "Jacob Novozhenets",
+      "Management Consultant",
+      "B.S. Biological Engineering"
+     ],
+     "after": [],
+     "head": "Emma Taigounov"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/alumni/Nayal%20Zaidi.jpeg",
+     "alt": "card image",
+     "w": 1672,
+     "h": 1672,
+     "lines": [
+      "Nayal Zaidi",
+      "Bioanalytical Sciences, Regeneron",
+      "B.S. Biomedical Engineering"
+     ],
+     "after": [],
+     "head": "Jacob Novozhenets"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/alumni/Srishti%20Khetan.jpeg",
+     "alt": "card image",
+     "w": 1281,
+     "h": 1281,
+     "lines": [
+      "Srishti Khetan",
+      "PhD Student, Columbia University",
+      "B.S. Biomedical Engineering"
+     ],
+     "after": [],
+     "head": "Nayal Zaidi"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/alumni/Tram%20Huynh.jpg",
+     "alt": "card image",
+     "w": 2264,
+     "h": 2264,
+     "lines": [
+      "Tram Huynh",
+      "Pre-Physician Assistant",
+      "B.A. Biological Sciences"
+     ],
+     "after": [
+      "Class of 2023"
+     ],
+     "head": "Srishti Khetan"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/alumni/Daniel%20Morgan.png",
+     "alt": "card image",
+     "w": 2959,
+     "h": 2959,
+     "lines": [
+      "Daniel Morgan",
+      "Research Portfolio Manager, Mission: Cure",
+      "B.S. Biological Engineering, M.S. Biomedical Engineering"
+     ],
+     "after": [],
+     "head": "Class of 2023"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/alumni/Deniz%20Sinar.JPG",
+     "alt": "card image",
+     "w": 1862,
+     "h": 1862,
+     "lines": [
+      "Deniz Sinar",
+      "Bioengineering PhD Student, Stanford University",
+      "B.S. Biological Engineering"
+     ],
+     "after": [],
+     "head": "Daniel Morgan"
     },
     {
      "src": "https://igem.engineering.cornell.edu/images/alumni/Margaret%20Keymakh.jpeg",
@@ -22466,23 +23252,40 @@
      "w": 496,
      "h": 496,
      "lines": [
-      "Daniel Morgan",
-      "Research Portfolio Manager, Mission: Cure",
-      "B.S. Biological Engineering, M.S. Biomedical Engineering",
-      "Deniz Sinar",
-      "Bioengineering PhD Student, Stanford University",
-      "B.S. Biological Engineering",
       "Margaret Keymakh",
       "Masters Student, Albert Einstein College of Medicine",
-      "B.A. Biological Sciences (Microbiology)",
+      "B.A. Biological Sciences (Microbiology)"
+     ],
+     "after": [],
+     "head": "Deniz Sinar"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/alumni/Rocky%20An.jpg",
+     "alt": "card image",
+     "w": 1237,
+     "h": 1237,
+     "lines": [
       "Rocky An",
       "Bioengineering PhD Student, Stanford University",
       "B.S. Mechanical Engineering, B.S. Biological Engineering"
      ],
+     "after": [],
+     "head": "Margaret Keymakh"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/alumni/Xihang%20Wang.JPG",
+     "alt": "card image",
+     "w": 1191,
+     "h": 1191,
+     "lines": [
+      "Xihang Wang",
+      "Medical Student, Johns Hopkins School of Medicine",
+      "B.A. Biological Sciences, B.A. Economics"
+     ],
      "after": [
       "Class of 2022"
      ],
-     "head": "Class of 2023"
+     "head": "Rocky An"
     },
     {
      "src": "https://igem.engineering.cornell.edu/images/headshots_2023/blank.jpg",
@@ -22507,12 +23310,21 @@
       "Strategy and Transactions Associate, EY",
       "B.S. Applied Economics and Management"
      ],
-     "after": [
+     "after": [],
+     "head": "Benedict Ho"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/alumni/Hannah%20Lim.JPG",
+     "alt": "card image",
+     "w": 1738,
+     "h": 1738,
+     "lines": [
       "Hannah Lim",
       "Bioengineering PhD student, Rice University",
       "B.S. Mechanical Engineering, B.S. Biological Engineering"
      ],
-     "head": "Benedict Ho"
+     "after": [],
+     "head": "Gabby Lee"
     },
     {
      "src": "https://igem.engineering.cornell.edu/images/headshots_2023/blank.jpg",
@@ -22537,15 +23349,60 @@
       "Electrical Engineering PhD Student, UC Berkeley",
       "B.S. Electrical and Computer Engineering"
      ],
-     "after": [
+     "after": [],
+     "head": "Jackson Bauer"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/alumni/Leo%20Song.jpeg",
+     "alt": "card image",
+     "w": 2680,
+     "h": 2680,
+     "lines": [
       "Leo Song",
       "Medical Student, UCLA",
-      "B.S. Biological Engineering",
+      "B.S. Biological Engineering"
+     ],
+     "after": [],
+     "head": "Jade Pinkenburg"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/alumni/Lindsey%20Luo.jpeg",
+     "alt": "card image",
+     "w": 945,
+     "h": 945,
+     "lines": [
       "Lindsey Luo",
       "Product Manager, Blackstone",
       "B.S. Computer Science"
      ],
-     "head": "Jackson Bauer"
+     "after": [],
+     "head": "Leo Song"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/alumni/Lucas%20Evans.jpeg",
+     "alt": "card image",
+     "w": 1684,
+     "h": 1684,
+     "lines": [
+      "Lucas Evans",
+      "Medical Laboratory Scientist, Beth Israel Deaconess Medical Center",
+      "B.A. Biological Sciences, B.A. Psychology"
+     ],
+     "after": [],
+     "head": "Lindsey Luo"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/alumni/Rachel%20Marsh.jpg",
+     "alt": "card image",
+     "w": 1076,
+     "h": 1076,
+     "lines": [
+      "Rachel Marsh",
+      "Investment Banking Analyst, JP Morgan",
+      "B.S. Operations Research and Engineering"
+     ],
+     "after": [],
+     "head": "Lucas Evans"
     },
     {
      "src": "https://igem.engineering.cornell.edu/images/headshots_2023/blank.jpg",
@@ -22624,12 +23481,21 @@
       "Current CEO, Co-Founder, Vita Innovations & Medical Student, Stanford University",
       "B.A. Biology"
      ],
-     "after": [
+     "after": [],
+     "head": "Jackie Zheng"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/alumni/Michelle%20Croen.jpeg",
+     "alt": "card image",
+     "w": 1505,
+     "h": 1505,
+     "lines": [
       "Michelle Croen",
       "Scientist, Merck & Co.",
       "B.S. Biological Engineering"
      ],
-     "head": "Jackie Zheng"
+     "after": [],
+     "head": "Longsha Liu"
     },
     {
      "src": "https://igem.engineering.cornell.edu/images/alumni/Olivia%20Qiu.jpeg",
@@ -22641,15 +23507,35 @@
       "GTM Strategy & Operations Associate, Datadog",
       "B.A. Biological Sciences"
      ],
-     "after": [
+     "after": [],
+     "head": "Michelle Croen"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/alumni/Rachel%20George.jpeg",
+     "alt": "card image",
+     "w": 940,
+     "h": 940,
+     "lines": [
       "Rachel George",
       "M.D. Candidate, UNC School of Medicine",
-      "B.S. Biomedical Engineering",
+      "B.S. Biomedical Engineering"
+     ],
+     "after": [],
+     "head": "Olivia Qiu"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/alumni/Sophia%20Windemuth.jpeg",
+     "alt": "card image",
+     "w": 2785,
+     "h": 2785,
+     "lines": [
       "Sophia Windemuth",
-      "Biomedical Engineering PhD Candidate, Columbia University",
+      "Biomedical Engineering PhD Candidate, Columbia University"
+     ],
+     "after": [
       "Class of 2020"
      ],
-     "head": "Michelle Croen"
+     "head": "Rachel George"
     },
     {
      "src": "https://igem.engineering.cornell.edu/images/headshots_2023/blank.jpg",
@@ -22659,23 +23545,64 @@
      "lines": [
       "Ashwin Viswanathan",
       "MD-PhD Student, Columbia University Vagelos College of Physicians & Surgeons",
-      "B.A. Biology (Neurobiology) and Government",
+      "B.A. Biology (Neurobiology) and Government"
+     ],
+     "after": [],
+     "head": "Class of 2020"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/alumni/Avisha%20Kumar.png",
+     "alt": "card image",
+     "w": 1562,
+     "h": 1562,
+     "lines": [
       "Avisha Kumar",
       "PhD Student, Johns Hopkins University",
-      "B.S. and M.Eng Electrical and Computer Engineering",
+      "B.S. and M.Eng Electrical and Computer Engineering"
+     ],
+     "after": [],
+     "head": "Ashwin Viswanathan"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/alumni/Darren%20Tsai.jpg",
+     "alt": "card image",
+     "w": 4480,
+     "h": 4480,
+     "lines": [
       "Darren Tsai",
       "Assistant Vice President (Product Manager), Blackstone",
       "B.S. Computer Science"
      ],
      "after": [
-      "Class of 2019",
+      "Class of 2019"
+     ],
+     "head": "Avisha Kumar"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/alumni/Carol%20Hung.jpg",
+     "alt": "card image",
+     "w": 766,
+     "h": 766,
+     "lines": [
       "Carol Hung",
       "Sr. Product Manager, Noah Medical (Medical Robotics)",
-      "B.S. Biomedical Engineering",
-      "Connie Li",
-      "Law Student, Stanford Law School"
+      "B.S. Biomedical Engineering"
      ],
-     "head": "Class of 2020"
+     "after": [],
+     "head": "Class of 2019"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/alumni/Connie%20Li.jpeg",
+     "alt": "card image",
+     "w": 2177,
+     "h": 2177,
+     "lines": [
+      "Connie Li",
+      "Law Student, Stanford Law School",
+      "B.S. Chemical Engineering"
+     ],
+     "after": [],
+     "head": "Carol Hung"
     },
     {
      "src": "https://igem.engineering.cornell.edu/images/headshots_2023/blank.jpg",
@@ -22700,12 +23627,21 @@
       "Law Student, Harvard Law School",
       "B.S. Bioengineering, M. Eng. Biomedical Engineering"
      ],
-     "after": [
+     "after": [],
+     "head": "Cristina Zhao"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/alumni/Max%20Zhou.jpg",
+     "alt": "card image",
+     "w": 2609,
+     "h": 2609,
+     "lines": [
       "Max Zhou",
       "Machine Learning Engineer, YouTube",
       "B.S. Biological Engineering & B.S. Computer Science"
      ],
-     "head": "Cristina Zhao"
+     "after": [],
+     "head": "Greg Albano"
     },
     {
      "src": "https://igem.engineering.cornell.edu/images/alumni/Rohit%20Bandaru.jpeg",
@@ -22733,14 +23669,35 @@
       "B.S. Biological Engineering, M.Eng Biomedical Engineering"
      ],
      "after": [
-      "Class of 2017",
-      "George Danias",
-      "Resident Physician in Psychiatry, NYU-Langone",
-      "B.S. Biological Engineering",
-      "Reed Geisler",
-      "Resident Physician (Anesthesiology), Yale"
+      "Class of 2017"
      ],
      "head": "Class of 2018"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/alumni/George%20Danias.jpg",
+     "alt": "card image",
+     "w": 2421,
+     "h": 2421,
+     "lines": [
+      "George Danias",
+      "Resident Physician in Psychiatry, NYU-Langone",
+      "B.S. Biological Engineering"
+     ],
+     "after": [],
+     "head": "Class of 2017"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/alumni/Reed%20Geisler.jpg",
+     "alt": "card image",
+     "w": 954,
+     "h": 954,
+     "lines": [
+      "Reed Geisler",
+      "Resident Physician (Anesthesiology), Yale",
+      "B.A. Chemistry and Chemical Biology, B.A. Biological Sciences, M.Eng. Biomedical Engineering"
+     ],
+     "after": [],
+     "head": "George Danias"
     },
     {
      "src": "https://igem.engineering.cornell.edu/images/headshots_2023/blank.jpg",
@@ -22748,25 +23705,42 @@
      "w": 400,
      "h": 400,
      "lines": [
-      "George Danias",
-      "Resident Physician in Psychiatry, NYU-Langone",
-      "B.S. Biological Engineering",
-      "Reed Geisler",
-      "Resident Physician (Anesthesiology), Yale",
-      "B.A. Chemistry and Chemical Biology, B.A. Biological Sciences, M.Eng. Biomedical Engineering",
       "Rishabh Singh",
       "Ophthalmology Resident Physician, Columbia University Medical Center",
       "B.S. Biological Engineering"
      ],
      "after": [
-      "Class of 2014",
+      "Class of 2014"
+     ],
+     "head": "Reed Geisler"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/alumni/Youjin%20Cho.jpg",
+     "alt": "card image",
+     "w": 741,
+     "h": 741,
+     "lines": [
       "Youjin Cho",
       "General Surgery Resident, UCSF",
-      "B.S. Biological Engineering (Cornell University), Ph.D. Biomedical Engineering (The Ohio State University)",
-      "Class of 2013",
-      "Caleb Radens"
+      "B.S. Biological Engineering (Cornell University), Ph.D. Biomedical Engineering (The Ohio State University)"
      ],
-     "head": "Class of 2017"
+     "after": [
+      "Class of 2013"
+     ],
+     "head": "Class of 2014"
+    },
+    {
+     "src": "https://igem.engineering.cornell.edu/images/alumni/Caleb%20Radens.jpg",
+     "alt": "card image",
+     "w": 1173,
+     "h": 1173,
+     "lines": [
+      "Caleb Radens",
+      "Scientific Investigator, GSK",
+      "B.A. Molecular & Cell Biology"
+     ],
+     "after": [],
+     "head": "Class of 2013"
     },
     {
      "src": "https://igem.engineering.cornell.edu/images/headshots_2023/blank.jpg",
@@ -23017,12 +23991,21 @@
       "Applied Economics and Management",
       "B.S. Class of 2028"
      ],
-     "after": [
+     "after": [],
+     "head": "Sam Karmarkar"
+    },
+    {
+     "src": "placeholder:svg",
+     "alt": "William Glasser",
+     "w": 302,
+     "h": 280,
+     "lines": [
       "William Glasser",
       "Mechanical Engineering",
       "B.S. Class of 2029"
      ],
-     "head": "Sam Karmarkar"
+     "after": [],
+     "head": "Bekzod Mamasoliyev"
     },
     {
      "src": "https://steelbridge.engineering.cornell.edu/images/headshots/David_Kosyakovskiy.jpg",
@@ -23290,7 +24273,7 @@
      "head": "Mechanical Team Members"
     },
     {
-     "src": "https://www.cornellnexus.com/headshots/Stephanie_Cheng.jpg",
+     "src": "https://www.cornellnexus.com/headshots/placeholder.jpg",
      "alt": "Stephanie Cheng, Cornell Nexus team member",
      "w": 225,
      "h": 300,
@@ -23366,7 +24349,7 @@
      "head": "Electrical Team Members"
     },
     {
-     "src": "https://www.cornellnexus.com/headshots/Aaron_Sucov.jpg",
+     "src": "https://www.cornellnexus.com/headshots/placeholder.jpg",
      "alt": "Aaron Sucov, Cornell Nexus team member",
      "w": 225,
      "h": 300,
@@ -23478,7 +24461,7 @@
      "head": "Software Team Members"
     },
     {
-     "src": "https://www.cornellnexus.com/headshots/Natalie_Leung.jpg",
+     "src": "https://www.cornellnexus.com/headshots/placeholder.jpg",
      "alt": "Natalie Leung, Cornell Nexus team member",
      "w": 225,
      "h": 300,
@@ -23490,7 +24473,7 @@
      "head": "Software Team Members"
     },
     {
-     "src": "https://www.cornellnexus.com/headshots/Dora_Zhang.jpg",
+     "src": "https://www.cornellnexus.com/headshots/placeholder.jpg",
      "alt": "Dora Zhang, Cornell Nexus team member",
      "w": 225,
      "h": 300,

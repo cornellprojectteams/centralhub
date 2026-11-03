@@ -25,15 +25,15 @@ ROLE_WORDS = re.compile(r'\b(lead|leads|co-?lead|member|members|president|vice|v
                         r'mentor|executive|chief|ceo|cto|coo|cfo|webmaster|historian|intern|consultant|specialist)\b', re.I)
 LEAD_WORDS = re.compile(r'\b(lead|co-?lead|president|vice president|vp|chair|co-?chair|captain|director|manager|officer|'
                         r'head|founder|chief|treasurer|secretary|coordinator|pm|e-?board|executive)\b', re.I)
-ADVISOR_WORDS = re.compile(r'\b(advisor|adviser|prof\.?|professor|faculty)\b', re.I)
+ADVISOR_WORDS = re.compile(r'\b(advisor|adviser|prof\.?|professor|faculty|graduate mentor)\b', re.I)
 LEAD_HEADINGS = re.compile(r'lead|board|captain|leadership|chairs|officer|executive|president', re.I)
 SKIP_HEADINGS = re.compile(r'alumni|former|inactive|graduated|past members|class of 20', re.I)
-JOB = re.compile(r'(engineer|scientist|director|associate|analyst|consultant|professor|manager|resident|fellow|attending)\b.*,\s*[A-Z0-9]', re.I)
+JOB = re.compile(r'(engineer|scientist|director|associate|analyst|consultant|professor|manager|resident|fellow|attending|candidate)\b.*,\s*[A-Z0-9]', re.I)
 NOT_NAME = re.compile(r'\b(cornell|solutions|energy|university|subteam|project|members?|info|placeholder|portrait|headshot)\b', re.I)
 JUNK = re.compile(r'^(linkedin|coffee chat|read more.*|bio|stats|close|boarding pass|crew member|member info|subteam|ticket no\.?|·|class of|'
                   r'learn more.*|website|github|email|resume|portfolio|x|\W+)$', re.I)
 DETAIL = re.compile(r"^(major|minor|college|year|netid|hometown|clubs and activities|favorite plane|fun fact)\s*:", re.I)
-PLACEHOLDER = re.compile(r'no_headshot|placeholder|default\.|blank\.|via\.placeholder|stand-in', re.I)
+PLACEHOLDER = re.compile(r'no_headshot|placeholder|default\.|blank\.|via\.placeholder|stand-in|^placeholder:', re.I)
 STUDY = re.compile(r"engineering|science|computer|economics|math|biology|physics|chemistry|studies|management|"
                    r"\bCS\b|\bECE\b|\bMAE\b|\bORIE\b|\bHADM\b|\bAEM\b|\bILR\b|architecture|statistics|design|"
                    r"policy|communication|sustainability|environment|nutrition|psychology|government|history", re.I)

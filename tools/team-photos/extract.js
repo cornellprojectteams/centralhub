@@ -1,5 +1,6 @@
 () => {
-  const bad=/logo|icon|sponsor|banner|favicon|sprite|arrow|social|linkedin|instagram|facebook|github|twitter|mail|full-?team|fullteam|group|candid/i;
+  // whole words only, so "Barrow" or "Ismail" in a file name is not taken for an arrow or mail icon
+  const bad=/(^|[^a-z])(logos?|icons?|sponsors?|banners?|favicon|sprites?|arrows?|social|linkedin|instagram|facebook|github|twitter|e?mail|full-?team|fullteam|groups?|candids?)([^a-z]|$)/i;
   const cands=[];
   for (const im of document.querySelectorAll('img')) {
     const src=im.currentSrc||im.src||im.getAttribute('data-src')||'';
@@ -10,9 +11,20 @@
     if (bg && bg.startsWith('url(')) cands.push({el,src:bg.slice(4,-1).replace(/["']/g,'')});
   }
   const ok=cands.filter(c=>{
-    if(!c.src||c.src.startsWith('data:')||/\.svg(\?|$)/i.test(c.src)&&!/placeholder|profile|headshot/i.test(c.src)) return false;
-    if (bad.test(c.src)||bad.test(c.el.alt||'')) return false;
-    const r=c.el.getBoundingClientRect(); const w=r.width||c.el.naturalWidth, h=r.height||c.el.naturalHeight;
+    if(!c.src) return false;
+    // a generated initials image (an inline SVG) stands in for a missing photo: keep the person
+    if(c.src.startsWith('data:')){ if(!/^data:image\/svg/i.test(c.src)||!(c.el.alt||'').trim()) return false; c.src='placeholder:svg'; }
+    else if(/\.svg(\?|$)/i.test(c.src)&&!/placeholder|profile|headshot/i.test(c.src)) return false;
+    let path=c.src; try{ path=decodeURIComponent(new URL(c.src,location.href).pathname+new URL(c.src,location.href).search); }catch(e){}
+    if (bad.test(path)||bad.test(c.el.alt||'')) return false;
+    const r=c.el.getBoundingClientRect();
+    if(!r.width||!r.height){
+      // a card hidden when the page was read (collapsed tab, flip card): judge by the image itself
+      const nw=c.el.naturalWidth||0, nh=c.el.naturalHeight||0;
+      c.w=nw; c.h=nh;
+      return nw>=70 && nh>=70 && nh/nw>0.6 && nh/nw<2.2 && !!(c.el.alt||'').trim();
+    }
+    const w=r.width, h=r.height;
     c.w=Math.round(w); c.h=Math.round(h);
     return w>=70 && h>=70 && w<=650 && h/w>0.6 && h/w<2.2;
   });
