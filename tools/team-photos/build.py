@@ -195,6 +195,17 @@ def main():
     db = json.load(open(OUT)) if os.path.exists(OUT) else {'people': []}
     people = {p['id']: p for p in db.get('people', [])}
     scraped_teams = {t for t, pages in raw.items() if any(pg.get('items') for pg in pages.values())}
+    failed = sorted(t for t, pages in raw.items() if any('error' in pg for pg in pages.values()))
+    # A team whose site suddenly lists far fewer people has probably moved its page.
+    # Its missing people are left alone instead of being marked "left".
+    before = {}
+    for p in people.values():
+        if p.get('source') == 'scraped' and p.get('status') == 'current':
+            before[p['team']] = before.get(p['team'], 0) + 1
+    now_found = {}
+    for p in found.values():
+        now_found[p['team']] = now_found.get(p['team'], 0) + 1
+    shrunk = sorted(t for t, n in before.items() if n >= 6 and now_found.get(t, 0) < n / 2)
     added = updated = left = 0
     for k, p in found.items():
         cur = people.get(k)
@@ -211,7 +222,7 @@ def main():
             added += 1
     for k, cur in people.items():
         if cur.get('source') == 'scraped' and not cur.get('locked') and k not in found \
-                and cur['team'] in scraped_teams and cur.get('status') == 'current':
+                and cur['team'] in scraped_teams and cur['team'] not in shrunk and cur.get('status') == 'current':
             cur['status'] = 'left'
             left += 1
     pruned = 0
@@ -227,11 +238,21 @@ def main():
     kind = {'lead': 0, 'advisor': 2, 'member': 1}
     out = {
         'updated': today,
+        'lastRun': {
+            'date': datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds'),
+            'runId': os.environ.get('RUN_ID', ''),
+            'found': len(found), 'added': added, 'changed': updated, 'left': left,
+            'failedTeams': failed, 'shrunkTeams': shrunk,
+        },
         'teams': sites,
         'people': sorted(people.values(), key=lambda p: (order.get(p['team'], 999), kind.get(p['roleType'], 3), p['name'])),
     }
     print(f'{len(found)} people on team sites; {added} new, {updated} changed, {left} no longer listed (marked "left")'
           + (f', {pruned} deleted by --prune' if pruned else ''))
+    if failed:
+        print('could not load (kept as they were):', ', '.join(failed))
+    if shrunk:
+        print('far fewer people than before, nobody marked left (check targets.json):', ', '.join(shrunk))
     if not dry:
         os.makedirs(os.path.dirname(OUT), exist_ok=True)
         with open(OUT, 'w') as f:

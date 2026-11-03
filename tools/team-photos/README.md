@@ -12,10 +12,59 @@ from the team websites.
 | `extract.js` | The in-page code `scrape.py` runs to find photos and the text next to them |
 | `build.py` | Reads `raw.json`, works out name, role, lead or member, subteam and class year, and merges the result into `data/team-photos.json` |
 | `raw.json` | The last scrape, kept so `build.py` can be rerun without scraping again |
+| `../../.github/workflows/team-photos.yml` | The GitHub Action the Update button starts |
+| `../../apps-script/09_team_photos.gs` | The web app between the button and GitHub. It holds the GitHub token |
 
 ## Refresh from the team sites
 
-Once a semester, or when teams post new members:
+Open the photos page from the admin page (Teams > Team member photos) and press
+**Update from team sites**. The page shows each step and reports what changed when it is done,
+usually 5 to 10 minutes later. It also runs on its own on the 1st of each month.
+
+How it works: the button asks the update web app (`apps-script/09_team_photos.gs`) to start the
+GitHub Action `.github/workflows/team-photos.yml`. The Action runs `scrape.py` and `build.py` and
+commits the new `data/team-photos.json`. The page follows the run, waits for GitHub Pages to
+publish the new file, then reloads the photos. A run in progress is remembered, so closing the
+page does not stop it, and reopening the page picks it up again.
+
+What a refresh does:
+
+- A person on a team site is added, or their role, photo, subteam and class year are updated.
+- A person who is no longer on their team's site is marked `"status": "left"`. The page hides
+  them unless the *Graduated & former* switch is on.
+- A team whose site fails to load keeps its last good scrape. Nobody on it is marked left, and
+  the page names the team when the update finishes.
+- A team whose site suddenly lists less than half as many people is treated the same way. This
+  usually means the team moved its team page (see *When a team's page changes*).
+
+| What the page says | What to do |
+|--------------------|------------|
+| The update service isn't connected yet | Do *Connect the Update button* below |
+| Couldn't reach / didn't answer | Try again. If it keeps happening, check `TEAM_PHOTOS.refreshUrl` in `config.js` |
+| The update couldn't start: token | Replace `GITHUB_TOKEN` in the web app's script properties |
+| Already up to date | An update finished in the last 5 minutes. Wait and try again |
+| GitHub didn't start the update | Check that Actions are on: repository Settings > Actions |
+| The update failed on GitHub | Open the run log from the link. The data was not changed |
+
+### Connect the Update button
+
+Once, by someone with admin rights on the GitHub organization:
+
+1. On GitHub: Settings > Developer settings > Fine-grained tokens > Generate new token.
+   Resource owner: `cornellprojectteams`. Repository access: only `centralhub`.
+   Permissions: **Actions: Read and write**. Copy the token.
+2. Go to script.google.com > New project. Paste in `apps-script/09_team_photos.gs`.
+3. Project Settings > Script properties > Add `GITHUB_TOKEN` with the token as its value.
+4. Deploy > New deployment > type **Web app**. Execute as: **Me**. Who has access: **Anyone**.
+   Copy the URL that ends in `/exec`.
+5. In `config.js`, set `TEAM_PHOTOS.refreshUrl` to that URL. Commit and push.
+
+The token expires on the date you chose in step 1. When it does, the page says so; make a new one
+and replace the script property. No redeploy is needed for that.
+
+### Run it by hand
+
+To run the scraper on your own computer instead (for example to test a change to `targets.json`):
 
 ```bash
 pip install playwright && playwright install chromium
@@ -26,14 +75,7 @@ python3 tools/team-photos/build.py
 
 `--dry-run` prints how many people are new, changed and no longer listed without writing anything.
 To scrape only some teams, name them: `python3 tools/team-photos/scrape.py "Mars Rover" Baja`.
-Then commit `data/team-photos.json` and push. The page updates when GitHub Pages redeploys.
-
-What a refresh does:
-
-- A person on a team site is added, or their role, photo, subteam and class year are updated.
-- A person who is no longer on their team's site is marked `"status": "left"`. The page hides
-  them unless *Show graduated and former* is ticked.
-- A team whose site fails to load is left as it was. Nobody on it is marked left.
+Then commit `data/team-photos.json` and push.
 
 ## Remove graduates
 

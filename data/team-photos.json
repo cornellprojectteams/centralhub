@@ -1,5 +1,15 @@
 {
  "updated": "2026-11-03",
+ "lastRun": {
+  "date": "2026-11-03T16:21:51+00:00",
+  "runId": "",
+  "found": 1411,
+  "added": 0,
+  "changed": 0,
+  "left": 0,
+  "failedTeams": [],
+  "shrunkTeams": []
+ },
  "teams": {
   "AguaClara": {
    "site": "https://aguaclara.cornell.edu/",

@@ -37,7 +37,16 @@ async def scrape_team(ctx, sem, team, specs, result):
                 pages[spec] = {'url': page.url, 'items': await page.evaluate(JS)}
             except Exception as e:
                 pages[spec] = {'error': str(e)[:200]}
-        result[team] = pages
+        old = result.get(team)
+        if old and any('error' in v or not v.get('items') for v in pages.values()):
+            # a page failed or came back empty: keep the last good scrape for the team,
+            # marked so build.py reports it instead of treating people as gone
+            merged = dict(old)
+            for k, v in pages.items():
+                merged[k] = v if v.get('items') else {**old.get(k, {}), 'error': v.get('error', 'no photos found')}
+            result[team] = merged
+        else:
+            result[team] = pages
         await page.close()
         print(f"{team}: " + ', '.join(f"{len(v['items'])} photos" if 'items' in v else 'error: ' + v['error'][:60]
                                      for v in pages.values()), flush=True)

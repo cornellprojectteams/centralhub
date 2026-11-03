@@ -1,0 +1,59 @@
+# Refreshes the team member photo database (data/team-photos.json) from the team websites.
+# Started by the Update button on team-photos.html (through apps-script/09_team_photos.gs),
+# from the Actions tab (Run workflow), or on its own on the 1st of each month.
+name: Team photos refresh
+run-name: "Team photos refresh ${{ inputs.request_id || github.event_name }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      request_id:
+        description: Set by the Update button so the page can find this run
+        required: false
+        default: ''
+  schedule:
+    - cron: '0 12 1 * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: team-photos
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Playwright
+        run: |
+          pip install playwright==1.48.0
+          python -m playwright install --with-deps chromium
+
+      - name: Scrape team sites
+        run: python tools/team-photos/scrape.py
+
+      - name: Build the database
+        env:
+          RUN_ID: ${{ github.run_id }}
+        run: python tools/team-photos/build.py
+
+      - name: Commit
+        run: |
+          git config user.name "team-photos bot"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/team-photos.json tools/team-photos/raw.json
+          if git diff --cached --quiet; then
+            echo "Nothing changed."
+          else
+            git commit -m "Team photos: refresh from team sites"
+            git pull --rebase
+            git push
+          fi

@@ -16,6 +16,7 @@ Static web hub for Cornell Project Teams Safety & Operations. Links staff and ad
 | `team.html` | Shareable per-team open-issues page (`team.html?team=<name>`) |
 | `team-photos.html`, `team-photos.js` | Team member photos from every team's website, filtered by team and role. Linked from the admin page (Teams) |
 | `data/team-photos.json`, `tools/team-photos/` | The photo database and the scripts that refresh it (see `tools/team-photos/README.md`) |
+| `apps-script/09_team_photos.gs`, `.github/workflows/team-photos.yml` | The photos page's Update button: the web app that starts the refresh, and the GitHub Action that runs it |
 | `styles.css` | Layout and Cornell theming |
 | `app.js` | Live search, the slide-over panels, the section list (shared by the staff, admin and developer pages) |
 | `config.js` | Single source for the Space Status web app `/exec` URL and the inventory settings (`INVENTORY`) |

@@ -4,7 +4,9 @@
   Team member photos: every project team's public member photos in one place.
   Data: data/team-photos.json, built by tools/team-photos (see the README there).
   Filters: team, role (lead / member / advisor), name search, and whether to show
-  people who have graduated or left. Logic: team-photos.js | Tokens: styles.css
+  people who have graduated or left. Opened from the admin page (?admin=1), it also
+  shows the Update button, which rescrapes the team sites through a GitHub Action.
+  Logic: team-photos.js | Tokens: styles.css | Update service URL: config.js
 -->
 <head>
   <meta charset="UTF-8">
@@ -16,60 +18,168 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" media="print" onload="this.media='all';this.onload=null">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap"></noscript>
   <link rel="stylesheet" href="styles.css">
+  <script src="config.js"></script>
   <style>
-    .tp-main { flex: 1; width: 100%; max-width: var(--page-max); margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
-    .tp-back { display: flex; gap: 1.25rem; align-items: center; margin-bottom: 1.5rem; }
-    .tp-back a { font-size: .875rem; font-weight: 600; color: var(--text); text-decoration: none; }
+    .tp-main { flex: 1; width: 100%; max-width: 76rem; margin: 0 auto; padding: 2rem 1.5rem 5rem; }
+
+    /* back links */
+    .tp-back { display: flex; gap: 1.5rem; align-items: center; margin-bottom: 2.25rem; }
+    .tp-back a { font-size: .875rem; font-weight: 600; color: var(--text); text-decoration: none; display: inline-flex; gap: .4rem; align-items: center; }
     .tp-back a:first-child { color: var(--red); font-weight: 700; }
-    .tp-back a:hover { text-decoration: underline; }
-    .tp-db { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; align-items: baseline; margin-top: 1rem; font-size: .875rem; }
-    .tp-db-label { font-size: .6875rem; font-weight: 800; text-transform: uppercase; letter-spacing: .14em; color: var(--text); }
-    .tp-db a { color: var(--red); font-weight: 600; text-decoration: none; border-bottom: 1.5px solid var(--gold); }
-    .tp-eyebrow { font-family: var(--font); font-size: .6875rem; font-weight: 800; text-transform: uppercase; letter-spacing: .14em; color: var(--red); }
-    .tp-title { font-family: var(--font-display); font-size: 2rem; font-weight: 800; letter-spacing: -0.04em; line-height: 1.05; margin: .5rem 0 0; color: var(--text); }
-    .tp-rule { width: 46px; height: 3px; background: linear-gradient(90deg, var(--red-dark), var(--red), var(--gold)); border-radius: 99px; margin: .85rem 0 1rem; }
-    .tp-lede { font-size: .9375rem; color: var(--text); max-width: 44rem; margin: 0; }
-    .tp-lede a, .tp-foot a, .tp-team-site { color: var(--red); font-weight: 600; text-decoration: none; border-bottom: 1.5px solid var(--gold); }
+    .tp-back a:first-child span { transition: transform .2s ease; }
+    .tp-back a:first-child:hover span { transform: translateX(-3px); }
+    .tp-back a:hover { text-decoration: underline; text-underline-offset: 3px; }
 
-    .tp-filters { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: .625rem; align-items: center; padding: 1rem 0; margin-top: 1.25rem; background: var(--bg, #fff); border-bottom: 1.5px solid var(--line); }
-    .tp-select, .tp-search { font: inherit; font-size: .9375rem; padding: .6rem .8rem; border: 1.5px solid var(--line); border-radius: 9px; background: #fff; color: var(--text); }
-    .tp-select { min-width: 15rem; cursor: pointer; }
-    .tp-search { flex: 1; min-width: 12rem; }
-    .tp-roles { display: inline-flex; border: 1.5px solid var(--line); border-radius: 9px; overflow: hidden; }
-    .tp-role { font: inherit; font-size: .875rem; font-weight: 600; padding: .55rem .85rem; border: 0; background: #fff; color: var(--text); cursor: pointer; }
-    .tp-role + .tp-role { border-left: 1.5px solid var(--line); }
-    .tp-role.is-active { background: var(--red); color: #fff; }
-    .tp-check { display: inline-flex; gap: .4rem; align-items: center; font-size: .875rem; color: var(--text); cursor: pointer; }
-    .tp-count { font-size: .875rem; font-weight: 600; color: var(--text); margin-left: auto; }
-    .tp-csv { font: inherit; font-size: .875rem; font-weight: 600; color: var(--red); background: none; border: 0; cursor: pointer; padding: .25rem 0; border-bottom: 1.5px solid var(--gold); }
+    /* hero */
+    .tp-eyebrow { font-size: .75rem; font-weight: 800; text-transform: uppercase; letter-spacing: .16em; color: var(--red); }
+    .tp-title { font-family: var(--font-display); font-size: clamp(2.5rem, 6.5vw, 4.5rem); font-weight: 800; letter-spacing: -0.05em; line-height: .95; margin: .6rem 0 0; color: var(--text); }
+    .tp-title em { font-style: normal; background: linear-gradient(100deg, var(--red-dark), var(--red-bright) 55%, #e2702b); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .tp-lede { font-size: 1.0625rem; line-height: 1.55; color: var(--text); max-width: 40rem; margin: 1.1rem 0 0; }
 
-    .tp-team { margin-top: 2.25rem; }
-    .tp-team-head { display: flex; flex-wrap: wrap; gap: .25rem 1rem; align-items: baseline; padding-bottom: .5rem; border-bottom: 1.5px solid var(--line); }
-    .tp-team-name { font-family: var(--font-display); font-size: 1.25rem; font-weight: 800; letter-spacing: -0.02em; margin: 0; color: var(--text); }
-    .tp-team-meta { font-size: .8125rem; color: var(--text); }
-    .tp-team-site { font-size: .8125rem; }
-    .tp-team-note { font-size: .875rem; color: var(--text); margin: .75rem 0 0; }
+    .tp-stats { display: flex; flex-wrap: wrap; margin: 2rem 0 0; padding: 0; list-style: none; }
+    .tp-stat { padding: 0 2rem 0 0; margin-right: 2rem; border-right: 1.5px solid var(--line); }
+    .tp-stat:last-child { border-right: 0; margin-right: 0; padding-right: 0; }
+    .tp-stat b { display: block; font-family: var(--font-display); font-size: 2.25rem; font-weight: 800; letter-spacing: -0.04em; line-height: 1; color: var(--text); font-variant-numeric: tabular-nums; }
+    .tp-stat span { display: block; margin-top: .35rem; font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; color: var(--text); }
+    .tp-stat--red b { color: var(--red); }
 
-    .tp-grid { list-style: none; margin: 1rem 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 1.25rem 1rem; }
-    .tp-person { min-width: 0; }
-    .tp-photo { display: block; width: 100%; aspect-ratio: 4 / 5; border-radius: 8px; overflow: hidden; background: #f1efec; }
-    .tp-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .tp-initials { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-size: 1.75rem; font-weight: 800; color: #8a817a; }
-    .tp-name { font-weight: 600; font-size: .9375rem; line-height: 1.25; margin-top: .5rem; color: var(--text); }
-    .tp-role-line { font-size: .8125rem; line-height: 1.3; color: var(--text); margin-top: .15rem; }
-    .tp-tag { display: inline-block; font-size: .6875rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; margin-top: .3rem; color: var(--red); }
-    .tp-tag--member { color: #5b544e; }
-    .tp-tag--gone { color: #8a5a00; }
+    /* database row + update */
+    .tp-db { display: flex; flex-wrap: wrap; gap: .75rem 1.5rem; align-items: center; margin-top: 2.25rem; padding: 1rem 0; border-top: 1.5px solid var(--line); border-bottom: 1.5px solid var(--line); }
+    .tp-db-label { font-size: .75rem; font-weight: 800; text-transform: uppercase; letter-spacing: .14em; color: var(--text); }
+    .tp-db a { font-size: .875rem; color: var(--red); font-weight: 600; text-decoration: none; border-bottom: 1.5px solid var(--gold); }
+    .tp-db a:hover { border-bottom-color: var(--red); }
+    .tp-db-when { font-size: .8125rem; color: var(--text); }
+    .tp-update {
+      margin-left: auto; display: inline-flex; align-items: center; gap: .55rem;
+      font-family: var(--font-display); font-size: .9375rem; font-weight: 700; color: #fff;
+      background: linear-gradient(180deg, var(--red-bright), var(--red) 55%, var(--red-dark));
+      border: 0; border-radius: 999px; padding: .7rem 1.25rem .7rem 1.05rem; cursor: pointer;
+      box-shadow: 0 6px 18px rgba(179, 27, 27, .28); transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+    }
+    .tp-update:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 10px 24px rgba(179, 27, 27, .34); filter: brightness(1.05); }
+    .tp-update:active:not(:disabled) { transform: translateY(0); }
+    .tp-update[hidden] { display: none; }
+    .tp-update:disabled { cursor: progress; filter: saturate(.75); }
+    .tp-update svg { width: 18px; height: 18px; }
+    .tp-update.is-busy svg { animation: tp-spin 1s linear infinite; }
 
-    .tp-empty, .tp-loading { margin-top: 2rem; font-size: .9375rem; color: var(--text); }
-    .tp-foot { margin-top: 3rem; padding-top: 1rem; border-top: 1.5px solid var(--line); font-size: .875rem; color: var(--text); max-width: 44rem; }
+    .tp-status { margin-top: 1rem; padding: 1rem 0 1rem 1.1rem; border-left: 3px solid var(--red); animation: tp-in .3s ease both; }
+    .tp-status[hidden] { display: none; }
+    .tp-status--ok { border-left-color: #1f9d5b; }
+    .tp-status--info { border-left-color: #c88a12; }
+    .tp-status--error { border-left-color: var(--red); background: linear-gradient(90deg, rgba(179, 27, 27, .06), transparent 70%); }
+    .tp-status-title { display: flex; align-items: center; gap: .6rem; font-family: var(--font-display); font-size: 1.0625rem; font-weight: 800; letter-spacing: -0.01em; color: var(--text); }
+    .tp-status-detail { font-size: .9375rem; line-height: 1.5; color: var(--text); margin-top: .3rem; max-width: 44rem; }
+    .tp-status-actions { display: flex; flex-wrap: wrap; gap: 1.25rem; margin-top: .75rem; }
+    .tp-status-actions a, .tp-status-actions button { font: inherit; font-size: .875rem; font-weight: 700; color: var(--red); background: none; border: 0; padding: 0 0 .1rem; cursor: pointer; text-decoration: none; border-bottom: 1.5px solid var(--gold); }
+    .tp-spinner { width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid rgba(179, 27, 27, .18); border-top-color: var(--red); animation: tp-spin .8s linear infinite; flex: none; }
+    .tp-mark { width: 20px; height: 20px; flex: none; }
+
+    .tp-steps { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; list-style: none; margin: .9rem 0 0; padding: 0; }
+    .tp-step { display: flex; align-items: center; gap: .45rem; font-size: .8125rem; font-weight: 600; color: var(--text); opacity: .45; transition: opacity .3s ease; }
+    .tp-step::before { content: ''; width: 9px; height: 9px; border-radius: 50%; border: 2px solid currentColor; }
+    .tp-step.is-done { opacity: 1; }
+    .tp-step.is-done::before { background: #1f9d5b; border-color: #1f9d5b; }
+    .tp-step.is-now { opacity: 1; color: var(--red); }
+    .tp-step.is-now::before { background: var(--red); border-color: var(--red); animation: tp-pulse 1.2s ease-in-out infinite; }
+    .tp-bar { position: relative; height: 3px; max-width: 32rem; margin-top: .9rem; border-radius: 99px; background: rgba(179, 27, 27, .12); overflow: hidden; }
+    .tp-bar::after { content: ''; position: absolute; inset: 0 auto 0 0; width: 35%; border-radius: 99px; background: linear-gradient(90deg, var(--red), var(--gold)); animation: tp-slide 1.4s ease-in-out infinite; }
+
+    /* toolbar */
+    .tp-filters {
+      position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: .75rem; align-items: center;
+      padding: .9rem 0; margin-top: 1.75rem;
+      background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: saturate(1.4) blur(10px); -webkit-backdrop-filter: saturate(1.4) blur(10px);
+      border-bottom: 1.5px solid var(--line);
+    }
+    .tp-search-wrap { position: relative; flex: 1 1 16rem; }
+    .tp-search-wrap svg { position: absolute; left: .85rem; top: 50%; width: 17px; height: 17px; transform: translateY(-50%); color: var(--text); pointer-events: none; }
+    .tp-search, .tp-select { font: inherit; font-size: .9375rem; color: var(--text); background: #fff; border: 1.5px solid var(--line); border-radius: 999px; transition: border-color .15s ease, box-shadow .15s ease; }
+    .tp-search { width: 100%; padding: .65rem .9rem .65rem 2.4rem; }
+    .tp-select { padding: .65rem 2.2rem .65rem 1rem; min-width: 15rem; cursor: pointer; appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2316161a' stroke-width='2.5' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right .85rem center; background-size: 14px; }
+    .tp-search:focus, .tp-select:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px rgba(179, 27, 27, .14); }
+
+    .tp-roles { position: relative; display: inline-flex; padding: 3px; border-radius: 999px; background: #efece6; }
+    .tp-roles-thumb { position: absolute; top: 3px; bottom: 3px; left: 0; border-radius: 999px; background: var(--red); box-shadow: 0 3px 10px rgba(179, 27, 27, .3); transition: transform .25s cubic-bezier(.3, .7, .2, 1), width .25s cubic-bezier(.3, .7, .2, 1); }
+    .tp-role { position: relative; z-index: 1; font: inherit; font-size: .875rem; font-weight: 700; padding: .5rem .95rem; border: 0; border-radius: 999px; background: none; color: var(--text); cursor: pointer; transition: color .2s ease; }
+    .tp-role.is-active { color: #fff; }
+
+    .tp-switch { display: inline-flex; align-items: center; gap: .55rem; font-size: .875rem; font-weight: 600; color: var(--text); cursor: pointer; user-select: none; }
+    .tp-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+    .tp-switch i { position: relative; width: 36px; height: 21px; border-radius: 99px; background: #d9d4cc; transition: background .2s ease; flex: none; }
+    .tp-switch i::after { content: ''; position: absolute; top: 3px; left: 3px; width: 15px; height: 15px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .25); transition: transform .2s ease; }
+    .tp-switch input:checked + i { background: var(--red); }
+    .tp-switch input:checked + i::after { transform: translateX(15px); }
+    .tp-switch input:focus-visible + i { box-shadow: 0 0 0 3px rgba(179, 27, 27, .25); }
+
+    .tp-count { font-size: .875rem; font-weight: 700; color: var(--text); margin-left: auto; font-variant-numeric: tabular-nums; }
+    .tp-csv { font: inherit; font-size: .875rem; font-weight: 700; color: var(--red); background: none; border: 0; cursor: pointer; padding: 0 0 .1rem; border-bottom: 1.5px solid var(--gold); }
+
+    /* teams */
+    .tp-team { margin-top: 3.25rem; scroll-margin-top: 5rem; }
+    .tp-team-head { display: grid; grid-template-columns: auto 1fr auto; gap: .25rem 1.1rem; align-items: end; padding-bottom: .9rem; border-bottom: 1.5px solid var(--text); }
+    .tp-team-num { font-family: var(--font-display); font-size: 2.5rem; font-weight: 800; letter-spacing: -0.05em; line-height: .85; color: var(--red); font-variant-numeric: tabular-nums; }
+    .tp-team-name { font-family: var(--font-display); font-size: 1.5rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; margin: 0; color: var(--text); }
+    .tp-team-meta { display: block; margin-top: .25rem; font-size: .8125rem; font-weight: 600; color: var(--text); }
+    .tp-team-site { font-size: .875rem; font-weight: 700; color: var(--red); text-decoration: none; white-space: nowrap; }
+    .tp-team-site:hover { text-decoration: underline; text-underline-offset: 3px; }
+    .tp-team-note { font-size: .9375rem; color: var(--text); margin: 1rem 0 0; }
+
+    .tp-grid { list-style: none; margin: 1.5rem 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1.75rem 1.25rem; }
+    .tp-person { min-width: 0; animation: tp-up .45s cubic-bezier(.2, .7, .2, 1) both; animation-delay: calc(var(--i, 0) * 18ms); }
+    .tp-photo { position: relative; display: block; width: 100%; aspect-ratio: 4 / 5; border-radius: 14px; overflow: hidden; background: #ece8e1; }
+    .tp-photo img { position: relative; z-index: 1; width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .45s cubic-bezier(.2, .7, .2, 1); opacity: 0; }
+    .tp-photo img.is-loaded { opacity: 1; transition: transform .45s cubic-bezier(.2, .7, .2, 1), opacity .35s ease; }
+    a.tp-photo:hover img { transform: scale(1.05); }
+    a.tp-photo:focus-visible { outline: 3px solid var(--red); outline-offset: 3px; }
+    .tp-initials { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-size: 2rem; font-weight: 800; letter-spacing: -0.03em; color: #6d645c; background: linear-gradient(160deg, #f1ede6, #e2dcd2); }
+    .tp-badge { position: absolute; z-index: 2; left: .55rem; top: .55rem; font-size: .625rem; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; padding: .3rem .55rem; border-radius: 999px; color: #fff; background: var(--red); box-shadow: 0 2px 8px rgba(0, 0, 0, .2); }
+    .tp-badge--advisor { background: #1d1d22; }
+    .tp-badge--gone { background: #9a6a06; }
+    .tp-name { font-weight: 700; font-size: .9375rem; line-height: 1.25; margin-top: .65rem; color: var(--text); }
+    .tp-role-line { font-size: .8125rem; line-height: 1.35; color: var(--text); margin-top: .2rem; }
+    .tp-sub { display: block; margin-top: .15rem; font-size: .75rem; font-weight: 600; color: var(--red-dark); }
+
+    /* loading skeleton */
+    .tp-skel { margin-top: 3.25rem; }
+    .tp-skel-head { width: 14rem; height: 1.6rem; border-radius: 8px; }
+    .tp-skel .tp-grid li div { aspect-ratio: 4 / 5; border-radius: 14px; }
+    .tp-skel .tp-grid li p { height: .8rem; width: 70%; border-radius: 6px; margin: .7rem 0 0; }
+    .tp-skel .tp-grid li p + p { width: 45%; margin-top: .4rem; }
+    .tp-shimmer { background: linear-gradient(90deg, #ece8e1 0%, #f6f3ee 40%, #ece8e1 80%); background-size: 200% 100%; animation: tp-shimmer 1.3s linear infinite; }
+
+    .tp-empty { margin-top: 3rem; font-size: 1rem; color: var(--text); }
+    .tp-empty b { display: block; font-family: var(--font-display); font-size: 1.375rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: .3rem; }
+    .tp-empty button { font: inherit; font-weight: 700; color: var(--red); background: none; border: 0; padding: 0; cursor: pointer; border-bottom: 1.5px solid var(--gold); margin-top: .6rem; }
+    .tp-foot { margin-top: 4rem; padding-top: 1.25rem; border-top: 1.5px solid var(--line); font-size: .875rem; line-height: 1.55; color: var(--text); max-width: 46rem; }
     .tp-foot p { margin: 0 0 .5rem; }
 
-    @media (max-width: 640px) {
-      .tp-main { padding: 1.75rem 1rem 3rem; }
+    @keyframes tp-spin { to { transform: rotate(360deg); } }
+    @keyframes tp-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
+    @keyframes tp-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(179, 27, 27, .45); } 50% { box-shadow: 0 0 0 5px rgba(179, 27, 27, 0); } }
+    @keyframes tp-shimmer { to { background-position: -200% 0; } }
+    @keyframes tp-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+    @keyframes tp-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+    @media (prefers-reduced-motion: reduce) {
+      .tp-person, .tp-status { animation: none; }
+      .tp-shimmer, .tp-bar::after, .tp-step.is-now::before { animation-duration: 3s; }
+      .tp-photo img, .tp-roles-thumb { transition: none; }
+    }
+
+    @media (max-width: 720px) {
+      .tp-main { padding: 1.5rem 1rem 3.5rem; }
+      .tp-stat { padding-right: 1.1rem; margin-right: 1.1rem; }
+      .tp-stat b { font-size: 1.75rem; }
+      .tp-update { margin-left: 0; }
       .tp-select { min-width: 0; flex: 1 1 100%; }
+      .tp-roles { flex: 1 1 100%; }
+      .tp-role { flex: 1; padding: .5rem .4rem; }
       .tp-count { margin-left: 0; }
-      .tp-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 1rem .75rem; }
+      .tp-team-num { font-size: 2rem; }
+      .tp-team-name { font-size: 1.25rem; }
+      .tp-grid { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 1.25rem .85rem; }
     }
   </style>
 </head>
@@ -95,37 +205,52 @@
     </nav>
 
     <div class="tp-eyebrow">Project teams</div>
-    <h1 class="tp-title">Team member photos</h1>
-    <div class="tp-rule"></div>
-    <p class="tp-lede">Member photos from each team&rsquo;s public website. Filter by team and role. Click a photo to open the full image. Last updated <span id="tp-updated">&hellip;</span>.</p>
+    <h1 class="tp-title">Team member <em>photos</em></h1>
+    <p class="tp-lede">Every member photo from the teams&rsquo; public websites in one place. Filter by team and role, search by name, and click a photo to open the full image.</p>
 
-    <div class="tp-db">
+    <ul class="tp-stats" id="tp-stats" aria-label="Totals">
+      <li class="tp-stat tp-stat--red"><b data-stat="people">&ndash;</b><span>People</span></li>
+      <li class="tp-stat"><b data-stat="teams">&ndash;</b><span>Teams</span></li>
+      <li class="tp-stat"><b data-stat="leads">&ndash;</b><span>Leads</span></li>
+      <li class="tp-stat"><b data-stat="advisors">&ndash;</b><span>Advisors</span></li>
+    </ul>
+
+    <div class="tp-db" id="update">
       <span class="tp-db-label">Database</span>
       <a href="https://github.com/cornellprojectteams/centralhub/blob/main/data/team-photos.json" target="_blank" rel="noopener">Open the data file</a>
       <a href="https://github.com/cornellprojectteams/centralhub/edit/main/data/team-photos.json" target="_blank" rel="noopener">Edit on GitHub</a>
-      <a href="https://github.com/cornellprojectteams/centralhub/blob/main/tools/team-photos/README.md" target="_blank" rel="noopener">How to update</a>
       <a href="data/team-photos.json" download>Download JSON</a>
+      <span class="tp-db-when" id="tp-updated"></span>
+      <button type="button" class="tp-update" id="tp-update" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"></path><path d="M21 3v6h-6"></path></svg>
+        <span id="tp-update-label">Update from team sites</span>
+      </button>
     </div>
+    <div class="tp-status" id="tp-status" role="status" aria-live="polite" hidden></div>
 
     <div class="tp-filters" role="search">
+      <label class="tp-search-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input type="search" class="tp-search" id="tp-search" placeholder="Search name, role or subteam" autocomplete="off" aria-label="Search people">
+      </label>
       <select class="tp-select" id="tp-team" aria-label="Team"><option value="">All teams</option></select>
       <div class="tp-roles" id="tp-roles" role="group" aria-label="Role">
+        <span class="tp-roles-thumb" id="tp-roles-thumb" aria-hidden="true"></span>
         <button type="button" class="tp-role is-active" data-role="" aria-pressed="true">All</button>
         <button type="button" class="tp-role" data-role="lead" aria-pressed="false">Leads</button>
         <button type="button" class="tp-role" data-role="member" aria-pressed="false">Members</button>
         <button type="button" class="tp-role" data-role="advisor" aria-pressed="false">Advisors</button>
       </div>
-      <input type="search" class="tp-search" id="tp-search" placeholder="Search name, role or subteam" autocomplete="off" aria-label="Search people">
-      <label class="tp-check"><input type="checkbox" id="tp-gone"> Show graduated and former</label>
+      <label class="tp-switch"><input type="checkbox" id="tp-gone"><i aria-hidden="true"></i>Graduated &amp; former</label>
       <span class="tp-count" id="tp-count"></span>
       <button type="button" class="tp-csv" id="tp-csv">Download CSV</button>
     </div>
 
-    <div id="tp-list"><p class="tp-loading">Loading photos&hellip;</p></div>
+    <div id="tp-list" aria-busy="true"></div>
 
     <div class="tp-foot">
-      <p><strong>Graduated</strong> means the class year has passed (after May of that year), or an admin marked the person graduated. <strong>Former</strong> means the person was no longer on their team&rsquo;s site at the last update.</p>
-      <p>To add people, remove graduates or refresh from the team sites, see <a href="https://github.com/cornellprojectteams/centralhub/blob/main/tools/team-photos/README.md" target="_blank" rel="noopener">How to update the photo database</a>.</p>
+      <p><strong>Graduated</strong> means the class year has passed (from June 1 of that year), or an admin marked the person graduated. <strong>Former</strong> means the person was not on their team&rsquo;s site at the last update. Both are hidden unless the switch is on.</p>
+      <p>Adding people by hand and removing graduates: <a href="https://github.com/cornellprojectteams/centralhub/blob/main/tools/team-photos/README.md" target="_blank" rel="noopener">photo database guide</a>.</p>
     </div>
   </main>
 

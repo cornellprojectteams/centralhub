@@ -31,3 +31,11 @@ window.INVENTORY = {
   masterGid: '0',
   maintenanceGid: '2133394607',
 };
+
+// Team member photos (team-photos.html). The Update button asks this web app
+// (apps-script/09_team_photos.gs) to start the GitHub Action that rescrapes the team sites.
+//   refreshUrl  the web app's /exec URL. Until it is set, the button says the update
+//               service is not connected yet.
+window.TEAM_PHOTOS = {
+  refreshUrl: 'https://script.google.com/macros/s/AKfycbxAK88U2lYKdXu1YDxIqezB8Xes-Ee7BnS9bDZvxayMM9j9zvKqQztlvUBy1m3lJPxb/exec',
+};
