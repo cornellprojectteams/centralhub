@@ -37,7 +37,8 @@ PLACEHOLDER = re.compile(r'no_headshot|placeholder|default\.|blank\.|via\.placeh
 STUDY = re.compile(r"engineering|science|computer|economics|math|biology|physics|chemistry|studies|management|"
                    r"\bCS\b|\bECE\b|\bMAE\b|\bORIE\b|\bHADM\b|\bAEM\b|\bILR\b|architecture|statistics|design|"
                    r"policy|communication|sustainability|environment|nutrition|psychology|government|history", re.I)
-NAME_RE = re.compile(r"^(prof\.\s+|dr\.\s+)?[A-Z][A-Za-z'’.\-]+(\s+\(?[A-Z][A-Za-z'’.\-]*\)?){0,4}$")
+NAME_RE = re.compile(r"^(prof\.\s+|dr\.\s+)?[A-ZÀ-Ý][A-Za-zÀ-ÿ'’.\-]+(\s+\(?[A-ZÀ-Ý][A-Za-zÀ-ÿ'’.\-]*\)?){0,4}$")
+NOT_SECTION = re.compile(r'(?i)^(all|filter|show all|our team|team|meet the team|meet our team!?)$')
 
 
 def clean(s):
@@ -124,7 +125,8 @@ def parse_item(team, it, page_url):
     if is_name(head) or head.lower() in ('our team', 'team', 'meet the team', 'meet our team', 'our team.', 'subteams', 'meet our team!'):
         head = ''
     if not role and head:
-        role = 'Lead' if LEAD_HEADINGS.search(head) else ''
+        m = re.match(r'(?i)^(.*\blead)s$', head)
+        role = (m.group(1) if m else 'Lead') if LEAD_HEADINGS.search(head) else ''
     role = titlecase(role)
     if ADVISOR_WORDS.search(role) or name.lower().startswith('prof'):
         kind = 'advisor'
@@ -136,6 +138,8 @@ def parse_item(team, it, page_url):
         subteam = ''
     else:
         subteam = re.sub(r'(?i)\s*(sub)?team members$|^members$|\s*subteam$', '', head)
+    if NOT_SECTION.match(subteam):
+        subteam = ''
     subteam = subteam or subteam_from_url(page_url)
     photo = '' if silly else (it.get('src') or '')
     return {
@@ -169,8 +173,26 @@ def parse_raw(raw):
     found = {}
     for team, pages in raw.items():
         for spec, page in pages.items():
+            # The nearest heading above a card is often the previous person's name.
+            # Carry the last real section heading ("Team Leads") forward instead.
+            url = page.get('url') or spec.split('|')[0]
+            on_page = set()
             for it in page.get('items', []):
-                p = parse_item(team, it, page.get('url') or spec.split('|')[0])
+                q = parse_item(team, dict(it, head=''), url)
+                if q:
+                    on_page.add(q['name'].lower())
+            section = ''
+            prev = set()
+            for it in page.get('items', []):
+                h = clean(it.get('head'))
+                hl = titlecase(h).lower()
+                is_person = hl in on_page or hl in prev   # prev: the card just before, by its photo's alt text
+                if h and not is_person and not NOT_SECTION.match(h):
+                    section = h
+                if is_person or NOT_SECTION.match(h):
+                    it = dict(it, head=section)
+                prev = {clean(re.split(r',\s', clean(it.get('alt')))[0]).lower()} - {''}
+                p = parse_item(team, it, url)
                 if not p:
                     continue
                 k = key(p)
