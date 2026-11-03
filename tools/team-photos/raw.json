@@ -765,7 +765,7 @@
       "John Apessos",
       "Full Team Lead",
       "2027",
-      "\u00b7",
+      "·",
       "Mechanical Engineering"
      ],
      "after": [],
@@ -780,7 +780,7 @@
       "Lujine Abdelfattah",
       "Full Team Lead",
       "2027",
-      "\u00b7",
+      "·",
       "Computer Science"
      ],
      "after": [],
@@ -795,7 +795,7 @@
       "Nandiniy Velayudhan-Dhamrait",
       "Business Lead",
       "2028",
-      "\u00b7",
+      "·",
       "Biological Sciences"
      ],
      "after": [],
@@ -810,7 +810,7 @@
       "Sahasra Kalwala",
       "Business Lead",
       "2029",
-      "\u00b7",
+      "·",
       "Economics & Information Science"
      ],
      "after": [],
@@ -825,7 +825,7 @@
       "Jason Peskin",
       "Electrical Lead",
       "2027",
-      "\u00b7",
+      "·",
       "Electrical and Computer Engineering"
      ],
      "after": [],
@@ -840,7 +840,7 @@
       "Abigail Gabalski",
       "Electrical Lead",
       "2028",
-      "\u00b7",
+      "·",
       "Electrical and Computer Engineering"
      ],
      "after": [],
@@ -855,7 +855,7 @@
       "Angus Chang",
       "Mechanical Lead",
       "2027",
-      "\u00b7",
+      "·",
       "Mechanical Engineering"
      ],
      "after": [],
@@ -870,7 +870,7 @@
       "Alexander Barry",
       "Mechanical Lead",
       "2027",
-      "\u00b7",
+      "·",
       "Mechanical Engineering"
      ],
      "after": [],
@@ -885,7 +885,7 @@
       "Etienne Sasenarine",
       "Computer Science Lead",
       "2028",
-      "\u00b7",
+      "·",
       "Computer Science"
      ],
      "after": [],
@@ -900,7 +900,7 @@
       "Narayan Topalli",
       "Computer Science Lead",
       "2028",
-      "\u00b7",
+      "·",
       "Computer Science"
      ],
      "after": [
@@ -916,7 +916,7 @@
      "lines": [
       "Alan Munschy",
       "2027",
-      "\u00b7",
+      "·",
       "Mechanical Engineering"
      ],
      "after": [],
@@ -930,7 +930,7 @@
      "lines": [
       "Alexis Favre",
       "2028",
-      "\u00b7",
+      "·",
       "Mechanical Engineering"
      ],
      "after": [],
@@ -944,7 +944,7 @@
      "lines": [
       "Frances Hodson",
       "2029",
-      "\u00b7",
+      "·",
       "Mechanical Engineering"
      ],
      "after": [],
@@ -958,7 +958,7 @@
      "lines": [
       "Jessica An",
       "2028",
-      "\u00b7",
+      "·",
       "ORIE"
      ],
      "after": [],
@@ -972,7 +972,7 @@
      "lines": [
       "Katelyn Zhou",
       "2029",
-      "\u00b7",
+      "·",
       "Mechanical Engineering"
      ],
      "after": [],
@@ -986,7 +986,7 @@
      "lines": [
       "Marco Xerri",
       "2026",
-      "\u00b7",
+      "·",
       "Mechanical Engineering"
      ],
      "after": [],
@@ -1000,7 +1000,7 @@
      "lines": [
       "Marcos Martinez",
       "2028",
-      "\u00b7",
+      "·",
       "Mechanical Engineering"
      ],
      "after": [],
@@ -1014,7 +1014,7 @@
      "lines": [
       "Nathan Sheng",
       "2027",
-      "\u00b7",
+      "·",
       "Mechanical Engineering"
      ],
      "after": [],
@@ -1028,7 +1028,7 @@
      "lines": [
       "Thomas Meyer",
       "2027",
-      "\u00b7",
+      "·",
       "Mechanical Engineering"
      ],
      "after": [
@@ -1044,7 +1044,7 @@
      "lines": [
       "Andrew Jiang",
       "2028",
-      "\u00b7",
+      "·",
       "Computer Science"
      ],
      "after": [],
@@ -1058,7 +1058,7 @@
      "lines": [
       "Ashlyn Kang",
       "2029",
-      "\u00b7",
+      "·",
       "Electrical and Computer Engineering"
      ],
      "after": [],
@@ -1072,7 +1072,7 @@
      "lines": [
       "Benny Zhu",
       "2028",
-      "\u00b7",
+      "·",
       "Electrical and Computer Engineering"
      ],
      "after": [],
@@ -1086,7 +1086,7 @@
      "lines": [
       "Catherine Cheng",
       "2028",
-      "\u00b7",
+      "·",
       "Electrical and Computer Engineering"
      ],
      "after": [],
@@ -1100,7 +1100,7 @@
      "lines": [
       "Geneustace Wickasono",
       "2027",
-      "\u00b7",
+      "·",
       "Electrical and Computer Engineering"
      ],
      "after": [],
@@ -1114,7 +1114,7 @@
      "lines": [
       "Pragya Agarwal",
       "2029",
-      "\u00b7",
+      "·",
       "Electrical and Computer Engineering"
      ],
      "after": [],
@@ -1128,7 +1128,7 @@
      "lines": [
       "Rumman Jan",
       "2028",
-      "\u00b7",
+      "·",
       "Electrical and Computer Engineering"
      ],
      "after": [],
@@ -1142,7 +1142,7 @@
      "lines": [
       "Toby Huynh",
       "2027",
-      "\u00b7",
+      "·",
       "Mechanical Engineering"
      ],
      "after": [],
@@ -1156,7 +1156,7 @@
      "lines": [
       "Weiyi Huang",
       "2027",
-      "\u00b7",
+      "·",
       "Electrical and Computer Engineering & Aerospace Engineering"
      ],
      "after": [
@@ -1172,7 +1172,7 @@
      "lines": [
       "Bojro Das",
       "2029",
-      "\u00b7",
+      "·",
       "Mathematics"
      ],
      "after": [],
@@ -1186,7 +1186,7 @@
      "lines": [
       "Emory Vazquez",
       "2029",
-      "\u00b7",
+      "·",
       "Computer Science"
      ],
      "after": [],
@@ -1200,7 +1200,7 @@
      "lines": [
       "Jiya Choudhary",
       "2029",
-      "\u00b7",
+      "·",
       "Computer Science"
      ],
      "after": [],
@@ -1214,7 +1214,7 @@
      "lines": [
       "Jason Chen",
       "2028",
-      "\u00b7",
+      "·",
       "Computer Science"
      ],
      "after": [],
@@ -1228,7 +1228,7 @@
      "lines": [
       "Pavithra Kamatchi Soundaram",
       "2027",
-      "\u00b7",
+      "·",
       "Computer Science"
      ],
      "after": [],
@@ -1242,7 +1242,7 @@
      "lines": [
       "Rohan Shankar",
       "2028",
-      "\u00b7",
+      "·",
       "Computer Science"
      ],
      "after": [],
@@ -1256,7 +1256,7 @@
      "lines": [
       "Trishia Khandelwal",
       "2029",
-      "\u00b7",
+      "·",
       "Computer Science"
      ],
      "after": [
@@ -1272,7 +1272,7 @@
      "lines": [
       "David Diao",
       "2027",
-      "\u00b7",
+      "·",
       "Public Policy"
      ],
      "after": [],
@@ -1286,7 +1286,7 @@
      "lines": [
       "Helen Zheng",
       "2029",
-      "\u00b7",
+      "·",
       "ORIE"
      ],
      "after": [],
@@ -1300,7 +1300,7 @@
      "lines": [
       "Khushi Thapar",
       "2029",
-      "\u00b7",
+      "·",
       "Economics & Psychology"
      ],
      "after": [
@@ -2340,7 +2340,7 @@
     {
      "src": "https://aguaclara.cornell.edu/assets/Team-7122771b.webp",
      "alt": "",
-     "w": 315,
+     "w": 314,
      "h": 236,
      "lines": [],
      "after": [
@@ -2988,7 +2988,7 @@
       "Our founder"
      ],
      "after": [
-      "\u00a9",
+      "©",
       "2026",
       "AguaClara Cornell",
       "This organization is a registered student organization of Cornell University",
@@ -4385,7 +4385,7 @@
       "Registered Project Team of Cornell University",
       "Adheres to",
       "Cornell University Equal Education and Employment Policy",
-      "\u00a9",
+      "©",
       "2026",
       "Cornell AutoBoat Team. All rights reserved."
      ],
@@ -4423,9 +4423,9 @@
      "h": 457,
      "lines": [
       "Preethika Vemula",
-      "Economics \u201827",
+      "Economics ‘27",
       "LinkedIn",
-      "Read more \u2192"
+      "Read more →"
      ],
      "after": [],
      "head": "Team Leads"
@@ -4437,9 +4437,9 @@
      "h": 457,
      "lines": [
       "Marcus Lotufo",
-      "Biological Engineering \u201828",
+      "Biological Engineering ‘28",
       "LinkedIn",
-      "Read more \u2192"
+      "Read more →"
      ],
      "after": [
       "Subteam Leads",
@@ -4455,9 +4455,9 @@
      "lines": [
       "Hannah Luna",
       "Project Manager",
-      "Biomedical Engineering \u201827",
+      "Biomedical Engineering ‘27",
       "LinkedIn",
-      "Read more \u2192"
+      "Read more →"
      ],
      "after": [],
      "head": "Subteam Leads"
@@ -4470,9 +4470,9 @@
      "lines": [
       "Sheng Cui",
       "Project Manager & NME Co-Chair",
-      "Biomedical Engineering \u201827",
+      "Biomedical Engineering ‘27",
       "LinkedIn",
-      "Read more \u2192"
+      "Read more →"
      ],
      "after": [],
      "head": "Subteam Leads"
@@ -4485,8 +4485,8 @@
      "lines": [
       "Morgan Stoner",
       "Project Manager",
-      "Biomedical Engineering \u201828",
-      "Read more \u2192"
+      "Biomedical Engineering ‘28",
+      "Read more →"
      ],
      "after": [],
      "head": "Subteam Leads"
@@ -4499,9 +4499,9 @@
      "lines": [
       "Haasini Peddikuppa",
       "Operations & Business Lead",
-      "Healthcare Policy \u201828",
+      "Healthcare Policy ‘28",
       "LinkedIn",
-      "Read more \u2192"
+      "Read more →"
      ],
      "after": [],
      "head": "Subteam Leads"
@@ -4514,9 +4514,9 @@
      "lines": [
       "Dayna Ma",
       "Media Lead",
-      "Mechanical Engineering \u201829",
+      "Mechanical Engineering ‘29",
       "LinkedIn",
-      "Read more \u2192"
+      "Read more →"
      ],
      "after": [
       "Research, Design, & Development (RDD)",
@@ -4532,9 +4532,9 @@
      "lines": [
       "Ray Grauer",
       "Recruitment Co-Chair",
-      "Biological Sciences \u201828",
+      "Biological Sciences ‘28",
       "LinkedIn",
-      "Read more \u2192"
+      "Read more →"
      ],
      "after": [],
      "head": "Research, Design, & Development (RDD)"
@@ -4547,9 +4547,9 @@
      "lines": [
       "Alex Zhao Chen",
       "Recruitment Co-Chair",
-      "Biomedical Engineering \u201829",
+      "Biomedical Engineering ‘29",
       "LinkedIn",
-      "Read more \u2192"
+      "Read more →"
      ],
      "after": [],
      "head": "Research, Design, & Development (RDD)"
@@ -4562,9 +4562,9 @@
      "lines": [
       "Jaiden Davis",
       "NME Co-Chair & DEI Chair",
-      "Mechanical Engineering \u201829",
+      "Mechanical Engineering ‘29",
       "LinkedIn",
-      "Read more \u2192"
+      "Read more →"
      ],
      "after": [],
      "head": "Research, Design, & Development (RDD)"
@@ -4577,9 +4577,9 @@
      "lines": [
       "William Zheng",
       "Safety Chair",
-      "Biological Sciences \u201827",
+      "Biological Sciences ‘27",
       "LinkedIn",
-      "Read more \u2192"
+      "Read more →"
      ],
      "after": [],
      "head": "Research, Design, & Development (RDD)"
@@ -4592,9 +4592,9 @@
      "lines": [
       "Jayden Lin",
       "NME Co-Chair",
-      "Mechanical Engineering \u201829",
+      "Mechanical Engineering ‘29",
       "LinkedIn",
-      "Read more \u2192"
+      "Read more →"
      ],
      "after": [
       "2026-27 RDD P2"
@@ -4608,9 +4608,9 @@
      "h": 352,
      "lines": [
       "Leila Abdallahi",
-      "Biological Sciences \u201827",
+      "Biological Sciences ‘27",
       "LinkedIn",
-      "Read more \u2192"
+      "Read more →"
      ],
      "after": [],
      "head": "Research, Design, & Development (RDD)"
@@ -4622,9 +4622,9 @@
      "h": 352,
      "lines": [
       "Wendy Li",
-      "Biology and Society \u201827",
+      "Biology and Society ‘27",
       "LinkedIn",
-      "Read more \u2192"
+      "Read more →"
      ],
      "after": [],
      "head": "Research, Design, & Development (RDD)"
@@ -4636,9 +4636,9 @@
      "h": 352,
      "lines": [
       "Wellington Mapise",
-      "Computer Science \u201827",
+      "Computer Science ‘27",
       "LinkedIn",
-      "Read more \u2192"
+      "Read more →"
      ],
      "after": [],
      "head": "Research, Design, & Development (RDD)"
@@ -4650,9 +4650,9 @@
      "h": 352,
      "lines": [
       "Lindsey Ko",
-      "HBHS \u201827",
+      "HBHS ‘27",
       "LinkedIn",
-      "Read more \u2192"
+      "Read more →"
      ],
      "after": [],
      "head": "Research, Design, & Development (RDD)"
@@ -4664,9 +4664,9 @@
      "h": 352,
      "lines": [
       "Paris Chakravarty",
-      "Biological Sciences \u201827",
+      "Biological Sciences ‘27",
       "LinkedIn",
-      "Read more \u2192"
+      "Read more →"
      ],
      "after": [
       "2026-27 RDD P3"
@@ -4680,8 +4680,8 @@
      "h": 352,
      "lines": [
       "Eric Lee",
-      "Biomedical Engineering \u201828",
-      "Read more \u2192"
+      "Biomedical Engineering ‘28",
+      "Read more →"
      ],
      "after": [],
      "head": "Research, Design, & Development (RDD)"
@@ -4693,9 +4693,9 @@
      "h": 352,
      "lines": [
       "Navin Kasemtanakul",
-      "HBHS \u201828",
+      "HBHS ‘28",
       "LinkedIn",
-      "Read more \u2192"
+      "Read more →"
      ],
      "after": [],
      "head": "Research, Design, & Development (RDD)"
@@ -4707,9 +4707,9 @@
      "h": 352,
      "lines": [
       "Sam Abougor",
-      "Electrical & Computer Engineering \u201829",
+      "Electrical & Computer Engineering ‘29",
       "LinkedIn",
-      "Read more \u2192"
+      "Read more →"
      ],
      "after": [],
      "head": "Research, Design, & Development (RDD)"
@@ -4721,9 +4721,9 @@
      "h": 352,
      "lines": [
       "Ana Giulia Mesabarba",
-      "Electrical & Computer Engineering \u201829",
+      "Electrical & Computer Engineering ‘29",
       "LinkedIn",
-      "Read more \u2192"
+      "Read more →"
      ],
      "after": [],
      "head": "Research, Design, & Development (RDD)"
@@ -4735,9 +4735,9 @@
      "h": 352,
      "lines": [
       "Claire Baek",
-      "Bioengineering \u201829",
+      "Bioengineering ‘29",
       "LinkedIn",
-      "Read more \u2192"
+      "Read more →"
      ],
      "after": [
       "2026-27 RDD P4"
@@ -4751,9 +4751,9 @@
      "h": 352,
      "lines": [
       "Tina Yang",
-      "Chemistry \u201829",
+      "Chemistry ‘29",
       "LinkedIn",
-      "Read more \u2192"
+      "Read more →"
      ],
      "after": [],
      "head": "Research, Design, & Development (RDD)"
@@ -4765,8 +4765,8 @@
      "h": 352,
      "lines": [
       "Anna Weise",
-      "Biomedical Engineering \u201829",
-      "Read more \u2192"
+      "Biomedical Engineering ‘29",
+      "Read more →"
      ],
      "after": [],
      "head": "Research, Design, & Development (RDD)"
@@ -4778,9 +4778,9 @@
      "h": 352,
      "lines": [
       "Cheng Shang",
-      "Electrical & Computer Engineering \u201829",
+      "Electrical & Computer Engineering ‘29",
       "LinkedIn",
-      "Read more \u2192"
+      "Read more →"
      ],
      "after": [
       "Not pictured: Ryan Joe",
@@ -4797,9 +4797,9 @@
      "lines": [
       "Greta Swanson",
       "Alumni Chair",
-      "ORIE \u201828",
+      "ORIE ‘28",
       "LinkedIn",
-      "Read more \u2192"
+      "Read more →"
      ],
      "after": [],
      "head": "Operations & Business"
@@ -4812,9 +4812,9 @@
      "lines": [
       "Nancy Qiao",
       "Social Co-Chair",
-      "Statistics + Economics \u201828",
+      "Statistics + Economics ‘28",
       "LinkedIn",
-      "Read more \u2192"
+      "Read more →"
      ],
      "after": [],
      "head": "Operations & Business"
@@ -4827,9 +4827,9 @@
      "lines": [
       "Grace Bian",
       "Finance Chair",
-      "Healthcare Policy \u201828",
+      "Healthcare Policy ‘28",
       "LinkedIn",
-      "Read more \u2192"
+      "Read more →"
      ],
      "after": [],
      "head": "Operations & Business"
@@ -4841,9 +4841,9 @@
      "h": 352,
      "lines": [
       "Kaitlyn Roach",
-      "Biomedical Engineering \u201829",
+      "Biomedical Engineering ‘29",
       "LinkedIn",
-      "Read more \u2192"
+      "Read more →"
      ],
      "after": [],
      "head": "Operations & Business"
@@ -4855,9 +4855,9 @@
      "h": 352,
      "lines": [
       "Shriya Garg",
-      "Biological Sciences \u201829",
+      "Biological Sciences ‘29",
       "LinkedIn",
-      "Read more \u2192"
+      "Read more →"
      ],
      "after": [
       "Not pictured: Riya Gupta (Social Co-Chair)",
@@ -7663,7 +7663,7 @@
      "h": 240,
      "lines": [
       "Bio",
-      "\u00a1Hola! Me llamo Tristan, no lo gastes demasiado.",
+      "¡Hola! Me llamo Tristan, no lo gastes demasiado.",
       "Tristan Gelinas"
      ],
      "after": [
@@ -7781,11 +7781,11 @@
       "Gloria Zhang"
      ],
      "after": [
-      "Cornell DEBUT \u2014 Biomedical Engineering Project Team",
+      "Cornell DEBUT — Biomedical Engineering Project Team",
       "debut@cornell.edu",
       "Apply",
       "Instagram",
-      "\u00a9 2026 Cornell DEBUT.",
+      "© 2026 Cornell DEBUT.",
       "Equal Education and Employment"
      ],
      "head": "Our Team."
@@ -7913,11 +7913,11 @@
     },
     {
      "src": "https://new.cornelldti.org/team/teamHeadshots/er549.jpg",
-     "alt": "Esperanza Rom\u00e1n Carrera's profile picture",
+     "alt": "Esperanza Román Carrera's profile picture",
      "w": 231,
      "h": 231,
      "lines": [
-      "Esperanza Rom\u00e1n Carrera",
+      "Esperanza Román Carrera",
       "Business Lead"
      ],
      "after": [],
@@ -8339,11 +8339,11 @@
     },
     {
      "src": "https://new.cornelldti.org/team/teamHeadshots/cpr58.jpg",
-     "alt": "Cl\u00e9ment Roz\u00e9's profile picture",
+     "alt": "Clément Rozé's profile picture",
      "w": 231,
      "h": 231,
      "lines": [
-      "Cl\u00e9ment Roz\u00e9",
+      "Clément Rozé",
       "Designer"
      ],
      "after": [],
@@ -8486,11 +8486,11 @@
     },
     {
      "src": "https://new.cornelldti.org/team/teamHeadshots/er549.jpg",
-     "alt": "Esperanza Rom\u00e1n Carrera's profile picture",
+     "alt": "Esperanza Román Carrera's profile picture",
      "w": 231,
      "h": 231,
      "lines": [
-      "Esperanza Rom\u00e1n Carrera",
+      "Esperanza Román Carrera",
       "Business Lead"
      ],
      "after": [],
@@ -9822,7 +9822,7 @@
       "10",
       "majors",
       "Beyond CUAUV",
-      "\u2192"
+      "→"
      ],
      "after": [],
      "head": "About\nUs"
@@ -10057,7 +10057,7 @@
       "10",
       "majors",
       "Beyond CUAUV",
-      "\u2192"
+      "→"
      ],
      "after": [],
      "head": "About\nUs"
@@ -10422,7 +10422,7 @@
       "10",
       "majors",
       "Beyond CUAUV",
-      "\u2192"
+      "→"
      ],
      "after": [],
      "head": "About\nUs"
@@ -10945,7 +10945,7 @@
       "10",
       "majors",
       "Beyond CUAUV",
-      "\u2192"
+      "→"
      ],
      "after": [],
      "head": "About\nUs"
@@ -11542,7 +11542,7 @@
       "10",
       "majors",
       "Beyond CUAUV",
-      "\u2192"
+      "→"
      ],
      "after": [],
      "head": "About\nUs"
@@ -12710,7 +12710,7 @@
       "Monisha Bommu"
      ],
      "after": [
-      "\u00a9",
+      "©",
       "2026",
       "Cornell Data Science",
       "(Project Team)",
@@ -12874,7 +12874,7 @@
       "Prof. Christopher De Sa"
      ],
      "after": [
-      "\u00a9",
+      "©",
       "2026",
       "Cornell Data Science",
       "(Project Team)",
@@ -13052,7 +13052,7 @@
       "Monisha Bommu"
      ],
      "after": [
-      "\u00a9",
+      "©",
       "2026",
       "Cornell Data Science",
       "(Project Team)",
@@ -13230,7 +13230,7 @@
       "Prof. Haym Hirsh"
      ],
      "after": [
-      "\u00a9",
+      "©",
       "2026",
       "Cornell Data Science",
       "(Project Team)",
@@ -13436,7 +13436,7 @@
       "Prof. Kilian Weinberger"
      ],
      "after": [
-      "\u00a9",
+      "©",
       "2026",
       "Cornell Data Science",
       "(Project Team)",
@@ -14116,7 +14116,7 @@
      "after": [
       "Digital Agriculture/Internet of Things",
       "14 MEMBERS",
-      "Team page \u2192"
+      "Team page →"
      ],
      "head": "Domestic"
     },
@@ -14296,7 +14296,7 @@
      "after": [
       "Software",
       "12 MEMBERS",
-      "Team page \u2192"
+      "Team page →"
      ],
      "head": "Digital Agriculture/Internet of Things"
     },
@@ -14454,7 +14454,7 @@
      "after": [
       "Business",
       "4 MEMBERS",
-      "Team page \u2192"
+      "Team page →"
      ],
      "head": "Software"
     },
@@ -15101,7 +15101,7 @@
       "Hometown:",
       "Wellesley, MA",
       "Clubs and Activities:",
-      "Women\u2019s Club Ice Hockey, Viola, Tennis",
+      "Women’s Club Ice Hockey, Viola, Tennis",
       "Favorite Plane:",
       "Airbus BelugaXL"
      ],
@@ -15818,17 +15818,19 @@
       "Sponsors",
       "@cornelldesignbuildfly",
       "designbuildfly@cornell.edu",
-      "With a founding principle of \u201c... any person ... any study,\u201d"
+      "With a founding principle of “... any person ... any study,”"
      ],
      "head": "Team Advisors"
     }
-   ]
+   ],
+   "error": "Locator.click: Timeout 8000ms exceeded.\nCall log:\nwaiting for get_by_text(\"Our Team\", exact=True).first\n  -   locator resolved to <a href=\"/team\">Our Team</a>\n  - attempting click action\n  -   waiting"
   }
  },
  "ChemE Car": {
   "https://cornellchemecar.com/?page_id=69": {
    "url": "https://cornellchemecar.com/?page_id=69",
-   "items": []
+   "items": [],
+   "error": "no photos found"
   },
   "https://cornellchemecar.com/?page_id=144": {
    "url": "https://cornellchemecar.com/?page_id=144",
@@ -15847,8 +15849,8 @@
      ],
      "after": [
       "MEET the TEAM",
-      "Every car starts with a great team- here\u2019s ours!",
-      "Captains"
+      "Every car starts with a great team- here’s ours!",
+      "⭐️ Captains"
      ],
      "head": ""
     },
@@ -15863,7 +15865,7 @@
       "llc222@cornell.edu"
      ],
      "after": [],
-     "head": "Captains"
+     "head": "⭐️ Captains"
     },
     {
      "src": "https://cornellchemecar.com/wp-content/uploads/2025/10/Amy-Tian.jpg",
@@ -15876,9 +15878,9 @@
       "at965@cornell.edu"
      ],
      "after": [
-      "Battery Alpha"
+      "🔋 Battery Alpha"
      ],
-     "head": "Captains"
+     "head": "⭐️ Captains"
     },
     {
      "src": "https://cornellchemecar.com/wp-content/uploads/2025/10/Priscilla.jpg",
@@ -15890,7 +15892,7 @@
       "Battery Alpha Lead"
      ],
      "after": [],
-     "head": "Battery Alpha"
+     "head": "🔋 Battery Alpha"
     },
     {
      "src": "https://cornellchemecar.com/wp-content/uploads/2025/10/Santiago-D_ercole.jpg",
@@ -15898,11 +15900,11 @@
      "w": 194,
      "h": 291,
      "lines": [
-      "Santiago D\u2019Ercole",
+      "Santiago D’Ercole",
       "Battery Alpha Lead"
      ],
      "after": [],
-     "head": "Battery Alpha"
+     "head": "🔋 Battery Alpha"
     },
     {
      "src": "https://cornellchemecar.com/wp-content/uploads/2026/10/placeholder_384x580-14-199x300.png",
@@ -15914,7 +15916,7 @@
       "Battery Alpha Member"
      ],
      "after": [],
-     "head": "Battery Alpha"
+     "head": "🔋 Battery Alpha"
     },
     {
      "src": "https://cornellchemecar.com/wp-content/uploads/2026/10/kyle_h-1-216x300.png",
@@ -15926,9 +15928,9 @@
       "Battery Alpha Member"
      ],
      "after": [
-      "Battery Omega"
+      "🔋 Battery Omega"
      ],
-     "head": "Battery Alpha"
+     "head": "🔋 Battery Alpha"
     },
     {
      "src": "https://cornellchemecar.com/wp-content/uploads/2026/10/placeholder_384x580-13-199x300.png",
@@ -15940,7 +15942,7 @@
       "Battery Omega Lead"
      ],
      "after": [],
-     "head": "Battery Omega"
+     "head": "🔋 Battery Omega"
     },
     {
      "src": "https://cornellchemecar.com/wp-content/uploads/2025/10/Steffanie-Jones.jpg",
@@ -15952,7 +15954,7 @@
       "Battery Omega Lead"
      ],
      "after": [],
-     "head": "Battery Omega"
+     "head": "🔋 Battery Omega"
     },
     {
      "src": "https://cornellchemecar.com/wp-content/uploads/2026/10/placeholder_384x580-12-199x300.png",
@@ -15964,7 +15966,7 @@
       "Battery Omega Member"
      ],
      "after": [],
-     "head": "Battery Omega"
+     "head": "🔋 Battery Omega"
     },
     {
      "src": "https://cornellchemecar.com/wp-content/uploads/2026/10/soha-1-198x300.jpeg",
@@ -15976,9 +15978,9 @@
       "Battery Omega Member"
      ],
      "after": [
-      "Business"
+      "💼 Business"
      ],
-     "head": "Battery Omega"
+     "head": "🔋 Battery Omega"
     },
     {
      "src": "https://cornellchemecar.com/wp-content/uploads/2026/10/placeholder_384x580-3-199x300.png",
@@ -15990,7 +15992,7 @@
       "Business Lead"
      ],
      "after": [],
-     "head": "Business"
+     "head": "💼 Business"
     },
     {
      "src": "https://cornellchemecar.com/wp-content/uploads/2026/10/placeholder_384x580-199x300.png",
@@ -16002,7 +16004,7 @@
       "Business Lead"
      ],
      "after": [],
-     "head": "Business"
+     "head": "💼 Business"
     },
     {
      "src": "https://cornellchemecar.com/wp-content/uploads/2025/10/Charlotte-Larson.jpg",
@@ -16014,7 +16016,7 @@
       "Business Member"
      ],
      "after": [],
-     "head": "Business"
+     "head": "💼 Business"
     },
     {
      "src": "https://cornellchemecar.com/wp-content/uploads/2026/10/placeholder_384x580-2-199x300.png",
@@ -16026,7 +16028,7 @@
       "Business Member"
      ],
      "after": [],
-     "head": "Business"
+     "head": "💼 Business"
     },
     {
      "src": "https://cornellchemecar.com/wp-content/uploads/2026/10/placeholder_384x580-1-199x300.png",
@@ -16038,7 +16040,7 @@
       "Business Member"
      ],
      "after": [],
-     "head": "Business"
+     "head": "💼 Business"
     },
     {
      "src": "https://cornellchemecar.com/wp-content/uploads/2026/10/polly-216x300.png",
@@ -16050,9 +16052,9 @@
       "Business Member"
      ],
      "after": [
-      "Electronics"
+      "💡 Electronics"
      ],
-     "head": "Business"
+     "head": "💼 Business"
     },
     {
      "src": "https://cornellchemecar.com/wp-content/uploads/2025/10/Klaus_McGinnis.jpg",
@@ -16064,7 +16066,7 @@
       "Electronics Lead"
      ],
      "after": [],
-     "head": "Electronics"
+     "head": "💡 Electronics"
     },
     {
      "src": "https://cornellchemecar.com/wp-content/uploads/2025/10/Audriana-Varner-1-1.jpg",
@@ -16076,7 +16078,7 @@
       "Electronics Member"
      ],
      "after": [],
-     "head": "Electronics"
+     "head": "💡 Electronics"
     },
     {
      "src": "https://cornellchemecar.com/wp-content/uploads/2025/10/Hena-Patel.jpg",
@@ -16088,7 +16090,7 @@
       "Electronics Member"
      ],
      "after": [],
-     "head": "Electronics"
+     "head": "💡 Electronics"
     },
     {
      "src": "https://cornellchemecar.com/wp-content/uploads/2026/10/placeholder_384x580-4-199x300.png",
@@ -16100,10 +16102,10 @@
       "Electronics Member"
      ],
      "after": [],
-     "head": "Electronics"
+     "head": "💡 Electronics"
     },
     {
-     "src": "https://cornellchemecar.com/wp-content/uploads/2026/10/lily.png",
+     "src": "https://cornellchemecar.com/wp-content/uploads/2026/10/lily-211x300.png",
      "alt": "",
      "w": 194,
      "h": 276,
@@ -16112,7 +16114,7 @@
       "Electronics Member"
      ],
      "after": [],
-     "head": "Electronics"
+     "head": "💡 Electronics"
     },
     {
      "src": "https://cornellchemecar.com/wp-content/uploads/2025/10/Lizzy-Frazier.jpg",
@@ -16124,9 +16126,9 @@
       "Electronics Member"
      ],
      "after": [
-      "Mechanical"
+      "⚙️ Mechanical"
      ],
-     "head": "Electronics"
+     "head": "💡 Electronics"
     },
     {
      "src": "https://cornellchemecar.com/wp-content/uploads/2025/10/Mathis.jpg",
@@ -16138,10 +16140,10 @@
       "Mechanical Lead"
      ],
      "after": [],
-     "head": "Mechanical"
+     "head": "⚙️ Mechanical"
     },
     {
-     "src": "https://cornellchemecar.com/wp-content/uploads/2026/10/placeholder_384x580-5.png",
+     "src": "https://cornellchemecar.com/wp-content/uploads/2026/10/placeholder_384x580-5-199x300.png",
      "alt": "",
      "w": 194,
      "h": 293,
@@ -16150,10 +16152,10 @@
       "Mechanical Member"
      ],
      "after": [],
-     "head": "Mechanical"
+     "head": "⚙️ Mechanical"
     },
     {
-     "src": "https://cornellchemecar.com/wp-content/uploads/2026/10/placeholder_384x580-6.png",
+     "src": "https://cornellchemecar.com/wp-content/uploads/2026/10/placeholder_384x580-6-199x300.png",
      "alt": "",
      "w": 194,
      "h": 293,
@@ -16162,10 +16164,10 @@
       "Mechanical Member"
      ],
      "after": [],
-     "head": "Mechanical"
+     "head": "⚙️ Mechanical"
     },
     {
-     "src": "https://cornellchemecar.com/wp-content/uploads/2026/10/placeholder_384x580-7.png",
+     "src": "https://cornellchemecar.com/wp-content/uploads/2026/10/placeholder_384x580-7-199x300.png",
      "alt": "",
      "w": 155,
      "h": 234,
@@ -16174,10 +16176,10 @@
       "Mechanical Member"
      ],
      "after": [],
-     "head": "Mechanical"
+     "head": "⚙️ Mechanical"
     },
     {
-     "src": "https://cornellchemecar.com/wp-content/uploads/2026/10/sandra-1.png",
+     "src": "https://cornellchemecar.com/wp-content/uploads/2026/10/sandra-1-248x300.png",
      "alt": "",
      "w": 194,
      "h": 235,
@@ -16186,9 +16188,9 @@
       "Mechanical Member"
      ],
      "after": [
-      "Potions"
+      "🧪 Potions"
      ],
-     "head": "Mechanical"
+     "head": "⚙️ Mechanical"
     },
     {
      "src": "https://cornellchemecar.com/wp-content/uploads/2025/10/Elizabeth-Kline.jpg",
@@ -16200,7 +16202,7 @@
       "Potions Lead"
      ],
      "after": [],
-     "head": "Potions"
+     "head": "🧪 Potions"
     },
     {
      "src": "https://cornellchemecar.com/wp-content/uploads/2026/10/shannon_h-1-200x300.jpg",
@@ -16212,10 +16214,10 @@
       "Potions Lead"
      ],
      "after": [],
-     "head": "Potions"
+     "head": "🧪 Potions"
     },
     {
-     "src": "https://cornellchemecar.com/wp-content/uploads/2026/10/placeholder_384x580-8.png",
+     "src": "https://cornellchemecar.com/wp-content/uploads/2026/10/placeholder_384x580-8-199x300.png",
      "alt": "",
      "w": 194,
      "h": 293,
@@ -16224,10 +16226,10 @@
       "Potions Member"
      ],
      "after": [],
-     "head": "Potions"
+     "head": "🧪 Potions"
     },
     {
-     "src": "https://cornellchemecar.com/wp-content/uploads/2026/10/placeholder_384x580-10.png",
+     "src": "https://cornellchemecar.com/wp-content/uploads/2026/10/placeholder_384x580-10-199x300.png",
      "alt": "",
      "w": 194,
      "h": 293,
@@ -16236,10 +16238,10 @@
       "Potions Member"
      ],
      "after": [],
-     "head": "Potions"
+     "head": "🧪 Potions"
     },
     {
-     "src": "https://cornellchemecar.com/wp-content/uploads/2026/10/placeholder_384x580-9.png",
+     "src": "https://cornellchemecar.com/wp-content/uploads/2026/10/placeholder_384x580-9-199x300.png",
      "alt": "",
      "w": 194,
      "h": 293,
@@ -16248,9 +16250,9 @@
       "Potions Member"
      ],
      "after": [
-      "Pressure"
+      "💨 Pressure"
      ],
-     "head": "Potions"
+     "head": "🧪 Potions"
     },
     {
      "src": "https://cornellchemecar.com/wp-content/uploads/2025/10/Brezicki_Evan.jpg",
@@ -16262,7 +16264,7 @@
       "Pressure Lead"
      ],
      "after": [],
-     "head": "Pressure"
+     "head": "💨 Pressure"
     },
     {
      "src": "https://cornellchemecar.com/wp-content/uploads/2025/10/Ben-Mitlitski.jpg",
@@ -16274,7 +16276,7 @@
       "Pressure Member"
      ],
      "after": [],
-     "head": "Pressure"
+     "head": "💨 Pressure"
     },
     {
      "src": "https://cornellchemecar.com/wp-content/uploads/2025/10/Michelle-Nguyen.jpg",
@@ -16286,10 +16288,10 @@
       "Pressure Member"
      ],
      "after": [],
-     "head": "Pressure"
+     "head": "💨 Pressure"
     },
     {
-     "src": "https://cornellchemecar.com/wp-content/uploads/2026/10/yebon.png",
+     "src": "https://cornellchemecar.com/wp-content/uploads/2026/10/yebon-201x300.png",
      "alt": "",
      "w": 194,
      "h": 290,
@@ -16298,7 +16300,7 @@
       "Pressure Member"
      ],
      "after": [],
-     "head": "Pressure"
+     "head": "💨 Pressure"
     },
     {
      "src": "https://cornellchemecar.com/wp-content/uploads/2026/10/bryant-200x300.jpg",
@@ -16310,12 +16312,12 @@
       "Pressure Member"
      ],
      "after": [
-      "RDC"
+      "💭 RDC"
      ],
-     "head": "Pressure"
+     "head": "💨 Pressure"
     },
     {
-     "src": "https://cornellchemecar.com/wp-content/uploads/2026/10/placeholder_384x580-17.png",
+     "src": "https://cornellchemecar.com/wp-content/uploads/2026/10/placeholder_384x580-17-199x300.png",
      "alt": "",
      "w": 194,
      "h": 293,
@@ -16324,10 +16326,10 @@
       "RDC Lead"
      ],
      "after": [],
-     "head": "RDC"
+     "head": "💭 RDC"
     },
     {
-     "src": "https://cornellchemecar.com/wp-content/uploads/2026/10/placeholder_384x580-15.png",
+     "src": "https://cornellchemecar.com/wp-content/uploads/2026/10/placeholder_384x580-15-199x300.png",
      "alt": "",
      "w": 194,
      "h": 293,
@@ -16336,12 +16338,12 @@
       "RDC Lead"
      ],
      "after": [
-      "\u00a9 CORNELL CHEME CAR. This organization is a registered student organization of Cornell University.",
+      "© CORNELL CHEME CAR. This organization is a registered student organization of Cornell University.",
       "Equal Education and Employment Policy.",
       "PRIVACY POLICY",
       "CONTACT US HERE"
      ],
-     "head": "RDC"
+     "head": "💭 RDC"
     }
    ]
   }
@@ -16881,7 +16883,7 @@
      "h": 182,
      "lines": [
       "Caroline Moskal",
-      "Team Lead \u00b7 Mechanical Engineering '27"
+      "Team Lead · Mechanical Engineering '27"
      ],
      "after": [],
      "head": "ARG27 SYSTEM LEADS"
@@ -16893,7 +16895,7 @@
      "h": 182,
      "lines": [
       "Nicholas Gavalas",
-      "Chassis Lead \u00b7 Mechanical Engineering '27"
+      "Chassis Lead · Mechanical Engineering '27"
      ],
      "after": [],
      "head": "ARG27 SYSTEM LEADS"
@@ -16905,7 +16907,7 @@
      "h": 182,
      "lines": [
       "Will Hutter",
-      "Powertrain Lead \u00b7 Mechanical Engineering '27"
+      "Powertrain Lead · Mechanical Engineering '27"
      ],
      "after": [],
      "head": "ARG27 SYSTEM LEADS"
@@ -16917,7 +16919,7 @@
      "h": 182,
      "lines": [
       "Alex Baker",
-      "Business Lead \u00b7 ECE '27"
+      "Business Lead · ECE '27"
      ],
      "after": [],
      "head": "ARG27 SYSTEM LEADS"
@@ -16929,7 +16931,7 @@
      "h": 182,
      "lines": [
       "Sujan Munver",
-      "Project Manager \u00b7 College Scholar '27"
+      "Project Manager · College Scholar '27"
      ],
      "after": [
       "Subteams",
@@ -17648,7 +17650,7 @@
      "lines": [
       "Advisors",
       "John Richard Callister",
-      "Faculty Advisor \u00b7 MAE Department",
+      "Faculty Advisor · MAE Department",
       "Contact Us"
      ],
      "after": [
@@ -19417,7 +19419,7 @@
      ],
      "after": [
       "CORNELL HYPERLOOP",
-      "\u00a9 2025 Cornell Hyperloop ECC",
+      "© 2025 Cornell Hyperloop ECC",
       "This organization is a registered student organization of Cornell University.",
       "Upson Hall, Ithaca, NY",
       "Contact",
@@ -19855,7 +19857,7 @@
       "Public Policy, '29"
      ],
      "after": [
-      "\u00d7",
+      "×",
       "Team Member Name",
       "Team Member Title",
       "Email",
@@ -20445,7 +20447,7 @@
       "Soraya Jabir"
      ],
      "after": [
-      "Copyright \u00a9 2025 Cornell Mars Rover. All rights reserved.",
+      "Copyright © 2025 Cornell Mars Rover. All rights reserved.",
       "Equal Education & Employment"
      ],
      "head": "Neev Turakhia"
@@ -21178,7 +21180,7 @@
      "h": 406,
      "lines": [],
      "after": [
-      "ANDR\u00c9 ABABIO",
+      "ANDRÉ ABABIO",
       "Team Member",
       "Civil Engineering '28"
      ],
@@ -21196,7 +21198,7 @@
       "Civil Engineering '28",
       "Dynamics Subteam"
      ],
-     "head": "ANDR\u00c9 ABABIO"
+     "head": "ANDRÉ ABABIO"
     },
     {
      "src": "https://static.wixstatic.com/media/6fd673_a2cac4b31a6c44d0b6b342d1e6fe813c~mv2.jpg/v1/fill/w_305,h_406,al_c,q_80,usm_0.66_1.00_0.01,enc_avif,quality_auto/_DSC2336_edited.jpg",
@@ -21361,9 +21363,9 @@
       "DYLAN ROJAS-PEDERZINI",
       "PR Lead",
       "Civil Engineering '27",
-      "\u200b",
+      "​",
       "dr635@cornell.edu",
-      "\u200b"
+      "​"
      ],
      "head": "ELLIE ASSADI"
     },
@@ -23103,8 +23105,8 @@
     {
      "src": "https://steelbridge.engineering.cornell.edu/images/headshots/Michelle.jpg",
      "alt": "Michelle Zheng",
-     "w": 308,
-     "h": 286,
+     "w": 302,
+     "h": 280,
      "lines": [
       "Michelle Zheng",
       "Architecture",
@@ -25116,7 +25118,7 @@
     },
     {
      "src": "https://cuair.org/c4cba1cc74b6a8c7977ce7734f968c90.jpg",
-     "alt": "Portrait of Let\u00edcia Nha\u00fale",
+     "alt": "Portrait of Letícia Nhaúle",
      "w": 320,
      "h": 480,
      "lines": [],
@@ -25125,15 +25127,15 @@
     },
     {
      "src": "https://cuair.org/fe8e64304c800d7321246b23354d4163.jpg",
-     "alt": "Silly portrait of Let\u00edcia Nha\u00fale",
+     "alt": "Silly portrait of Letícia Nhaúle",
      "w": 320,
      "h": 480,
      "lines": [],
      "after": [
-      "Let\u00edcia Nha\u00fale",
+      "Letícia Nhaúle",
       "Team Member",
       "close",
-      "Let\u00edcia Nha\u00fale",
+      "Letícia Nhaúle",
       "LinkedIn",
       "Electronics Bay (Atlas)"
      ],
