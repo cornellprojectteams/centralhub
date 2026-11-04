@@ -2340,7 +2340,7 @@
     {
      "src": "https://aguaclara.cornell.edu/assets/Team-7122771b.webp",
      "alt": "",
-     "w": 315,
+     "w": 314,
      "h": 236,
      "lines": [],
      "after": [
@@ -15822,7 +15822,8 @@
      ],
      "head": "Team Advisors"
     }
-   ]
+   ],
+   "error": "Locator.click: Timeout 8000ms exceeded.\nCall log:\nwaiting for get_by_text(\"Our Team\", exact=True).first\n  -   locator resolved to <a href=\"/team\">Our Team</a>\n  - attempting click action\n  -   waiting"
   }
  },
  "ChemE Car": {
@@ -15851,7 +15852,8 @@
      "after": [],
      "head": ""
     }
-   ]
+   ],
+   "error": "no photos found"
   },
   "https://cornellchemecar.com/?page_id=144": {
    "url": "https://cornellchemecar.com/?page_id=144",
@@ -16366,8 +16368,7 @@
      ],
      "head": "💭 RDC"
     }
-   ],
-   "error": "no photos found"
+   ]
   }
  },
  "Hack4Impact": {
@@ -24273,7 +24274,7 @@
      "head": "Mechanical Team Members"
     },
     {
-     "src": "https://www.cornellnexus.com/headshots/placeholder.jpg",
+     "src": "https://www.cornellnexus.com/headshots/Stephanie_Cheng.jpg",
      "alt": "Stephanie Cheng, Cornell Nexus team member",
      "w": 225,
      "h": 300,
@@ -24349,7 +24350,7 @@
      "head": "Electrical Team Members"
     },
     {
-     "src": "https://www.cornellnexus.com/headshots/placeholder.jpg",
+     "src": "https://www.cornellnexus.com/headshots/Aaron_Sucov.jpg",
      "alt": "Aaron Sucov, Cornell Nexus team member",
      "w": 225,
      "h": 300,
@@ -24461,7 +24462,7 @@
      "head": "Software Team Members"
     },
     {
-     "src": "https://www.cornellnexus.com/headshots/placeholder.jpg",
+     "src": "https://www.cornellnexus.com/headshots/Natalie_Leung.jpg",
      "alt": "Natalie Leung, Cornell Nexus team member",
      "w": 225,
      "h": 300,
@@ -24473,7 +24474,7 @@
      "head": "Software Team Members"
     },
     {
-     "src": "https://www.cornellnexus.com/headshots/placeholder.jpg",
+     "src": "https://www.cornellnexus.com/headshots/Dora_Zhang.jpg",
      "alt": "Dora Zhang, Cornell Nexus team member",
      "w": 225,
      "h": 300,
