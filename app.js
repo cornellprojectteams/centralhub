@@ -1280,6 +1280,16 @@
     }
   });
 
+  // ELL shift statistics (admin page only). A static page in this repo that reads the
+  // ELL Shift Summary (Responses) sheet itself, so it loads fast with no Apps Script hop.
+  createSlideOver({
+    panelId: 'ell-stats-panel',
+    openBtnId: 'ell-stats-open',
+    url: 'ell-stats.html?embed=1',
+    fullUrl: 'ell-stats.html',
+    steps: [['Crunching shift reports…', 'Counting space use, activity levels, and teams', 2500]],
+  });
+
   // Scroll-spy: highlight the sidebar link for the section currently in view.
   if (adminNav && 'IntersectionObserver' in window) {
     const navLinks = [...adminNav.querySelectorAll('a[href^="#"]')];

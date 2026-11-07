@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+  ELL shift statistics. Admin-only: opened from the "Shift statistics" button in the
+  Experiential Learning Lab section of admin.html (slide-over panel, ?embed=1) and not
+  linked from any staff page. Reads the "ELL Shift Summary (Responses)" sheet live via the
+  Sheets visualization (gviz) JSONP endpoint, the same way app.js reads the schedule,
+  so the sheet must stay shared "anyone with the link can view".
+  Columns are matched by header text, not position, so adding a column to the form is safe.
+-->
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>ELL Shift Statistics | Project Teams Ops Hub</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@700;800&display=swap">
+  <style>
+    :root {
+      --bg: #f5f4f1; --surface: #fcfcfb; --surface-2: #f3f2ee;
+      --line: #e9e7e1; --line-2: #ded9d0;
+      --ink-1: #1c1a17; --ink-2: #57534e; --ink-3: #8f8a80;
+      --red: #b31b1b; --red-dark: #8f1515; --gold: #f0c050;
+      /* series: categorical slots 1 + 2 (validated pair) */
+      --s1: #2a78d6; --s2: #eb6834;
+      /* ordinal ramp, blue 250 → 650 (validated --ordinal) */
+      --o1: #86b6ef; --o2: #5598e7; --o3: #2a78d6; --o4: #1c5cab; --o5: #104281;
+      /* status, reserved for state and always paired with a word */
+      --warn: #a8720f; --warn-bg: #fbf3e1; --good: #157a47; --good-bg: #e9f6ef;
+      --font: 'Inter', system-ui, -apple-system, sans-serif;
+      --display: 'Plus Jakarta Sans', var(--font);
+      --r: 12px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--font); color: var(--ink-1); background: var(--bg); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+    .tnum { font-variant-numeric: tabular-nums; }
+    .wrap { max-width: 1160px; margin: 0 auto; padding: 24px 16px 64px; }
+    .embed .wrap { padding-top: 16px; }
+    .eyebrow { font-family: var(--display); font-weight: 800; font-size: 10.5px; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-3); }
+
+    .top { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+    .top h1 { font-family: var(--display); font-size: 26px; font-weight: 800; letter-spacing: -.02em; }
+    .top p { color: var(--ink-2); }
+    .embed .top h1 { display: none; }
+    .back { color: var(--ink-2); font-size: 13px; text-decoration: none; }
+    .back:hover { color: var(--red); }
+    .embed .back { display: none; }
+
+    .filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 18px; }
+    .chip { font: inherit; font-size: 13px; font-weight: 600; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line-2); background: var(--surface); color: var(--ink-2); cursor: pointer; }
+    .chip:hover { border-color: var(--ink-3); color: var(--ink-1); }
+    .chip[aria-pressed="true"] { background: var(--ink-1); border-color: var(--ink-1); color: #fff; }
+    .filters .spacer { flex: 1; }
+    .meta { font-size: 12.5px; color: var(--ink-3); }
+    .linkbtn { font: inherit; font-size: 12.5px; color: var(--ink-2); background: none; border: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+    .linkbtn:hover { color: var(--red); }
+
+    .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 14px; }
+    .tile { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; }
+    .tile .n { font-size: 30px; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; margin-top: 6px; }
+    .tile .d { font-size: 12.5px; color: var(--ink-2); margin-top: 2px; }
+    .status { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; padding: 2px 8px; border-radius: 999px; margin-top: 6px; }
+    .status.warn { color: var(--warn); background: var(--warn-bg); }
+    .status.good { color: var(--good); background: var(--good-bg); }
+
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px 18px 18px; min-width: 0; }
+    .card.wide { grid-column: 1 / -1; }
+    .card-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; margin-bottom: 12px; }
+    .card h2 { font-size: 15px; font-weight: 700; letter-spacing: -.01em; }
+    .card .sub { font-size: 12.5px; color: var(--ink-2); margin-top: 2px; }
+    .card .takeaway { font-size: 13px; color: var(--ink-1); margin: -4px 0 12px; }
+    .card .takeaway b { font-weight: 600; }
+    @media (max-width: 820px) { .grid { grid-template-columns: 1fr; } }
+
+    .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--ink-2); margin-bottom: 10px; }
+    .legend span { display: inline-flex; align-items: center; gap: 6px; }
+    .legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+    /* horizontal bars */
+    .bars { display: grid; gap: 6px; }
+    .bar-row { display: grid; grid-template-columns: minmax(90px, 34%) 1fr 52px; align-items: center; gap: 10px; padding: 2px 4px; margin: 0 -4px; border-radius: 6px; cursor: default; }
+    .bar-row:hover { background: var(--surface-2); }
+    .bar-label { font-size: 13px; color: var(--ink-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bar-track { display: grid; gap: 2px; }
+    .bar { height: 10px; border-radius: 0 4px 4px 0; background: var(--s1); min-width: 2px; }
+    .bar.thin { height: 6px; }
+    .bar.s2 { background: var(--s2); }
+    .bar-val { font-size: 12.5px; color: var(--ink-2); text-align: right; }
+
+    /* segmented bar */
+    .seg { display: flex; height: 34px; gap: 2px; border-radius: 6px; overflow: hidden; }
+    .seg div { display: flex; align-items: center; justify-content: center; color: #fff; font-size: 12px; font-weight: 600; min-width: 0; overflow: hidden; }
+    .seg-legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 6px 12px; margin-top: 10px; font-size: 12px; color: var(--ink-2); }
+    .seg-legend span { display: flex; gap: 6px; align-items: center; }
+    .seg-legend i { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+
+    /* heatmaps */
+    .heat { display: grid; gap: 2px; font-size: 12px; }
+    .heat .h { color: var(--ink-3); font-size: 11.5px; text-align: center; padding-bottom: 2px; }
+    .heat .rl { color: var(--ink-2); padding-right: 8px; display: flex; align-items: center; white-space: nowrap; }
+    .heat .c { height: 36px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 12px; }
+    .heat .c.none { background: var(--surface-2); color: var(--ink-3); font-weight: 400; }
+    .heat .c:not(.none):hover { outline: 2px solid var(--ink-1); outline-offset: -2px; }
+    .scale { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink-3); margin-top: 10px; }
+    .scale i { width: 22px; height: 10px; border-radius: 2px; }
+
+    /* line chart */
+    .line-wrap { position: relative; }
+    .line-wrap svg { display: block; width: 100%; height: 220px; overflow: visible; }
+    .line-wrap .grid-l { stroke: var(--line); stroke-width: 1; }
+    .line-wrap .ax { fill: var(--ink-3); font-size: 11px; }
+
+    .tip { position: fixed; pointer-events: none; z-index: 10; background: var(--ink-1); color: #fff; font-size: 12px; line-height: 1.45; padding: 7px 10px; border-radius: 8px; box-shadow: 0 6px 18px rgba(0,0,0,.18); max-width: 260px; opacity: 0; transition: opacity .08s; }
+    .tip.on { opacity: 1; }
+    .tip b { font-weight: 600; }
+    .tip .m { color: #cfcac0; }
+
+    table.data { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    table.data th, table.data td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); }
+    table.data th { color: var(--ink-3); font-weight: 600; }
+    table.data td.num, table.data th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+    .notes { display: grid; gap: 8px; }
+    .note { border-left: 3px solid var(--line-2); padding: 4px 0 4px 12px; }
+    .note .w { font-size: 11.5px; color: var(--ink-3); }
+    .note .t { font-size: 13px; }
+    .note .tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 0 7px; border-radius: 999px; margin-right: 6px; color: var(--warn); background: var(--warn-bg); }
+
+    .state { text-align: center; padding: 70px 16px; color: var(--ink-2); }
+    .state .spin { width: 28px; height: 28px; border: 3px solid var(--line-2); border-top-color: var(--red); border-radius: 50%; margin: 0 auto 14px; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .empty { color: var(--ink-3); font-size: 13px; padding: 14px 0; }
+    :focus-visible { outline: 2px solid var(--red); outline-offset: 2px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <a class="back" href="admin.html#ell-admin">&larr; Admin</a>
+      <h1>ELL shift statistics</h1>
+      <p id="subtitle">Usage of the Experiential Learning Lab spaces, from shift summary responses.</p>
+    </div>
+  </div>
+
+  <div id="app">
+    <div class="state" id="state"><div class="spin" aria-hidden="true"></div>Loading shift responses from Google Sheets…</div>
+  </div>
+</div>
+<div class="tip" id="tip" role="tooltip"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  const SHEET_ID = '1yazhxA8nwYWDRSdQEN6Cc3UKKnPn6PWF_b3zAe0KoQk';
+  const SHEET_URL = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/edit';
+  if (/[?&]embed=1/.test(location.search)) document.documentElement.classList.add('embed');
+
+  // Activity levels in form order. Score = midpoint of the % band.
+  const LEVELS = [
+    { key: 'quiet', label: 'Quiet', band: '0–20%', score: 10, color: 'var(--o1)' },
+    { key: 'low', label: 'Low', band: '20–40%', score: 30, color: 'var(--o2)' },
+    { key: 'moderate', label: 'Moderate', band: '40–60%', score: 50, color: 'var(--o3)' },
+    { key: 'high', label: 'High', band: '60–80%', score: 70, color: 'var(--o4)' },
+    { key: 'intense', label: 'Intense', band: '80–100%', score: 90, color: 'var(--o5)' },
+  ];
+  const SPACES = [
+    { key: 'main', label: 'Main ELL', match: /main ell/i },
+    { key: 'comp', label: 'Composites Lab', match: /composites/i },
+    { key: 'auto', label: 'Auto Lab', match: /auto lab/i },
+    { key: 'conf', label: 'Conference Room', match: /conference/i },
+  ];
+  const SHIFT_ORDER = ['10-12', '12-2', '2-4', '4-6', '6-8', '8-10'];
+  const SHIFT_LABEL = { '10-12': '10am–12pm', '12-2': '12–2pm', '2-4': '2–4pm', '4-6': '4–6pm', '6-8': '6–8pm', '8-10': '8–10pm' };
+  const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  let ALL = [];
+  let semesters = [];
+  let selected = null; // semester key or 'all'
+
+  // ---------- load ----------
+  function load() {
+    const cb = '__ell' + Math.random().toString(36).slice(2);
+    const s = document.createElement('script');
+    const timer = setTimeout(() => fail('The sheet took too long to respond.'), 20000);
+    window[cb] = payload => {
+      clearTimeout(timer);
+      delete window[cb];
+      s.remove();
+      try {
+        ALL = parse(payload);
+        if (!ALL.length) return fail('No shift responses found in the sheet.');
+        init();
+      } catch (e) { console.error(e); fail('Could not read the sheet.'); }
+    };
+    s.onerror = () => { clearTimeout(timer); fail('Could not reach Google Sheets.'); };
+    s.src = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/gviz/tq?tqx=out:json;responseHandler:' + cb + '&headers=1&_=' + Date.now();
+    document.body.appendChild(s);
+  }
+
+  function fail(msg) {
+    document.getElementById('app').innerHTML = '<div class="state">' + esc(msg)
+      + '<br><a href="' + SHEET_URL + '" target="_blank" rel="noopener">Open the sheet</a></div>';
+  }
+
+  // ---------- parse ----------
+  function parse(payload) {
+    const t = payload && payload.table;
+    if (!t) return [];
+    const labels = t.cols.map(c => String(c.label || '').trim());
+    const find = re => labels.findIndex(l => re.test(l));
+    const idx = {
+      ts: find(/timestamp/i), netid: find(/netid/i), shift: find(/^shift/i),
+      level: find(/activity level/i), supply: find(/supply/i), safety: find(/safety/i),
+      teams: find(/active team/i), prod: find(/productivity/i), notes: find(/additional notes/i),
+    };
+    SPACES.forEach(sp => { idx[sp.key] = find(sp.match); });
+
+    const cell = (r, i) => {
+      if (i < 0 || !r.c[i]) return '';
+      const c = r.c[i];
+      return c.v == null ? '' : c.v;
+    };
+    const text = (r, i) => String(cell(r, i) == null ? '' : cell(r, i)).trim();
+
+    return t.rows.map(r => {
+      const date = toDate(cell(r, idx.ts));
+      if (!date) return null;
+      const shift = normShift(text(r, idx.shift));
+      // Late shifts are sometimes logged after midnight; count them on the day worked.
+      const day = new Date(date);
+      if (day.getHours() < 5) day.setDate(day.getDate() - 1);
+      const levelTxt = text(r, idx.level).toLowerCase();
+      const level = LEVELS.findIndex(l => levelTxt.startsWith(l.key));
+      const spaces = {};
+      SPACES.forEach(sp => { spaces[sp.key] = multi(text(r, idx[sp.key])).filter(v => !/^empty$/i.test(v)); });
+      return {
+        date, day, shift, level,
+        netid: text(r, idx.netid).toLowerCase(),
+        spaces,
+        supplies: multi(text(r, idx.supply)).filter(v => !/all supplies stocked/i.test(v)),
+        safety: multi(text(r, idx.safety)).filter(v => !/no issues/i.test(v)),
+        teams: multi(text(r, idx.teams)).filter(v => !/^(n\/?a|none)$/i.test(v)),
+        prod: text(r, idx.prod),
+        notes: text(r, idx.notes),
+        sem: semesterOf(day),
+      };
+    }).filter(Boolean).sort((a, b) => a.date - b.date);
+  }
+
+  function toDate(v) {
+    if (v instanceof Date) return v;
+    const m = /^Date\((\d+),(\d+),(\d+)(?:,(\d+),(\d+),(\d+))?\)$/.exec(String(v));
+    if (m) return new Date(+m[1], +m[2], +m[3], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0));
+    const d = new Date(v);
+    return isNaN(d) ? null : d;
+  }
+  function normShift(s) {
+    const m = /(\d{1,2})\s*[-–]\s*(\d{1,2})/.exec(s);
+    return m ? m[1] + '-' + m[2] : (s || 'Unknown');
+  }
+  // Split checkbox answers on commas that are not inside parentheses,
+  // so "Facility issues (lights, leaks, etc.)" stays one answer.
+  function multi(s) {
+    if (!s) return [];
+    return s.split(/,(?![^()]*\))/).map(x => x.trim()).filter(Boolean);
+  }
+  // Cornell (Ithaca) terms, from the official academic calendar:
+  // https://catalog.cornell.edu/enrollment-credit-requirements/academic-calendar/
+  // Each runs from "Instruction begins" through the last day of scheduled exams.
+  // Add next year's row when the registrar publishes it. Years not listed here fall
+  // back to TERM_DEFAULTS, so the dashboard keeps working if this goes un-updated.
+  const CORNELL_TERMS = [
+    { term: 'Fall', year: 2025, start: '2025-08-25', end: '2025-12-20' },
+    { term: 'Spring', year: 2026, start: '2026-01-20', end: '2026-05-16' },
+    { term: 'Fall', year: 2026, start: '2026-08-24', end: '2026-12-19' },
+    { term: 'Spring', year: 2027, start: '2027-01-25', end: '2027-05-22' },
+  ];
+  // Approximate dates for any year without a row above (month is 1-based).
+  const TERM_DEFAULTS = {
+    Spring: { start: [1, 20], end: [5, 20] },
+    Fall: { start: [8, 24], end: [12, 20] },
+  };
+
+  function ymd(s) { const p = s.split('-'); return new Date(+p[0], p[1] - 1, +p[2]); }
+  function termWindow(term, year) {
+    const row = CORNELL_TERMS.find(t => t.term === term && t.year === year);
+    if (row) return { start: ymd(row.start), end: ymd(row.end) };
+    const d = TERM_DEFAULTS[term];
+    return { start: new Date(year, d.start[0] - 1, d.start[1]), end: new Date(year, d.end[0] - 1, d.end[1]) };
+  }
+  // Shifts during a term count toward it. Shifts between terms are grouped as
+  // "Summer YYYY" or "Winter break YYYY–YY" so they do not skew the term numbers.
+  function semesterOf(d) {
+    const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const y = day.getFullYear();
+    const sp = termWindow('Spring', y), fa = termWindow('Fall', y);
+    const mk = (key, label, start) => ({ key, label, order: start.getTime() });
+    if (day >= sp.start && day <= sp.end) return mk('Spring-' + y, 'Spring ' + y, sp.start);
+    if (day >= fa.start && day <= fa.end) return mk('Fall-' + y, 'Fall ' + y, fa.start);
+    if (day > sp.end && day < fa.start) return mk('Summer-' + y, 'Summer ' + y, new Date(sp.end.getTime() + 864e5));
+    // Winter break: after Fall exams, or in January before Spring instruction.
+    const wy = day < sp.start ? y - 1 : y;
+    const from = day < sp.start ? termWindow('Fall', wy).end : fa.end;
+    return mk('Winter-' + wy, 'Winter break ' + wy + '–' + String(wy + 1).slice(2), new Date(from.getTime() + 864e5));
+  }
+
+  // ---------- init + filters ----------
+  function init() {
+    const map = {};
+    ALL.forEach(r => { map[r.sem.key] = r.sem; });
+    semesters = Object.values(map).sort((a, b) => b.order - a.order);
+    let saved = null;
+    try { saved = localStorage.getItem('ellStatsSem'); } catch (e) { /* ignore */ }
+    const latestTerm = semesters.find(isTerm) || semesters[0];
+    selected = saved && (saved === 'all' || map[saved]) ? saved : latestTerm.key;
+    render();
+    let rt = 0;
+    window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(renderTrend, 120); });
+  }
+
+  function rowsFor(key) { return key === 'all' ? ALL : ALL.filter(r => r.sem.key === key); }
+  function isTerm(s) { return /^(Spring|Fall)-/.test(s.key); }
+  // Compare a term with the term before it, skipping summer/winter breaks.
+  // A break is compared with nothing.
+  function prevSemester(key) {
+    if (key === 'all') return null;
+    const i = semesters.findIndex(s => s.key === key);
+    if (i < 0 || !isTerm(semesters[i])) return null;
+    return semesters.slice(i + 1).find(isTerm) || null;
+  }
+  function selLabel() { return selected === 'all' ? 'All time' : semesters.find(s => s.key === selected).label; }
+
+  // ---------- render ----------
+  function render() {
+    const rows = rowsFor(selected);
+    const prev = prevSemester(selected);
+    const prows = prev ? rowsFor(prev.key) : [];
+    const app = document.getElementById('app');
+    const latest = ALL[ALL.length - 1].date;
+
+    app.innerHTML =
+      '<div class="filters" role="group" aria-label="Semester">'
+      + semesters.map(s => chip(s.key, s.label)).join('') + chip('all', 'All time')
+      + '<span class="spacer"></span>'
+      + '<span class="meta tnum">' + ALL.length + ' responses &middot; latest ' + fmtDate(latest) + '</span>'
+      + '<button type="button" class="linkbtn" id="reload">Refresh</button>'
+      + '<a class="linkbtn" href="' + SHEET_URL + '" target="_blank" rel="noopener">Open sheet</a>'
+      + '</div>'
+      + tilesHtml(rows, prows, prev)
+      + '<div class="grid">'
+      + card('spaces', 'Which spaces get used most', 'Share of shifts each space was in use (any activity checked)', spacesTakeaway(rows), spacesHtml(rows, prows, prev), spacesTable(rows, prows, prev))
+      + card('levels', 'How busy the lab is', 'Overall activity level reported per shift', levelsTakeaway(rows), levelsHtml(rows), levelsTable(rows))
+      + card('trend', 'Activity over time', 'Average activity level by week (band midpoint, e.g. Moderate = 50%)', '', '<div class="line-wrap" id="trend-chart"></div>', trendTable(rows), true)
+      + card('heat', 'Busiest days and times', 'Average activity level by weekday and shift', heatTakeaway(rows), heatHtml(rows), heatTable(rows), true)
+      + card('spacetime', 'When each space is in use', 'Share of shifts each space was in use, by shift time', '', spaceTimeHtml(rows), spaceTimeTable(rows), true)
+      + SPACES.map(sp => card('act-' + sp.key, sp.label + ': what it is used for', 'Shifts where each use was checked', '', activityHtml(rows, sp), activityTable(rows, sp))).join('')
+      + card('teams', 'Most active teams', 'Share of shifts each team was listed as most active', teamsTakeaway(rows, prows, prev), teamsHtml(rows, prows, prev), teamsTable(rows, prows, prev), true)
+      + card('supply', 'Supplies to restock', 'Shifts that flagged an item to purchase', '', countBars(tally(rows, r => r.supplies), rows.length, 'All supplies stocked on every shift.'), countTable(tally(rows, r => r.supplies), 'Item'))
+      + card('safety', 'Safety and maintenance issues', 'Shifts that reported each issue', '', countBars(tally(rows, r => r.safety), rows.length, 'No issues reported.'), countTable(tally(rows, r => r.safety), 'Issue'))
+      + card('staff', 'Shift reports by staff', 'Responses submitted per NetID', '', staffHtml(rows), countTable(tally(rows, r => [r.netid || 'unknown']), 'NetID'))
+      + card('notes', 'Recent notes', 'Safety flags, productivity, and additional notes, newest first', '', notesHtml(rows), '', false)
+      + '</div>';
+
+    document.getElementById('subtitle').textContent = selLabel() + ' · ' + rows.length + ' shift reports';
+    app.querySelectorAll('.chip').forEach(b => b.addEventListener('click', () => {
+      selected = b.dataset.k;
+      try { localStorage.setItem('ellStatsSem', selected); } catch (e) { /* ignore */ }
+      render();
+    }));
+    document.getElementById('reload').addEventListener('click', () => {
+      document.getElementById('app').innerHTML = '<div class="state"><div class="spin" aria-hidden="true"></div>Refreshing…</div>';
+      load();
+    });
+    app.querySelectorAll('[data-toggle]').forEach(b => b.addEventListener('click', () => {
+      const c = document.getElementById('card-' + b.dataset.toggle);
+      const showTable = c.querySelector('.view-chart').hidden === false;
+      c.querySelector('.view-chart').hidden = showTable;
+      c.querySelector('.view-table').hidden = !showTable;
+      b.textContent = showTable ? 'Chart' : 'Table';
+      if (!showTable && b.dataset.toggle === 'trend') renderTrend();
+    }));
+    const more = document.getElementById('notes-more');
+    if (more) more.addEventListener('click', () => {
+      app.querySelectorAll('.note[hidden]').forEach(n => { n.hidden = false; });
+      more.remove();
+    });
+    bindTips(app);
+    renderTrend();
+  }
+
+  function chip(k, label) {
+    return '<button type="button" class="chip" data-k="' + k + '" aria-pressed="' + (k === selected) + '">' + esc(label) + '</button>';
+  }
+
+  function card(id, title, sub, takeaway, chartHtml, tableHtml, wide) {
+    return '<section class="card' + (wide ? ' wide' : '') + '" id="card-' + id + '">'
+      + '<div class="card-head"><div><h2>' + esc(title) + '</h2><p class="sub">' + esc(sub) + '</p></div>'
+      + (tableHtml ? '<button type="button" class="linkbtn" data-toggle="' + id + '">Table</button>' : '') + '</div>'
+      + (takeaway ? '<p class="takeaway">' + takeaway + '</p>' : '')
+      + '<div class="view-chart">' + chartHtml + '</div>'
+      + (tableHtml ? '<div class="view-table" hidden>' + tableHtml + '</div>' : '')
+      + '</section>';
+  }
+
+  // ---------- tiles ----------
+  function avgLevel(rows) {
+    const s = rows.filter(r => r.level >= 0);
+    return s.length ? s.reduce((a, r) => a + LEVELS[r.level].score, 0) / s.length : null;
+  }
+  function levelName(score) {
+    if (score == null) return '—';
+    return LEVELS[Math.max(0, Math.min(4, Math.floor(score / 20)))].label;
+  }
+  function tilesHtml(rows, prows, prev) {
+    const n = rows.length;
+    const avg = avgLevel(rows);
+    const pavg = prows.length ? avgLevel(prows) : null;
+    const busy = rows.filter(r => r.level >= 3).length;
+    const safety = rows.filter(r => r.safety.length).length;
+    const supply = rows.filter(r => r.supplies.length).length;
+    const vs = (cur, before, unit) => {
+      if (before == null || !prev) return '';
+      const d = Math.round(cur - before);
+      return '<p class="d">' + (d === 0 ? 'Same as' : (d > 0 ? '+' : '−') + Math.abs(d) + unit + ' vs') + ' ' + esc(prev.label) + '</p>';
+    };
+    return '<div class="tiles">'
+      + tile('Shift reports', n, '<p class="d">' + (prev ? esc(prev.label) + ': ' + prows.length : 'Logged shifts') + '</p>')
+      + tile('Average activity', avg == null ? '—' : Math.round(avg) + '%', '<p class="d">' + levelName(avg) + '</p>' + vs(avg || 0, pavg, ' pts'))
+      + tile('High or intense shifts', pct(busy, n), '<p class="d tnum">' + busy + ' of ' + n + ' shifts</p>')
+      + tile('Safety issues', safety,
+        '<span class="status ' + (safety ? 'warn' : 'good') + '">' + (safety ? '&#9888; ' + pct(safety, n) + ' of shifts' : '&#10003; None reported') + '</span>')
+      + tile('Restock requests', supply,
+        '<span class="status ' + (supply ? 'warn' : 'good') + '">' + (supply ? '&#9888; ' + pct(supply, n) + ' of shifts' : '&#10003; Fully stocked') + '</span>')
+      + '</div>';
+  }
+  function tile(label, n, extra) {
+    return '<div class="tile"><p class="eyebrow">' + esc(label) + '</p><p class="n tnum">' + n + '</p>' + extra + '</div>';
+  }
+
+  // ---------- spaces ----------
+  function spaceRate(rows, key) {
+    return rows.length ? rows.filter(r => r.spaces[key].length).length / rows.length : 0;
+  }
+  function spacesTakeaway(rows) {
+    if (!rows.length) return '';
+    const ranked = SPACES.map(sp => ({ sp, v: spaceRate(rows, sp.key) })).sort((a, b) => b.v - a.v);
+    return '<b>' + ranked[0].sp.label + '</b> is the most used space (' + pct1(ranked[0].v) + ' of shifts); '
+      + '<b>' + ranked[ranked.length - 1].sp.label + '</b> is the least used (' + pct1(ranked[ranked.length - 1].v) + ').';
+  }
+  function spacesHtml(rows, prows, prev) {
+    const data = SPACES.map(sp => ({ label: sp.label, v: spaceRate(rows, sp.key), p: prev ? spaceRate(prows, sp.key) : null }))
+      .sort((a, b) => b.v - a.v);
+    const legend = prev ? legendHtml([[selLabel(), 'var(--s1)'], [prev.label, 'var(--s2)']]) : '';
+    return legend + '<div class="bars">' + data.map(d => {
+      const tip = '<b>' + esc(d.label) + '</b><br>' + esc(selLabel()) + ': ' + pct1(d.v)
+        + (d.p != null ? '<br><span class="m">' + esc(prev.label) + ': ' + pct1(d.p) + '</span>' : '');
+      return '<div class="bar-row" data-tip="' + attr(tip) + '"><span class="bar-label">' + esc(d.label) + '</span>'
+        + '<span class="bar-track"><span class="bar" style="width:' + (d.v * 100) + '%"></span>'
+        + (d.p != null ? '<span class="bar thin s2" style="width:' + (d.p * 100) + '%"></span>' : '') + '</span>'
+        + '<span class="bar-val tnum">' + pct1(d.v) + '</span></div>';
+    }).join('') + '</div>';
+  }
+  function spacesTable(rows, prows, prev) {
+    return table(['Space', selLabel()].concat(prev ? [prev.label] : []),
+      SPACES.map(sp => [sp.label, pct1(spaceRate(rows, sp.key))].concat(prev ? [pct1(spaceRate(prows, sp.key))] : [])));
+  }
+
+  // ---------- activity levels ----------
+  function levelCounts(rows) {
+    const c = LEVELS.map(() => 0);
+    rows.forEach(r => { if (r.level >= 0) c[r.level]++; });
+    return c;
+  }
+  function levelsTakeaway(rows) {
+    const c = levelCounts(rows), tot = c.reduce((a, b) => a + b, 0);
+    if (!tot) return '';
+    const top = c.indexOf(Math.max.apply(null, c));
+    return 'Most shifts are <b>' + LEVELS[top].label.toLowerCase() + '</b> (' + pct(c[top], tot) + ').';
+  }
+  function levelsHtml(rows) {
+    const c = levelCounts(rows), tot = c.reduce((a, b) => a + b, 0);
+    if (!tot) return '<p class="empty">No data.</p>';
+    return '<div class="seg">' + LEVELS.map((l, i) => c[i] ? '<div style="flex:' + c[i] + ';background:' + l.color + '" data-tip="'
+      + attr('<b>' + l.label + '</b> (' + l.band + ')<br>' + c[i] + ' shifts · ' + pct(c[i], tot)) + '">'
+      + (c[i] / tot >= 0.08 ? pct(c[i], tot) : '') + '</div>' : '').join('') + '</div>'
+      + '<div class="seg-legend">' + LEVELS.map((l, i) => '<span><i style="background:' + l.color + '"></i>' + l.label + ' <span class="tnum" style="color:var(--ink-3)">' + c[i] + '</span></span>').join('') + '</div>';
+  }
+  function levelsTable(rows) {
+    const c = levelCounts(rows), tot = c.reduce((a, b) => a + b, 0);
+    return table(['Level', 'Shifts', 'Share'], LEVELS.map((l, i) => [l.label + ' (' + l.band + ')', c[i], pct(c[i], tot)]));
+  }
+
+  // ---------- weekly trend ----------
+  function weekly(rows) {
+    const map = {};
+    rows.forEach(r => {
+      if (r.level < 0) return;
+      const d = new Date(r.day); d.setHours(0, 0, 0, 0);
+      d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+      const k = d.getTime();
+      (map[k] = map[k] || { d, sum: 0, n: 0 });
+      map[k].sum += LEVELS[r.level].score; map[k].n++;
+    });
+    return Object.values(map).sort((a, b) => a.d - b.d).map(w => ({ d: w.d, v: w.sum / w.n, n: w.n }));
+  }
+  function trendTable(rows) {
+    return table(['Week of', 'Avg activity', 'Shifts'], weekly(rows).map(w => [fmtDate(w.d), Math.round(w.v) + '%', w.n]));
+  }
+  function renderTrend() {
+    const host = document.getElementById('trend-chart');
+    if (!host || host.offsetParent === null) return;
+    const data = weekly(rowsFor(selected));
+    if (data.length < 2) { host.innerHTML = '<p class="empty">Not enough weeks to show a trend yet.</p>'; return; }
+    const W = host.clientWidth, H = 220, L = 36, R = 12, T = 10, B = 26;
+    const t0 = data[0].d.getTime(), t1 = data[data.length - 1].d.getTime();
+    const x = t => L + (t1 === t0 ? 0 : (t - t0) / (t1 - t0)) * (W - L - R);
+    const y = v => T + (1 - v / 100) * (H - T - B);
+    let grid = '';
+    [0, 20, 40, 60, 80, 100].forEach(v => {
+      grid += '<line class="grid-l" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(v) + '" y2="' + y(v) + '"/>'
+        + '<text class="ax" x="' + (L - 6) + '" y="' + (y(v) + 4) + '" text-anchor="end">' + v + '%</text>';
+    });
+    // month ticks
+    const seen = {}; let ticks = '';
+    data.forEach(w => {
+      const k = w.d.getFullYear() + '-' + w.d.getMonth();
+      if (seen[k]) return; seen[k] = 1;
+      ticks += '<text class="ax" x="' + x(w.d.getTime()) + '" y="' + (H - 6) + '" text-anchor="middle">' + w.d.toLocaleString('en-US', { month: 'short' }) + '</text>';
+    });
+    // break the line across gaps longer than three weeks (e.g. summer)
+    let path = '';
+    data.forEach((w, i) => {
+      const gap = i && (w.d - data[i - 1].d) > 21 * 864e5;
+      path += (i === 0 || gap ? 'M' : 'L') + x(w.d.getTime()).toFixed(1) + ',' + y(w.v).toFixed(1);
+    });
+    const pts = data.map(w => '<circle cx="' + x(w.d.getTime()) + '" cy="' + y(w.v) + '" r="3" fill="var(--s1)" stroke="var(--surface)" stroke-width="2"/>').join('');
+    host.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Average weekly activity level">'
+      + grid + ticks + '<path d="' + path + '" fill="none" stroke="var(--s1)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>' + pts
+      + '<line id="xh" x1="0" x2="0" y1="' + T + '" y2="' + (H - B) + '" stroke="var(--ink-3)" stroke-width="1" visibility="hidden"/>'
+      + '<circle id="xp" r="5" fill="var(--s1)" stroke="var(--surface)" stroke-width="2" visibility="hidden"/>'
+      + '<rect x="' + L + '" y="0" width="' + (W - L - R) + '" height="' + H + '" fill="transparent" id="xhit"/></svg>';
+    const hit = host.querySelector('#xhit'), xh = host.querySelector('#xh'), xp = host.querySelector('#xp');
+    hit.addEventListener('mousemove', e => {
+      const bx = e.clientX - host.getBoundingClientRect().left;
+      let best = data[0];
+      data.forEach(w => { if (Math.abs(x(w.d.getTime()) - bx) < Math.abs(x(best.d.getTime()) - bx)) best = w; });
+      const px = x(best.d.getTime());
+      xh.setAttribute('x1', px); xh.setAttribute('x2', px); xh.setAttribute('visibility', 'visible');
+      xp.setAttribute('cx', px); xp.setAttribute('cy', y(best.v)); xp.setAttribute('visibility', 'visible');
+      showTip(e, '<b>Week of ' + fmtDate(best.d) + '</b><br>Avg activity ' + Math.round(best.v) + '% (' + levelName(best.v) + ')<br><span class="m">' + best.n + ' shift reports</span>');
+    });
+    hit.addEventListener('mouseleave', () => { xh.setAttribute('visibility', 'hidden'); xp.setAttribute('visibility', 'hidden'); hideTip(); });
+  }
+
+  // ---------- heatmaps ----------
+  function shiftsIn(rows) {
+    const set = {}; rows.forEach(r => { set[r.shift] = 1; });
+    return SHIFT_ORDER.filter(s => set[s]).concat(Object.keys(set).filter(s => SHIFT_ORDER.indexOf(s) < 0));
+  }
+  function heatCells(rows) {
+    const m = {};
+    rows.forEach(r => {
+      if (r.level < 0) return;
+      const k = r.shift + '|' + ((r.day.getDay() + 6) % 7);
+      (m[k] = m[k] || { sum: 0, n: 0 });
+      m[k].sum += LEVELS[r.level].score; m[k].n++;
+    });
+    return m;
+  }
+  function rampColor(v) { // v 0..100
+    const i = Math.max(0, Math.min(4, Math.floor(v / 20)));
+    return { bg: LEVELS[i].color, fg: i >= 2 ? '#fff' : 'var(--ink-1)' };
+  }
+  function heatTakeaway(rows) {
+    const m = heatCells(rows); let best = null;
+    Object.keys(m).forEach(k => { if (m[k].n >= 2 && (!best || m[k].sum / m[k].n > best.v)) best = { k, v: m[k].sum / m[k].n, n: m[k].n }; });
+    if (!best) return '';
+    const [sh, d] = best.k.split('|');
+    return 'Busiest slot: <b>' + DAYS[d] + ' ' + (SHIFT_LABEL[sh] || sh) + '</b>, averaging ' + Math.round(best.v) + '% over ' + best.n + ' shifts.';
+  }
+  function heatHtml(rows) {
+    const shifts = shiftsIn(rows), m = heatCells(rows);
+    if (!shifts.length) return '<p class="empty">No data.</p>';
+    let h = '<div class="heat" style="grid-template-columns:auto repeat(7,minmax(0,1fr))"><span></span>' + DAYS.map(d => '<span class="h">' + d + '</span>').join('');
+    shifts.forEach(sh => {
+      h += '<span class="rl">' + esc(SHIFT_LABEL[sh] || sh) + '</span>';
+      DAYS.forEach((d, di) => {
+        const c = m[sh + '|' + di];
+        if (!c) { h += '<span class="c none" aria-label="no reports">–</span>'; return; }
+        const v = c.sum / c.n, col = rampColor(v);
+        h += '<span class="c tnum" style="background:' + col.bg + ';color:' + col.fg + '" data-tip="'
+          + attr('<b>' + d + ' ' + (SHIFT_LABEL[sh] || sh) + '</b><br>Avg activity ' + Math.round(v) + '% (' + levelName(v) + ')<br><span class="m">' + c.n + ' shift report' + (c.n > 1 ? 's' : '') + '</span>')
+          + '">' + Math.round(v) + '</span>';
+      });
+    });
+    return h + '</div>' + scaleHtml('Avg activity %', ['0', '20', '40', '60', '80+']);
+  }
+  function heatTable(rows) {
+    const shifts = shiftsIn(rows), m = heatCells(rows);
+    return table(['Shift'].concat(DAYS), shifts.map(sh => [SHIFT_LABEL[sh] || sh].concat(DAYS.map((d, i) => {
+      const c = m[sh + '|' + i]; return c ? Math.round(c.sum / c.n) + '% (' + c.n + ')' : '–';
+    }))));
+  }
+  function spaceTimeData(rows) {
+    const shifts = shiftsIn(rows);
+    return { shifts, grid: SPACES.map(sp => shifts.map(sh => {
+      const rs = rows.filter(r => r.shift === sh);
+      return { n: rs.length, used: rs.filter(r => r.spaces[sp.key].length).length };
+    })) };
+  }
+  function spaceTimeHtml(rows) {
+    const { shifts, grid } = spaceTimeData(rows);
+    if (!shifts.length) return '<p class="empty">No data.</p>';
+    let h = '<div class="heat" style="grid-template-columns:auto repeat(' + shifts.length + ',minmax(0,1fr))"><span></span>'
+      + shifts.map(s => '<span class="h">' + esc(SHIFT_LABEL[s] || s) + '</span>').join('');
+    SPACES.forEach((sp, i) => {
+      h += '<span class="rl">' + sp.label + '</span>';
+      grid[i].forEach((c, j) => {
+        if (!c.n) { h += '<span class="c none">–</span>'; return; }
+        const v = c.used / c.n * 100, col = rampColor(v);
+        h += '<span class="c tnum" style="background:' + col.bg + ';color:' + col.fg + '" data-tip="'
+          + attr('<b>' + sp.label + ', ' + (SHIFT_LABEL[shifts[j]] || shifts[j]) + '</b><br>In use ' + Math.round(v) + '% of shifts<br><span class="m">' + c.used + ' of ' + c.n + ' shifts</span>')
+          + '">' + Math.round(v) + '%</span>';
+      });
+    });
+    return h + '</div>' + scaleHtml('% of shifts in use', ['0', '20', '40', '60', '80+']);
+  }
+  function spaceTimeTable(rows) {
+    const { shifts, grid } = spaceTimeData(rows);
+    return table(['Space'].concat(shifts.map(s => SHIFT_LABEL[s] || s)),
+      SPACES.map((sp, i) => [sp.label].concat(grid[i].map(c => c.n ? Math.round(c.used / c.n * 100) + '%' : '–'))));
+  }
+  function scaleHtml(label, ticks) {
+    return '<div class="scale"><span>' + label + '</span>' + LEVELS.map((l, i) => '<i style="background:' + l.color + '" title="' + ticks[i] + '"></i>').join('')
+      + '<span>' + ticks[0] + ' → ' + ticks[ticks.length - 1] + '</span></div>';
+  }
+
+  // ---------- per-space activities ----------
+  function activityHtml(rows, sp) {
+    return countBars(tally(rows, r => r.spaces[sp.key]), rows.length, 'Not used this period.');
+  }
+  function activityTable(rows, sp) { return countTable(tally(rows, r => r.spaces[sp.key]), 'Use'); }
+
+  // ---------- teams ----------
+  const TEAM_TOP = 15;
+  function teamsTakeaway(rows, prows, prev) {
+    const t = tally(rows, r => r.teams);
+    if (!t.length) return '';
+    let s = '<b>' + esc(t[0][0]) + '</b> was the most active team, listed on ' + pct(t[0][1], rows.length) + ' of shifts';
+    if (t[1]) s += ', followed by <b>' + esc(t[1][0]) + '</b> and ' + (t[2] ? '<b>' + esc(t[2][0]) + '</b>' : '');
+    return s + '.';
+  }
+  function teamsHtml(rows, prows, prev) {
+    const t = tally(rows, r => r.teams);
+    if (!t.length) return '<p class="empty">No teams listed.</p>';
+    const pmap = {}; tally(prows, r => r.teams).forEach(([k, v]) => { pmap[k] = v; });
+    const shown = t.slice(0, TEAM_TOP), rest = t.slice(TEAM_TOP);
+    const max = shown[0][1] / rows.length;
+    const legend = prev ? legendHtml([[selLabel(), 'var(--s1)'], [prev.label, 'var(--s2)']]) : '';
+    let h = legend + '<div class="bars">';
+    shown.forEach(([k, v]) => {
+      const r = v / rows.length, p = prev && prows.length ? (pmap[k] || 0) / prows.length : null;
+      const scale = Math.max(max, p || 0);
+      const tip = '<b>' + esc(k) + '</b><br>' + esc(selLabel()) + ': ' + v + ' shifts (' + pct1(r) + ')'
+        + (p != null ? '<br><span class="m">' + esc(prev.label) + ': ' + (pmap[k] || 0) + ' shifts (' + pct1(p) + ')</span>' : '');
+      h += '<div class="bar-row" data-tip="' + attr(tip) + '"><span class="bar-label">' + esc(k) + '</span><span class="bar-track">'
+        + '<span class="bar" style="width:' + (r / scale * 100) + '%"></span>'
+        + (p != null ? '<span class="bar thin s2" style="width:' + (p / scale * 100) + '%"></span>' : '')
+        + '</span><span class="bar-val tnum">' + pct1(r) + '</span></div>';
+    });
+    h += '</div>';
+    if (rest.length) h += '<p class="meta" style="margin-top:8px">+ ' + rest.length + ' more: ' + rest.map(([k, v]) => esc(k) + ' (' + v + ')').join(', ') + '</p>';
+    return h;
+  }
+  function teamsTable(rows, prows, prev) {
+    const pmap = {}; tally(prows, r => r.teams).forEach(([k, v]) => { pmap[k] = v; });
+    return table(['Team', 'Shifts', 'Share'].concat(prev ? [prev.label + ' shifts'] : []),
+      tally(rows, r => r.teams).map(([k, v]) => [k, v, pct1(v / rows.length)].concat(prev ? [pmap[k] || 0] : [])));
+  }
+
+  // ---------- staff + notes ----------
+  function staffHtml(rows) { return countBars(tally(rows, r => [r.netid || 'unknown']), null, 'No reports.'); }
+  function notesHtml(rows) {
+    const items = rows.slice().reverse().filter(r => r.notes || r.prod || r.safety.length);
+    if (!items.length) return '<p class="empty">No notes this period.</p>';
+    return '<div class="notes">' + items.map((r, i) => '<div class="note"' + (i >= 8 ? ' hidden' : '') + '>'
+      + '<p class="w">' + fmtDate(r.day) + ' &middot; ' + esc(SHIFT_LABEL[r.shift] || r.shift) + ' &middot; ' + esc(r.netid) + '</p>'
+      + '<p class="t">' + r.safety.map(s => '<span class="tag">&#9888; ' + esc(s) + '</span>').join('')
+      + esc([r.prod, r.notes].filter(Boolean).join(' — ')) + '</p></div>').join('') + '</div>'
+      + (items.length > 8 ? '<button type="button" class="linkbtn" id="notes-more" style="margin-top:10px">Show all ' + items.length + ' notes</button>' : '');
+  }
+
+  // ---------- shared bits ----------
+  function tally(rows, fn) {
+    const m = {};
+    rows.forEach(r => fn(r).forEach(v => { m[v] = (m[v] || 0) + 1; }));
+    return Object.entries(m).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  }
+  // Ranked bars. With a denominator the value reads "n (x%)" of shifts.
+  function countBars(t, denom, emptyMsg) {
+    if (!t.length) return '<p class="empty">' + esc(emptyMsg) + '</p>';
+    const max = t[0][1];
+    return '<div class="bars">' + t.map(([k, v]) => {
+      const tip = '<b>' + esc(k) + '</b><br>' + v + ' shift' + (v === 1 ? '' : 's') + (denom ? ' (' + pct(v, denom) + ' of shifts)' : '');
+      return '<div class="bar-row" data-tip="' + attr(tip) + '"><span class="bar-label" title="' + attr(k) + '">' + esc(k) + '</span>'
+        + '<span class="bar-track"><span class="bar" style="width:' + (v / max * 100) + '%"></span></span>'
+        + '<span class="bar-val tnum">' + v + '</span></div>';
+    }).join('') + '</div>';
+  }
+  function countTable(t, head) { return t.length ? table([head, 'Shifts'], t) : ''; }
+  function legendHtml(items) {
+    return '<div class="legend">' + items.map(([l, c]) => '<span><i style="background:' + c + '"></i>' + esc(l) + '</span>').join('') + '</div>';
+  }
+  function table(head, rows) {
+    const isNum = v => typeof v === 'number' || /^[\d.]+%?( \(\d+\))?$|^–$/.test(String(v));
+    return '<table class="data"><thead><tr>' + head.map((h, i) => '<th' + (i ? ' class="num"' : '') + '>' + esc(h) + '</th>').join('')
+      + '</tr></thead><tbody>' + rows.map(r => '<tr>' + r.map((c, i) => '<td' + (i && isNum(c) ? ' class="num"' : '') + '>' + esc(c) + '</td>').join('') + '</tr>').join('')
+      + '</tbody></table>';
+  }
+  function pct(n, d) { return d ? Math.round(n / d * 100) + '%' : '0%'; }
+  function pct1(f) { return Math.round(f * 100) + '%'; }
+  function fmtDate(d) { return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function attr(s) { return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+  // ---------- tooltip ----------
+  const tipEl = document.getElementById('tip');
+  function showTip(e, html) {
+    tipEl.innerHTML = html; tipEl.classList.add('on');
+    const w = tipEl.offsetWidth, h = tipEl.offsetHeight;
+    let x = e.clientX + 14, y = e.clientY + 14;
+    if (x + w > innerWidth - 8) x = e.clientX - w - 14;
+    if (y + h > innerHeight - 8) y = e.clientY - h - 14;
+    tipEl.style.left = x + 'px'; tipEl.style.top = y + 'px';
+  }
+  function hideTip() { tipEl.classList.remove('on'); }
+  function bindTips(root) {
+    root.querySelectorAll('[data-tip]').forEach(el => {
+      el.addEventListener('mousemove', e => showTip(e, el.dataset.tip));
+      el.addEventListener('mouseleave', hideTip);
+    });
+  }
+
+  load();
+})();
+</script>
+</body>
+</html>

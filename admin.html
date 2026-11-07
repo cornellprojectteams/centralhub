@@ -153,6 +153,10 @@
         <section class="category admin-block" id="ell-admin" data-keywords="experiential learning lab ell shift responses data summary staffing">
           <h3 class="admin-label">Experiential Learning Lab</h3>
           <div class="action-group">
+            <button type="button" class="action action-dashboard" id="ell-stats-open" data-keywords="ell shift statistics charts graphs space usage busiest composites auto lab conference room activity level teams semester supplies safety">
+              <span class="action-title">Shift statistics</span>
+              <span class="action-sub">Which spaces are used most, busiest days and times, most active teams, and semester comparisons.</span>
+            </button>
             <a class="action" href="https://docs.google.com/spreadsheets/d/1yazhxA8nwYWDRSdQEN6Cc3UKKnPn6PWF_b3zAe0KoQk/edit" target="_blank" rel="noopener" data-keywords="ell shift responses data summary pivot">
               <span class="action-title">View shift responses</span>
               <span class="action-sub">Shift logs and the summary view.</span>
@@ -354,6 +358,47 @@
       <p class="issues-fallback" data-panel-fallback hidden>
         Could not load the inventory here.
         <a class="issues-panel-btn issues-panel-btn--primary issues-panel-btn--inline" data-panel-fallback-link href="#" target="_blank" rel="noopener">Open in a new tab</a>
+      </p>
+    </div>
+  </div>
+
+  <div class="issues-panel" id="ell-stats-panel" hidden>
+    <div class="issues-panel-backdrop" data-panel-backdrop aria-hidden="true"></div>
+    <div class="issues-panel-dialog" role="dialog" aria-modal="true" aria-labelledby="ell-stats-panel-title">
+      <div class="issues-panel-accent" aria-hidden="true"></div>
+      <header class="issues-panel-head">
+        <div class="issues-panel-brand">
+          <img src="assets/cornell-seal.svg" alt="" class="issues-panel-seal" aria-hidden="true">
+          <div>
+            <p class="issues-panel-eyebrow">Experiential Learning Lab</p>
+            <h2 class="issues-panel-title" id="ell-stats-panel-title">Shift statistics</h2>
+          </div>
+        </div>
+        <div class="issues-panel-actions">
+          <a class="issues-panel-btn issues-panel-btn--secondary" data-panel-ext href="ell-stats.html" target="_blank" rel="noopener" aria-label="Open full page">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+            Open full page
+          </a>
+          <button type="button" class="issues-panel-btn issues-panel-btn--close" data-panel-close aria-label="Close shift statistics">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
+        </div>
+      </header>
+      <div class="issues-embed-body is-loading" data-panel-body>
+        <div class="issues-loading" role="status" aria-live="polite">
+          <div class="issues-loading-mark" aria-hidden="true"></div>
+          <p class="issues-loading-text">Loading shift statistics…</p>
+          <p class="issues-loading-hint">Reading ELL shift responses from Google Sheets</p>
+          <div class="issues-loading-cards" aria-hidden="true">
+            <div class="issues-skeleton-card"></div>
+            <div class="issues-skeleton-card issues-skeleton-card--short"></div>
+          </div>
+        </div>
+        <iframe data-panel-frame class="issues-frame" title="ELL shift statistics"></iframe>
+      </div>
+      <p class="issues-fallback" data-panel-fallback hidden>
+        Could not load the statistics here.
+        <a class="issues-panel-btn issues-panel-btn--primary issues-panel-btn--inline" data-panel-fallback-link href="ell-stats.html" target="_blank" rel="noopener">Open in a new tab</a>
       </p>
     </div>
   </div>
