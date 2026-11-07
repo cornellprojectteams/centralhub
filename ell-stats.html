@@ -183,23 +183,40 @@
   let selected = null; // semester key or 'all'
 
   // ---------- load ----------
-  function load() {
-    const cb = '__ell' + Math.random().toString(36).slice(2);
-    const s = document.createElement('script');
-    const timer = setTimeout(() => fail('The sheet took too long to respond.'), 20000);
-    window[cb] = payload => {
-      clearTimeout(timer);
-      delete window[cb];
-      s.remove();
-      try {
-        ALL = parse(payload);
-        if (!ALL.length) return fail('No shift responses found in the sheet.');
-        init();
-      } catch (e) { console.error(e); fail('Could not read the sheet.'); }
-    };
-    s.onerror = () => { clearTimeout(timer); fail('Could not reach Google Sheets.'); };
-    s.src = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/gviz/tq?tqx=out:json;responseHandler:' + cb + '&headers=1&_=' + Date.now();
-    document.body.appendChild(s);
+  // Sources, tried in order until one returns rows:
+  //   1. OWN_ENDPOINT: the standalone "ELL Shift Stats API" script
+  //      (apps-script/ell_stats_api.gs). It runs as its deployer, so it works while
+  //      the sheet is "Restricted". If it is redeployed under a new URL, paste it here.
+  //   2. The sheet directly (only works while it is link-shared).
+  const OWN_ENDPOINT = 'https://script.google.com/macros/s/AKfycbx-MooQSQ9EcFUvGSq8VK3-BO3U9HWWC3ncH8MNjFf8SxwzblLR4ko7-jlhmnIavTjSYw/exec';
+
+  function jsonp(url, cbParam, timeoutMs) {
+    return new Promise((resolve, reject) => {
+      const cb = '__ell' + Math.random().toString(36).slice(2);
+      const s = document.createElement('script');
+      const done = () => { clearTimeout(timer); delete window[cb]; s.remove(); };
+      const timer = setTimeout(() => { done(); reject(new Error('timeout')); }, timeoutMs);
+      window[cb] = payload => { done(); resolve(payload); };
+      s.onerror = () => { done(); reject(new Error('network')); };
+      s.src = url + (url.indexOf('?') < 0 ? '?' : '&') + cbParam(cb) + '&_=' + Date.now();
+      document.body.appendChild(s);
+    });
+  }
+
+  function load(fresh) {
+    const rowsOf = p => { const rows = parse(p); if (!rows.length) throw new Error('no rows'); return rows; };
+    const f = fresh ? '&fresh=1' : '';
+    const sources = [];
+    if (OWN_ENDPOINT) sources.push(() => jsonp(OWN_ENDPOINT + '?x=1' + f, cb => 'callback=' + cb, 25000).then(rowsOf));
+    sources.push(() => jsonp('https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/gviz/tq?headers=1', cb => 'tqx=out:json;responseHandler:' + cb, 20000).then(rowsOf));
+    let chain = Promise.reject(new Error('start'));
+    sources.forEach(src => { chain = chain.catch(err => { if (err.message !== 'start') console.warn('ELL source failed, trying next:', err); return src(); }); });
+    chain
+      .then(rows => { ALL = rows; init(); })
+      .catch(err => {
+        console.error(err);
+        fail('Could not load the shift responses. The sheet is private, so a script has to read it: deploy apps-script/ell_stats_api.gs and paste its URL into OWN_ENDPOINT in ell-stats.html.');
+      });
   }
 
   function fail(msg) {
@@ -374,7 +391,7 @@
     }));
     document.getElementById('reload').addEventListener('click', () => {
       document.getElementById('app').innerHTML = '<div class="state"><div class="spin" aria-hidden="true"></div>Refreshing…</div>';
-      load();
+      load(true);
     });
     app.querySelectorAll('[data-toggle]').forEach(b => b.addEventListener('click', () => {
       const c = document.getElementById('card-' + b.dataset.toggle);
