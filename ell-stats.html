@@ -104,6 +104,10 @@
     .heat .c { height: 36px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 12px; }
     .heat .c.none { background: var(--surface-2); color: var(--ink-3); font-weight: 400; }
     .heat .c:not(.none):hover { outline: 2px solid var(--ink-1); outline-offset: -2px; }
+    /* fewer than LOW_N reports behind the cell: still shown, but visibly less certain */
+    .heat .c.low { opacity: .38; }
+    .scale .low-key { margin-left: 10px; display: inline-flex; align-items: center; gap: 6px; }
+    .scale .low-key i { opacity: .38; background: var(--o3); }
     .scale { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink-3); margin-top: 10px; }
     .scale i { width: 22px; height: 10px; border-radius: 2px; }
 
@@ -379,7 +383,6 @@
       + card('teams', 'Most active teams', 'Share of shifts each team was listed as most active', teamsTakeaway(rows, prows, prev), teamsHtml(rows, prows, prev), teamsTable(rows, prows, prev), true)
       + card('supply', 'Supplies to restock', 'Shifts that flagged an item to purchase', '', countBars(tally(rows, r => r.supplies), rows.length, 'All supplies stocked on every shift.'), countTable(tally(rows, r => r.supplies), 'Item'))
       + card('safety', 'Safety and maintenance issues', 'Shifts that reported each issue', '', countBars(tally(rows, r => r.safety), rows.length, 'No issues reported.'), countTable(tally(rows, r => r.safety), 'Issue'))
-      + card('staff', 'Shift reports by staff', 'Responses submitted per NetID', '', staffHtml(rows), countTable(tally(rows, r => [r.netid || 'unknown']), 'NetID'))
       + card('notes', 'Recent notes', 'Safety flags, productivity, and additional notes, newest first', '', notesHtml(rows), '', false)
       + '</div>';
 
@@ -610,7 +613,7 @@
         const c = m[sh + '|' + di];
         if (!c) { h += '<span class="c none" aria-label="no reports">–</span>'; return; }
         const v = c.sum / c.n, col = rampColor(v);
-        h += '<span class="c tnum" style="background:' + col.bg + ';color:' + col.fg + '" data-tip="'
+        h += '<span class="c tnum' + (c.n < LOW_N ? ' low' : '') + '" style="background:' + col.bg + ';color:' + col.fg + '" data-tip="'
           + attr('<b>' + d + ' ' + (SHIFT_LABEL[sh] || sh) + '</b><br>Avg activity ' + Math.round(v) + '% (' + levelName(v) + ')<br><span class="m">' + c.n + ' shift report' + (c.n > 1 ? 's' : '') + '</span>')
           + '">' + Math.round(v) + '</span>';
       });
@@ -642,7 +645,7 @@
         const c = grid[i][j];
         if (!c.n) { h += '<span class="c none">–</span>'; return; }
         const v = c.used / c.n * 100, col = rampColor(v);
-        h += '<span class="c tnum" style="background:' + col.bg + ';color:' + col.fg + '" data-tip="'
+        h += '<span class="c tnum' + (c.n < LOW_N ? ' low' : '') + '" style="background:' + col.bg + ';color:' + col.fg + '" data-tip="'
           + attr('<b>' + sp.label + ', ' + (SHIFT_LABEL[sh] || sh) + '</b><br>In use ' + Math.round(v) + '% of shifts<br><span class="m">' + c.used + ' of ' + c.n + ' shifts</span>')
           + '">' + Math.round(v) + '%</span>';
       });
@@ -656,9 +659,12 @@
         const c = grid[i][j]; return c.n ? Math.round(c.used / c.n * 100) + '%' : '–';
       }))));
   }
+  // Cells backed by fewer than LOW_N shift reports are faded (see .heat .c.low).
+  const LOW_N = 3;
   function scaleHtml(label, ticks) {
     return '<div class="scale"><span>' + label + '</span>' + LEVELS.map((l, i) => '<i style="background:' + l.color + '" title="' + ticks[i] + '"></i>').join('')
-      + '<span>' + ticks[0] + ' → ' + ticks[ticks.length - 1] + '</span></div>';
+      + '<span>' + ticks[0] + ' → ' + ticks[ticks.length - 1] + '</span>'
+      + '<span class="low-key"><i></i>Faded: fewer than ' + LOW_N + ' reports</span></div>';
   }
 
   // ---------- per-space activities ----------
@@ -704,8 +710,7 @@
       tally(rows, r => r.teams).map(([k, v]) => [k, v, pct1(v / rows.length)].concat(prev ? [pmap[k] || 0] : [])));
   }
 
-  // ---------- staff + notes ----------
-  function staffHtml(rows) { return countBars(tally(rows, r => [r.netid || 'unknown']), null, 'No reports.'); }
+  // ---------- notes ----------
   function notesHtml(rows) {
     const items = rows.slice().reverse().filter(r => r.notes || r.prod || r.safety.length);
     if (!items.length) return '<p class="empty">No notes this period.</p>';
