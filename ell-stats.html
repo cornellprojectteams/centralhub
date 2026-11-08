@@ -633,15 +633,17 @@
   function spaceTimeHtml(rows) {
     const { shifts, grid } = spaceTimeData(rows);
     if (!shifts.length) return '<p class="empty">No data.</p>';
-    let h = '<div class="heat" style="grid-template-columns:auto repeat(' + shifts.length + ',minmax(0,1fr))"><span></span>'
-      + shifts.map(s => '<span class="h">' + esc(SHIFT_LABEL[s] || s) + '</span>').join('');
-    SPACES.forEach((sp, i) => {
-      h += '<span class="rl">' + sp.label + '</span>';
-      grid[i].forEach((c, j) => {
+    // Times down the left, spaces across the top: same orientation as "Busiest days and times".
+    let h = '<div class="heat" style="grid-template-columns:auto repeat(' + SPACES.length + ',minmax(0,1fr))"><span></span>'
+      + SPACES.map(sp => '<span class="h">' + esc(sp.label) + '</span>').join('');
+    shifts.forEach((sh, j) => {
+      h += '<span class="rl">' + esc(SHIFT_LABEL[sh] || sh) + '</span>';
+      SPACES.forEach((sp, i) => {
+        const c = grid[i][j];
         if (!c.n) { h += '<span class="c none">–</span>'; return; }
         const v = c.used / c.n * 100, col = rampColor(v);
         h += '<span class="c tnum" style="background:' + col.bg + ';color:' + col.fg + '" data-tip="'
-          + attr('<b>' + sp.label + ', ' + (SHIFT_LABEL[shifts[j]] || shifts[j]) + '</b><br>In use ' + Math.round(v) + '% of shifts<br><span class="m">' + c.used + ' of ' + c.n + ' shifts</span>')
+          + attr('<b>' + sp.label + ', ' + (SHIFT_LABEL[sh] || sh) + '</b><br>In use ' + Math.round(v) + '% of shifts<br><span class="m">' + c.used + ' of ' + c.n + ' shifts</span>')
           + '">' + Math.round(v) + '%</span>';
       });
     });
@@ -649,8 +651,10 @@
   }
   function spaceTimeTable(rows) {
     const { shifts, grid } = spaceTimeData(rows);
-    return table(['Space'].concat(shifts.map(s => SHIFT_LABEL[s] || s)),
-      SPACES.map((sp, i) => [sp.label].concat(grid[i].map(c => c.n ? Math.round(c.used / c.n * 100) + '%' : '–'))));
+    return table(['Shift'].concat(SPACES.map(sp => sp.label)),
+      shifts.map((sh, j) => [SHIFT_LABEL[sh] || sh].concat(SPACES.map((sp, i) => {
+        const c = grid[i][j]; return c.n ? Math.round(c.used / c.n * 100) + '%' : '–';
+      }))));
   }
   function scaleHtml(label, ticks) {
     return '<div class="scale"><span>' + label + '</span>' + LEVELS.map((l, i) => '<i style="background:' + l.color + '" title="' + ticks[i] + '"></i>').join('')
