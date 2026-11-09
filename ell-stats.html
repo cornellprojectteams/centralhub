@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@700;800&display=swap">
   <style>
     :root {
-      --bg: #f5f4f1; --surface: #fcfcfb; --surface-2: #f3f2ee;
+      --bg: #fbfaf7; --surface: #fcfcfb; --surface-2: #f3f2ee;
       --line: #e9e7e1; --line-2: #ded9d0;
       --ink-1: #1c1a17; --ink-2: #57534e; --ink-3: #8f8a80;
       --red: #b31b1b; --red-dark: #8f1515; --gold: #f0c050;
@@ -36,8 +36,8 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: var(--font); color: var(--ink-1); background: var(--bg); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
     .tnum { font-variant-numeric: tabular-nums; }
-    .wrap { max-width: 1160px; margin: 0 auto; padding: 24px 16px 64px; }
-    .embed .wrap { padding-top: 16px; }
+    .wrap { max-width: 72rem; margin: 0 auto; padding: 32px 1.5rem 24px; }
+    .embed .wrap { padding: 16px 16px 64px; }
     .eyebrow { font-family: var(--display); font-weight: 800; font-size: 10.5px; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-3); }
 
     .top { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
@@ -50,8 +50,9 @@
 
     .filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 18px; }
     .chip { font: inherit; font-size: 13px; font-weight: 600; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line-2); background: var(--surface); color: var(--ink-2); cursor: pointer; }
-    .chip:hover { border-color: var(--ink-3); color: var(--ink-1); }
-    .chip[aria-pressed="true"] { background: var(--ink-1); border-color: var(--ink-1); color: #fff; }
+    .chip:hover { border-color: var(--red); color: var(--red-dark); }
+    .chip[aria-pressed="true"]:hover { color: #fff; }
+    .chip[aria-pressed="true"] { background: var(--red); border-color: var(--red); color: #fff; }
     .filters .spacer { flex: 1; }
     .meta { font-size: 12.5px; color: var(--ink-3); }
     .linkbtn { font: inherit; font-size: 12.5px; color: var(--ink-2); background: none; border: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
@@ -137,10 +138,39 @@
     .state .spin { width: 28px; height: 28px; border: 3px solid var(--line-2); border-top-color: var(--red); border-radius: 50%; margin: 0 auto 14px; animation: spin .8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .empty { color: var(--ink-3); font-size: 13px; padding: 14px 0; }
+
+    /* ---- site chrome: masthead, copied from styles.css so this page matches the hub.
+       Hidden when embedded in the admin slide-over, which supplies its own header. ---- */
+    body { background-image: radial-gradient(ellipse 90% 50% at 50% -10%, rgba(179,27,27,.08), transparent 60%), radial-gradient(ellipse 60% 40% at 100% 10%, rgba(240,192,80,.1), transparent 60%); background-attachment: fixed; }
+    .embed body { background-image: none; }
+    .app-shell { min-height: 100vh; display: flex; flex-direction: column; }
+    .app-shell > main { flex: 1; width: 100%; }
+    .embed .app-header { display: none; }
+    .app-header { position: sticky; top: 0; z-index: 40; min-height: 80px; background: linear-gradient(135deg, #8f1515 0%, #6e1010 55%, #530c0c 100%); box-shadow: 0 2px 14px rgba(83,12,12,.4); }
+    .app-header::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: linear-gradient(90deg, rgba(240,192,80,0) 0%, var(--gold) 50%, rgba(240,192,80,0) 100%); }
+    .header-inner { max-width: 72rem; width: 100%; min-height: 80px; margin: 0 auto; padding: 0 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+    .logo { display: flex; align-items: center; gap: .75rem; text-decoration: none; color: #fff; min-width: 0; }
+    .logo-seal { width: 52px; height: 52px; flex-shrink: 0; border-radius: 50%; background: #fff; box-shadow: 0 0 0 2px rgba(240,192,80,.7), 0 4px 12px rgba(0,0,0,.25); }
+    .logo-text { font-family: var(--display); font-size: 1.1875rem; font-weight: 800; letter-spacing: -.03em; line-height: 1.1; color: #fff; }
+    .logo-sub { font-size: .6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--gold); margin-top: .15rem; }
+    @media (max-width: 480px) { .logo-sub { display: none; } .logo-seal { width: 40px; height: 40px; } .logo-text { font-size: 1rem; } }
     :focus-visible { outline: 2px solid var(--red); outline-offset: 2px; border-radius: 6px; }
   </style>
 </head>
 <body>
+<div class="app-shell">
+<header class="app-header">
+  <div class="header-inner">
+    <a href="index.html" class="logo">
+      <img src="assets/cornell-seal.svg" alt="Cornell University" class="logo-seal">
+      <div class="logo-text-block">
+        <div class="logo-text">Project Teams Ops Hub</div>
+        <div class="logo-sub">Admin</div>
+      </div>
+    </a>
+  </div>
+</header>
+<main>
 <div class="wrap">
   <div class="top">
     <div>
@@ -153,6 +183,8 @@
   <div id="app">
     <div class="state" id="state"><div class="spin" aria-hidden="true"></div>Loading shift responses from Google Sheets…</div>
   </div>
+</div>
+</main>
 </div>
 <div class="tip" id="tip" role="tooltip"></div>
 
