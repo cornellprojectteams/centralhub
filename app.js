@@ -1242,6 +1242,21 @@
     ],
   });
 
+  // Reminder emails (admin page only): what the Space Status script sent to each team
+  // and what the next reminder run sends. Same open/close code as the slide-overs;
+  // the centered pop-up look is the issues-panel--pop class in styles.css.
+  const emailsBase = SPACE_STATUS_URL ? SPACE_STATUS_URL + sep + 'view=emails&admin=1' : '';
+  createSlideOver({
+    panelId: 'emails-panel',
+    openBtnId: 'emails-open',
+    url: emailsBase ? emailsBase + '&embed=1' : '',
+    fullUrl: emailsBase ? emailsBase + '&back=' + encodeURIComponent(location.origin + location.pathname) : '',
+    steps: [
+      ['Reading the email log…', 'This can take a few seconds on first open', 2800],
+      ['Almost there…', 'Working out which reminders go out next', 7000],
+    ],
+  });
+
   // Tool inventory. Same origin, so the panel opens fast; the admin page opens it in
   // admin mode (add/edit items, maintenance, counts, test data).
   if (INV_API && document.getElementById('inventory-open')) {

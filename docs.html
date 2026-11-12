@@ -134,11 +134,20 @@
       <h3>Who gets the email</h3>
       <p>The team's row on the <em>Team Contacts</em> tab: the team email and liaison, with the safety lead and Extra CC copied. Noah is copied on every email. Edit the row to change who gets it; it applies from the next email.</p>
 
+      <h3>Reminder emails</h3>
+      <p>Open <strong>Reminder emails</strong> to see what the system sent and what it sends next.</p>
+      <ul>
+        <li><strong>Next run.</strong> The reminders the next daily run sends. Open a row for the recipients, the reason and the email itself.</li>
+        <li><strong>Later.</strong> Every other open job with its next reminder date. Paused means a photo is waiting for your review.</li>
+        <li><strong>Sent.</strong> Every email, newest first, with the job's status now.</li>
+        <li><strong>Flagged.</strong> Emails that failed to send, and any reminder dated after the team finished.</li>
+      </ul>
+      <p><strong>A team says it still gets reminders after finishing.</strong> Type the team in the filter and open its latest reminder under <em>Sent</em>. <em>Now</em> shows the job's status. An amber note gives the cause when there is one: the job was sent back, or the same problem was reported twice and one report is still open. Close a duplicate with <em>Mark complete</em> or <em>Delete</em> on the dashboard. The <em>Email log</em> tab of the Space Status sheet has every email since the log started. A reminder that is not there was not sent by this system.</p>
       <h3>Rules for the form and sheet</h3>
       <ul>
         <li><strong>Adding a team:</strong> add it to the form's <em>Responsible Team</em> question and to Team Contacts with the exact same name. Then ask a developer to run <code>fillTeamTokens</code>.</li>
         <li><strong>Don't rename</strong> the form's questions or its <em>Respond within</em> choices. The script reads them by their wording.</li>
-        <li><strong>Don't type in</strong> the columns the script fills: Notified at, Issue token, Addressed at, Last reminder, Completion photo, Completion note, Completed at, Sent back reason.</li>
+        <li><strong>Don't type in</strong> the columns the script fills: Notified at, Issue token, Addressed at, Last reminder, Completion photo, Completion note, Completed at, Sent back reason. The same goes for the <em>Email log</em> tab.</li>
       </ul>
     </section>
 

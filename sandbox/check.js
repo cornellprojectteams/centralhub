@@ -119,6 +119,22 @@ check('the email link opens the mark-complete page', () => {
 
 check('the daily reminder job runs', () => { ran(runner.exec('space', 'sendReminders', [])); return account.outbox.length + ' emails in the outbox'; });
 
+check('the Email log and the Reminder emails page match what was sent', () => {
+  const log = account.ss(ids.space).getSheetByName('Email log');
+  must(log, 'no Email log tab');
+  const logged = log.rows().slice(1);
+  must(logged.length === account.outbox.length, 'the log has ' + logged.length + ' rows, the outbox has ' + account.outbox.length + ' emails');
+  const reminders = logged.filter((r) => r[1] === 'Reminder').length;
+  must(reminders === account.outbox.filter((m) => /^Reminder - /.test(m.subject)).length, 'the log and the outbox disagree on reminders');
+  must(/Invalid link/.test(web('space', { view: 'emails' }).html), 'the page opened without admin=1');
+  const out = web('space', { view: 'emails', admin: '1', embed: '1' });
+  must(/id="em-list"/.test(out.html) && /sent after the team finished/.test(out.html), 'the page did not render');
+  // The job just ran, so nothing is left for the next run and no completed row was reminded.
+  must(out.html.indexOf('id="em-n-next">0<') >= 0, 'rows still due right after the reminder job');
+  must(/class="em-stat em-stat--ok"><b>0<\/b>/.test(out.html), 'a reminder is marked as sent after completion');
+  return logged.length + ' emails logged, ' + reminders + ' of them reminders';
+});
+
 check('projects and proposals work end to end', () => {
   const c = ran(runner.exec('space', 'tpCreateProject', ['Self-test project', 'Check', '', '', '', '', '', '', ''], { client: true }));
   must(c.ok, 'create: ' + c.error);
