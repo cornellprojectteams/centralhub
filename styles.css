@@ -1867,6 +1867,234 @@ body.issues-panel-open { overflow: hidden; }
   }
 }
 
+/* Reminder emails: a centered pop-up. Same markup contract and open/close code as the
+   slide-over above (createSlideOver in app.js); the issues-panel--pop class only
+   changes the look. Add the class to another panel to give it the same treatment. */
+
+.issues-panel--pop {
+  align-items: center;
+  justify-content: center;
+  padding: clamp(.75rem, 3vw, 2rem);
+}
+
+.issues-panel--pop .issues-panel-backdrop {
+  background: rgba(12, 10, 9, 0.7);
+  -webkit-backdrop-filter: blur(10px) saturate(1.15);
+  backdrop-filter: blur(10px) saturate(1.15);
+}
+
+.issues-panel--pop .issues-panel-dialog {
+  max-width: 62rem;
+  height: min(54rem, 100%);
+  border-radius: 20px;
+  background: #fffdf9;
+  box-shadow: 0 40px 110px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  opacity: 0;
+  transform: translateY(26px) scale(.95);
+  transition: transform .26s ease-in, opacity .2s ease-in;
+}
+
+/* Opens with a small overshoot; closes faster than it opens. */
+.issues-panel--pop.is-open .issues-panel-dialog {
+  opacity: 1;
+  transform: none;
+  transition: transform .55s cubic-bezier(.2, 1.25, .3, 1), opacity .22s ease-out;
+}
+
+/* Airmail edge. It runs while the emails load and stops when they are in. */
+.pop-stripe {
+  flex-shrink: 0;
+  width: calc(100% + 50px);
+  height: 7px;
+  background: repeating-linear-gradient(-45deg, var(--red) 0 12px, #fffdf9 12px 17px, var(--gold) 17px 29px, #fffdf9 29px 34px);
+}
+.pop:has(.issues-embed-body.is-loading) .pop-stripe { animation: pop-march .8s linear infinite; }
+/* One stripe period: 34px along the gradient is 48.08px along the edge. */
+@keyframes pop-march { to { transform: translateX(-48.08px); } }
+
+.pop-head {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.35rem 1.5rem 1.3rem;
+  background: #14110e;
+  color: #fff;
+  overflow: hidden;
+}
+
+.pop-head-text { position: relative; z-index: 1; min-width: 0; }
+
+.pop-eyebrow {
+  font-family: var(--font-display);
+  font-size: .6875rem;
+  font-weight: 800;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.pop-title {
+  margin-top: .45rem;
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 4vw, 2.4rem);
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 1;
+  color: #fff;
+}
+
+.pop-sub { margin-top: .55rem; font-size: .9rem; line-height: 1.45; color: #fff; }
+
+/* The heading comes in line by line once the pop-up is open. */
+.pop-eyebrow, .pop-title, .pop-sub { opacity: 0; transform: translateY(10px); }
+.issues-panel--pop.is-open .pop-eyebrow,
+.issues-panel--pop.is-open .pop-title,
+.issues-panel--pop.is-open .pop-sub {
+  opacity: 1;
+  transform: none;
+  transition: opacity .4s ease-out .12s, transform .5s cubic-bezier(.2, .8, .3, 1) .12s;
+}
+.issues-panel--pop.is-open .pop-title { transition-delay: .2s; }
+.issues-panel--pop.is-open .pop-sub { transition-delay: .28s; }
+
+/* A paper plane flies in along a dotted trail. Decoration only. */
+.pop-air {
+  position: absolute;
+  right: 11.5rem;
+  bottom: .7rem;
+  width: 10rem;
+  height: 3.75rem;
+  color: var(--gold);
+  pointer-events: none;
+}
+.pop-trail { position: absolute; inset: 0; width: 100%; height: 100%; clip-path: inset(0 100% 0 0); }
+.pop-plane {
+  position: absolute;
+  top: -.2rem;
+  right: -.35rem;
+  width: 1.7rem;
+  height: 1.7rem;
+  opacity: 0;
+  transform: translate(-9rem, 2.6rem) rotate(14deg);
+}
+.issues-panel--pop.is-open .pop-trail {
+  clip-path: inset(0 0 0 0);
+  transition: clip-path .9s cubic-bezier(.3, .6, .2, 1) .2s;
+}
+.issues-panel--pop.is-open .pop-plane {
+  opacity: 1;
+  transform: none;
+  transition: transform .9s cubic-bezier(.3, .6, .2, 1) .2s, opacity .25s ease-out .2s;
+}
+
+.pop-actions { position: relative; z-index: 1; display: flex; align-items: center; gap: .5rem; flex-shrink: 0; }
+
+.pop-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
+  height: 2.3rem;
+  padding: 0 .95rem;
+  border: 1.5px solid rgba(255, 255, 255, 0.38);
+  border-radius: 999px;
+  background: transparent;
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: .78rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background .16s ease, color .16s ease, border-color .16s ease, transform .25s cubic-bezier(.2, .8, .3, 1);
+}
+.pop-btn:hover { background: #fff; border-color: #fff; color: #14110e; }
+.pop-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.pop-btn--close { width: 2.3rem; padding: 0; }
+.pop-btn--close:hover { transform: rotate(90deg); }
+
+.issues-panel--pop .issues-embed-body,
+.issues-panel--pop .issues-frame { background: #fffdf9; }
+
+.issues-panel--pop .issues-loading { padding-top: 3rem; background: #fffdf9; }
+
+/* Loading: a plane crossing a dotted line, over ruled rows like the list to come. */
+.pop-flight {
+  position: relative;
+  width: min(19rem, 80%);
+  height: 3rem;
+  margin-bottom: .6rem;
+  border-bottom: 1.5px dashed rgba(20, 17, 14, 0.3);
+  color: var(--red);
+  overflow: hidden;
+}
+.pop-flight svg {
+  position: absolute;
+  left: 0;
+  bottom: .55rem;
+  width: 1.9rem;
+  height: 1.9rem;
+  animation: pop-fly 2.4s cubic-bezier(.45, .05, .55, .95) infinite;
+}
+@keyframes pop-fly {
+  0% { left: -12%; transform: translateY(6px) rotate(8deg); opacity: 0; }
+  14% { opacity: 1; }
+  50% { transform: translateY(-9px) rotate(-6deg); }
+  86% { opacity: 1; }
+  100% { left: 104%; transform: translateY(5px) rotate(10deg); opacity: 0; }
+}
+
+.pop-skel { width: min(36rem, 100%); margin-top: 2rem; }
+.pop-skel span {
+  display: block;
+  height: 3.5rem;
+  border-top: 1px solid rgba(20, 17, 14, 0.14);
+  background: linear-gradient(90deg, rgba(20, 17, 14, 0) 0%, rgba(20, 17, 14, 0.06) 50%, rgba(20, 17, 14, 0) 100%);
+  background-size: 200% 100%;
+  animation: issues-shimmer 1.4s ease-in-out infinite;
+}
+.pop-skel span:nth-child(2) { animation-delay: .12s; }
+.pop-skel span:nth-child(3) { animation-delay: .24s; }
+.pop-skel span:nth-child(4) { animation-delay: .36s; }
+
+@media (max-width: 820px) {
+  .pop-air { display: none; }
+}
+
+/* Phones: a sheet that rises from the bottom edge. */
+@media (max-width: 640px) {
+  .issues-panel--pop { align-items: flex-end; padding: 0; }
+  .issues-panel--pop .issues-panel-dialog {
+    max-width: none;
+    height: 94%;
+    border-radius: 18px 18px 0 0;
+    opacity: 1;
+    transform: translateY(100%);
+  }
+  .issues-panel--pop.is-open .issues-panel-dialog { transition: transform .42s cubic-bezier(.22, 1, .36, 1); }
+  .pop-head { padding: 1.1rem 1rem 1rem; }
+  .pop-sub { font-size: .84rem; }
+  .pop-btn:not(.pop-btn--close) { width: 2.3rem; padding: 0; }
+  .pop-btn:not(.pop-btn--close) span { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .issues-panel--pop .issues-panel-dialog,
+  .issues-panel--pop.is-open .issues-panel-dialog,
+  .issues-panel--pop.is-open .pop-eyebrow,
+  .issues-panel--pop.is-open .pop-title,
+  .issues-panel--pop.is-open .pop-sub,
+  .issues-panel--pop.is-open .pop-trail,
+  .issues-panel--pop.is-open .pop-plane,
+  .pop-btn { transition: none; }
+  .pop-stripe, .pop-flight svg, .pop-skel span { animation: none !important; }
+  .pop-flight svg { left: 45%; }
+}
+
 /* Team self-service: see your open issues */
 
 .status-check {

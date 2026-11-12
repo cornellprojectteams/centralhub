@@ -16,6 +16,7 @@ const CONFIG = {
   toolPassHash: '993b97603778a944ff00c86775aeb4c852a6deae031dbee58206dc3ae1e3242c',   // SHA-256 of the tool passcode (default "bigred")
   responsesSheet: 'Form Responses',
   contactsSheet: 'Team Contacts',
+  emailLogSheet: 'Email log',                 // one row per email sent; made on first use
   sender: 'eng_projectteams@cornell.edu',                          // go-live: 'eng_projectteams@cornell.edu' (send-as alias on this account)
   alwaysCc: ['nhh5@cornell.edu'],                        // go-live: ['nhh5@cornell.edu']
   fallbackEmail: 'nhh5@cornell.edu',
@@ -127,15 +128,18 @@ function readData_(get) {
   };
 }
 
-function recipientsFor_(team) {
-  const c = lookupTeam_(team);
+// contacts is optional: pass teamContacts_() when resolving many teams in one run,
+// so the Team Contacts tab is read once.
+function recipientsFor_(team, contacts) {
+  const c = lookupTeam_(team, contacts);
   const to = uniqEmails_([c && c.generalEmail, c && c.liaisonEmail]);
   const cc = uniqEmails_([c && c.safetyEmail, c && c.extraCc].concat(CONFIG.alwaysCc));
   if (!to.length) to.push(CONFIG.fallbackEmail);
   return { to: to, cc: cc, contact: c };
 }
 
-function sendNotification_(data, token) {
+// why is the Email log note: "New report" by default, or the reason for a resend.
+function sendNotification_(data, token, why) {
   const team = data.team || 'Unknown / unsure';
   const rec = recipientsFor_(team);
   const color = parseColor_(data.status);
@@ -165,7 +169,15 @@ function sendNotification_(data, token) {
   };
   if (CONFIG.sender) opts.from = CONFIG.sender;
   if (photoCid) opts.inlineImages = inlineImages;
-  GmailApp.sendEmail(rec.to.join(','), subject, '', opts);
+  const entry = { type: 'Notice', team: team, to: rec.to.join(','), cc: rec.cc.join(','), subject: subject, token: token, why: why || 'New report', body: opts.htmlBody };
+  try {
+    GmailApp.sendEmail(rec.to.join(','), subject, '', opts);
+  } catch (err) {
+    entry.result = 'Failed: ' + (err && err.message ? err.message : err);
+    logEmail_(entry);
+    throw err;
+  }
+  logEmail_(entry);
   Logger.log('Sent "' + team + '" to: ' + rec.to.join(',') + ' | cc: ' + rec.cc.join(','));
   return { sent: true };
 }
@@ -189,6 +201,8 @@ function sendSentBack_(data, token, reason) {
   };
   if (CONFIG.sender) opts.from = CONFIG.sender;
   if (!opts.cc) delete opts.cc;
+  const why = String(reason || '').trim();
+  const entry = { type: 'Sent back', team: team, to: rec.to.join(','), cc: rec.cc.join(','), subject: subject, token: token, why: why ? 'Reason: ' + why : 'No reason given' };
   // Same pattern as the assignment email: inline photo only. If that throws,
   // send the letter with a Drive link so the notice still goes out.
   try {
@@ -199,8 +213,17 @@ function sendSentBack_(data, token, reason) {
     delete opts.inlineImages;
     delete opts.from;
     opts.htmlBody = buildSentBack_(data, token, reason, []);
-    GmailApp.sendEmail(rec.to.join(','), subject, '', opts);
+    try {
+      GmailApp.sendEmail(rec.to.join(','), subject, '', opts);
+    } catch (err2) {
+      entry.result = 'Failed: ' + (err2 && err2.message ? err2.message : err2);
+      entry.body = opts.htmlBody;
+      logEmail_(entry);
+      throw err2;
+    }
   }
+  entry.body = opts.htmlBody;
+  logEmail_(entry);
   Logger.log('Sent back "' + team + '" to: ' + rec.to.join(',') + ' | photos: ' + cids.length);
   return { sent: true };
 }
@@ -251,87 +274,259 @@ function buildSentBack_(data, token, reason, cids) {
   return out;
 }
 
-function sendReminders() {
+// ---- Reminders ----
+
+function dayStart_(d) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
+function addDays_(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+function dateOrNull_(v) { if (!v) return null; const d = new Date(v); return isNaN(d.getTime()) ? null : d; }
+// Whole days from b to a. Rounded, so the 23- and 25-hour days at a clock change count as one.
+function dayDiff_(a, b) { return Math.round((dayStart_(a) - dayStart_(b)) / 86400000); }
+
+// Every issue the script has emailed about, and what the reminder job does with it.
+// sendReminders sends the open rows marked send. The Reminder emails page
+// (?view=emails) shows this same list, so the page and the job cannot disagree.
+// Read-only: it never writes to the sheet.
+//   open   not yet approved. state is 'open', 'sentback' or 'pending'.
+//   closed approved (Addressed at is set). Never reminded.
+function reminderPlan_() {
+  const out = { open: [], closed: [], cols: { token: -1, addressed: -1, completed: -1 } };
   const sh = ss_().getSheetByName(CONFIG.responsesSheet);
+  if (!sh) return out;
   const v = sh.getDataRange().getValues();
-  if (v.length < 2) { Logger.log('No rows.'); return; }
+  if (v.length < 2) return out;
   const H = v[0].map(norm_);
   const ci = function (name) { return H.indexOf(norm_(name)); };
-  const cTs = ci(CONFIG.headers.timestamp), cTeam = ci(CONFIG.headers.team), cStatus = findHeader_(H, statusHeaderNames_());
+  const cTs = ci(CONFIG.headers.timestamp), cTeam = ci(CONFIG.headers.team);
   const cIssue = ci(CONFIG.headers.issueType), cAction = ci(CONFIG.headers.action), cDetails = ci(CONFIG.headers.details);
   const cEmail = ci(CONFIG.headers.email), cNotified = ci(CONFIG.notifiedHeader), cToken = ci(CONFIG.issueTokenHeader);
-  const cAddr = ensureColumn_(sh, CONFIG.addressedHeader) - 1;
-  const cLast = ensureColumn_(sh, CONFIG.lastReminderHeader) - 1;
-  const cCompleted = ci(CONFIG.completedAtHeader);   // -1 until first completion is submitted
-  const DAY = 86400000;
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  let sent = 0;
+  const cAddr = ci(CONFIG.addressedHeader), cLast = ci(CONFIG.lastReminderHeader), cCompleted = ci(CONFIG.completedAtHeader);
+  const cSent = ci(CONFIG.sentBackHeader), cPhoto = ci(CONFIG.completionPhotoHeader);
+  out.cols = { token: cToken, addressed: cAddr, completed: cCompleted };
+  const cell = function (row, c) { return c >= 0 ? row[c] : ''; };
+  const text = function (row, c) { const x = cell(row, c); return String(x == null ? '' : x).trim(); };
+  const today = dayStart_(new Date());
 
   for (let i = 1; i < v.length; i++) {
     const row = v[i];
-    if (cNotified < 0 || !row[cNotified]) continue;            // never notified
-    if (row[cAddr]) continue;                                   // addressed / closed
-    if (cCompleted >= 0 && row[cCompleted]) continue;          // completion submitted, awaiting approval -> pause reminders
-    if (cToken < 0 || !row[cToken]) continue;
-    const color = parseColor_(statusFromRow_(row, H));
-    if (!color || SLA_DAYS[color] == null) continue;            // purple / unknown -> no deadline, no reminders
-    const reportDate = new Date(row[cTs]);
-    if (isNaN(reportDate.getTime())) continue;
-    reportDate.setHours(0, 0, 0, 0);
-    if (today <= reportDate) continue;                          // day 0 is covered by the initial notice
-    const windowDays = SLA_DAYS[color];
-    const deadline = new Date(reportDate); deadline.setDate(deadline.getDate() + windowDays); deadline.setHours(0, 0, 0, 0);
-    const interval = Math.max(1, Math.round(windowDays / 2));   // recurring cadence = (due - report) / 2
-    let dueToday;
-    if (row[cLast]) {
-      const last = new Date(row[cLast]); last.setHours(0, 0, 0, 0);
-      dueToday = (today - last) / DAY >= interval;              // every `interval` days after the last reminder
-    } else {
-      dueToday = today >= deadline;                             // first reminder on (or after) the due date
-    }
-    if (!dueToday) continue;
-
-    const data = {
-      timestamp: row[cTs], team: cTeam >= 0 ? String(row[cTeam]).trim() : '',
-      issueType: cIssue >= 0 ? String(row[cIssue]).trim() : '', action: cAction >= 0 ? String(row[cAction]).trim() : '',
-      details: cDetails >= 0 ? String(row[cDetails]).trim() : '', status: statusFromRow_(row, H),
-      email: cEmail >= 0 ? String(row[cEmail]).trim() : '',
+    if (!cell(row, cNotified) || !cell(row, cToken)) continue;   // never emailed: not tracked
+    const status = statusFromRow_(row, H);
+    const p = {
+      rowNum: i + 1, token: String(row[cToken]),
+      team: text(row, cTeam), issueType: text(row, cIssue), action: text(row, cAction), details: text(row, cDetails),
+      status: status, color: parseColor_(status), email: text(row, cEmail), timestamp: cell(row, cTs),
+      reported: dateOrNull_(cell(row, cTs)), lastReminder: dateOrNull_(cell(row, cLast)),
+      completedAt: dateOrNull_(cell(row, cCompleted)), addressed: dateOrNull_(cell(row, cAddr)),
+      sentBackReason: text(row, cSent),
+      state: 'open', send: false, next: null, deadline: null, interval: 0, why: '', hints: [],
     };
-    const token = String(row[cToken]);
-    const rec = recipientsFor_(data.team || 'Unknown / unsure');
-    const subject = norm_(data.issueType) === 'informational'
-      ? 'Reminder - ' + (data.team || '') + ' note is still open'
-      : 'Reminder - ' + (data.team || '') + ' space issue needs attention' + (data.issueType ? ' (' + phrase_(data.issueType) + ')' : '');
-    const opts = { htmlBody: buildReminder_(data, color, token, deadline), name: 'Engineering Student Project Teams', cc: rec.cc.join(','), replyTo: data.email || CONFIG.fallbackEmail };
-    if (CONFIG.sender) opts.from = CONFIG.sender;
-    GmailApp.sendEmail(rec.to.join(','), subject, '', opts);
-    sh.getRange(i + 1, cLast + 1).setValue(new Date());
-    sent++;
+    if (cell(row, cAddr)) { p.state = 'done'; out.closed.push(p); continue; }   // approved: closed
+    out.open.push(p);
+    if (cell(row, cCompleted)) {                                                // submitted, awaiting approval: paused
+      p.state = 'pending';
+      p.why = 'Paused. The team submitted this' + (p.completedAt ? ' on ' + fmtShort_(p.completedAt) : '') + ' and it is waiting for approval.';
+      continue;
+    }
+    // A completion photo or a send-back reason with no Completed at: the team
+    // submitted it and it was reopened.
+    if (p.sentBackReason || text(row, cPhoto)) {
+      p.state = 'sentback';
+      p.hints.push('The team marked this complete and it was sent back' + (p.sentBackReason ? ' (' + p.sentBackReason + ')' : '') + '. Reminders run until they submit it again.');
+    }
+    const windowDays = p.color ? SLA_DAYS[p.color] : null;
+    if (windowDays == null) {                                                   // purple / unknown -> no deadline, no reminders
+      p.why = p.color === 'purple' ? 'No deadline (when time allows), so no reminders.' : 'No deadline on this report, so no reminders.';
+      continue;
+    }
+    if (!p.reported) { p.why = 'The report has no date, so no reminders.'; continue; }
+    const reportDay = dayStart_(p.reported);
+    p.deadline = addDays_(reportDay, windowDays);
+    p.interval = Math.max(1, Math.round(windowDays / 2));                       // recurring cadence = (due - report) / 2
+    if (cell(row, cLast)) {
+      if (!p.lastReminder) { p.why = 'The Last reminder cell is not a date, so no reminders. Clear the cell to restart them.'; continue; }
+      p.next = addDays_(dayStart_(p.lastReminder), p.interval);                 // every `interval` days after the last reminder
+    } else {
+      p.next = p.deadline > reportDay ? p.deadline : addDays_(reportDay, 1);    // first reminder on the due date; day 0 is covered by the notice
+    }
+    p.send = today > reportDay && today >= p.next;
+    const every = 'every ' + (p.interval === 1 ? 'day' : p.interval + ' days');
+    if (p.send) {
+      p.why = p.lastReminder
+        ? 'Still open. Last reminder ' + fmtShort_(p.lastReminder) + '. Repeats ' + every + '.'
+        : 'Still open. Due ' + fmtShort_(p.deadline) + '. First reminder.';
+    } else {
+      p.why = p.lastReminder
+        ? 'Last reminder ' + fmtShort_(p.lastReminder) + '. Repeats ' + every + '.'
+        : 'Due ' + fmtShort_(p.deadline) + '. The first reminder goes out then.';
+    }
   }
-  Logger.log('Reminders sent: ' + sent);
+
+  // The same problem filed twice (same team and issue type, reported within two
+  // weeks). A team that finished one report still gets reminders for the other.
+  const all = out.open.concat(out.closed);
+  out.open.forEach(function (p) {
+    if (p.state === 'pending' || !p.reported) return;
+    const twins = all.filter(function (q) {
+      return q !== p && q.reported && norm_(q.team) === norm_(p.team) && norm_(q.issueType) === norm_(p.issueType)
+        && Math.abs(q.reported - p.reported) <= 14 * 86400000;
+    });
+    const finished = twins.filter(function (q) { return q.state === 'done' || q.state === 'pending'; });
+    const stillOpen = twins.filter(function (q) { return q.state === 'open' || q.state === 'sentback'; });
+    if (finished.length) {
+      const f = finished[0], when = f.addressed || f.completedAt;
+      p.hints.push('The team already finished a similar report' + (when ? ' on ' + fmtShort_(when) : '')
+        + ' (reported ' + fmtShort_(f.reported) + '). This is a separate report and it is still open.');
+    }
+    if (stillOpen.length) p.hints.push('The team has ' + (stillOpen.length + 1) + ' open reports of this type. Each one sends its own reminder.');
+  });
+  return out;
 }
 
-function lookupTeam_(team) {
+// The reminder email for one plan row, exactly as sendReminders sends it.
+function reminderMail_(p, contacts) {
+  const rec = recipientsFor_(p.team || 'Unknown / unsure', contacts);
+  return { to: rec.to.join(','), cc: rec.cc.join(','), subject: reminderSubject_(p), body: buildReminder_(p, p.color, p.token, p.deadline) };
+}
+
+function reminderSubject_(p) {
+  return norm_(p.issueType) === 'informational'
+    ? 'Reminder - ' + (p.team || '') + ' note is still open'
+    : 'Reminder - ' + (p.team || '') + ' space issue needs attention' + (p.issueType ? ' (' + phrase_(p.issueType) + ')' : '');
+}
+
+function sendReminders() {
+  // One run at a time. Two at once (a second trigger, or a manual run during the
+  // daily one) would both read the sheet before either stamped Last reminder, and
+  // every team would get the reminder twice.
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(5000)) { Logger.log('Another reminder run is in progress. Skipped.'); return; }
+  let sent = 0, failed = 0, skipped = 0;
+  try {
+    const plan = reminderPlan_();
+    const due = plan.open.filter(function (p) { return p.send; });
+    if (due.length) {
+      const sh = ss_().getSheetByName(CONFIG.responsesSheet);
+      const lastCol = ensureColumn_(sh, CONFIG.lastReminderHeader);
+      const width = sh.getLastColumn();
+      const contacts = teamContacts_();
+      due.forEach(function (p) {
+        // Read the row again just before sending. Skip it if the team completed it
+        // (or an admin closed or deleted it) since the plan was read.
+        const now = sh.getRange(p.rowNum, 1, 1, width).getValues()[0];
+        const c = plan.cols;
+        if (String(now[c.token]) !== p.token || (c.addressed >= 0 && now[c.addressed]) || (c.completed >= 0 && now[c.completed])) { skipped++; return; }
+        const mail = reminderMail_(p, contacts);
+        const opts = { htmlBody: mail.body, name: 'Engineering Student Project Teams', cc: mail.cc, replyTo: p.email || CONFIG.fallbackEmail };
+        if (CONFIG.sender) opts.from = CONFIG.sender;
+        const entry = { type: 'Reminder', team: p.team, to: mail.to, cc: mail.cc, subject: mail.subject, token: p.token, why: p.why, body: mail.body };
+        try {
+          GmailApp.sendEmail(mail.to, mail.subject, '', opts);
+        } catch (err) {
+          // One bad address must not stop the reminders after it.
+          failed++;
+          entry.result = 'Failed: ' + (err && err.message ? err.message : err);
+          logEmail_(entry);
+          Logger.log('Reminder to "' + p.team + '" failed: ' + err);
+          return;
+        }
+        sh.getRange(p.rowNum, lastCol).setValue(new Date());
+        sent++;
+        logEmail_(entry);
+      });
+    }
+  } finally {
+    lock.releaseLock();
+  }
+  Logger.log('Reminders sent: ' + sent + (skipped ? ' | skipped (completed during the run): ' + skipped : '') + (failed ? ' | failed: ' + failed : ''));
+  // Fail the run so the trigger's failure email reports it.
+  if (failed) throw new Error(failed + ' reminder email' + (failed === 1 ? '' : 's') + ' did not send. See the Email log tab.');
+}
+
+// ---- Email log ----
+
+const EMAIL_LOG_HEADERS = ['Sent at', 'Type', 'Team', 'To', 'Cc', 'Subject', 'Issue token', 'Why', 'Result', 'Body'];
+
+// The Email log tab: one row per email this script sends. Made on first use.
+function emailLogSheet_(create) {
+  const ss = ss_();
+  let sh = ss.getSheetByName(CONFIG.emailLogSheet);
+  if (sh || !create) return sh;
+  try {
+    sh = ss.insertSheet(CONFIG.emailLogSheet, ss.getSheets().length);
+  } catch (err) {
+    return ss.getSheetByName(CONFIG.emailLogSheet);   // another run made it first
+  }
+  const n = EMAIL_LOG_HEADERS.length;
+  sh.getRange(1, 1, 1, n).setValues([EMAIL_LOG_HEADERS]);
+  // Looks only. The Body column holds the email's HTML for the Reminder emails page.
+  try { sh.getRange(1, 1, 1, n).setFontWeight('bold'); sh.setFrozenRows(1); sh.hideColumns(n); } catch (err) { /* cosmetic */ }
+  return sh;
+}
+
+// Record one email. Never throws: a logging problem must not block or repeat a send.
+//   e: { type, team, to, cc, subject, token, why, result, body }. result defaults to 'Sent'.
+function logEmail_(e) {
+  try {
+    const sh = emailLogSheet_(true);
+    sh.appendRow([new Date(), e.type || '', e.team || '', e.to || '', e.cc || '', e.subject || '', e.token || '',
+      e.why || '', e.result || 'Sent', String(e.body || '').slice(0, 45000)]);
+  } catch (err) {
+    Logger.log('Email log write failed: ' + err);
+  }
+}
+
+// The newest `limit` log rows, oldest first.
+function emailLogRead_(limit) {
+  const sh = emailLogSheet_(false);
+  if (!sh) return [];
+  const last = sh.getLastRow();
+  if (last < 2) return [];
+  const n = Math.min(limit || 120, last - 1);
+  const H = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(norm_);
+  const v = sh.getRange(last - n + 1, 1, n, H.length).getValues();
+  const col = {};
+  ['Sent at', 'Type', 'Team', 'To', 'Cc', 'Subject', 'Issue token', 'Why', 'Result', 'Body'].forEach(function (h) { col[h] = H.indexOf(norm_(h)); });
+  const get = function (row, h) { return col[h] >= 0 && row[col[h]] != null ? row[col[h]] : ''; };
+  const out = [];
+  v.forEach(function (row) {
+    const at = dateOrNull_(get(row, 'Sent at'));
+    if (!at) return;
+    out.push({
+      at: at, type: String(get(row, 'Type')).trim(), team: String(get(row, 'Team')).trim(),
+      to: String(get(row, 'To')).trim(), cc: String(get(row, 'Cc')).trim(), subject: String(get(row, 'Subject')).trim(),
+      token: String(get(row, 'Issue token')).trim(), why: String(get(row, 'Why')).trim(),
+      result: String(get(row, 'Result')).trim() || 'Sent', body: String(get(row, 'Body')), logged: true,
+    });
+  });
+  return out;
+}
+
+// Team Contacts, read once and keyed by normalized team name.
+function teamContacts_() {
+  const map = {};
   const sh = ss_().getSheetByName(CONFIG.contactsSheet);
-  if (!sh) { Logger.log('No "' + CONFIG.contactsSheet + '" tab.'); return null; }
+  if (!sh) { Logger.log('No "' + CONFIG.contactsSheet + '" tab.'); return map; }
   const v = sh.getDataRange().getValues();
-  if (v.length < 2) return null;
+  if (v.length < 2) return map;
   const H = v[0].map(norm_);
   const idx = function (name) { return H.indexOf(norm_(name)); };
   const cTeam = idx('Team'), cGen = idx('Team general email'), cLia = idx('Liaison email'),
         cLiaN = idx('Liaison name'), cSafe = idx('Safety lead email'), cExtra = idx('Extra CC');
-  if (cTeam < 0) { Logger.log('Team Contacts has no "Team" header.'); return null; }
+  if (cTeam < 0) { Logger.log('Team Contacts has no "Team" header.'); return map; }
   for (let i = 1; i < v.length; i++) {
-    if (norm_(v[i][cTeam]) === norm_(team)) {
-      return {
-        team: v[i][cTeam],
-        generalEmail: cGen >= 0 ? v[i][cGen] : '', liaisonEmail: cLia >= 0 ? v[i][cLia] : '',
-        liaisonName: cLiaN >= 0 ? v[i][cLiaN] : '', safetyEmail: cSafe >= 0 ? v[i][cSafe] : '',
-        extraCc: cExtra >= 0 ? v[i][cExtra] : '',
-      };
-    }
+    const key = norm_(v[i][cTeam]);
+    if (!key || map[key]) continue;   // first row for a team wins
+    map[key] = {
+      team: v[i][cTeam],
+      generalEmail: cGen >= 0 ? v[i][cGen] : '', liaisonEmail: cLia >= 0 ? v[i][cLia] : '',
+      liaisonName: cLiaN >= 0 ? v[i][cLiaN] : '', safetyEmail: cSafe >= 0 ? v[i][cSafe] : '',
+      extraCc: cExtra >= 0 ? v[i][cExtra] : '',
+    };
   }
-  return null;
+  return map;
+}
+
+function lookupTeam_(team, contacts) {
+  return (contacts || teamContacts_())[norm_(team)] || null;
 }
 
 function lookupTeamByToken_(token) {
@@ -509,21 +704,30 @@ function buildReminder_(data, color, token, deadline) {
   out += '<p style="margin:0;color:#1a1a1a;font:15px/1.7 Georgia,serif">' + (team ? 'Dear ' + escapeHtml_(team) + ' team,' : 'Hello,') + '</p>';
   const reportedOn = data.timestamp ? fmtDate_(new Date(data.timestamp)) : '';
   const infoOnly = norm_(data.issueType) === 'informational';
+  const sentBack = data.state === 'sentback';   // set by reminderPlan_
   if (infoOnly) {
     out += L('This is a follow-up on a note for your team'
       + (reportedOn ? ', logged on <b>' + escapeHtml_(reportedOn) + '</b>' : '')
       + '. No action was requested. It is still open.');
   } else {
-    out += L('This is a follow-up on a space issue in your team\'s space'
-      + (reportedOn ? ', reported on <b>' + escapeHtml_(reportedOn) + '</b>,' : '')
-      + ' that has not yet been marked as addressed. It was due on <b>' + escapeHtml_(fmtDate_(deadline)) + '</b>.');
+    if (sentBack) {
+      // The team did mark it complete, so "not yet marked as addressed" would be wrong.
+      out += L('This is a follow-up on a space issue in your team\'s space'
+        + (reportedOn ? ', reported on <b>' + escapeHtml_(reportedOn) + '</b>' : '')
+        + '. Your team marked it complete and it was sent back, so it is still open.');
+      if (data.sentBackReason) out += L('<b>Reason:</b> ' + escapeHtml_(data.sentBackReason));
+    } else {
+      out += L('This is a follow-up on a space issue in your team\'s space'
+        + (reportedOn ? ', reported on <b>' + escapeHtml_(reportedOn) + '</b>,' : '')
+        + ' that has not yet been marked as addressed. It was due on <b>' + escapeHtml_(fmtDate_(deadline)) + '</b>.');
+    }
     let pb = '';
     if (issue) pb += 'The concern relates to ' + escapeHtml_(lcFirst_(issue));
     if (action) pb += (pb ? ', and we ask that you ' : 'We ask that you ') + escapeHtml_(lcFirst_(action));
     if (pb) out += L(pb + '.');
   }
   if (data.details) out += L('The reporter noted: &ldquo;' + escapeHtml_(data.details) + '&rdquo;');
-  if (!infoOnly) out += L('Please resolve it as soon as possible.');
+  if (!infoOnly) out += L(sentBack ? 'Please make the correction, then mark it complete again.' : 'Please resolve it as soon as possible.');
   if (typeof icIsOpsTeam_ === 'function' && icIsOpsTeam_(team)) {
     out += L('Tap <b>Mark complete</b> to mark it done. No photo is needed.');
   }
@@ -549,6 +753,8 @@ function doGet(e) {
   if (p.registry || p.module === 'registry-dash') return htmlPage_('Inventory has moved', 'The old equipment registry was retired. Tools and equipment are now in Tool inventory on the Ops Hub. <a href="https://cornellprojectteams.github.io/centralhub/inventory.html" target="_top" style="color:#b31b1b;font-weight:700">Open the inventory</a>');
   if (p.team) { const t = lookupTeamByToken_(p.team); return t ? teamPortal_(t, false) : htmlPage_('Invalid link', 'This team link is not recognized.'); }
   if (p.view === 'all') return allIssuesPage_(embed, admin, p.back);
+  // Reminder emails: what was sent, to whom, and what the next run sends. Admin page only.
+  if (p.view === 'emails') return admin ? emailsPage_(embed, p.back) : htmlPage_('Invalid link', 'This page opens from the admin page.');
   if (p.view) return teamPortal_(String(p.view), !(p.act === '1' || p.act === 'true'), p.embed === '1' || p.embed === 'true');   // ?view=<team> read-only; &act=1 markable; &embed=1 no top bar
   if (p.id) return confirmPage_(p.id);
   return pickerPage_();
@@ -683,7 +889,7 @@ function fontLinks_() {
     + '<noscript><link rel="stylesheet" href="' + href + '"></noscript>';
 }
 
-function swissShell_(innerHtml, pageTitle, wide, embedded, maxWidth) {
+function swissShell_(innerHtml, pageTitle, wide, embedded, maxWidth, bg) {
   const maxW = maxWidth || (wide ? '960px' : '600px');
   const pad = embedded ? '14px 12px 28px' : '40px 28px 64px';
   const padSm = embedded ? '10px 10px 24px' : '24px 14px 40px';
@@ -693,7 +899,7 @@ function swissShell_(innerHtml, pageTitle, wide, embedded, maxWidth) {
     + '@media(max-width:600px){.page-title{font-size:24px !important}.swiss-inner{padding:' + padSm + ' !important}}'
     + '</style>';
   const html = enh
-    + '<div style="margin:0;background:#f5f4f0;min-height:100vh;max-width:100%;font-family:Helvetica,Arial,sans-serif;color:#111">'
+    + '<div style="margin:0;background:' + (bg || '#f5f4f0') + ';min-height:100vh;max-width:100%;font-family:Helvetica,Arial,sans-serif;color:#111">'
     + topBar
     + '<div class="swiss-inner">' + innerHtml + '</div>'
     + '</div>';
@@ -1232,6 +1438,342 @@ function icAllSectionsHtml_(data, admin) {
   return out + icFiltEmpty_('No issues match those filters.');
 }
 
+
+// ---- Reminder emails page (?view=emails&admin=1) ----
+// What the script emailed, to whom, and what the next reminder run sends. Opened
+// from the Reminder emails pop-up on the admin page. Upcoming rows come from
+// reminderPlan_ (the list sendReminders uses). Sent rows come from the Email log
+// tab, plus each row's Last reminder stamp for reminders older than the log.
+
+const EMAIL_LOG_SHOWN = 120;   // newest log rows on the page; the tab keeps them all
+
+function emDay_(d) {
+  const tz = Session.getScriptTimeZone();
+  const thisYear = Utilities.formatDate(d, tz, 'yyyy') === Utilities.formatDate(new Date(), tz, 'yyyy');
+  return Utilities.formatDate(d, tz, thisYear ? 'MMM d' : 'MMM d, yyyy');
+}
+function emTime_(d) { return Utilities.formatDate(d, Session.getScriptTimeZone(), 'h:mm a'); }
+function emStamp_(d) { return emDay_(d) + ', ' + emTime_(d); }
+
+// When the Email log began: the date on its first row, or null with no log yet.
+function emailLogStart_() {
+  const sh = emailLogSheet_(false);
+  if (!sh || sh.getLastRow() < 2) return null;
+  const c = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(norm_).indexOf(norm_('Sent at'));
+  return c < 0 ? null : dateOrNull_(sh.getRange(2, c + 1).getValue());
+}
+
+function emailsModel_() {
+  const plan = reminderPlan_();
+  const contacts = teamContacts_();
+  const rows = plan.open.concat(plan.closed);
+  const byToken = {};
+  rows.forEach(function (p) { byToken[p.token] = p; });
+
+  // Open issues: going out on the next run, then scheduled by date, then not reminded.
+  const upcoming = plan.open.map(function (p) {
+    return { p: p, mail: p.next ? reminderMail_(p, contacts) : null };
+  });
+  const rank = function (u) { return u.p.send ? 0 : (u.p.next ? 1 : 2); };
+  upcoming.sort(function (a, b) {
+    const ra = rank(a), rb = rank(b);
+    if (ra !== rb) return ra - rb;
+    if (ra === 1 && a.p.next.getTime() !== b.p.next.getTime()) return a.p.next - b.p.next;
+    const x = norm_(a.p.team), y = norm_(b.p.team);
+    return x < y ? -1 : (x > y ? 1 : 0);
+  });
+
+  const sent = emailLogRead_(EMAIL_LOG_SHOWN);
+  // Reminders from before the log started: the Last reminder stamp is all that is left.
+  const logStart = emailLogStart_();
+  const logged = {};
+  sent.forEach(function (e) {
+    if (e.type === 'Reminder' && e.token && !/^failed/i.test(e.result)) logged[e.token] = Math.max(logged[e.token] || 0, e.at.getTime());
+  });
+  rows.forEach(function (p) {
+    if (!p.lastReminder) return;
+    const t = p.lastReminder.getTime();
+    if (logStart && t >= logStart.getTime()) return;        // the log has it
+    if (logged[p.token] && logged[p.token] >= t - 120000) return;
+    sent.push({
+      at: p.lastReminder, type: 'Reminder', team: p.team, to: '', cc: '', subject: reminderSubject_(p),
+      token: p.token, why: 'Sent before the email log started. Only the date was kept.', result: 'Sent', body: '', logged: false,
+    });
+  });
+  sent.sort(function (a, b) { return b.at - a.at; });
+
+  sent.forEach(function (e) {
+    const row = e.token ? (byToken[e.token] || null) : null;
+    e.row = row;
+    e.failed = /^failed/i.test(e.result);
+    // The check for "reminders after completing": a reminder dated later than the
+    // completion that is on the row now.
+    const doneAt = row ? (row.completedAt || row.addressed) : null;
+    e.after = e.type === 'Reminder' && !e.failed && !!doneAt && e.at.getTime() > doneAt.getTime();
+    e.doneAt = doneAt;
+  });
+
+  const weekAgo = Date.now() - 7 * 86400000;
+  return {
+    upcoming: upcoming, sent: sent,
+    counts: {
+      next: upcoming.filter(function (u) { return u.p.send; }).length,
+      later: upcoming.filter(function (u) { return !u.p.send; }).length,
+      sent: sent.length,
+      flag: sent.filter(function (e) { return e.after || e.failed; }).length,
+    },
+    week: sent.filter(function (e) { return !e.failed && e.at.getTime() >= weekAgo; }).length,
+    after: sent.filter(function (e) { return e.after; }).length,
+  };
+}
+
+function emStatsHtml_(m) {
+  const stat = function (n, label, cls) {
+    return '<div class="em-stat' + (cls ? ' ' + cls : '') + '"><b>' + n + '</b><span>' + label + '</span></div>';
+  };
+  return stat(m.counts.next, m.counts.next === 1 ? 'reminder goes out on the next run' : 'reminders go out on the next run')
+    + stat(m.week, (m.week === 1 ? 'email' : 'emails') + ' sent in the last 7 days')
+    + stat(m.after, (m.after === 1 ? 'reminder' : 'reminders') + ' sent after the team finished', m.after ? 'em-stat--bad' : 'em-stat--ok');
+}
+
+function emListHtml_(m) {
+  const today = dayStart_(new Date());
+  let out = '', i = 0, lastGroup = '';
+  m.upcoming.forEach(function (u) {
+    const group = u.p.send ? '' : (u.p.next ? 'Scheduled' : 'Not reminded');
+    if (group !== lastGroup) {
+      i = 0;
+      if (group) out += '<div class="em-group" data-tab="later" style="display:none">' + group + '</div>';
+    }
+    lastGroup = group;
+    out += emUpcomingRow_(u, i++, today);
+  });
+  i = 0;
+  m.sent.forEach(function (e) { out += emSentRow_(e, i++); });
+  return out;
+}
+
+// One folded row. tab lists the tabs it shows under ("sent flag"). when/sub/title/line
+// are plain text; tagTxt and bodyHtml are already HTML.
+function emRow_(tab, i, hay, when, sub, title, line, tagCls, tagTxt, bodyHtml) {
+  const shown = (' ' + tab + ' ').indexOf(' next ') >= 0;
+  return '<details class="em-row" data-tab="' + tab + '" data-hay="' + escapeHtml_(String(hay).toLowerCase()) + '" style="--i:' + Math.min(i, 14) + (shown ? '' : ';display:none') + '">'
+    + '<summary class="em-sum">'
+    +   '<span class="em-when"><b>' + escapeHtml_(when) + '</b><i>' + escapeHtml_(sub) + '</i></span>'
+    +   '<span class="em-main"><span class="em-team">' + escapeHtml_(title) + '</span><span class="em-subj">' + escapeHtml_(line) + '</span></span>'
+    +   '<span class="em-tag ' + tagCls + '">' + tagTxt + '</span>'
+    +   '<span class="em-chev" aria-hidden="true"></span>'
+    + '</summary>'
+    + '<div class="em-body">' + bodyHtml + '</div>'
+    + '</details>';
+}
+
+// Label and value lines. Values are already HTML; empty ones are left out.
+function emMeta_(pairs) {
+  let s = '<dl class="em-meta">';
+  pairs.forEach(function (kv) { if (kv[1]) s += '<dt>' + kv[0] + '</dt><dd>' + kv[1] + '</dd>'; });
+  return s + '</dl>';
+}
+
+function emAddr_(list) { return escapeHtml_(String(list || '').split(',').join(', ')); }
+
+// The email itself, for reading only: its button and links do nothing here, and an
+// inline photo (cid:) shows as a note because the image is not on this page.
+function emLetter_(html) {
+  const safe = String(html || '')
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/<img[^>]+src="cid:[^>]*>/gi, '<span class="em-photo">Photo attached</span>')
+    .replace(/<a\s+href="[^"]*"/gi, '<a');
+  return safe ? '<div class="em-letter"><div class="em-cap">The email</div>' + safe + '</div>' : '';
+}
+
+function emReportLine_(p) {
+  const bits = [];
+  if (p.issueType) bits.push(phrase_(p.issueType));
+  if (p.reported) bits.push('reported ' + emDay_(p.reported));
+  if (p.deadline) bits.push('due ' + emDay_(p.deadline));
+  return bits.join(' · ') + (p.details ? '. ' + p.details : '');
+}
+
+function emUpcomingRow_(u, i, today) {
+  const p = u.p, mail = u.mail;
+  let when, sub, tagCls = 'em-tag--ink', tagTxt;
+  if (p.send) { when = 'Today'; sub = 'next run'; tagCls = 'em-tag--rem'; tagTxt = 'Reminder'; }
+  else if (p.next) {
+    const d = dayDiff_(p.next, today);
+    when = emDay_(p.next); sub = d <= 1 ? 'tomorrow' : 'in ' + d + ' days'; tagTxt = 'Scheduled';
+  }
+  else if (p.state === 'pending') { when = 'Paused'; sub = 'in review'; tagCls = 'em-tag--amber'; tagTxt = 'Paused'; }
+  else { when = 'None'; sub = 'not reminded'; tagTxt = 'No reminders'; }
+  const line = mail ? mail.subject : ((p.issueType ? phrase_(p.issueType) : 'Reported issue') + (p.details ? '. ' + p.details : ''));
+  const hay = [p.team, p.issueType, p.details, mail ? mail.to + ' ' + mail.cc + ' ' + mail.subject : ''].join(' ');
+  let body = emMeta_([
+    ['To', mail ? emAddr_(mail.to) : ''],
+    ['Cc', mail ? emAddr_(mail.cc) : ''],
+    ['Why', escapeHtml_(p.why)],
+    ['Report', escapeHtml_(emReportLine_(p))],
+  ]);
+  p.hints.forEach(function (h) { body += '<p class="em-hint">' + escapeHtml_(h) + '</p>'; });
+  if (mail) body += emLetter_(mail.body);
+  return emRow_(p.send ? 'next' : 'later', i, hay, when, sub, p.team || 'No team', line, tagCls, tagTxt, body);
+}
+
+function emSentRow_(e, i) {
+  const row = e.row;
+  let tagCls = 'em-tag--ink', tagTxt = escapeHtml_(e.type || 'Email');
+  if (e.type === 'Reminder') tagCls = 'em-tag--rem';
+  else if (e.type === 'Sent back') tagCls = 'em-tag--amber';
+  if (e.failed) { tagCls = 'em-tag--bad'; tagTxt = 'Failed'; }
+  else if (e.after) { tagCls = 'em-tag--bad'; tagTxt = 'After completion'; }
+  let now = '';
+  if (e.token) {
+    now = !row ? 'This report is no longer in the sheet.'
+      : row.state === 'done' ? 'Completed' + (row.addressed ? ' ' + emStamp_(row.addressed) : '')
+      : row.state === 'pending' ? 'Submitted' + (row.completedAt ? ' ' + emStamp_(row.completedAt) : '') + ', waiting for approval'
+      : row.state === 'sentback' ? 'Open. Sent back to the team.'
+      : 'Open';
+  }
+  let body = emMeta_([
+    ['To', e.to ? emAddr_(e.to) : (e.logged ? '' : 'Not recorded')],
+    ['Cc', emAddr_(e.cc)],
+    ['Sent', escapeHtml_(emStamp_(e.at))],
+    ['Why', escapeHtml_(e.why)],
+    ['Now', escapeHtml_(now)],
+  ]);
+  if (e.failed) body += '<p class="em-hint em-hint--bad">' + escapeHtml_('This email did not send. ' + e.result.replace(/^failed:?\s*/i, '')) + '</p>';
+  if (e.after) body += '<p class="em-hint em-hint--bad">' + escapeHtml_('This reminder went out after the team finished the report (' + emStamp_(e.doneAt) + ').') + '</p>';
+  // Why an open report keeps getting reminders: sent back, or filed twice.
+  if (row && e.type === 'Reminder' && !e.after) row.hints.forEach(function (h) { body += '<p class="em-hint">' + escapeHtml_(h) + '</p>'; });
+  body += emLetter_(e.body);
+  const hay = [e.team, e.subject, e.to, e.cc, e.type].join(' ');
+  return emRow_('sent' + (e.failed || e.after ? ' flag' : ''), i, hay, emDay_(e.at), emTime_(e.at), e.team || 'No team', e.subject, tagCls, tagTxt, body);
+}
+
+// Flat editorial: rules and type, no cards. Ink text throughout.
+function emStyles_() {
+  const disp = '"Plus Jakarta Sans",Helvetica,Arial,sans-serif';
+  const hair = 'rgba(20,17,14,.16)';
+  return '<style>'
+    + '@media(min-width:601px){.swiss-inner{padding-left:26px;padding-right:26px}}'
+    + '.em{font-family:Inter,Helvetica,Arial,sans-serif;color:#14110e}'
+    + '.em-kicker{font-family:' + disp + ';font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#b31b1b}'
+    + '.em-title{font-family:' + disp + ';font-size:38px;font-weight:800;letter-spacing:-.045em;line-height:1;margin:10px 0 22px;color:#14110e}'
+    + '.em-stats{display:flex;flex-wrap:wrap;border-top:2px solid #14110e;border-bottom:1px solid ' + hair + '}'
+    + '.em-stat{flex:1 1 9rem;min-width:0;padding:16px 18px 16px 0;margin-right:18px;border-right:1px solid ' + hair + ';animation:emIn .5s cubic-bezier(.2,.8,.3,1) both}'
+    + '.em-stat:nth-child(2){animation-delay:70ms}.em-stat:nth-child(3){animation-delay:140ms}'
+    + '.em-stat:last-child{border-right:0;margin-right:0;padding-right:0}'
+    + '.em-stat b{display:block;font-family:' + disp + ';font-size:46px;font-weight:800;letter-spacing:-.055em;line-height:1;font-variant-numeric:tabular-nums}'
+    + '.em-stat span{display:block;margin-top:7px;font-size:12.5px;font-weight:600;line-height:1.35}'
+    + '.em-stat--bad b{color:#b31b1b}.em-stat--ok b{color:#157a47}'
+    + '.em-bar{display:flex;align-items:flex-end;gap:10px 18px;flex-wrap:wrap;margin-top:24px;border-bottom:1px solid ' + hair + '}'
+    + '.em-tabs{display:flex;gap:22px;flex:1 1 auto;min-width:0;overflow-x:auto;scrollbar-width:none}'
+    + '.em-tabs::-webkit-scrollbar{display:none}'
+    + '.em-tab{appearance:none;-webkit-appearance:none;border:0;border-bottom:3px solid transparent;background:none;margin:0 0 -1px;padding:0 0 10px;font-family:' + disp + ';font-size:14px;font-weight:700;letter-spacing:-.01em;color:#14110e;cursor:pointer;white-space:nowrap}'
+    + '.em-tab b{margin-left:6px;font-weight:800;font-variant-numeric:tabular-nums}'
+    + '.em-tab:hover{border-bottom-color:rgba(20,17,14,.3)}'
+    + '.em-tab.is-on{color:#b31b1b;border-bottom-color:#b31b1b}'
+    + '.em-tab:focus-visible,.em-refresh:focus-visible,.em-sum:focus-visible{outline:2px solid #b31b1b;outline-offset:3px}'
+    + '.em-q{flex:0 1 13rem;min-width:9rem;margin-bottom:8px;padding:6px 0;border:0;border-bottom:1.5px solid #14110e;border-radius:0;background:transparent;font:500 14px Inter,Helvetica,Arial,sans-serif;color:#14110e;outline:none}'
+    + '.em-q::placeholder{color:#57534e}'
+    + '.em-q:focus{border-bottom-color:#b31b1b}'
+    + '.em-refresh{appearance:none;-webkit-appearance:none;border:0;background:none;margin:0 0 9px;padding:0;font-family:' + disp + ';font-size:13px;font-weight:700;color:#14110e;text-decoration:underline;text-underline-offset:3px;cursor:pointer}'
+    + '.em-refresh:hover{color:#b31b1b}.em-refresh:disabled{cursor:default;text-decoration:none}'
+    + '.em-group{margin-top:28px;padding-bottom:8px;border-bottom:2px solid #14110e;font-family:' + disp + ';font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase}'
+    + '.em-row{border-bottom:1px solid ' + hair + ';animation:emIn .42s cubic-bezier(.2,.8,.3,1) both;animation-delay:calc(var(--i,0)*32ms)}'
+    + '.em-sum{display:grid;grid-template-columns:6rem minmax(0,1fr) auto 18px;align-items:center;gap:14px;padding:15px 2px;cursor:pointer;list-style:none;-webkit-tap-highlight-color:transparent}'
+    + '.em-sum::-webkit-details-marker{display:none}.em-sum::marker{content:none}'
+    + '.em-when b{display:block;font-family:' + disp + ';font-size:15px;font-weight:800;letter-spacing:-.02em;line-height:1.2}'
+    + '.em-when i{display:block;margin-top:3px;font-style:normal;font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase}'
+    + '.em-main{min-width:0}'
+    + '.em-team{display:block;font-family:' + disp + ';font-size:16px;font-weight:800;letter-spacing:-.02em;line-height:1.25;overflow-wrap:anywhere;transition:color .15s}'
+    + '.em-sum:hover .em-team{color:#b31b1b}'
+    + '.em-subj{display:block;margin-top:3px;font-size:13.5px;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
+    + '.em-row[open] .em-subj{white-space:normal;overflow-wrap:anywhere}'
+    + '.em-tag{display:inline-flex;align-items:center;gap:7px;font-family:' + disp + ';font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}'
+    + '.em-tag::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}'
+    + '.em-tag--ink{color:#14110e}.em-tag--rem{color:#b31b1b}.em-tag--amber{color:#9a5a00}'
+    + '.em-tag--bad{color:#fff;background:#b31b1b;padding:4px 8px}.em-tag--bad::before{display:none}'
+    + '.em-chev{justify-self:center;width:9px;height:9px;margin-top:-4px;border-right:2px solid #14110e;border-bottom:2px solid #14110e;transform:rotate(45deg);transition:transform .22s cubic-bezier(.2,.8,.3,1)}'
+    + '.em-row[open] .em-chev{margin-top:4px;transform:rotate(-135deg)}'
+    + '.em-body{padding:0 2px 24px calc(6rem + 16px);animation:emIn .3s ease both}'
+    + '.em-meta{display:grid;grid-template-columns:auto minmax(0,1fr);gap:5px 16px;margin:0;font-size:13.5px;line-height:1.5}'
+    + '.em-meta dt{padding-top:3px;font-family:' + disp + ';font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}'
+    + '.em-meta dd{margin:0;overflow-wrap:anywhere}'
+    + '.em-hint{margin:14px 0 0;padding:1px 0 1px 12px;border-left:3px solid #e0a020;font-size:13.5px;font-weight:600;line-height:1.5}'
+    + '.em-hint--bad{border-left-color:#b31b1b;color:#b31b1b}'
+    + '.em-letter{margin-top:18px;padding:2px 0 2px 18px;border-left:2px solid #b31b1b;overflow-wrap:anywhere}'
+    + '.em-letter a{pointer-events:none;cursor:default}'
+    + '.em-letter img{max-width:100%;height:auto}'
+    + '.em-cap{margin-bottom:6px;font-family:' + disp + ';font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#b31b1b}'
+    + '.em-photo{display:inline-block;font:italic 13px Georgia,serif}'
+    + '.em-empty{padding:30px 2px;font-family:' + disp + ';font-size:16px;font-weight:700;letter-spacing:-.01em}'
+    + '.em-foot{margin:22px 0 0;font-size:12.5px;line-height:1.55;max-width:44rem}'
+    + '@keyframes emIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}'
+    + '@media(prefers-reduced-motion:reduce){.em-row,.em-stat,.em-body{animation:none}.em-chev,.em-team{transition:none}}'
+    + '@media(max-width:600px){'
+    +   '.em-title{font-size:30px}.em-stat{flex-basis:5.5rem;padding:13px 10px 13px 0;margin-right:10px}.em-stat b{font-size:34px}'
+    +   '.em-sum{grid-template-columns:4.6rem minmax(0,1fr) 16px;gap:4px 10px}'
+    +   '.em-tag{grid-column:2;grid-row:2;justify-self:start}.em-chev{grid-column:3;grid-row:1}'
+    +   '.em-body{padding-left:2px}.em-q{flex:1 1 100%}'
+    + '}'
+    + '</style>';
+}
+
+function emJs_() {
+  return '<script>'
+    + 'var EM_TAB="next";'
+    + 'var EM_EMPTY={next:"Nothing goes out on the next run.",later:"No open issue is waiting on a reminder.",sent:"No emails on record yet.",flag:"Nothing flagged. No reminder went to a finished report, and no email failed."};'
+    + 'function emTab(t){EM_TAB=t;emApply();}'
+    + 'function emApply(){var qe=document.getElementById("em-q");var q=qe?(qe.value||"").toLowerCase().trim():"";var n=0;'
+    + 'document.querySelectorAll(".em-tab").forEach(function(b){var on=b.getAttribute("data-tab")===EM_TAB;b.classList.toggle("is-on",on);b.setAttribute("aria-selected",on?"true":"false");});'
+    + 'document.querySelectorAll("#em-list [data-tab]").forEach(function(r){var ok=(" "+r.getAttribute("data-tab")+" ").indexOf(" "+EM_TAB+" ")>=0;'
+    + 'if(ok&&q&&(r.getAttribute("data-hay")||"").indexOf(q)<0)ok=false;r.style.display=ok?"":"none";if(ok&&r.classList.contains("em-row"))n++;});'
+    + 'var e=document.getElementById("em-empty");if(e){e.textContent=q?"Nothing matches that filter.":(EM_EMPTY[EM_TAB]||"");e.style.display=n?"none":"block";}}'
+    + 'function emRefresh(){var b=document.getElementById("em-refresh");if(b){b.disabled=true;b.textContent="Refreshing\\u2026";}'
+    + 'google.script.run.withSuccessHandler(function(r){if(b){b.disabled=false;b.textContent="Refresh";}if(!r||!r.ok)return;'
+    + 'document.getElementById("em-stats").innerHTML=r.stats;document.getElementById("em-list").innerHTML=r.list;'
+    + 'for(var k in r.counts){var c=document.getElementById("em-n-"+k);if(c)c.textContent=r.counts[k];}emApply();'
+    + '}).withFailureHandler(function(){if(b){b.disabled=false;b.textContent="Could not refresh. Retry";}}).emRefreshData();}'
+    + 'emApply();'
+    + '</script>';
+}
+
+function emailsPage_(embedded, back) {
+  const m = emailsModel_();
+  const tab = function (key, label, n) {
+    const on = key === 'next';
+    return '<button type="button" class="em-tab' + (on ? ' is-on' : '') + '" role="tab" data-tab="' + key + '" aria-selected="' + (on ? 'true' : 'false') + '" onclick="emTab(\'' + key + '\')">'
+      + label + '<b id="em-n-' + key + '">' + n + '</b></button>';
+  };
+  let inner = '<div class="em">';
+  if (!embedded) {
+    inner += hubBackLink_(back)
+      + '<div class="em-kicker">Space Status</div>'
+      + '<h1 class="em-title">Reminder emails</h1>';
+  }
+  inner += '<div id="em-stats" class="em-stats">' + emStatsHtml_(m) + '</div>'
+    + '<div class="em-bar">'
+    +   '<div class="em-tabs" role="tablist" aria-label="Which emails">'
+    +     tab('next', 'Next run', m.counts.next) + tab('later', 'Later', m.counts.later)
+    +     tab('sent', 'Sent', m.counts.sent) + tab('flag', 'Flagged', m.counts.flag)
+    +   '</div>'
+    +   '<input id="em-q" class="em-q" type="search" placeholder="Filter by team or address" aria-label="Filter by team or address" oninput="emApply()">'
+    +   '<button type="button" id="em-refresh" class="em-refresh" onclick="emRefresh()">Refresh</button>'
+    + '</div>'
+    + '<div id="em-list">' + emListHtml_(m) + '</div>'
+    + '<div id="em-empty" class="em-empty" style="display:none"></div>'
+    + '<p class="em-foot">Next run and Later are worked out from the sheet each time this opens. Sent is the newest ' + EMAIL_LOG_SHOWN
+    +   ' rows of the <b>Email log</b> tab in the Space Status sheet. A reminder from before the log started shows its date and no recipients.</p>'
+    + '</div>';
+  return swissShell_(emStyles_() + inner + emJs_(), 'Reminder emails', true, embedded, null, '#fffdf9');
+}
+
+// Client-callable: fresh numbers and rows for the Refresh button.
+function emRefreshData() {
+  const m = emailsModel_();
+  return { ok: true, stats: emStatsHtml_(m), list: emListHtml_(m), counts: m.counts };
+}
 
 // Drive file IDs from a "Photo Upload" cell (one or more comma-separated URLs).
 function extractFileIds_(s) {

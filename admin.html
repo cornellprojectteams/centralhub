@@ -84,6 +84,10 @@
               <span class="action-title">Open issues dashboard</span>
               <span class="action-sub">Every open job across all teams. Mark one complete without a photo, approve or send back a submission, edit it, or delete it.</span>
             </button>
+            <button type="button" class="action" id="emails-open" data-keywords="reminder emails sent log outbox who got what recipients next run notices teams still getting reminders after completing flagged failed">
+              <span class="action-title">Reminder emails</span>
+              <span class="action-sub">What went out, who got it, and what goes out next.</span>
+            </button>
             <a class="action" href="https://forms.gle/6DHYsEPonVtdALps5" target="_blank" rel="noopener" data-keywords="space status report form submit issue file new google form">
               <span class="action-title">Space status form</span>
               <span class="action-sub">The form for reporting an issue. File one yourself.</span>
@@ -274,6 +278,49 @@
       <p class="issues-fallback" id="issues-fallback" hidden>
         The dashboard could not load here.
         <a class="issues-panel-btn issues-panel-btn--primary issues-panel-btn--inline" id="issues-fallback-link" href="#" target="_blank" rel="noopener">Open in a new tab</a>
+      </p>
+    </div>
+  </div>
+
+  <!-- Reminder emails: a centered pop-up (issues-panel--pop) on the same open/close code as the slide-overs. -->
+  <div class="issues-panel issues-panel--pop" id="emails-panel" hidden>
+    <div class="issues-panel-backdrop" data-panel-backdrop aria-hidden="true"></div>
+    <div class="issues-panel-dialog pop" role="dialog" aria-modal="true" aria-labelledby="emails-panel-title">
+      <div class="pop-stripe" aria-hidden="true"></div>
+      <header class="pop-head">
+        <div class="pop-head-text">
+          <p class="pop-eyebrow">Space Status</p>
+          <h2 class="pop-title" id="emails-panel-title">Reminder emails</h2>
+          <p class="pop-sub">What went out, who got it, and what goes out next.</p>
+        </div>
+        <div class="pop-air" aria-hidden="true">
+          <svg class="pop-trail" viewBox="0 0 160 60" preserveAspectRatio="none"><path d="M2 54 C 52 54, 88 30, 148 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2 7" stroke-linecap="round"></path></svg>
+          <svg class="pop-plane" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"></path><path d="M22 2 15 22l-4-9-9-4 20-7z"></path></svg>
+        </div>
+        <div class="pop-actions">
+          <a class="pop-btn" data-panel-ext href="#" target="_blank" rel="noopener">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+            <span>Full page</span>
+          </a>
+          <button type="button" class="pop-btn pop-btn--close" data-panel-close aria-label="Close reminder emails">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
+        </div>
+      </header>
+      <div class="issues-embed-body is-loading" data-panel-body>
+        <div class="issues-loading pop-loading" role="status" aria-live="polite">
+          <div class="pop-flight" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"></path><path d="M22 2 15 22l-4-9-9-4 20-7z"></path></svg>
+          </div>
+          <p class="issues-loading-text">Collecting the emails…</p>
+          <p class="issues-loading-hint">Reading the email log and working out the next run</p>
+          <div class="pop-skel" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+        </div>
+        <iframe data-panel-frame class="issues-frame" title="Reminder emails"></iframe>
+      </div>
+      <p class="issues-fallback" data-panel-fallback hidden>
+        The emails could not load here.
+        <a class="issues-panel-btn issues-panel-btn--primary issues-panel-btn--inline" data-panel-fallback-link href="#" target="_blank" rel="noopener">Open in a new tab</a>
       </p>
     </div>
   </div>

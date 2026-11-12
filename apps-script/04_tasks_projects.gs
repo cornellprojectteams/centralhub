@@ -358,7 +358,7 @@ function updateIssueFields(token, team, issueType, details) {
       photo: cell(CONFIG.headers.photo)
     };
     try {
-      sendNotification_(data, token);
+      sendNotification_(data, token, 'Moved to this team from ' + (prevTeam || 'no team'));
       loc.sh.getRange(loc.row, loc.col(CONFIG.notifiedHeader)).setValue(new Date());
       loc.sh.getRange(loc.row, loc.col(CONFIG.lastReminderHeader)).setValue('');
       notified = true;

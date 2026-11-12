@@ -207,7 +207,9 @@
         <li>It finds the team on Team Contacts and emails it (team email and liaison; Cc safety lead, Extra CC, <code>CONFIG.alwaysCc</code>). No address on file: <code>CONFIG.fallbackEmail</code>.</li>
         <li>It stamps <code>Issue token</code> and <code>Notified at</code> and shares the photo by link.</li>
         <li><code>sendReminders</code> runs daily. First reminder on the due date, then every <code>max(1, round(windowDays / 2))</code> days. Approved, pending and "when time allows" rows are skipped.</li>
+        <li>Every email adds a row to the <code>Email log</code> tab through <code>logEmail_</code>: time, type, team, recipients, subject, reason, result and the HTML body (hidden column).</li>
       </ol>
+      <p>The reminder rule lives in <code>reminderPlan_</code>. <code>sendReminders</code> and the Reminder emails page both read it, so change the rule there only. <code>sendReminders</code> takes a script lock and rereads each row just before sending: a second run sends nothing, and a row completed during the run is skipped. A failed send is logged, the run carries on, then the run fails so the trigger emails its owner.</p>
       <p>The trigger belongs to another account and can't be deleted, so the script keeps <code>function sendEmails(e) { onFormSubmit(e); }</code>. Never add a second submit trigger: teams would get every email twice.</p>
       <h3>Settings</h3>
       <p>At the top of <code>02_notify_on_submit.gs</code>: deadlines in <code>SLA_DAYS</code>, email wording in <code>SEVERITY</code>, and <code>CONFIG</code> (sender alias, <code>alwaysCc</code>, <code>fallbackEmail</code>, and <code>webAppUrl</code>, which must be the deployed URL because the email buttons use it). Proposal thresholds are in <code>PR</code> in <code>07_proposals.gs</code>.</p>
@@ -216,6 +218,7 @@
         <thead><tr><th>Add to the /exec URL</th><th>Page</th></tr></thead>
         <tbody>
           <tr><td><code>?view=all</code></td><td>Every team's issues (<code>admin=1</code> adds admin controls)</td></tr>
+          <tr><td><code>?view=emails&amp;admin=1</code></td><td>Reminder emails: what was sent, to whom, and what the next run sends</td></tr>
           <tr><td><code>?view=Baja</code></td><td>One team's issues (<code>act=1</code> allows completing)</td></tr>
           <tr><td><code>?team=TOKEN</code></td><td>A team's private page</td></tr>
           <tr><td><code>?id=TOKEN</code></td><td>Confirm page behind the email button (mail scanners open links, so nothing changes until a person clicks)</td></tr>
