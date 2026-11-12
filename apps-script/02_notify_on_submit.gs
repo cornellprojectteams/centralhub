@@ -25,6 +25,7 @@ const CONFIG = {
   issueTokenHeader: 'Issue token',
   addressedHeader: 'Addressed at',            // set on ADMIN APPROVAL = Completed
   lastReminderHeader: 'Last reminder',
+  reminderHoldHeader: 'Reminder hold',        // admin cancelled reminders: "Off" = none for this job, a date = none before it
   completionPhotoHeader: 'Completion photo',  // evidence uploaded by the doer
   completionNoteHeader: 'Completion note',     // optional text the doer sends with the photos
   completedAtHeader: 'Completed at',           // doer submitted -> Pending approval
@@ -288,8 +289,9 @@ function dayDiff_(a, b) { return Math.round((dayStart_(a) - dayStart_(b)) / 8640
 // Read-only: it never writes to the sheet.
 //   open   not yet approved. state is 'open', 'sentback' or 'pending'.
 //   closed approved (Addressed at is set). Never reminded.
+// An admin can cancel reminders from the page (Reminder hold column, emCancelReminder).
 function reminderPlan_() {
-  const out = { open: [], closed: [], cols: { token: -1, addressed: -1, completed: -1 } };
+  const out = { open: [], closed: [], cols: { token: -1, addressed: -1, completed: -1, hold: -1 } };
   const sh = ss_().getSheetByName(CONFIG.responsesSheet);
   if (!sh) return out;
   const v = sh.getDataRange().getValues();
@@ -300,8 +302,8 @@ function reminderPlan_() {
   const cIssue = ci(CONFIG.headers.issueType), cAction = ci(CONFIG.headers.action), cDetails = ci(CONFIG.headers.details);
   const cEmail = ci(CONFIG.headers.email), cNotified = ci(CONFIG.notifiedHeader), cToken = ci(CONFIG.issueTokenHeader);
   const cAddr = ci(CONFIG.addressedHeader), cLast = ci(CONFIG.lastReminderHeader), cCompleted = ci(CONFIG.completedAtHeader);
-  const cSent = ci(CONFIG.sentBackHeader), cPhoto = ci(CONFIG.completionPhotoHeader);
-  out.cols = { token: cToken, addressed: cAddr, completed: cCompleted };
+  const cSent = ci(CONFIG.sentBackHeader), cPhoto = ci(CONFIG.completionPhotoHeader), cHold = ci(CONFIG.reminderHoldHeader);
+  out.cols = { token: cToken, addressed: cAddr, completed: cCompleted, hold: cHold };
   const cell = function (row, c) { return c >= 0 ? row[c] : ''; };
   const text = function (row, c) { const x = cell(row, c); return String(x == null ? '' : x).trim(); };
   const today = dayStart_(new Date());
@@ -318,9 +320,13 @@ function reminderPlan_() {
       completedAt: dateOrNull_(cell(row, cCompleted)), addressed: dateOrNull_(cell(row, cAddr)),
       sentBackReason: text(row, cSent),
       state: 'open', send: false, next: null, deadline: null, interval: 0, why: '', hints: [],
+      hold: '', skipped: null,   // hold: 'off' = reminders cancelled for the job, 'skip' = one reminder cancelled
     };
     if (cell(row, cAddr)) { p.state = 'done'; out.closed.push(p); continue; }   // approved: closed
     out.open.push(p);
+    const holdRaw = cell(row, cHold);
+    const holdOff = !!holdRaw && norm_(holdRaw) === 'off';
+    if (holdOff) p.hold = 'off';
     if (cell(row, cCompleted)) {                                                // submitted, awaiting approval: paused
       p.state = 'pending';
       p.why = 'Paused. The team submitted this' + (p.completedAt ? ' on ' + fmtShort_(p.completedAt) : '') + ' and it is waiting for approval.';
@@ -347,9 +353,16 @@ function reminderPlan_() {
     } else {
       p.next = p.deadline > reportDay ? p.deadline : addDays_(reportDay, 1);    // first reminder on the due date; day 0 is covered by the notice
     }
+    if (holdOff) { p.next = null; p.why = 'Reminders are cancelled for this job.'; continue; }
+    const holdUntil = dateOrNull_(holdRaw);
+    if (holdUntil && dayStart_(holdUntil) > p.next) {                           // one reminder cancelled: wait for the hold date
+      p.hold = 'skip'; p.skipped = p.next; p.next = dayStart_(holdUntil);
+    }
     p.send = today > reportDay && today >= p.next;
     const every = 'every ' + (p.interval === 1 ? 'day' : p.interval + ' days');
-    if (p.send) {
+    if (p.hold === 'skip' && !p.send) {
+      p.why = 'The reminder for ' + fmtShort_(p.skipped) + ' was cancelled. The next one goes out ' + fmtShort_(p.next) + '.';
+    } else if (p.send) {
       p.why = p.lastReminder
         ? 'Still open. Last reminder ' + fmtShort_(p.lastReminder) + '. Repeats ' + every + '.'
         : 'Still open. Due ' + fmtShort_(p.deadline) + '. First reminder.';
@@ -409,11 +422,14 @@ function sendReminders() {
       const width = sh.getLastColumn();
       const contacts = teamContacts_();
       due.forEach(function (p) {
-        // Read the row again just before sending. Skip it if the team completed it
-        // (or an admin closed or deleted it) since the plan was read.
+        // Read the row again just before sending. Skip it if the team completed it, or
+        // an admin closed, deleted or cancelled it, since the plan was read.
         const now = sh.getRange(p.rowNum, 1, 1, width).getValues()[0];
         const c = plan.cols;
-        if (String(now[c.token]) !== p.token || (c.addressed >= 0 && now[c.addressed]) || (c.completed >= 0 && now[c.completed])) { skipped++; return; }
+        const holdNow = c.hold >= 0 ? now[c.hold] : '';
+        const holdDate = dateOrNull_(holdNow);
+        const held = !!holdNow && (norm_(holdNow) === 'off' || (!!holdDate && dayStart_(holdDate) > dayStart_(new Date())));
+        if (String(now[c.token]) !== p.token || (c.addressed >= 0 && now[c.addressed]) || (c.completed >= 0 && now[c.completed]) || held) { skipped++; return; }
         const mail = reminderMail_(p, contacts);
         const opts = { htmlBody: mail.body, name: 'Engineering Student Project Teams', cc: mail.cc, replyTo: p.email || CONFIG.fallbackEmail };
         if (CONFIG.sender) opts.from = CONFIG.sender;
@@ -436,7 +452,7 @@ function sendReminders() {
   } finally {
     lock.releaseLock();
   }
-  Logger.log('Reminders sent: ' + sent + (skipped ? ' | skipped (completed during the run): ' + skipped : '') + (failed ? ' | failed: ' + failed : ''));
+  Logger.log('Reminders sent: ' + sent + (skipped ? ' | skipped (completed or cancelled during the run): ' + skipped : '') + (failed ? ' | failed: ' + failed : ''));
   // Fail the run so the trigger's failure email reports it.
   if (failed) throw new Error(failed + ' reminder email' + (failed === 1 ? '' : 's') + ' did not send. See the Email log tab.');
 }
@@ -1002,7 +1018,7 @@ function icDoneCards_(doneList, showTeam, startOpen) {
     const thumb = ids.length
       ? '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">' + ids.map(function (fid) {
           const e = encodeURIComponent(fid);
-          return '<a href="https://drive.google.com/file/d/' + e + '/view" target="_blank" rel="noopener" style="display:inline-block;line-height:0" title="' + capt + ' photo"><img src="https://drive.google.com/thumbnail?id=' + e + '&sz=w400" loading="lazy" onerror="this.closest(\'a\').style.display=\'none\'" style="max-height:120px;border-radius:10px;border:1px solid #ececec"></a>';
+          return '<a href="https://drive.google.com/file/d/' + e + '/view" target="_blank" rel="noopener" style="display:inline-block;line-height:0" title="' + capt + ' photo"><img src="https://drive.google.com/thumbnail?id=' + e + '&sz=w240" loading="lazy" decoding="async" onerror="this.closest(\'a\').style.display=\'none\'" style="max-height:120px;border-radius:10px;border:1px solid #ececec"></a>';
         }).join('') + '</div>'
       : '';
     const title = escapeHtml_((showTeam && d.team ? d.team + ' · ' : '') + (d.issueType ? phrase_(d.issueType) : 'Issue'));
@@ -1020,6 +1036,148 @@ function icDoneCards_(doneList, showTeam, startOpen) {
       + '</details>';
   });
   return s;
+}
+
+// ---- Open issues pages: look ----
+// The all-teams dashboard and the team pages share their base styles with Projects
+// and Proposals (portalStyles_, tpStyles_). This sheet goes after those two, on the
+// issues pages only, and restyles them: rows on paper in place of shadowed cards, one
+// color per state, pill buttons. It changes looks only; wording and markup are as before.
+function icSkin_() {
+  const hair = 'rgba(20,17,14,.14)';
+  const edge = 'rgba(20,17,14,.2)';
+  // The photos come from Drive, by way of a second host. Opening both connections
+  // while the page is still being read saves a round trip on the first photo.
+  return '<link rel="preconnect" href="https://drive.google.com"><link rel="preconnect" href="https://lh3.googleusercontent.com">'
+    + '<style>'
+    + '.page-kicker{color:#b31b1b}'
+    + '.page-title{font-size:38px;letter-spacing:-.045em;color:#14110e}'
+    + '.page-rule{width:64px;height:5px;background:linear-gradient(90deg,#b31b1b,#e08a1e,#f0c050)}'
+    // Open / pending / completed: pills. The one that is on fills with its color.
+    + '.ic-summary{margin:18px 0 16px}'
+    + '.ic-seg{gap:8px;padding:0;background:none;border:0;border-radius:0}'
+    + '.ic-sum{font-size:13.5px;font-weight:700;color:#14110e;background:#f1e9dc;border-radius:999px;padding:9px 16px}'
+    + '.ic-sum:hover:not(:disabled):not(.is-on){background:#e8dcc9;color:#14110e}'
+    + '.ic-sum:focus-visible{box-shadow:0 0 0 3px rgba(179,27,27,.25)}'
+    + '.ic-sum b{color:#b31b1b}'
+    + '.ic-sum--pending b{color:#8a5200}'
+    + '.ic-sum--done b{color:#157a47}'
+    + '.ic-sum.is-on{background:#b31b1b;color:#fff;box-shadow:none}'
+    + '.ic-sum.is-on b{color:#fff}'
+    + '.ic-sum--pending.is-on{background:#b06a00;color:#fff;box-shadow:none}'
+    + '.ic-sum--pending.is-on b{color:#fff}'
+    + '.ic-sum--done.is-on{background:#157a47;color:#fff;box-shadow:none}'
+    + '.ic-sum--done.is-on b{color:#fff}'
+    + '.ic-unlock,.ic-refresh{color:#14110e;background:none;border:1.5px solid #14110e;border-radius:999px;padding:8px 15px}'
+    + '.ic-unlock:hover,.ic-refresh:hover{color:#fff;background:#14110e;border-color:#14110e;box-shadow:none}'
+    + '.ic-unlock.is-on{color:#fff;background:#14110e;border-color:#14110e;box-shadow:none}'
+    + '.ic-unlock:focus-visible{border-color:#b31b1b;box-shadow:0 0 0 3px rgba(179,27,27,.2)}'
+    // Search, team and overdue: no box around them.
+    + '.filters{gap:10px;margin:6px 0 4px;padding:0;background:none;border:0;border-radius:0;box-shadow:none}'
+    + '.search-wrap input{padding:11px 16px 11px 42px;border:1.5px solid ' + edge + ';border-radius:999px;background:#fff}'
+    + '.search-wrap input:focus{border-color:#b31b1b;box-shadow:0 0 0 4px rgba(179,27,27,.14)}'
+    + '.search-wrap::before{left:16px}'
+    + '.filters select{padding:11px 16px;border:1.5px solid ' + edge + ';border-radius:999px;font-weight:700;color:#14110e}'
+    + '.toggle{padding:10px 16px;border:1.5px solid ' + edge + ';border-radius:999px;color:#14110e}'
+    + '.toggle:hover{border-color:#14110e;box-shadow:none}'
+    + '.toggle.is-on,.toggle:has(input:checked){border-color:#b31b1b;background:#b31b1b;color:#fff;box-shadow:none}'
+    + '.toggle.is-on input,.toggle:has(input:checked) input{accent-color:#fff}'
+    // Each issue: a row with its urgency color down the left edge. Open, it becomes a
+    // white sheet so its details and buttons hold together.
+    + '.card{margin-bottom:0;border:0;border-bottom:1px solid ' + hair + ';border-radius:0;background:none;box-shadow:none}'
+    + '.card:hover{box-shadow:none;transform:none}'
+    + 'details.card:not([open]){margin-bottom:0}'
+    + 'details.card[open]{margin:12px 0;border:1.5px solid rgba(20,17,14,.12);border-radius:18px;background:#fff}'
+    + '.card-sum{gap:14px;min-height:0;padding:16px 4px 16px 20px}'
+    + '.card-sum .card-accent{left:0;right:auto;top:15px;bottom:15px;width:6px;height:auto;border-radius:99px}'
+    + 'details.card[open]>.card-sum{padding:16px 16px 16px 30px;border-bottom:1px solid ' + hair + '}'
+    + 'details.card[open]>.card-sum .card-accent{left:12px}'
+    + '.card-sum:active{background:none}'
+    + '@media(hover:hover) and (pointer:fine){.card-sum:hover{background:none}.card-sum:hover .card-sum-title{color:#b31b1b}}'
+    + '.card-sum-title{font-size:16.5px;font-weight:800;color:#14110e;transition:color .15s}'
+    + '.card-sum-action{font-size:14px;color:#14110e}'
+    + '.card-sum-alabel{color:#b31b1b}'
+    + '.card-sum-sub{font-size:13px;color:#3d3832}'
+    + '.section-chev{width:22px;height:22px;background:none}'
+    + '.section-chev::before{top:5px;left:6px;border-color:#14110e}'
+    + 'details.card[open]>.card-sum .section-chev{background:none}'
+    + 'details.card[open]>.card-sum .section-chev::before{top:8px;border-color:#b31b1b}'
+    // State pills, filled.
+    + '.chip,.tp-pill{padding:6px 12px;font-size:10.5px;letter-spacing:.08em}'
+    + '.chip--overdue{color:#fff;background:#b31b1b;border:0}'
+    + '.chip--due{color:#1a468f;background:#e2ecfc;border:0}'
+    + '.tp-pill--pending{color:#fff;background:#b06a00;border:0}'
+    + '.tp-pill--sent{color:#8f1515;background:#fde0e0;border:0}'
+    + '.tp-pill--done{color:#fff;background:#157a47;border:0}'
+    + '.card-body{padding:18px 22px 16px 30px}'
+    + '.card-flabel,.tp-photo figcaption{color:#b31b1b}'
+    + '.card-action{color:#14110e}'
+    + '.card-details{padding-left:14px;border-left:3px solid #f0c050;color:#14110e}'
+    + '.card-body img{border-radius:14px!important;border-color:rgba(20,17,14,.1)!important}'
+    + '.card-foot{padding:14px 22px 16px 30px;border-top:1px solid ' + hair + ';background:none}'
+    + '.due{font-weight:700;color:#14110e}'
+    + '.due--late{color:#b31b1b}'
+    + '.due--done{color:#157a47}'
+    // Buttons: pills. Solid for the main step, outlined for the rest.
+    + '.btn{border-radius:999px}'
+    + '.btn-primary{background:#b31b1b;box-shadow:none}'
+    + '.btn-primary:hover{background:#8f1515;transform:none;box-shadow:none}'
+    + '.btn-confirm{background:#157a47;box-shadow:none}'
+    + '.btn-confirm:hover{background:#0f6a3c}'
+    + '.btn-ghost{padding:9px 16px;border:1.5px solid #14110e;border-radius:999px;background:none;color:#14110e}'
+    + '.btn-ghost:hover,.btn-ghost:active{border-color:#14110e;background:#14110e;color:#fff}'
+    + '.btn-warn{padding:9px 16px;border:1.5px solid #b06a00;border-radius:999px;background:none;color:#8a4b00}'
+    + '.btn-warn:hover{border-color:#b06a00;background:#b06a00;color:#fff}'
+    + '.btn-danger{padding:9px 16px;border:1.5px solid #b31b1b;border-radius:999px;background:none;color:#b31b1b}'
+    + '.btn-danger:hover{border-color:#b31b1b;background:#b31b1b;color:#fff}'
+    + '.btn-skip{border-color:#fdeccb;background:#fdeccb;color:#8a5200}'
+    + '.btn-skip:hover,.btn-skip:active{border-color:#b06a00;background:#b06a00;color:#fff}'
+    + '.card-foot .btn{padding:9px 16px;border-radius:999px;font-size:13px}'
+    + '.act-tools{border-left:1px solid ' + hair + '}'
+    + '.act-panel{padding:14px;border:0;border-radius:16px;background:#f6efe2}'
+    + '.act-panel--ask{background:#f6efe2}'
+    + '.act-panel--danger{border:0;background:#fde4e4}'
+    + '.act-ask{font-weight:700;color:#14110e}'
+    // Notes and fields.
+    + '.ic-note{padding:11px 14px;border:0;border-radius:14px;background:#e9f0fd;color:#14110e}'
+    + '.ic-note b{color:#1a468f}'
+    + '.ic-note--warn{background:#fdeccb;color:#6f3d00}'
+    + '.ic-note--warn b{color:#6f3d00}'
+    + '.ic-reply-lbl,.ic-edit-lbl{color:#b31b1b}'
+    + '.ic-reply-help,.tp-opt,.ic-edit-msg{color:#3d3832}'
+    + '.ic-reply-in,.ic-reason,.ic-edit-in{border:1.5px solid ' + edge + ';border-radius:14px;background:#fff}'
+    + '.ic-reply-in:focus,.ic-reason:focus,.ic-edit-in:focus{border-color:#b31b1b;box-shadow:0 0 0 4px rgba(179,27,27,.14)}'
+    + '.ic-edit{padding:16px;border:0;border-radius:16px;background:#f6efe2}'
+    + '.empty{margin-top:14px;padding:20px;border:0;border-radius:16px;background:#f1e9dc;font-weight:700;color:#14110e;text-align:left}'
+    + '#ic-list>.empty:only-child{background:#e3f5ea;color:#0f6a3c}'
+    + '@media(max-width:600px){'
+    +   '.page-title{font-size:28px!important}'
+    +   '.card-sum{padding:14px 2px 14px 18px}'
+    +   'details.card[open]>.card-sum{padding:14px 12px 14px 26px}'
+    +   '.card-body{padding:16px 14px 14px 26px}'
+    +   '.card-foot{padding:12px 14px 14px 26px}'
+    + '}'
+    + '@media(prefers-reduced-motion:reduce){.card-sum-title{transition:none}}'
+    + '</style>';
+}
+
+// Photos sit inside folded rows, so the browser does not fetch them until a row
+// opens, and a Drive thumbnail then takes a moment to arrive. This starts the fetch
+// early: for the first rows once the page has settled, and for any row as soon as the
+// pointer, a finger or the keyboard reaches it. By the time the row opens, the photo
+// is usually there.
+function icFastImagesJs_() {
+  return '<script>'
+    + '(function(){'
+    + 'function warm(c){if(!c||c.__warm)return;c.__warm=1;c.querySelectorAll("img[loading=lazy]").forEach(function(i){i.loading="eager";});}'
+    + 'function near(e){var t=e.target;if(t&&t.closest)warm(t.closest("details.card"));}'
+    + 'document.addEventListener("pointerover",near,{passive:true});'
+    + 'document.addEventListener("touchstart",near,{passive:true});'
+    + 'document.addEventListener("focusin",near);'
+    + 'function first(){var n=0;document.querySelectorAll("#ic-list details.card").forEach(function(c){if(n<6&&c.style.display!=="none"){warm(c);n++;}});}'
+    + 'if(document.readyState==="complete")setTimeout(first,300);else window.addEventListener("load",function(){setTimeout(first,300);});'
+    + '})();'
+    + '</script>';
 }
 
 // A "Refresh" button for the open-issues pages. Re-renders the list in place via
@@ -1122,9 +1280,9 @@ function teamPortal_(team, readOnly, embedded) {
   if (!team) return htmlPage_('Invalid link', 'This team link is not recognized.');
   const data = listTeamIssues_(team);
 
-  let inner = '<div style="font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#9a958c">Project Teams Ops Hub</div>'
-    + '<div class="swh" style="font-size:34px;font-weight:800;letter-spacing:-.035em;line-height:1;margin-top:10px">' + escapeHtml_(team) + '</div>'
-    + '<div style="width:46px;height:3px;background:#b31b1b;margin-top:12px"></div>';
+  let inner = '<div style="font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#b31b1b">Project Teams Ops Hub</div>'
+    + '<div class="swh" style="font-size:36px;font-weight:800;letter-spacing:-.045em;line-height:1;margin-top:10px;color:#14110e">' + escapeHtml_(team) + '</div>'
+    + '<div style="width:64px;height:5px;border-radius:99px;background:linear-gradient(90deg,#b31b1b,#e08a1e,#f0c050);margin-top:12px"></div>';
 
   const pendN = (data.open || []).filter(function (x) { return x.pending; }).length;
   inner += icChipBar_((data.open || []).length - pendN, pendN, data.resolved || 0);
@@ -1134,7 +1292,7 @@ function teamPortal_(team, readOnly, embedded) {
 
   const scripts = tpSharedJs_() + (readOnly ? '' : icClientJs_()) + icRefreshJs_()
     + '<script>var IC_SCOPE=' + JSON.stringify(team) + ';var IC_READONLY=' + (readOnly ? 'true' : 'false') + ';</script>';
-  return swissShell_(tpStyles_() + prStripStyles_() + inner + scripts + prStripJs_(), 'Space Status - ' + team, true, embedded);
+  return swissShell_(tpStyles_() + prStripStyles_() + icSkin_() + inner + scripts + prStripJs_() + icFastImagesJs_(), 'Space Status - ' + team, true, embedded, null, '#fffdf9');
 }
 
 // Folded issue cards for a team portal. Open includes overdue; chips above the list
@@ -1369,7 +1527,7 @@ function allIssuesPage_(embedded, admin, back) {
   inner += '<div id="ic-list">' + icAllSectionsHtml_(data, !!admin) + '</div>';
 
   inner += '<script>var IC_SCOPE="*";var IC_READONLY=false;var IC_ADMIN=' + (admin ? 'true' : 'false') + ';function flt(){icApplyFilt();}</script>';
-  return swissShell_(tpStyles_() + prStripStyles_() + inner + tpSharedJs_() + icClientJs_() + icRefreshJs_() + tpAdminRevealJs_(admin) + prStripJs_(), 'Open issues', true, embedded);
+  return swissShell_(tpStyles_() + prStripStyles_() + icSkin_() + inner + tpSharedJs_() + icClientJs_() + icRefreshJs_() + tpAdminRevealJs_(admin) + prStripJs_() + icFastImagesJs_(), 'Open issues', true, embedded, null, '#fffdf9');
 }
 
 // Folded cards for the all-teams dashboard. When admin is true (hub ?admin=1),
@@ -1531,19 +1689,29 @@ function emStatsHtml_(m) {
   const stat = function (n, label, cls) {
     return '<div class="em-stat' + (cls ? ' ' + cls : '') + '"><b>' + n + '</b><span>' + label + '</span></div>';
   };
-  return stat(m.counts.next, m.counts.next === 1 ? 'reminder goes out on the next run' : 'reminders go out on the next run')
-    + stat(m.week, (m.week === 1 ? 'email' : 'emails') + ' sent in the last 7 days')
+  return stat(m.counts.next, m.counts.next === 1 ? 'reminder goes out on the next run' : 'reminders go out on the next run', 'em-stat--red')
+    + stat(m.week, (m.week === 1 ? 'email' : 'emails') + ' sent in the last 7 days', 'em-stat--blue')
     + stat(m.after, (m.after === 1 ? 'reminder' : 'reminders') + ' sent after the team finished', m.after ? 'em-stat--bad' : 'em-stat--ok');
 }
 
 function emListHtml_(m) {
   const today = dayStart_(new Date());
   let out = '', i = 0, lastGroup = '';
+  const n = m.counts.next;
+  if (n > 1) {
+    out += '<div class="em-bulk" data-tab="next">'
+      + '<span class="em-bulk-row" id="em-bulk-a"><span>' + n + ' reminders go out on the next run.</span>'
+      +   '<button type="button" class="em-btn em-btn--ghost" onclick="emBulk(true)">Cancel all ' + n + '</button></span>'
+      + '<span class="em-bulk-row" id="em-bulk-b" hidden><span>Cancel all ' + n + ' on this run? Each job gets its next reminder on schedule.</span>'
+      +   '<span class="em-acts"><button type="button" class="em-btn" onclick="emBulkDo(this)">Yes, cancel them</button>'
+      +   '<button type="button" class="em-btn em-btn--ghost" onclick="emBulk(false)">Keep them</button></span></span>'
+      + '</div>';
+  }
   m.upcoming.forEach(function (u) {
     const group = u.p.send ? '' : (u.p.next ? 'Scheduled' : 'Not reminded');
     if (group !== lastGroup) {
       i = 0;
-      if (group) out += '<div class="em-group" data-tab="later" style="display:none">' + group + '</div>';
+      if (group) out += '<div class="em-group' + (u.p.next ? ' em-group--blue' : ' em-group--amber') + '" data-tab="later" style="display:none">' + group + '</div>';
     }
     lastGroup = group;
     out += emUpcomingRow_(u, i++, today);
@@ -1554,14 +1722,20 @@ function emListHtml_(m) {
 }
 
 // One folded row. tab lists the tabs it shows under ("sent flag"). when/sub/title/line
-// are plain text; tagTxt and bodyHtml are already HTML.
-function emRow_(tab, i, hay, when, sub, title, line, tagCls, tagTxt, bodyHtml) {
+// are plain text; tagTxt, bodyHtml and endHtml (a control beside the tag) are already
+// HTML. id is optional.
+function emRow_(tab, i, hay, when, sub, title, line, tagCls, tagTxt, bodyHtml, id, endHtml) {
   const shown = (' ' + tab + ' ').indexOf(' next ') >= 0;
-  return '<details class="em-row" data-tab="' + tab + '" data-hay="' + escapeHtml_(String(hay).toLowerCase()) + '" style="--i:' + Math.min(i, 14) + (shown ? '' : ';display:none') + '">'
+  // The same team gets the same color on every row, so a team is easy to follow down the list.
+  let hue = 0;
+  const name = String(title || '');
+  for (let k = 0; k < name.length; k++) hue = (hue * 31 + name.charCodeAt(k)) % 360;
+  const dot = '<span class="em-dot" style="background:hsl(' + hue + ',68%,45%)" aria-hidden="true"></span>';
+  return '<details class="em-row"' + (id ? ' id="' + id + '"' : '') + ' data-tab="' + tab + '" data-hay="' + escapeHtml_(String(hay).toLowerCase()) + '" style="--i:' + Math.min(i, 14) + (shown ? '' : ';display:none') + '">'
     + '<summary class="em-sum">'
-    +   '<span class="em-when"><b>' + escapeHtml_(when) + '</b><i>' + escapeHtml_(sub) + '</i></span>'
-    +   '<span class="em-main"><span class="em-team">' + escapeHtml_(title) + '</span><span class="em-subj">' + escapeHtml_(line) + '</span></span>'
-    +   '<span class="em-tag ' + tagCls + '">' + tagTxt + '</span>'
+    +   '<span class="em-when' + (tagCls === 'em-tag--rem' && tab === 'next' ? ' em-when--hot' : '') + '"><b>' + escapeHtml_(when) + '</b><i>' + escapeHtml_(sub) + '</i></span>'
+    +   '<span class="em-main"><span class="em-team">' + dot + escapeHtml_(title) + '</span><span class="em-subj">' + escapeHtml_(line) + '</span></span>'
+    +   '<span class="em-end"><span class="em-tag ' + tagCls + '">' + tagTxt + '</span>' + (endHtml || '') + '</span>'
     +   '<span class="em-chev" aria-hidden="true"></span>'
     + '</summary>'
     + '<div class="em-body">' + bodyHtml + '</div>'
@@ -1602,13 +1776,15 @@ function emUpcomingRow_(u, i, today) {
   if (p.send) { when = 'Today'; sub = 'next run'; tagCls = 'em-tag--rem'; tagTxt = 'Reminder'; }
   else if (p.next) {
     const d = dayDiff_(p.next, today);
-    when = emDay_(p.next); sub = d <= 1 ? 'tomorrow' : 'in ' + d + ' days'; tagTxt = 'Scheduled';
+    when = emDay_(p.next); sub = d <= 1 ? 'tomorrow' : 'in ' + d + ' days'; tagCls = 'em-tag--blue'; tagTxt = 'Scheduled';
+    if (p.hold === 'skip') { tagCls = 'em-tag--amber'; tagTxt = 'Rescheduled'; }
   }
   else if (p.state === 'pending') { when = 'Paused'; sub = 'in review'; tagCls = 'em-tag--amber'; tagTxt = 'Paused'; }
+  else if (p.hold === 'off') { when = 'Off'; sub = 'cancelled'; tagCls = 'em-tag--amber'; tagTxt = 'Cancelled'; }
   else { when = 'None'; sub = 'not reminded'; tagTxt = 'No reminders'; }
   const line = mail ? mail.subject : ((p.issueType ? phrase_(p.issueType) : 'Reported issue') + (p.details ? '. ' + p.details : ''));
   const hay = [p.team, p.issueType, p.details, mail ? mail.to + ' ' + mail.cc + ' ' + mail.subject : ''].join(' ');
-  let body = emMeta_([
+  let body = emActs_(p) + emMeta_([
     ['To', mail ? emAddr_(mail.to) : ''],
     ['Cc', mail ? emAddr_(mail.cc) : ''],
     ['Why', escapeHtml_(p.why)],
@@ -1616,7 +1792,27 @@ function emUpcomingRow_(u, i, today) {
   ]);
   p.hints.forEach(function (h) { body += '<p class="em-hint">' + escapeHtml_(h) + '</p>'; });
   if (mail) body += emLetter_(mail.body);
-  return emRow_(p.send ? 'next' : 'later', i, hay, when, sub, p.team || 'No team', line, tagCls, tagTxt, body);
+  // Cancel on the row opens it and puts the choices under the cursor, so nothing is
+  // cancelled by one stray click.
+  const quick = p.next ? '<button type="button" class="em-x" onclick="emAsk(event,\'' + p.token + '\')">Cancel</button>' : '';
+  return emRow_(p.send ? 'next' : 'later', i, hay, when, sub, p.team || 'No team', line, tagCls, tagTxt, body, 'emr-' + p.token, quick);
+}
+
+// The cancel controls for one open job, by what is in its Reminder hold cell.
+function emActs_(p) {
+  const btn = function (mode, label, ghost) {
+    return '<button type="button" class="em-btn' + (ghost ? ' em-btn--ghost' : '') + '" onclick="emAct(this,\'' + p.token + '\',\'' + mode + '\')">' + label + '</button>';
+  };
+  let inner = '';
+  if (p.hold === 'off') {
+    inner = '<span class="em-acts-note">No reminders go out for this job.</span>' + btn('resume', 'Turn reminders back on');
+  } else if (p.hold === 'skip' && !p.send) {
+    inner = '<span class="em-acts-note">The ' + escapeHtml_(emDay_(p.skipped)) + ' reminder is cancelled.</span>'
+      + btn('resume', 'Undo') + btn('all', 'Cancel all for this job', true);
+  } else if (p.next) {
+    inner = btn('next', p.send ? 'Cancel this reminder' : 'Cancel the next reminder') + btn('all', 'Cancel all for this job', true);
+  }
+  return inner ? '<div class="em-acts">' + inner + '</div>' : '';
 }
 
 function emSentRow_(e, i) {
@@ -1624,6 +1820,7 @@ function emSentRow_(e, i) {
   let tagCls = 'em-tag--ink', tagTxt = escapeHtml_(e.type || 'Email');
   if (e.type === 'Reminder') tagCls = 'em-tag--rem';
   else if (e.type === 'Sent back') tagCls = 'em-tag--amber';
+  else if (e.type === 'Notice') tagCls = 'em-tag--violet';
   if (e.failed) { tagCls = 'em-tag--bad'; tagTxt = 'Failed'; }
   else if (e.after) { tagCls = 'em-tag--bad'; tagTxt = 'After completion'; }
   let now = '';
@@ -1650,71 +1847,104 @@ function emSentRow_(e, i) {
   return emRow_('sent' + (e.failed || e.after ? ' flag' : ''), i, hay, emDay_(e.at), emTime_(e.at), e.team || 'No team', e.subject, tagCls, tagTxt, body);
 }
 
-// Flat editorial: rules and type, no cards. Ink text throughout.
+// Flat, and led by color: rules and type, no cards. Red for what goes out, blue for
+// what is scheduled, amber for what is held, green for what is fine. Text stays ink.
 function emStyles_() {
   const disp = '"Plus Jakarta Sans",Helvetica,Arial,sans-serif';
-  const hair = 'rgba(20,17,14,.16)';
+  const hair = 'rgba(20,17,14,.14)';
   return '<style>'
     + '@media(min-width:601px){.swiss-inner{padding-left:26px;padding-right:26px}}'
     + '.em{font-family:Inter,Helvetica,Arial,sans-serif;color:#14110e}'
     + '.em-kicker{font-family:' + disp + ';font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#b31b1b}'
     + '.em-title{font-family:' + disp + ';font-size:38px;font-weight:800;letter-spacing:-.045em;line-height:1;margin:10px 0 22px;color:#14110e}'
-    + '.em-stats{display:flex;flex-wrap:wrap;border-top:2px solid #14110e;border-bottom:1px solid ' + hair + '}'
+    // Stats under a five-color bar.
+    + '.em-stats{position:relative;display:flex;flex-wrap:wrap;padding-top:5px;border-bottom:1px solid ' + hair + '}'
+    + '.em-stats::before{content:"";position:absolute;left:0;right:0;top:0;height:5px;border-radius:99px;background:linear-gradient(90deg,#b31b1b 0%,#e08a1e 30%,#f0c050 50%,#1f9d5b 72%,#2563c9 100%)}'
     + '.em-stat{flex:1 1 9rem;min-width:0;padding:16px 18px 16px 0;margin-right:18px;border-right:1px solid ' + hair + ';animation:emIn .5s cubic-bezier(.2,.8,.3,1) both}'
     + '.em-stat:nth-child(2){animation-delay:70ms}.em-stat:nth-child(3){animation-delay:140ms}'
     + '.em-stat:last-child{border-right:0;margin-right:0;padding-right:0}'
     + '.em-stat b{display:block;font-family:' + disp + ';font-size:46px;font-weight:800;letter-spacing:-.055em;line-height:1;font-variant-numeric:tabular-nums}'
     + '.em-stat span{display:block;margin-top:7px;font-size:12.5px;font-weight:600;line-height:1.35}'
-    + '.em-stat--bad b{color:#b31b1b}.em-stat--ok b{color:#157a47}'
+    + '.em-stat--red b{color:#b31b1b}.em-stat--blue b{color:#2563c9}.em-stat--bad b{color:#b31b1b}.em-stat--ok b{color:#157a47}'
+    // Tabs with count pills.
     + '.em-bar{display:flex;align-items:flex-end;gap:10px 18px;flex-wrap:wrap;margin-top:24px;border-bottom:1px solid ' + hair + '}'
     + '.em-tabs{display:flex;gap:22px;flex:1 1 auto;min-width:0;overflow-x:auto;scrollbar-width:none}'
     + '.em-tabs::-webkit-scrollbar{display:none}'
     + '.em-tab{appearance:none;-webkit-appearance:none;border:0;border-bottom:3px solid transparent;background:none;margin:0 0 -1px;padding:0 0 10px;font-family:' + disp + ';font-size:14px;font-weight:700;letter-spacing:-.01em;color:#14110e;cursor:pointer;white-space:nowrap}'
-    + '.em-tab b{margin-left:6px;font-weight:800;font-variant-numeric:tabular-nums}'
-    + '.em-tab:hover{border-bottom-color:rgba(20,17,14,.3)}'
+    + '.em-tab b{display:inline-block;min-width:22px;margin-left:7px;padding:2px 7px;border-radius:999px;background:#f1e9dc;font-size:11.5px;font-weight:800;line-height:1.4;text-align:center;font-variant-numeric:tabular-nums;color:#14110e}'
+    + '.em-tab:hover{border-bottom-color:rgba(179,27,27,.35)}'
     + '.em-tab.is-on{color:#b31b1b;border-bottom-color:#b31b1b}'
+    + '.em-tab.is-on b{background:#b31b1b;color:#fff}'
     + '.em-tab:focus-visible,.em-refresh:focus-visible,.em-sum:focus-visible{outline:2px solid #b31b1b;outline-offset:3px}'
     + '.em-q{flex:0 1 13rem;min-width:9rem;margin-bottom:8px;padding:6px 0;border:0;border-bottom:1.5px solid #14110e;border-radius:0;background:transparent;font:500 14px Inter,Helvetica,Arial,sans-serif;color:#14110e;outline:none}'
     + '.em-q::placeholder{color:#57534e}'
     + '.em-q:focus{border-bottom-color:#b31b1b}'
-    + '.em-refresh{appearance:none;-webkit-appearance:none;border:0;background:none;margin:0 0 9px;padding:0;font-family:' + disp + ';font-size:13px;font-weight:700;color:#14110e;text-decoration:underline;text-underline-offset:3px;cursor:pointer}'
-    + '.em-refresh:hover{color:#b31b1b}.em-refresh:disabled{cursor:default;text-decoration:none}'
-    + '.em-group{margin-top:28px;padding-bottom:8px;border-bottom:2px solid #14110e;font-family:' + disp + ';font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase}'
+    + '.em-refresh{appearance:none;-webkit-appearance:none;border:0;background:none;margin:0 0 9px;padding:0;font-family:' + disp + ';font-size:13px;font-weight:700;color:#b31b1b;text-decoration:underline;text-underline-offset:3px;cursor:pointer}'
+    + '.em-refresh:hover{color:#8f1515}.em-refresh:disabled{cursor:default;text-decoration:none}'
+    + '.em-msg{display:inline-block;margin:14px 0 0;padding:8px 15px;border-radius:999px;background:#e3f5ea;font-family:' + disp + ';font-size:13.5px;font-weight:700;color:#0f6a3c}'
+    + '.em-msg:empty{display:none}'
+    + '.em-msg--bad{background:#fde4e4;color:#b31b1b}'
+    + '.em-bulk{margin-top:14px;padding:12px 16px;border-radius:14px;background:#fdeeee;font-size:13.5px;font-weight:600;line-height:1.45}'
+    + '.em-bulk-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px}'
+    + '.em-bulk-row[hidden]{display:none}'
+    + '.em-bulk .em-acts{margin:0}'
+    + '.em-group{margin-top:28px;padding-bottom:8px;border-bottom:3px solid #14110e;font-family:' + disp + ';font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase}'
+    + '.em-group--blue{border-bottom-color:#2563c9;color:#1a468f}'
+    + '.em-group--amber{border-bottom-color:#e08a1e;color:#8a5200}'
+    // Rows.
     + '.em-row{border-bottom:1px solid ' + hair + ';animation:emIn .42s cubic-bezier(.2,.8,.3,1) both;animation-delay:calc(var(--i,0)*32ms)}'
     + '.em-sum{display:grid;grid-template-columns:6rem minmax(0,1fr) auto 18px;align-items:center;gap:14px;padding:15px 2px;cursor:pointer;list-style:none;-webkit-tap-highlight-color:transparent}'
     + '.em-sum::-webkit-details-marker{display:none}.em-sum::marker{content:none}'
     + '.em-when b{display:block;font-family:' + disp + ';font-size:15px;font-weight:800;letter-spacing:-.02em;line-height:1.2}'
     + '.em-when i{display:block;margin-top:3px;font-style:normal;font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase}'
+    + '.em-when--hot b,.em-when--hot i{color:#b31b1b}'
     + '.em-main{min-width:0}'
     + '.em-team{display:block;font-family:' + disp + ';font-size:16px;font-weight:800;letter-spacing:-.02em;line-height:1.25;overflow-wrap:anywhere;transition:color .15s}'
+    + '.em-dot{display:inline-block;width:10px;height:10px;margin-right:9px;border-radius:50%;vertical-align:1px}'
     + '.em-sum:hover .em-team{color:#b31b1b}'
     + '.em-subj{display:block;margin-top:3px;font-size:13.5px;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
     + '.em-row[open] .em-subj{white-space:normal;overflow-wrap:anywhere}'
-    + '.em-tag{display:inline-flex;align-items:center;gap:7px;font-family:' + disp + ';font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}'
-    + '.em-tag::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}'
-    + '.em-tag--ink{color:#14110e}.em-tag--rem{color:#b31b1b}.em-tag--amber{color:#9a5a00}'
-    + '.em-tag--bad{color:#fff;background:#b31b1b;padding:4px 8px}.em-tag--bad::before{display:none}'
+    + '.em-end{display:inline-flex;align-items:center;gap:12px}'
+    // Tags: filled pills, one color per meaning.
+    + '.em-tag{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;background:#f1e9dc;font-family:' + disp + ';font-size:10.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;white-space:nowrap;color:#14110e}'
+    + '.em-tag::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}'
+    + '.em-tag--rem{background:#b31b1b;color:#fff}'
+    + '.em-tag--blue{background:#e2ecfc;color:#1a468f}'
+    + '.em-tag--violet{background:#ece4fd;color:#5b27b0}'
+    + '.em-tag--amber{background:#fdeccb;color:#8a5200}'
+    + '.em-tag--bad{background:#14110e;color:#fff}.em-tag--bad::before{background:#ff5a5a}'
     + '.em-chev{justify-self:center;width:9px;height:9px;margin-top:-4px;border-right:2px solid #14110e;border-bottom:2px solid #14110e;transform:rotate(45deg);transition:transform .22s cubic-bezier(.2,.8,.3,1)}'
-    + '.em-row[open] .em-chev{margin-top:4px;transform:rotate(-135deg)}'
+    + '.em-row[open] .em-chev{margin-top:4px;border-color:#b31b1b;transform:rotate(-135deg)}'
     + '.em-body{padding:0 2px 24px calc(6rem + 16px);animation:emIn .3s ease both}'
+    // Buttons.
+    + '.em-x{appearance:none;-webkit-appearance:none;border:1.5px solid #b31b1b;border-radius:999px;background:none;padding:5px 12px;font-family:' + disp + ';font-size:12px;font-weight:700;line-height:1.2;color:#b31b1b;cursor:pointer;transition:background .15s,color .15s}'
+    + '.em-x:hover{background:#b31b1b;color:#fff}'
+    + '.em-acts{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin:0 0 16px}'
+    + '.em-acts-note{font-size:13.5px;font-weight:700;margin-right:4px;color:#8a5200}'
+    + '.em-btn{appearance:none;-webkit-appearance:none;border:1.5px solid #b31b1b;border-radius:999px;background:#b31b1b;padding:8px 16px;font-family:' + disp + ';font-size:13px;font-weight:700;line-height:1.2;color:#fff;cursor:pointer;transition:background .15s,color .15s,border-color .15s}'
+    + '.em-btn:hover{background:#8f1515;border-color:#8f1515}'
+    + '.em-btn--ghost{border-color:#14110e;background:none;color:#14110e}'
+    + '.em-btn--ghost:hover{background:#14110e;border-color:#14110e;color:#fff}'
+    + '.em-btn:disabled,.em-x:disabled{opacity:.45;cursor:default}'
+    + '.em-btn:focus-visible,.em-x:focus-visible{outline:2px solid #b31b1b;outline-offset:3px}'
     + '.em-meta{display:grid;grid-template-columns:auto minmax(0,1fr);gap:5px 16px;margin:0;font-size:13.5px;line-height:1.5}'
-    + '.em-meta dt{padding-top:3px;font-family:' + disp + ';font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}'
+    + '.em-meta dt{padding-top:3px;font-family:' + disp + ';font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#b31b1b}'
     + '.em-meta dd{margin:0;overflow-wrap:anywhere}'
-    + '.em-hint{margin:14px 0 0;padding:1px 0 1px 12px;border-left:3px solid #e0a020;font-size:13.5px;font-weight:600;line-height:1.5}'
-    + '.em-hint--bad{border-left-color:#b31b1b;color:#b31b1b}'
-    + '.em-letter{margin-top:18px;padding:2px 0 2px 18px;border-left:2px solid #b31b1b;overflow-wrap:anywhere}'
+    + '.em-hint{margin:14px 0 0;padding:9px 13px;border-left:4px solid #e08a1e;border-radius:0 10px 10px 0;background:#fdf1d9;font-size:13.5px;font-weight:600;line-height:1.5}'
+    + '.em-hint--bad{border-left-color:#b31b1b;background:#fde4e4;color:#8f1515}'
+    + '.em-letter{margin-top:18px;padding:2px 0 2px 18px;border-left:3px solid #b31b1b;overflow-wrap:anywhere}'
     + '.em-letter a{pointer-events:none;cursor:default}'
     + '.em-letter img{max-width:100%;height:auto}'
     + '.em-cap{margin-bottom:6px;font-family:' + disp + ';font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#b31b1b}'
     + '.em-photo{display:inline-block;font:italic 13px Georgia,serif}'
-    + '.em-empty{padding:30px 2px;font-family:' + disp + ';font-size:16px;font-weight:700;letter-spacing:-.01em}'
+    + '.em-empty{margin-top:16px;padding:18px 20px;border-radius:14px;background:#e3f5ea;font-family:' + disp + ';font-size:15px;font-weight:700;letter-spacing:-.01em;color:#0f6a3c}'
     + '.em-foot{margin:22px 0 0;font-size:12.5px;line-height:1.55;max-width:44rem}'
     + '@keyframes emIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}'
-    + '@media(prefers-reduced-motion:reduce){.em-row,.em-stat,.em-body{animation:none}.em-chev,.em-team{transition:none}}'
+    + '@media(prefers-reduced-motion:reduce){.em-row,.em-stat,.em-body{animation:none}.em-chev,.em-team,.em-btn,.em-x{transition:none}}'
     + '@media(max-width:600px){'
     +   '.em-title{font-size:30px}.em-stat{flex-basis:5.5rem;padding:13px 10px 13px 0;margin-right:10px}.em-stat b{font-size:34px}'
     +   '.em-sum{grid-template-columns:4.6rem minmax(0,1fr) 16px;gap:4px 10px}'
-    +   '.em-tag{grid-column:2;grid-row:2;justify-self:start}.em-chev{grid-column:3;grid-row:1}'
+    +   '.em-end{grid-column:2;grid-row:2;justify-self:start}.em-chev{grid-column:3;grid-row:1}'
     +   '.em-body{padding-left:2px}.em-q{flex:1 1 100%}'
     + '}'
     + '</style>';
@@ -1730,11 +1960,20 @@ function emJs_() {
     + 'document.querySelectorAll("#em-list [data-tab]").forEach(function(r){var ok=(" "+r.getAttribute("data-tab")+" ").indexOf(" "+EM_TAB+" ")>=0;'
     + 'if(ok&&q&&(r.getAttribute("data-hay")||"").indexOf(q)<0)ok=false;r.style.display=ok?"":"none";if(ok&&r.classList.contains("em-row"))n++;});'
     + 'var e=document.getElementById("em-empty");if(e){e.textContent=q?"Nothing matches that filter.":(EM_EMPTY[EM_TAB]||"");e.style.display=n?"none":"block";}}'
+    + 'function emPaint(r){document.getElementById("em-stats").innerHTML=r.stats;document.getElementById("em-list").innerHTML=r.list;'
+    + 'for(var k in r.counts){var c=document.getElementById("em-n-"+k);if(c)c.textContent=r.counts[k];}emApply();}'
+    + 'function emMsg(t,bad){var m=document.getElementById("em-msg");if(!m)return;m.textContent=t||"";m.className="em-msg"+(bad?" em-msg--bad":"");clearTimeout(window.__emt);if(t&&!bad)window.__emt=setTimeout(function(){m.textContent="";},8000);}'
     + 'function emRefresh(){var b=document.getElementById("em-refresh");if(b){b.disabled=true;b.textContent="Refreshing\\u2026";}'
-    + 'google.script.run.withSuccessHandler(function(r){if(b){b.disabled=false;b.textContent="Refresh";}if(!r||!r.ok)return;'
-    + 'document.getElementById("em-stats").innerHTML=r.stats;document.getElementById("em-list").innerHTML=r.list;'
-    + 'for(var k in r.counts){var c=document.getElementById("em-n-"+k);if(c)c.textContent=r.counts[k];}emApply();'
+    + 'google.script.run.withSuccessHandler(function(r){if(b){b.disabled=false;b.textContent="Refresh";}if(!r||!r.ok)return;emPaint(r);'
     + '}).withFailureHandler(function(){if(b){b.disabled=false;b.textContent="Could not refresh. Retry";}}).emRefreshData();}'
+    // Cancel on a row: open it and move to the choices. The click must not fold the row.
+    + 'function emAsk(ev,tok){if(ev){ev.preventDefault();ev.stopPropagation();}var r=document.getElementById("emr-"+tok);if(!r)return;r.open=true;var b=r.querySelector(".em-acts button");if(b)b.focus();}'
+    + 'function emLock(el,on){var bar=el.closest(".em-acts")||el.parentNode;bar.querySelectorAll("button").forEach(function(b){b.disabled=on;});}'
+    + 'function emSaved(el){return function(r){if(!r||!r.ok){emLock(el,false);emMsg((r&&r.error)||"Could not save.",true);return;}emPaint(r);emMsg(r.msg||"Saved.");};}'
+    + 'function emFailed(el){return function(){emLock(el,false);emMsg("Could not save. Try again.",true);};}'
+    + 'function emAct(el,tok,mode){emLock(el,true);emMsg("Saving\\u2026");google.script.run.withSuccessHandler(emSaved(el)).withFailureHandler(emFailed(el)).emCancelReminder(tok,mode);}'
+    + 'function emBulk(ask){var a=document.getElementById("em-bulk-a"),b=document.getElementById("em-bulk-b");if(a)a.hidden=!!ask;if(b)b.hidden=!ask;}'
+    + 'function emBulkDo(el){emLock(el,true);emMsg("Saving\\u2026");google.script.run.withSuccessHandler(emSaved(el)).withFailureHandler(emFailed(el)).emCancelNextRun();}'
     + 'emApply();'
     + '</script>';
 }
@@ -1761,6 +2000,7 @@ function emailsPage_(embedded, back) {
     +   '<input id="em-q" class="em-q" type="search" placeholder="Filter by team or address" aria-label="Filter by team or address" oninput="emApply()">'
     +   '<button type="button" id="em-refresh" class="em-refresh" onclick="emRefresh()">Refresh</button>'
     + '</div>'
+    + '<div id="em-msg" class="em-msg" role="status" aria-live="polite"></div>'
     + '<div id="em-list">' + emListHtml_(m) + '</div>'
     + '<div id="em-empty" class="em-empty" style="display:none"></div>'
     + '<p class="em-foot">Next run and Later are worked out from the sheet each time this opens. Sent is the newest ' + EMAIL_LOG_SHOWN
@@ -1769,10 +2009,59 @@ function emailsPage_(embedded, back) {
   return swissShell_(emStyles_() + inner + emJs_(), 'Reminder emails', true, embedded, null, '#fffdf9');
 }
 
-// Client-callable: fresh numbers and rows for the Refresh button.
-function emRefreshData() {
+// Fresh numbers and rows, with a line to show the admin what just happened.
+function emFresh_(msg) {
   const m = emailsModel_();
-  return { ok: true, stats: emStatsHtml_(m), list: emListHtml_(m), counts: m.counts };
+  return { ok: true, msg: msg || '', stats: emStatsHtml_(m), list: emListHtml_(m), counts: m.counts };
+}
+
+// Client-callable: the Refresh button.
+function emRefreshData() { return emFresh_(''); }
+
+// ---- Cancelling reminders ----
+// The Reminder hold column on Form Responses holds the admin's choice:
+//   blank   reminders run as usual
+//   Off     no reminders for this job
+//   a date  no reminder before that date (one reminder cancelled)
+// reminderPlan_ reads it; sendReminders checks it again just before each send.
+
+function setReminderHold_(p, value) {
+  const sh = ss_().getSheetByName(CONFIG.responsesSheet);
+  sh.getRange(p.rowNum, ensureColumn_(sh, CONFIG.reminderHoldHeader)).setValue(value);
+}
+
+// Client-callable. mode: 'next' cancels the coming reminder only, 'all' cancels every
+// reminder for the job, 'resume' undoes either.
+function emCancelReminder(token, mode) {
+  const p = reminderPlan_().open.filter(function (x) { return x.token === String(token); })[0];
+  if (!p) return { ok: false, error: 'That job is no longer open.' };
+  const who = p.team || 'this job';
+  let value = '', msg = '';
+  if (mode === 'all') {
+    value = 'Off';
+    msg = 'Reminders cancelled for ' + who + '.';
+  } else if (mode === 'resume') {
+    msg = 'Reminders are back on for ' + who + '.';
+  } else if (mode === 'next') {
+    if (!p.next) return { ok: false, error: 'No reminder is scheduled for this job.' };
+    const today = dayStart_(new Date());
+    value = addDays_(p.next > today ? p.next : today, p.interval);   // the following reminder keeps its place
+    msg = 'Cancelled. The next reminder for ' + who + ' goes out ' + emDay_(value) + '.';
+  } else {
+    return { ok: false, error: 'Unknown action.' };
+  }
+  setReminderHold_(p, value);
+  return emFresh_(msg);
+}
+
+// Client-callable: cancel every reminder on the next run, once each.
+function emCancelNextRun() {
+  const today = dayStart_(new Date());
+  const due = reminderPlan_().open.filter(function (p) { return p.send; });
+  due.forEach(function (p) { setReminderHold_(p, addDays_(today, p.interval)); });
+  return emFresh_(due.length
+    ? 'Cancelled ' + due.length + ' reminder' + (due.length === 1 ? '' : 's') + '. Each job gets its next one on schedule.'
+    : 'Nothing was due.');
 }
 
 // Drive file IDs from a "Photo Upload" cell (one or more comma-separated URLs).
@@ -1790,13 +2079,13 @@ function photoStrip_(ids) {
   if (ids.length === 1) {
     const id = ids[0];
     return '<a href="https://drive.google.com/file/d/' + encodeURIComponent(id) + '/view" target="_blank" rel="noopener" style="display:inline-block;line-height:0;margin-top:12px">'
-      + '<img src="https://drive.google.com/thumbnail?id=' + encodeURIComponent(id) + '&sz=w800" alt="Reported photo" loading="lazy" style="max-width:100%;max-height:240px;border-radius:10px;border:1px solid #ececec">'
+      + '<img src="https://drive.google.com/thumbnail?id=' + encodeURIComponent(id) + '&sz=w480" alt="Reported photo" loading="lazy" decoding="async" style="max-width:100%;max-height:240px;border-radius:10px;border:1px solid #ececec">'
       + '</a>';
   }
   let s = '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">';
   ids.forEach(function (id) {
     s += '<a href="https://drive.google.com/file/d/' + encodeURIComponent(id) + '/view" target="_blank" rel="noopener" style="display:block;line-height:0">'
-      + '<img src="https://drive.google.com/thumbnail?id=' + encodeURIComponent(id) + '&sz=w400" alt="Reported photo" loading="lazy" style="height:96px;width:auto;border-radius:8px;border:1px solid #ececec">'
+      + '<img src="https://drive.google.com/thumbnail?id=' + encodeURIComponent(id) + '&sz=w240" alt="Reported photo" loading="lazy" decoding="async" style="height:96px;width:auto;border-radius:8px;border:1px solid #ececec">'
       + '</a>';
   });
   return s + '</div>';

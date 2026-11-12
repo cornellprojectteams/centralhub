@@ -127,6 +127,7 @@
         <li>Copy an existing <code>&lt;a class="action"&gt;</code> next to it: keep <code>action-title</code>, <code>action-sub</code>, and add search words in <code>data-keywords</code>.</li>
         <li>A new admin section also needs a link in the section list (<code>#admin-nav</code>) and a color in <code>styles.css</code> (search for <code>--cat</code>).</li>
         <li>Colors and fonts are the tokens at the top of <code>styles.css</code>.</li>
+        <li>The admin and developer pages have <code>class="admin-ui"</code> on <code>&lt;body&gt;</code>. Their look is the last block of <code>styles.css</code>, and every rule in it starts with <code>.admin-ui</code>, so the staff page is not affected.</li>
       </ul>
       <h3>Publish</h3>
       <div class="cmd">
@@ -210,6 +211,7 @@
         <li>Every email adds a row to the <code>Email log</code> tab through <code>logEmail_</code>: time, type, team, recipients, subject, reason, result and the HTML body (hidden column).</li>
       </ol>
       <p>The reminder rule lives in <code>reminderPlan_</code>. <code>sendReminders</code> and the Reminder emails page both read it, so change the rule there only. <code>sendReminders</code> takes a script lock and rereads each row just before sending: a second run sends nothing, and a row completed during the run is skipped. A failed send is logged, the run carries on, then the run fails so the trigger emails its owner.</p>
+      <p>An admin can cancel reminders from the Reminder emails page. The choice is the row's <code>Reminder hold</code> cell: <code>Off</code> stops reminders for the job, a date holds them until that date, blank runs them as usual. <code>emCancelReminder</code> and <code>emCancelNextRun</code> write the cell and <code>reminderPlan_</code> reads it.</p>
       <p>The trigger belongs to another account and can't be deleted, so the script keeps <code>function sendEmails(e) { onFormSubmit(e); }</code>. Never add a second submit trigger: teams would get every email twice.</p>
       <h3>Settings</h3>
       <p>At the top of <code>02_notify_on_submit.gs</code>: deadlines in <code>SLA_DAYS</code>, email wording in <code>SEVERITY</code>, and <code>CONFIG</code> (sender alias, <code>alwaysCc</code>, <code>fallbackEmail</code>, and <code>webAppUrl</code>, which must be the deployed URL because the email buttons use it). Proposal thresholds are in <code>PR</code> in <code>07_proposals.gs</code>.</p>

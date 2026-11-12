@@ -6,6 +6,8 @@
   Embeds the team portal from the Space Status web app (markable via &act=1, so the
   team can mark items complete with a photo), keeping the address bar on this site
   instead of the script.google.com URL.
+  With a team chosen the portal fills the window under the nav, and the link to
+  share sits in the nav. Without one, the page is a team picker.
   Header/footer + tokens come from styles.css; web app URL from config.js.
 -->
 <head>
@@ -19,33 +21,96 @@
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap"></noscript>
   <link rel="stylesheet" href="styles.css">
   <script src="config.js"></script>
+  <link rel="preconnect" href="https://script.google.com">
   <style>
-    .team-main { flex: 1; width: 100%; max-width: var(--page-max); margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
-    .team-eyebrow { font-family: var(--font); font-size: .6875rem; font-weight: 800; text-transform: uppercase; letter-spacing: .14em; color: var(--red); }
-    .team-title { font-family: var(--font-display); font-size: 2rem; font-weight: 800; letter-spacing: -0.04em; line-height: 1.05; margin: .5rem 0 0; color: var(--text); }
-    .team-rule { width: 46px; height: 3px; background: linear-gradient(90deg, var(--red-dark), var(--red), var(--gold)); border-radius: 99px; margin: .85rem 0 1.25rem; }
+    /* Cornell red nav on paper. With a team chosen, its issues fill the rest of the
+       window: no frame around them and one scrollbar, not two. */
+    body { background: #fffdf9; background-image: none; }
+    .app-header { background: var(--red); box-shadow: none; }
+    .app-header::after { height: 3px; background: var(--gold); }
+    .app-footer { background: var(--red); }
+    .app-footer::before { height: 3px; background: var(--gold); }
+    .footer-bottom { color: #fff; }
+    .header-inner { flex-wrap: nowrap; }
 
-    .share-row { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-bottom: 1.25rem; }
+    /* The link to share sits in the nav. */
+    .team-share { display: flex; align-items: center; justify-content: flex-end; gap: .5rem; flex: 0 1 27rem; min-width: 0; }
     .share-input {
-      flex: 1; min-width: 14rem; font: inherit; font-size: .8125rem; color: var(--sub);
-      padding: .6rem .75rem; border: 1.5px solid var(--line); border-radius: 9px; background: #fff;
+      flex: 1 1 auto; min-width: 0; font: inherit; font-size: .8125rem; color: #fff; text-overflow: ellipsis;
+      padding: .6rem .95rem; border: 1.5px solid rgba(255, 255, 255, .42); border-radius: 999px;
+      background: rgba(255, 255, 255, .12); outline: none; transition: background .15s ease, border-color .15s ease;
     }
+    .share-input:focus { border-color: #fff; background: rgba(255, 255, 255, .2); }
+    .share-input::selection { background: var(--gold); color: #14110e; }
     .share-copy {
-      font-family: var(--font-display); font-size: .8125rem; font-weight: 700; color: #fff;
-      background: linear-gradient(180deg, var(--red-bright), var(--red) 55%, var(--red-dark));
-      border: none; border-radius: 9px; padding: .6rem 1.1rem; cursor: pointer; white-space: nowrap;
-      box-shadow: 0 3px 10px rgba(179,27,27,.28);
+      flex: none; font-family: var(--font-display); font-size: .8125rem; font-weight: 800; color: #14110e;
+      background: var(--gold); border: 0; border-radius: 999px; padding: .65rem 1.15rem; cursor: pointer; white-space: nowrap;
+      transition: background .15s ease, color .15s ease, transform .15s ease;
     }
-    .share-copy:hover { filter: brightness(1.05); }
+    .share-copy:hover { background: #fff; }
+    .share-copy:active { transform: scale(.97); }
+    .share-copy.is-done { background: #fff; color: #157a47; }
+    .share-copy:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 
-    .team-frame { display: block; width: 100%; height: 76vh; min-height: 520px; border: 1.5px solid var(--line); border-radius: var(--radius-lg); background: #fafafa; box-shadow: var(--shadow-sm); }
+    /* A team is chosen: nav, issues, a slim footer. The window is exactly filled. */
+    .is-team .app-shell { height: 100vh; height: 100dvh; min-height: 0; }
+    .is-team .team-main { display: flex; flex-direction: column; flex: 1; min-height: 0; max-width: none; padding: 0; }
+    .is-team .app-footer { margin-top: 0; }
+    .is-team .footer-bottom { padding: .6rem 1.5rem; border-top: 0; }
+    .team-stage { position: relative; flex: 1; min-height: 0; }
+    .team-frame { position: absolute; inset: 0; display: block; width: 100%; height: 100%; border: 0; background: #fffdf9; opacity: 0; transition: opacity .4s ease; }
+    .team-stage.is-ready .team-frame { opacity: 1; }
 
-    .team-picker { display: flex; flex-wrap: wrap; gap: .625rem; max-width: 34rem; margin-top: 1rem; }
-    .team-select { flex: 1; min-width: 14rem; font: inherit; font-size: .9375rem; padding: .75rem .9rem; border: 1.5px solid var(--line); border-radius: 10px; background: #fff; color: var(--text); cursor: pointer; }
-    .team-go { font-family: var(--font-display); font-size: .9375rem; font-weight: 700; color: #fff; background: linear-gradient(180deg, var(--red-bright), var(--red) 55%, var(--red-dark)); border: none; border-radius: 10px; padding: 0 1.4rem; cursor: pointer; box-shadow: 0 4px 14px rgba(179,27,27,.28); }
-    .team-lede { font-size: .9375rem; color: var(--sub); max-width: 34rem; margin-top: .5rem; }
-    .team-note { font-size: .8125rem; color: var(--sub); margin-top: .5rem; }
-    .team-note a { color: var(--red); font-weight: 600; text-decoration: none; border-bottom: 1.5px solid var(--gold); }
+    /* While the issues load: a heading block and ruled rows, the shape of the page to come. */
+    .team-skel { position: absolute; inset: 0; display: flex; justify-content: center; padding: 2rem 1.5rem; pointer-events: none; transition: opacity .35s ease; }
+    .team-stage.is-ready .team-skel { opacity: 0; }
+    .team-skel-in { width: min(58rem, 100%); }
+    .team-skel b, .team-skel span {
+      display: block;
+      background: linear-gradient(90deg, rgba(20, 17, 14, 0) 0%, rgba(20, 17, 14, .07) 50%, rgba(20, 17, 14, 0) 100%);
+      background-size: 200% 100%;
+      animation: issues-shimmer 1.4s ease-in-out infinite;
+    }
+    .team-skel b { width: min(16rem, 60%); height: 2.4rem; margin-bottom: 2rem; border-radius: 10px; background-color: rgba(179, 27, 27, .08); }
+    .team-skel span { height: 3.7rem; border-top: 1px solid rgba(20, 17, 14, .14); }
+    .team-skel span:nth-of-type(2) { animation-delay: .1s; }
+    .team-skel span:nth-of-type(3) { animation-delay: .2s; }
+    .team-skel span:nth-of-type(4) { animation-delay: .3s; }
+    .team-skel span:nth-of-type(5) { animation-delay: .4s; }
+
+    /* No team chosen: the picker. */
+    .team-main { flex: 1; width: 100%; max-width: var(--page-max); margin: 0 auto; padding: 3rem 1.5rem 4rem; }
+    .team-eyebrow { font-family: var(--font-display); font-size: .6875rem; font-weight: 800; text-transform: uppercase; letter-spacing: .18em; color: var(--red); }
+    .team-title { font-family: var(--font-display); font-size: clamp(2rem, 5vw, 2.75rem); font-weight: 800; letter-spacing: -0.045em; line-height: 1.02; margin: .55rem 0 0; color: #14110e; }
+    .team-rule { width: 64px; height: 5px; background: linear-gradient(90deg, var(--red), #e08a1e, var(--gold)); border-radius: 99px; margin: 1rem 0 1.25rem; }
+    .team-lede { font-size: 1rem; line-height: 1.55; color: #14110e; max-width: 34rem; }
+    .team-picker { display: flex; flex-wrap: wrap; gap: .625rem; max-width: 34rem; margin-top: 1.5rem; }
+    .team-select {
+      flex: 1; min-width: 14rem; font: inherit; font-size: .9375rem; font-weight: 600; color: #14110e; cursor: pointer;
+      padding: .8rem 1.1rem; border: 1.5px solid rgba(20, 17, 14, .2); border-radius: 999px; background: #fff; outline: none;
+      transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    .team-select:focus { border-color: var(--red); box-shadow: 0 0 0 4px rgba(179, 27, 27, .14); }
+    .team-go {
+      font-family: var(--font-display); font-size: .9375rem; font-weight: 800; color: #fff; cursor: pointer;
+      background: var(--red); border: 0; border-radius: 999px; padding: .8rem 1.7rem;
+      transition: background .15s ease, transform .15s ease;
+    }
+    .team-go:hover { background: var(--red-dark); }
+    .team-go:active { transform: scale(.97); }
+    .team-go:focus-visible { outline: 2px solid var(--red); outline-offset: 3px; }
+
+    /* Phones: the nav keeps the Copy link button and drops the address box, and the
+       footer gives its space to the issues. The logo still leads back to the hub. */
+    @media (max-width: 640px) {
+      .share-input { display: none; }
+      .team-share { flex: none; }
+      .is-team .app-footer { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .team-frame, .team-skel, .share-copy, .team-go { transition: none; }
+      .team-skel b, .team-skel span { animation: none; }
+    }
   </style>
 </head>
 <body>
@@ -60,6 +125,7 @@
           <div class="logo-sub">Safety &amp; Operations</div>
         </div>
       </a>
+      <div class="team-share" id="team-share"></div>
     </div>
   </header>
 
@@ -89,28 +155,49 @@
 
   function renderTeam(name) {
     document.title = name + ' open issues | Project Teams Ops Hub';
-    var src = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'view=' + encodeURIComponent(name) + '&act=1';
+    if (!base) {
+      main.innerHTML =
+        '<div class="team-eyebrow">Space Status</div>' +
+        '<h1 class="team-title">' + esc(name) + ' open issues</h1>' +
+        '<div class="team-rule"></div>' +
+        '<p class="team-lede">The web app URL is not set. Add it in config.js.</p>';
+      return;
+    }
+    // embed=1: the page inside drops its own top bar and outer padding. This page
+    // supplies the nav, and the page inside carries the team's name as its heading.
+    var src = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'view=' + encodeURIComponent(name) + '&act=1&embed=1';
+    document.body.classList.add('is-team');
+    document.getElementById('team-share').innerHTML =
+      '<input class="share-input" id="share-input" readonly value="' + esc(location.href) + '">' +
+      '<button class="share-copy" id="share-copy" type="button">Copy link</button>';
     main.innerHTML =
-      '<div class="team-eyebrow">Space Status</div>' +
-      '<h1 class="team-title">' + esc(name) + ' open issues</h1>' +
-      '<div class="team-rule"></div>' +
-      '<div class="share-row">' +
-        '<input class="share-input" id="share-input" readonly value="' + esc(location.href) + '">' +
-        '<button class="share-copy" id="share-copy" type="button">Copy link</button>' +
-      '</div>' +
-      (base
-        ? '<iframe class="team-frame" title="' + esc(name) + ' open issues" src="' + esc(src) + '"></iframe>'
-        : '<p class="team-lede">The web app URL is not set. Add it in config.js.</p>');
+      '<h1 class="sr-only">' + esc(name) + ' open issues</h1>' +
+      '<div class="team-stage" id="team-stage">' +
+        '<div class="team-skel" aria-hidden="true"><div class="team-skel-in"><b></b><span></span><span></span><span></span><span></span><span></span></div></div>' +
+        '<iframe class="team-frame" id="team-frame" title="' + esc(name) + ' open issues" src="' + esc(src) + '"></iframe>' +
+      '</div>';
+
+    // Fade the issues in over the placeholder once they arrive. If the load event
+    // never comes, show the frame anyway so the page is not left blank.
+    var stage = document.getElementById('team-stage');
+    var ready = function () { stage.classList.add('is-ready'); };
+    document.getElementById('team-frame').addEventListener('load', ready);
+    setTimeout(ready, 12000);
 
     var btn = document.getElementById('share-copy');
     var input = document.getElementById('share-input');
-    if (btn) {
-      btn.addEventListener('click', function () {
-        var done = function () { btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy link'; }, 1600); };
-        if (navigator.clipboard) { navigator.clipboard.writeText(location.href).then(done, function () { input.select(); document.execCommand('copy'); done(); }); }
-        else { input.select(); document.execCommand('copy'); done(); }
-      });
-    }
+    input.addEventListener('focus', function () { input.select(); });
+    btn.addEventListener('click', function () {
+      var done = function () {
+        btn.textContent = 'Copied';
+        btn.classList.add('is-done');
+        setTimeout(function () { btn.textContent = 'Copy link'; btn.classList.remove('is-done'); }, 1600);
+      };
+      // The address box is hidden on phones, where select-and-copy cannot work, so
+      // fall back to it only when the clipboard call is refused.
+      if (navigator.clipboard) { navigator.clipboard.writeText(location.href).then(done, function () { input.select(); document.execCommand('copy'); done(); }); }
+      else { input.select(); document.execCommand('copy'); done(); }
+    });
   }
 
   function renderPicker() {

@@ -197,7 +197,7 @@ function tpThumb_(url, maxH) {
   if (!ids.length) return '';
   var e = encodeURIComponent(ids[0]);
   return '<a href="https://drive.google.com/file/d/' + e + '/view" target="_blank" rel="noopener" style="display:inline-block;line-height:0">'
-    + '<img src="https://drive.google.com/thumbnail?id=' + e + '&sz=w600" loading="lazy" alt="Uploaded photo" style="max-width:100%;max-height:' + (maxH || 200) + 'px;border-radius:10px;border:1px solid #ececec">'
+    + '<img src="https://drive.google.com/thumbnail?id=' + e + '&sz=w400" loading="lazy" decoding="async" alt="Uploaded photo" style="max-width:100%;max-height:' + (maxH || 200) + 'px;border-radius:10px;border:1px solid #ececec">'
     + '</a>';
 }
 
@@ -213,7 +213,7 @@ function tpPhotoCells_(url, maxH, label) {
     out += '<div class="tp-photo"><figure>'
       + (cap ? '<figcaption>' + escapeHtml_(cap) + '</figcaption>' : '')
       + '<a href="https://drive.google.com/file/d/' + e + '/view" target="_blank" rel="noopener" style="display:inline-block;line-height:0">'
-      + '<img src="https://drive.google.com/thumbnail?id=' + e + '&sz=w600" loading="lazy" alt="Uploaded photo" style="max-width:100%;max-height:' + (maxH || 200) + 'px;border-radius:10px;border:1px solid #ececec">'
+      + '<img src="https://drive.google.com/thumbnail?id=' + e + '&sz=w400" loading="lazy" decoding="async" alt="Uploaded photo" style="max-width:100%;max-height:' + (maxH || 200) + 'px;border-radius:10px;border:1px solid #ececec">'
       + '</a></figure></div>';
   }
   return out;
@@ -919,7 +919,7 @@ function tpSharedJs_() {
     + 'function tpStagePreview(arr,removeFn,addExpr){if(!arr||!arr.length)return "";var h="<div class=\\"stage\\">";for(var i=0;i<arr.length;i++){h+="<div class=\\"stage-item\\"><img src=\\""+arr[i].dataUrl+"\\"><span class=\\"stage-idx\\">"+(i+1)+"</span><button type=\\"button\\" class=\\"stage-rm\\" title=\\"Remove\\" onclick=\\""+removeFn+i+")\\">&times;</button></div>";}if(addExpr){h+="<button type=\\"button\\" class=\\"stage-add\\" onclick=\\""+addExpr+"\\"><span class=\\"stage-add-i\\">+</span>Add more</button>";}return h+"</div>";}'
     // Render a strip of completion-photo thumbnails from an array of Drive file ids.
     + 'function tpThumbs(ids){if(!ids||!ids.length)return "";var h="<div class=\\"tp-photos\\">";for(var i=0;i<ids.length;i++){var e=encodeURIComponent(ids[i]);var cap=ids.length>1?"Completion photo "+(i+1):"Completion photo";'
-    + 'h+="<div class=\\"tp-photo\\"><figure><figcaption>"+cap+"</figcaption><a href=\\"https://drive.google.com/file/d/"+e+"/view\\" target=\\"_blank\\" rel=\\"noopener\\" style=\\"display:inline-block;line-height:0\\"><img src=\\"https://drive.google.com/thumbnail?id="+e+"&sz=w600\\" style=\\"max-width:100%;max-height:200px;border-radius:10px;border:1px solid #ececec\\"></a></figure></div>";}return h+"</div>";}'
+    + 'h+="<div class=\\"tp-photo\\"><figure><figcaption>"+cap+"</figcaption><a href=\\"https://drive.google.com/file/d/"+e+"/view\\" target=\\"_blank\\" rel=\\"noopener\\" style=\\"display:inline-block;line-height:0\\"><img src=\\"https://drive.google.com/thumbnail?id="+e+"&sz=w400\\" decoding=\\"async\\" style=\\"max-width:100%;max-height:200px;border-radius:10px;border:1px solid #ececec\\"></a></figure></div>";}return h+"</div>";}'
     + 'function tpReadAnyFile(input,cb){var f=input.files&&input.files[0];if(!f){cb(null);return;}if(f.size>10485760){alert("That file is too large (max 10 MB).");input.value="";cb(null);return;}var r=new FileReader();r.onerror=function(){alert("Could not read that file.");cb(null);};r.onload=function(){cb({dataUrl:r.result,name:f.name});};r.readAsDataURL(f);}'
     + '</script>';
 }
@@ -1578,8 +1578,8 @@ function projectsPage_(embedded, admin, back) {
     + 'msg.style.color="";msg.textContent="Uploading photo\\u2026";document.getElementById(rid+"-finish").disabled=true;'
     + 'google.script.run.withSuccessHandler(function(r){if(!r||!r.ok){msg.style.color="#b31b1b";msg.textContent=(r&&r.error)||"Failed";document.getElementById(rid+"-finish").disabled=false;return;}'
     + 'tpConfetti();tpSetPill(rid,"tp-pill--pending","Pending approval");tpAdvance(rid,"#b06a00","#f7edd8",2);'
-    + 'var bh=r.beforeId?"<div class=\\"tp-photo\\"><figure><figcaption>Before</figcaption><a href=\\"https://drive.google.com/file/d/"+r.beforeId+"/view\\" target=\\"_blank\\" rel=\\"noopener\\" style=\\"display:inline-block;line-height:0\\"><img src=\\"https://drive.google.com/thumbnail?id="+r.beforeId+"&sz=w600\\" style=\\"max-width:100%;max-height:200px;border-radius:10px;border:1px solid #ececec\\"></a></figure></div>":"";'
-    + 'document.getElementById(rid+"-photos").innerHTML="<div class=\\"tp-photos\\">"+bh+"<div class=\\"tp-photo\\"><figure><figcaption>After</figcaption><a href=\\"https://drive.google.com/file/d/"+r.afterId+"/view\\" target=\\"_blank\\" rel=\\"noopener\\" style=\\"display:inline-block;line-height:0\\"><img src=\\"https://drive.google.com/thumbnail?id="+r.afterId+"&sz=w600\\" style=\\"max-width:100%;max-height:200px;border-radius:10px;border:1px solid #ececec\\"></a></figure></div></div>";'
+    + 'var bh=r.beforeId?"<div class=\\"tp-photo\\"><figure><figcaption>Before</figcaption><a href=\\"https://drive.google.com/file/d/"+r.beforeId+"/view\\" target=\\"_blank\\" rel=\\"noopener\\" style=\\"display:inline-block;line-height:0\\"><img src=\\"https://drive.google.com/thumbnail?id="+r.beforeId+"&sz=w400\\" decoding=\\"async\\" style=\\"max-width:100%;max-height:200px;border-radius:10px;border:1px solid #ececec\\"></a></figure></div>":"";'
+    + 'document.getElementById(rid+"-photos").innerHTML="<div class=\\"tp-photos\\">"+bh+"<div class=\\"tp-photo\\"><figure><figcaption>After</figcaption><a href=\\"https://drive.google.com/file/d/"+r.afterId+"/view\\" target=\\"_blank\\" rel=\\"noopener\\" style=\\"display:inline-block;line-height:0\\"><img src=\\"https://drive.google.com/thumbnail?id="+r.afterId+"&sz=w400\\" decoding=\\"async\\" style=\\"max-width:100%;max-height:200px;border-radius:10px;border:1px solid #ececec\\"></a></figure></div></div>";'
     + 'var card=document.getElementById(rid);var was=(card.dataset.status||"").toLowerCase();'
     + 'var up=document.getElementById(rid+"-uploader");if(up)up.parentNode.removeChild(up);'
     + 'var foot=card.querySelector(".card-foot");if(foot)foot.innerHTML="<span id=\\""+rid+"-status\\" class=\\"due\\">Submitted, awaiting approval</span><span id=\\""+rid+"-act\\" class=\\"btn-row\\">"+tpProjAdminFootJs(rid,pid)+"</span><span class=\\"btn-row\\">"+tpDelWrapJs(rid,pid)+"</span>";'

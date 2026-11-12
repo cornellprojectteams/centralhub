@@ -135,6 +135,20 @@ check('the Email log and the Reminder emails page match what was sent', () => {
   return logged.length + ' emails logged, ' + reminders + ' of them reminders';
 });
 
+check('reminders can be cancelled and turned back on', () => {
+  const planRow = (token) => ran(runner.exec('space', 'reminderPlan_', [])).open.filter((x) => x.token === token)[0];
+  const p = ran(runner.exec('space', 'reminderPlan_', [])).open.filter((x) => x.next)[0];
+  must(p, 'no open job with a reminder ahead');
+  const off = ran(runner.exec('space', 'emCancelReminder', [p.token, 'all'], { client: true }));
+  must(off.ok, 'cancel failed: ' + off.error);
+  const after = planRow(p.token);
+  must(after.hold === 'off' && !after.next && !after.send, 'the job still has a reminder ahead');
+  must(/Turn reminders back on/.test(web('space', { view: 'emails', admin: '1' }).html), 'the page offers no way to turn them back on');
+  must(ran(runner.exec('space', 'emCancelReminder', [p.token, 'resume'], { client: true })).ok, 'resume failed');
+  must(planRow(p.token).next, 'reminders did not come back');
+  return p.team + ': cancelled, then back on';
+});
+
 check('projects and proposals work end to end', () => {
   const c = ran(runner.exec('space', 'tpCreateProject', ['Self-test project', 'Check', '', '', '', '', '', '', ''], { client: true }));
   must(c.ok, 'create: ' + c.error);

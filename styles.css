@@ -3151,3 +3151,575 @@ code {
 .back-to-admin span { transition: transform .2s ease; }
 .back-to-admin:hover { text-decoration: underline; text-underline-offset: 3px; }
 .back-to-admin:hover span { transform: translateX(-3px); }
+
+/* ==========================================================================
+   Admin and developer pages
+   --------------------------------------------------------------------------
+   <body class="admin-ui"> on admin.html and developer.html. Every rule here is
+   scoped to that class, so the staff page keeps its own styling.
+   Flat, and led by color: Cornell red mastheads, and each section in its own
+   color (--cat and --cat-deep, set per section above) for its heading, its
+   main tool, its rules and its arrows. No cards and no drop shadows on links.
+   ========================================================================== */
+
+.admin-ui {
+  --ink: #14110e;
+  --ink-2: #3d3832;
+  --hair: rgba(20, 17, 14, 0.14);
+  /* Masthead fill: solid Cornell red. Page header, footer and panel heads. */
+  --mast: var(--red);
+  background-image:
+    radial-gradient(54rem 26rem at 104% -5rem, rgba(240, 192, 80, 0.3), transparent 62%),
+    radial-gradient(46rem 24rem at -10% -4rem, rgba(179, 27, 27, 0.14), transparent 60%);
+}
+
+.admin-ui .app-header { background: var(--mast); box-shadow: none; }
+.admin-ui .app-header::after { height: 3px; background: var(--gold); }
+.admin-ui .cmd-link { border-color: transparent; background: var(--gold); box-shadow: none; color: var(--ink); }
+.admin-ui .cmd-link:hover { background: #fff; box-shadow: none; filter: none; }
+.admin-ui .app-footer { background: var(--mast); }
+.admin-ui .app-footer::before { height: 3px; background: var(--gold); }
+
+.admin-ui .page-main { padding-top: 2.75rem; }
+.admin-ui .admin-list { gap: 3.25rem; }
+
+/* Section list (desktop). The phone layout keeps its chip bar; see below. */
+@media (min-width: 721px) {
+  .admin-ui .admin-layout { grid-template-columns: 12rem minmax(0, 1fr); gap: 3.25rem; }
+
+  .admin-ui .admin-side-label { margin-bottom: .9rem; padding: 0; letter-spacing: .18em; color: var(--red); }
+
+  .admin-ui .admin-nav { gap: .1rem; border-left: 1px solid var(--hair); }
+  .admin-ui .admin-nav a {
+    gap: .6rem;
+    margin-left: -1px;
+    padding: .45rem .7rem .45rem .9rem;
+    border-left: 3px solid transparent;
+    border-radius: 0 9px 9px 0;
+    background: none;
+    font-size: .875rem;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .admin-ui .admin-nav a:hover { background: color-mix(in srgb, var(--red) 7%, transparent); color: var(--red); }
+  /* The open section is marked in Cornell red. Section colors stay on the dots. */
+  .admin-ui .admin-nav a.active {
+    border-left-color: var(--red);
+    background: color-mix(in srgb, var(--red) 10%, transparent);
+    font-weight: 800;
+    color: var(--red);
+  }
+  .admin-ui .admin-nav a.admin-nav-back {
+    margin-bottom: .35rem;
+    padding-bottom: .45rem;
+    border-bottom: 0;
+    border-radius: 0 9px 9px 0;
+    font-weight: 800;
+    color: var(--red);
+  }
+  .admin-ui .admin-nav a.admin-nav-back:hover { background: color-mix(in srgb, var(--red) 8%, transparent); color: var(--red-dark); }
+  .admin-ui .admin-nav-sep { margin: .6rem 0 .6rem .9rem; background: var(--hair); }
+}
+
+.admin-ui .admin-nav .dot { width: 9px; height: 9px; margin-right: 0; border-radius: 50%; box-shadow: none; }
+.admin-ui .admin-nav a.admin-nav-extra { font-weight: 600; color: var(--ink); }
+.admin-ui .admin-nav a.admin-nav-extra svg { color: var(--red); }
+.admin-ui .admin-nav a.admin-nav-extra:hover,
+.admin-ui .admin-nav a.admin-nav-extra:hover svg { color: var(--red); }
+
+/* Section heading: large, in the section's color, under a rule of that color. */
+.admin-ui .admin-label {
+  display: block;
+  margin-bottom: 1.1rem;
+  padding-top: .95rem;
+  border-top: 3px solid var(--cat, var(--ink));
+  font-size: clamp(1.5rem, 2.6vw, 1.9rem);
+  letter-spacing: -0.045em;
+  line-height: 1.05;
+  color: var(--cat-deep, var(--ink));
+}
+.admin-ui .admin-label::before,
+.admin-ui .admin-label::after { content: none; }
+.admin-ui .admin-block-intro { color: var(--ink-2); }
+
+.admin-ui #admin .action-group { gap: 0 2.5rem; }
+
+/* Links: a ruled list, two to a row. The rule and the arrow carry the section
+   color. Each row reaches .75rem past its text on both sides, so the hover tint
+   has room while the text stays flush with the heading. */
+.admin-ui #admin .action:not(.action-dashboard) {
+  width: calc(100% + 1.5rem);
+  margin: 0 -.75rem;
+  padding: 1rem 3.1rem 1.05rem .75rem;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--cat, var(--ink)) 26%, transparent);
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--ink);
+}
+.admin-ui #admin .action:not(.action-dashboard)::before { content: none; }
+.admin-ui #admin .action:not(.action-dashboard) .action-title {
+  font-size: 1.02rem;
+  color: var(--ink);
+  transition: color .15s ease;
+}
+.admin-ui #admin .action:not(.action-dashboard) .action-sub { font-size: .84rem; color: var(--ink-2); }
+.admin-ui #admin .action:not(.action-dashboard)::after {
+  right: .85rem;
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  background: none;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--cat, var(--ink));
+}
+.admin-ui #admin .action:not(.action-dashboard):hover {
+  transform: none;
+  border-bottom-color: transparent;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--cat, var(--red)) 10%, transparent);
+  box-shadow: none;
+}
+.admin-ui #admin .action:not(.action-dashboard):hover .action-title { color: var(--cat-deep, var(--red)); }
+.admin-ui #admin .action:not(.action-dashboard):hover::after {
+  background: none;
+  color: var(--cat-deep, var(--red));
+  transform: translateY(-50%) translateX(4px);
+}
+.admin-ui #admin .action:not(.action-dashboard):active { transform: none; }
+
+/* The section's main tool: one block filled with the section color. */
+.admin-ui #admin .action-dashboard {
+  margin-bottom: .55rem;
+  padding: 1.55rem 5rem 1.6rem 1.6rem;
+  border: 0;
+  border-radius: 18px;
+  background: linear-gradient(118deg, var(--cat, var(--red)) 0%, var(--cat-deep, var(--red-dark)) 100%);
+  box-shadow: 0 16px 30px -22px var(--cat-deep, var(--red-dark));
+  color: #fff;
+  overflow: hidden;
+}
+/* A pale disc in the corner, with a ring. It grows a little on hover. */
+.admin-ui #admin .action-dashboard::before {
+  content: '';
+  display: block;
+  position: absolute;
+  inset: auto -3rem -6.5rem auto;
+  width: 14rem;
+  height: 14rem;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 0 2.4rem rgba(255, 255, 255, 0.05);
+  pointer-events: none;
+  transition: transform .5s cubic-bezier(.2, .8, .3, 1);
+}
+.admin-ui #admin .action-dashboard .action-title { font-size: 1.4rem; letter-spacing: -0.04em; color: #fff; }
+.admin-ui #admin .action-dashboard .action-sub { max-width: 34rem; margin-top: .2rem; font-size: .9rem; color: #fff; }
+.admin-ui #admin .action-dashboard::after {
+  content: '\2192';
+  right: 1.4rem;
+  width: 2.6rem;
+  height: 2.6rem;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--cat-deep, var(--red-dark));
+  transform: translateY(-50%);
+}
+.admin-ui #admin .action-dashboard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 24px 34px -20px var(--cat-deep, var(--red-dark));
+  filter: saturate(1.12);
+}
+.admin-ui #admin .action-dashboard:hover::before { transform: scale(1.14); }
+.admin-ui #admin .action-dashboard:hover::after { background: #fff; transform: translateY(-50%) translateX(4px); }
+.admin-ui #admin .action-dashboard:active { transform: none; }
+
+/* Badges: plain labels. No glow, no sheen. */
+.admin-ui #admin .action-badge {
+  margin-bottom: .55rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  font-size: .6875rem;
+  letter-spacing: .16em;
+  color: #fff;
+}
+.admin-ui #admin .action:not(.action-dashboard) .action-badge:not(.action-badge--new) { color: var(--cat-deep, var(--ink)); }
+.admin-ui #admin .action-badge--new {
+  padding: .18rem .45rem;
+  border-radius: 4px;
+  background: var(--gold);
+  box-shadow: none;
+  color: var(--ink);
+  animation: none;
+}
+.admin-ui #admin .action-badge--new::before { display: none; }
+.admin-ui #admin .action-shine { display: none; }
+.admin-ui #admin .action.is-new:not(.action-dashboard),
+.admin-ui #admin .action.is-new:not(.action-dashboard):hover { box-shadow: none; }
+.admin-ui #admin .action-dashboard.is-new,
+.admin-ui #admin .action-dashboard.is-new:hover { box-shadow: 0 0 0 3px var(--gold), 0 16px 30px -22px var(--cat-deep, var(--red-dark)); }
+
+.admin-ui .action-note {
+  margin-top: .9rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--ink-2);
+}
+
+.admin-ui .no-results {
+  padding: 1.5rem 0;
+  border: 0;
+  border-top: 3px solid var(--red);
+  border-radius: 0;
+  background: none;
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--ink);
+  text-align: left;
+}
+
+/* Panels opened from these pages: the same red masthead as the page header. */
+.admin-ui .issues-panel-accent { display: none; }
+.admin-ui .issues-panel-head { padding: .95rem 1.25rem; border-bottom: 0; background: var(--mast); }
+.admin-ui .pop-head { background: var(--mast); }
+.admin-ui .issues-panel-seal { display: none; }
+.admin-ui .issues-panel-eyebrow { letter-spacing: .18em; color: var(--gold); }
+.admin-ui .issues-panel-title { margin-top: .2rem; font-size: 1.35rem; letter-spacing: -0.04em; color: #fff; }
+.admin-ui .issues-panel-btn--secondary,
+.admin-ui .issues-panel-btn--close {
+  border-color: rgba(255, 255, 255, 0.5);
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: none;
+  color: #fff;
+}
+.admin-ui .issues-panel-btn--secondary:hover,
+.admin-ui .issues-panel-btn--close:hover {
+  border-color: #fff;
+  background: #fff;
+  box-shadow: none;
+  color: var(--red-dark);
+  transform: none;
+}
+.admin-ui .pop-btn { border-color: rgba(255, 255, 255, 0.5); }
+/* The pages inside the panels are on paper now, so the frame behind them matches. */
+.admin-ui .issues-embed-body,
+.admin-ui .issues-frame,
+.admin-ui .issues-loading { background: #fffdf9; }
+.admin-ui .pop-btn:hover { color: var(--red-dark); }
+
+/* Phones: the section list stays a row of chips. The open one fills with its color. */
+@media (max-width: 720px) {
+  .admin-ui .admin-side { border-bottom: 1px solid var(--hair); }
+  .admin-ui .admin-side-label { letter-spacing: .18em; color: var(--red); }
+  .admin-ui .admin-nav a {
+    border: 1.5px solid color-mix(in srgb, var(--red) 35%, transparent);
+    background: none;
+    color: var(--ink);
+  }
+  .admin-ui .admin-nav a.active { border-color: var(--red); background: var(--red); color: #fff; }
+  .admin-ui .admin-nav a.active .dot { background: #fff; }
+  .admin-ui .admin-nav a.admin-nav-back { border-color: var(--red); color: var(--red); }
+  .admin-ui .admin-list { gap: 2.5rem; }
+  .admin-ui #admin .action-dashboard { padding: 1.25rem 4.25rem 1.3rem 1.3rem; border-radius: 16px; }
+  .admin-ui #admin .action-dashboard .action-title { font-size: 1.2rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-ui #admin .action,
+  .admin-ui #admin .action::before,
+  .admin-ui #admin .action::after,
+  .admin-ui #admin .action .action-title { transition: none; }
+  .admin-ui #admin .action-dashboard:hover { transform: none; }
+  .admin-ui #admin .action-dashboard:hover::before { transform: none; }
+}
+
+/* ==========================================================================
+   Home page (index.html)
+   --------------------------------------------------------------------------
+   <body class="staff-ui">. Every rule here is scoped to that class. Same
+   language as the admin pages above: Cornell red nav on paper, flat color in
+   place of gradients and shadows, hairlines in place of boxes. Each tile has
+   its own color (--cat and --cat-deep, set by id below).
+   ========================================================================== */
+
+.staff-ui {
+  --ink: #14110e;
+  --ink-2: #3d3832;
+  --hair: rgba(20, 17, 14, 0.14);
+  background-image:
+    radial-gradient(54rem 26rem at 104% -5rem, rgba(240, 192, 80, 0.3), transparent 62%),
+    radial-gradient(46rem 24rem at -10% -4rem, rgba(179, 27, 27, 0.14), transparent 60%);
+}
+
+.staff-ui .app-header { background: var(--red); box-shadow: none; }
+.staff-ui .app-header::after { height: 3px; background: var(--gold); }
+.staff-ui .app-footer { background: var(--red); }
+.staff-ui .app-footer::before { height: 3px; background: var(--gold); }
+
+.staff-ui .zone-label {
+  margin-bottom: 1.1rem;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  letter-spacing: .18em;
+  color: var(--red);
+}
+
+/* Tiles: one flat block of color each. */
+.staff-ui #staff .action { --cat: var(--red); --cat-deep: var(--red-dark); }
+/* Two ids each, so these beat the red default on the line above. */
+.staff-ui #staff #issues-open { --cat: #2563c9; --cat-deep: #1a468f; }
+.staff-ui #staff #proposals-open { --cat: #7c3aed; --cat-deep: #5b27b0; }
+.staff-ui #staff #ell { --cat: #d97a12; --cat-deep: #9c5a0b; }
+.staff-ui #staff #inventory-open { --cat: #0d9488; --cat-deep: #0a6d64; }
+
+.staff-ui #staff .action-group { gap: .8rem; }
+
+.staff-ui #staff .action {
+  padding: 1.3rem 4.75rem 1.35rem 1.5rem;
+  border: 0;
+  border-radius: 18px;
+  background: linear-gradient(118deg, var(--cat) 0%, var(--cat-deep) 100%);
+  box-shadow: 0 16px 30px -22px var(--cat-deep);
+  color: #fff;
+  overflow: hidden;
+}
+/* A pale disc in the corner, with a ring. It grows a little on hover. */
+.staff-ui #staff .action::before {
+  content: '';
+  display: block;
+  position: absolute;
+  inset: auto -3rem -6.5rem auto;
+  width: 14rem;
+  height: 14rem;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 0 2.4rem rgba(255, 255, 255, 0.05);
+  pointer-events: none;
+  transition: transform .5s cubic-bezier(.2, .8, .3, 1);
+}
+.staff-ui #staff .action .action-title { font-size: 1.3rem; letter-spacing: -0.035em; color: #fff; }
+.staff-ui #staff .action .action-sub { max-width: 34rem; margin-top: .15rem; font-size: .9rem; color: #fff; }
+.staff-ui #staff .action::after {
+  content: '\2192';
+  right: 1.35rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: none;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--cat-deep);
+  transform: translateY(-50%);
+}
+.staff-ui #staff .action:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 24px 34px -20px var(--cat-deep);
+  filter: saturate(1.12);
+}
+.staff-ui #staff .action:hover::before { transform: scale(1.14); }
+.staff-ui #staff .action:hover::after { background: #fff; transform: translateY(-50%) translateX(4px); }
+.staff-ui #staff .action:active { transform: none; box-shadow: 0 16px 30px -22px var(--cat-deep); }
+/* A tile that is not ready yet (inventory before its sheet is set) stays still. */
+.staff-ui #staff .action.is-pending:hover { transform: none; filter: saturate(.6); }
+.staff-ui #staff .action.is-pending:hover::before { transform: none; }
+
+/* The first tile is the main thing to do here, so it is the largest. */
+.staff-ui #staff .task-featured .action {
+  padding: 1.9rem 5.25rem 2rem 1.7rem;
+  border-radius: 22px;
+  background: linear-gradient(118deg, var(--cat) 0%, var(--cat-deep) 100%);
+  box-shadow: 0 18px 34px -22px var(--cat-deep);
+}
+.staff-ui #staff .task-featured .action:hover { box-shadow: 0 26px 38px -20px var(--cat-deep); }
+.staff-ui #staff .task-featured .action .action-title { font-size: clamp(1.75rem, 4.5vw, 2.25rem); letter-spacing: -0.045em; line-height: 1.03; }
+.staff-ui #staff .task-featured .action .action-sub { margin-top: .4rem; font-size: .9375rem; }
+.staff-ui #staff .task-featured .action::after { right: 1.5rem; width: 3rem; height: 3rem; font-size: 1.3rem; }
+
+/* Badges: plain labels. No glow, no sheen. */
+.staff-ui #staff .action-badge {
+  margin-bottom: .5rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  font-size: .6875rem;
+  letter-spacing: .16em;
+  color: #fff;
+}
+.staff-ui #staff .action-badge--new {
+  padding: .18rem .45rem;
+  border-radius: 4px;
+  background: var(--gold);
+  box-shadow: none;
+  color: var(--ink);
+  animation: none;
+}
+.staff-ui #staff .action-badge--new::before { display: none; }
+.staff-ui #staff .action-shine { display: none; }
+.staff-ui #staff .action.is-new,
+.staff-ui #staff .action.is-new:hover { box-shadow: 0 0 0 3px var(--gold), 0 16px 30px -22px var(--cat-deep); }
+
+.staff-ui .action-note {
+  margin-top: .6rem;
+  padding: 0 .2rem;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--ink);
+}
+
+/* Who's on, and The team: a red rule above, no gradient underline. */
+.staff-ui .sched-section,
+.staff-ui .people-section { margin-top: 3rem; padding-top: 1.1rem; border-top: 3px solid var(--red); }
+.staff-ui .sched-label,
+.staff-ui .people-label { font-size: clamp(1.5rem, 2.6vw, 1.9rem); letter-spacing: -0.045em; line-height: 1.05; color: var(--ink); }
+.staff-ui .sched-label::after,
+.staff-ui .people-label::after { content: none; }
+.staff-ui .sched-lede,
+.staff-ui .people-lede { color: var(--ink-2); }
+.staff-ui .people-count { color: var(--red); }
+.staff-ui .people-head::after { border-color: var(--ink); }
+
+/* Schedule controls: pills. The one that is on fills with red. */
+.staff-ui .sched-views { gap: .35rem; padding: 0; background: none; }
+.staff-ui .sched-view { padding: .45rem .95rem; background: #f1e9dc; color: var(--ink); }
+.staff-ui .sched-view:hover { background: #e8dcc9; color: var(--ink); }
+.staff-ui .sched-view.is-active { background: var(--red); box-shadow: none; color: #fff; }
+.staff-ui .sched-refresh,
+.staff-ui .sched-back-today { border: 1.5px solid var(--ink); background: none; color: var(--ink); }
+.staff-ui .sched-refresh:hover,
+.staff-ui .sched-back-today:hover { border-color: var(--ink); background: var(--ink); color: #fff; }
+.staff-ui .sched-source { border-bottom: 1.5px solid var(--gold); color: var(--red); }
+.staff-ui .sched-source:hover { border-bottom-color: var(--red); }
+.staff-ui .sched-refreshed { color: var(--ink-2); }
+.staff-ui .sched-chip { border-color: rgba(20, 17, 14, 0.2); color: var(--ink); }
+.staff-ui .sched-chip:hover { border-color: var(--ink); color: var(--ink); }
+.staff-ui .sched-chip.is-active { border-color: var(--red); background: var(--red); color: #fff; }
+
+/* Schedule frames: a hairline, no shadow. */
+.staff-ui .sched-jumps,
+.staff-ui .sched-dayframe,
+.staff-ui .sched-scroll,
+.staff-ui .sched-board.is-loading { border: 1px solid var(--hair); box-shadow: none; }
+.staff-ui .sched-jump { border-right-color: var(--hair); color: var(--ink-2); }
+.staff-ui .sched-jump:hover { color: var(--ink); }
+.staff-ui .sched-jump.is-today { color: var(--red); }
+.staff-ui .sched-jump.is-on { background: var(--red); color: #fff; }
+.staff-ui .sched-jump.is-on .sched-jump-dot { background: #fff; }
+.staff-ui .sched-jump.is-on:focus-visible { box-shadow: inset 0 0 0 2px #fff; }
+.staff-ui .sched-day-name,
+.staff-ui .sched-tick { color: var(--ink-2); }
+.staff-ui .sched-day.is-today .sched-day-name { color: var(--red); }
+.staff-ui .sched-empty { color: var(--ink-2); }
+.staff-ui .sched-nudge { border-color: var(--ink); box-shadow: none; color: var(--ink); }
+.staff-ui .sched-nudge:hover { border-color: var(--ink); background: var(--ink); color: #fff; }
+
+/* The team: rows on a rule in place of cards, and a brighter color per role. */
+.staff-ui .people-card--admin { --tone: #c9a227; }
+.staff-ui .people-card--ops { --tone: #b31b1b; }
+.staff-ui .people-card--projects { --tone: #d97a12; }
+.staff-ui .people-card--apps { --tone: #7c3aed; }
+.staff-ui .people-card--digital { --tone: #2563c9; }
+.staff-ui .people-card--lead { --tone: #be185d; }
+.staff-ui .people-card--coord { --tone: #0d9488; }
+.staff-ui .people-card--staff { --tone: #1f9d5b; }
+.staff-ui .people-list { gap: 0 1.5rem; }
+.staff-ui .people-card {
+  padding: .8rem .5rem .8rem .2rem;
+  border: 0;
+  border-bottom: 1px solid var(--hair);
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+.staff-ui .people-card::before { display: none; }
+.staff-ui a.people-card:hover,
+.staff-ui a.people-card:focus-visible {
+  border-color: transparent;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--tone) 10%, transparent);
+  box-shadow: none;
+}
+.staff-ui .people-role,
+.staff-ui .people-email { color: var(--ink-2); }
+.staff-ui .people-group-label { color: var(--red); }
+.staff-ui .people-group-label span { color: var(--ink-2); }
+.staff-ui .people-chip { border-color: rgba(20, 17, 14, 0.2); background: none; color: var(--ink); }
+.staff-ui .people-chip span { color: var(--ink-2); }
+.staff-ui .people-chip:hover { border-color: var(--ink); background: none; }
+.staff-ui .people-chip.is-active { border-color: var(--red); background: var(--red); box-shadow: none; color: #fff; }
+.staff-ui .people-chip.is-active span { color: #fff; }
+
+.staff-ui .no-results {
+  padding: 1.5rem 0;
+  border: 0;
+  border-top: 3px solid var(--red);
+  border-radius: 0;
+  background: none;
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--ink);
+  text-align: left;
+}
+
+/* Panels opened from this page: the same red head as the nav. */
+.staff-ui .issues-panel-accent { display: none; }
+.staff-ui .issues-panel-head { padding: .95rem 1.25rem; border-bottom: 0; background: var(--red); }
+.staff-ui .issues-panel-seal { display: none; }
+.staff-ui .issues-panel-eyebrow { letter-spacing: .18em; color: var(--gold); }
+.staff-ui .issues-panel-title { margin-top: .2rem; font-size: 1.35rem; letter-spacing: -0.04em; color: #fff; }
+.staff-ui .issues-panel-btn--secondary,
+.staff-ui .issues-panel-btn--close {
+  border-color: rgba(255, 255, 255, 0.5);
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: none;
+  color: #fff;
+}
+.staff-ui .issues-panel-btn--secondary:hover,
+.staff-ui .issues-panel-btn--close:hover {
+  border-color: #fff;
+  background: #fff;
+  box-shadow: none;
+  color: var(--red-dark);
+  transform: none;
+}
+.staff-ui .issues-panel-dialog,
+.staff-ui .issues-embed-body,
+.staff-ui .issues-frame,
+.staff-ui .issues-loading { background: #fffdf9; }
+.staff-ui .issues-seg { gap: .4rem; padding: 0; background: none; }
+.staff-ui .issues-seg-btn { padding: .5rem 1.2rem; border-radius: 999px; background: #f1e9dc; color: var(--ink); }
+.staff-ui .issues-seg-btn:hover { background: #e8dcc9; color: var(--ink); }
+.staff-ui .issues-seg-btn.is-active { background: var(--red); box-shadow: none; color: #fff; }
+
+@media (max-width: 768px) {
+  .staff-ui #staff .action { padding: 1.15rem 4.25rem 1.2rem 1.25rem; border-radius: 16px; }
+  .staff-ui #staff .task-featured .action { padding: 1.5rem 4.6rem 1.6rem 1.4rem; border-radius: 20px; }
+  .staff-ui #staff .task-featured .action .action-title { font-size: 1.6rem; }
+  .staff-ui #staff .task-featured .action::after { right: 1.2rem; width: 2.6rem; height: 2.6rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .staff-ui #staff .action,
+  .staff-ui #staff .action::before,
+  .staff-ui #staff .action::after { transition: none; }
+  .staff-ui #staff .action:hover { transform: none; }
+  .staff-ui #staff .action:hover::before { transform: none; }
+}
