@@ -26708,5 +26708,584 @@
     }
    ]
   }
+ },
+ "CSalt": {
+  "https://www.csaltcornell.org/team.html": {
+   "url": "https://www.csaltcornell.org/team.html",
+   "items": [
+    {
+     "src": "https://www.csaltcornell.org/team/leader/lzhang.jpeg",
+     "alt": "Lenan Zhang",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Lenan Zhang",
+      "Faculty Advisor",
+      "Cornell Assistant Professor",
+      "lzhang@cornell.edu"
+     ],
+     "after": [],
+     "head": "Leadership"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/leader/slarson.JPG",
+     "alt": "Sonja Larson",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Sonja Larson",
+      "Full Team Lead",
+      "Chemistry '28",
+      "sl3542@cornell.edu"
+     ],
+     "after": [],
+     "head": "Lenan Zhang"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/leader/wzhang.JPG",
+     "alt": "Wilson Zhang",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Wilson Zhang",
+      "Full Team Lead",
+      "Chemical Engineering '28",
+      "wtz5@cornell.edu"
+     ],
+     "after": [
+      "Chemicals and Materials Subteam"
+     ],
+     "head": "Sonja Larson"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/matchem/aghosh.JPG",
+     "alt": "Anwesha Ghosh",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Anwesha Ghosh",
+      "Chemicals and Materials Lead",
+      "Materials Science Engineering '28",
+      "ag2662@cornell.edu"
+     ],
+     "after": [],
+     "head": "Chemicals and Materials Subteam"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/leader/wzhang.JPG",
+     "alt": "Wilson Zhang",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Wilson Zhang",
+      "Full Team Lead",
+      "Chemical Engineering '28",
+      "wtz5@cornell.edu"
+     ],
+     "after": [],
+     "head": "Anwesha Ghosh"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/matchem/fhartman.JPG",
+     "alt": "Findlay Hartman",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Findlay Hartman",
+      "Member",
+      "Materials Science Engineering '27"
+     ],
+     "after": [],
+     "head": "Wilson Zhang"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/matchem/abell.JPG",
+     "alt": "Alexis Bell",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Alexis Bell",
+      "Member",
+      "Earth and Atmospheric Science, Environment & Sustainability '28"
+     ],
+     "after": [],
+     "head": "Findlay Hartman"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/matchem/cmccarthy.JPG",
+     "alt": "Cullen McCarthy",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Cullen McCarthy",
+      "Member",
+      "Chemical Engineering '28"
+     ],
+     "after": [],
+     "head": "Alexis Bell"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/matchem/kwang.JPG",
+     "alt": "Kaylee Wang",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Kaylee Wang",
+      "Member",
+      "Engineering '29"
+     ],
+     "after": [],
+     "head": "Cullen McCarthy"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/blank.png",
+     "alt": "William O'Leary",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "William O'Leary",
+      "Member",
+      "Landscape Architecture '29"
+     ],
+     "after": [],
+     "head": "Kaylee Wang"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/blank.png",
+     "alt": "Ayesha Rahman",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Ayesha Rahman",
+      "Abroad",
+      "Electrical and Computer Engineering '28"
+     ],
+     "after": [],
+     "head": "William O'Leary"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/matchem/gcoleman.JPG",
+     "alt": "Grace Coleman",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Grace Coleman",
+      "Abroad",
+      "Chemical Engineering '27"
+     ],
+     "after": [],
+     "head": "Ayesha Rahman"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/matchem/madams.JPG",
+     "alt": "Maddie Adams",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Maddie Adams",
+      "Abroad",
+      "Chemical Engineering '27"
+     ],
+     "after": [
+      "Mechanical Subteam"
+     ],
+     "head": "Grace Coleman"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/mechanical/jantelo.JPG",
+     "alt": "Jackie Antelo",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Jackie Antelo",
+      "Mechanical Lead",
+      "Mechanical Engineering '28",
+      "ja866@cornell.edu"
+     ],
+     "after": [],
+     "head": "Mechanical Subteam"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/mechanical/slarson.jpg",
+     "alt": "Sonja Larson",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Sonja Larson",
+      "Full Team Lead",
+      "Chemistry '28",
+      "sl3542@cornell.edu"
+     ],
+     "after": [],
+     "head": "Jackie Antelo"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/mechanical/lwelle.JPG",
+     "alt": "Luca Welle",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Luca Welle",
+      "Member",
+      "Arts & Sciences '28",
+      "ljw237@cornell.edu"
+     ],
+     "after": [],
+     "head": "Sonja Larson"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/mechanical/mheering.JPG",
+     "alt": "Matt Heering",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Matt Heering",
+      "Member",
+      "Mechanical Engineering '27"
+     ],
+     "after": [],
+     "head": "Luca Welle"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/mechanical/owang.JPG",
+     "alt": "Oscar Wang",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Oscar Wang",
+      "Member",
+      "Environmental Engineering '28"
+     ],
+     "after": [],
+     "head": "Matt Heering"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/mechanical/ahubbell.JPG",
+     "alt": "Audrey Hubbell",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Audrey Hubbell",
+      "Member",
+      "Mechanical Engineering '28"
+     ],
+     "after": [],
+     "head": "Oscar Wang"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/blank.png",
+     "alt": "Haneefah Persaud",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Haneefah Persaud",
+      "Member",
+      "Engineering '29"
+     ],
+     "after": [],
+     "head": "Audrey Hubbell"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/mechanical/dchakrabarti.JPG",
+     "alt": "Deven Chakrabarti",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Deven Chakrabarti",
+      "Member",
+      "Chemical Engineering '27"
+     ],
+     "after": [],
+     "head": "Haneefah Persaud"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/mechanical/katkinson.JPG",
+     "alt": "Kasper Atkinson",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Kasper Atkinson",
+      "Student Advisor",
+      "Mechanical Engineering '27"
+     ],
+     "after": [],
+     "head": "Deven Chakrabarti"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/mechanical/mpianka.JPG",
+     "alt": "Matt Pianka",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Matt Pianka",
+      "Student Advisor",
+      "Mechanical Engineering '27"
+     ],
+     "after": [],
+     "head": "Kasper Atkinson"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/mechanical/mkinder.JPG",
+     "alt": "Max Kinder",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Max Kinder",
+      "Student Advisor",
+      "Mechanical Engineering '27"
+     ],
+     "after": [
+      "Business Subteam"
+     ],
+     "head": "Matt Pianka"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/business/koshea.jpeg",
+     "alt": "Kristen O'Shea",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Kristen O'Shea",
+      "Subteam Lead",
+      "Applied Economics and Management '28",
+      "kdo37@cornell.edu"
+     ],
+     "after": [],
+     "head": "Business Subteam"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/business/sweirens.JPG",
+     "alt": "Skylar Weirens",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Skylar Weirens",
+      "Member",
+      "ORIE '27"
+     ],
+     "after": [],
+     "head": "Kristen O'Shea"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/business/jvisioli.JPG",
+     "alt": "Jaden Visioli",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Jaden Visioli",
+      "Member",
+      "ORIE '27"
+     ],
+     "after": [],
+     "head": "Skylar Weirens"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/business/wmatanmi.JPG",
+     "alt": "Winifred Matanmi",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Winifred Matanmi",
+      "Member",
+      "Chemical Engineering '27"
+     ],
+     "after": [],
+     "head": "Jaden Visioli"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/business/mbeariault.JPG",
+     "alt": "Matias Beariault",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Matias Beariault",
+      "Member",
+      "Economics & History '29"
+     ],
+     "after": [],
+     "head": "Winifred Matanmi"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/business/jkorsah.JPG",
+     "alt": "John Korsah",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "John Korsah",
+      "Member",
+      "ORIE '29"
+     ],
+     "after": [],
+     "head": "Matias Beariault"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/business/dli.JPG",
+     "alt": "Dorothy Li",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Dorthoy Li",
+      "Member",
+      "ILR '29"
+     ],
+     "after": [],
+     "head": "John Korsah"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/business/rmohan.JPG",
+     "alt": "Ragini Mohan",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Ragini Mohan",
+      "Member",
+      "ORIE '29"
+     ],
+     "after": [],
+     "head": "Dorthoy Li"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/business/narana.jpg",
+     "alt": "Nick Arana",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Nick Arana",
+      "Member",
+      "ORIE '27"
+     ],
+     "after": [
+      "Community Connections Subteam"
+     ],
+     "head": "Ragini Mohan"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/community-connections/apark.JPG",
+     "alt": "Angela Park",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Angela Park",
+      "Community Connections Co-Lead",
+      "Public Policy '28",
+      "ahp85@cornell.edu"
+     ],
+     "after": [],
+     "head": "Community Connections Subteam"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/community-connections/anie.JPG",
+     "alt": "Alice Nie",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Alice Nie",
+      "Community Connections Co-Lead",
+      "Communications '28",
+      "jn578@cornell.edu"
+     ],
+     "after": [],
+     "head": "Angela Park"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/community-connections/cdefa.JPG",
+     "alt": "Cate Defa",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Cate Defa",
+      "Member",
+      "ORIE '27"
+     ],
+     "after": [],
+     "head": "Alice Nie"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/community-connections/snotch.JPG",
+     "alt": "Sam Notch",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Sam Notch",
+      "Member",
+      "HBHS '27"
+     ],
+     "after": [],
+     "head": "Cate Defa"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/community-connections/fmoizuddin.JPG",
+     "alt": "Fatima Moizuddin",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Fatima Moizuddin",
+      "Member",
+      "Mechanical Engineering '28"
+     ],
+     "after": [],
+     "head": "Sam Notch"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/community-connections/yhe.JPG",
+     "alt": "Yuxin He",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Yuxin He",
+      "Member",
+      "Architecture '29"
+     ],
+     "after": [],
+     "head": "Fatima Moizuddin"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/community-connections/ssony.png",
+     "alt": "Syna Sony",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Syna Sony",
+      "Member",
+      "ILR '28"
+     ],
+     "after": [],
+     "head": "Yuxin He"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/community-connections/isalaun.PNG",
+     "alt": "Isabelle Salaun",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Isabelle Salaun",
+      "Member",
+      "Chemistry '27"
+     ],
+     "after": [],
+     "head": "Syna Sony"
+    },
+    {
+     "src": "https://www.csaltcornell.org/team/blank.png",
+     "alt": "Sonya Martin",
+     "w": 174,
+     "h": 174,
+     "lines": [
+      "Sonya Martin",
+      "Member",
+      "Biomedical Engineering '28"
+     ],
+     "after": [
+      "CSalt",
+      "A student-led project team at Cornell University developing sustainable marine energy solutions.",
+      "Quick Links",
+      "About Us",
+      "Our Team",
+      "Projects"
+     ],
+     "head": "Isabelle Salaun"
+    }
+   ]
+  }
  }
 }
